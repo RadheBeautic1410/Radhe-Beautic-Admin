@@ -103,9 +103,11 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
             }
         }
         console.log(blocks, blocks.length);
-        const res = await axios.get(`http://localhost:5000/genImg?text=${blocks}`);
+        let url = process.env.NEXT_PUBLIC_SERVER_URL + `/genImg?text=${blocks}`;
+        const res = await axios.get(url);
         console.log(res.data);
-        const res2 = await axios.get(`http://localhost:5000/genImg2?text=${data.code.toUpperCase()}`);
+        let url2 = process.env.NEXT_PUBLIC_SERVER_URL + `/genImg2?text=${data.data.code.toUpperCase()}`;
+        const res2 = await axios.get(url2);
         // let rightText: string = ` ${data.code.toUpperCase()}   `;
         await loadWatermark(res2.data, res.data);
         // return res.data;
