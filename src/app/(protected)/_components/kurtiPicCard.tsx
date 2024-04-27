@@ -135,7 +135,7 @@ function KurtiPicCard(data: any) {
     }
     return (
         <div id='container' className='p-3 bg-slate-300'>
-            <img id={data.data.code} src={data.data.images[0].url} crossOrigin="anonymous" hidden></img>
+            <img id={data.data.code} src={data.data.images[0].url} crossOrigin="anonymous" height={'500px'} width={'500px'}></img>
             <img id={`${data.data.code}-visible`} src={data.data.images[0].url} crossOrigin="anonymous" height={'500px'} width={'500px'}></img>
 
 
