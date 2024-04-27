@@ -75,7 +75,7 @@ function KurtiPicCard(data: any) {
             contentType: 'image',
             image: leftText,
             imageWidth: imgDom2.width/3.1,
-            imageHeight: 120,
+            imageHeight: imgDom2.height/10.5,
             width: imgDom2.width,
             height: imgDom2.height,
             dom: imgDom2,
