@@ -74,7 +74,7 @@ function KurtiPicCard(data: any) {
         const watermark2 = new ImageWatermark({
             contentType: 'image',
             image: leftText,
-            imageWidth: 320,
+            imageWidth: imgDom2.width/3.1,
             imageHeight: 120,
             width: imgDom2.width,
             height: imgDom2.height,
