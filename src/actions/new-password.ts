@@ -4,7 +4,7 @@ import * as z from "zod"
 import { NewPasswordSchema } from "@/src/schemas"
 import bcrypt from "bcryptjs"
 import { db } from "@/src/lib/db";
-import { getUserByEmail } from "@/src/data/user";
+import { getUserByPhoneNumber } from "@/src/data/user";
 import { getPasswordResetTokenByToken } from "@/src/data/password-reset-token";
 
 
@@ -36,10 +36,10 @@ export const newPassword = async (
         return { error: "Token has expired" }
     }
 
-    const existingUser = await getUserByEmail(existingToken.email);
+    const existingUser = await getUserByPhoneNumber(existingToken.phoneNumber);
 
     if (!existingUser) {
-        return { error: "Email does not exist" };
+        return { error: "Phone Number does not exist" };
     }
 
     const { password } = validatedFields.data;
@@ -59,7 +59,5 @@ export const newPassword = async (
     })
 
     return { success: "Password updated!" }
-
-
 
 }
