@@ -70,7 +70,7 @@ function KurtiPicCard(data: any) {
             translatePlacement: 'top-end'
         });
         // let txt = ``+rightText+`  `;
-        console.log(imgDom2.width/3.1, imgDom2.height/11);
+        // console.log(imgDom2.width/3.1, imgDom2.height/11);
         const watermark2 = new ImageWatermark({
             contentType: 'image',
             image: leftText,
