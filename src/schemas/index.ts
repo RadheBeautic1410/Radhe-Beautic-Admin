@@ -104,7 +104,7 @@ export const RegisterSchema = z.object({
 });
 
 export const ResetSchema = z.object({
-    email: z.string().email({
+    phoneNumber: z.string().length(10, {
         message: "Email is required"
     }),
 });

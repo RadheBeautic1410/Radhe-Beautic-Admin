@@ -5,7 +5,7 @@ import { LoginSchema } from "@/src/schemas"
 import { signIn } from '@/src/auth'
 import { DEFAULT_LOGIN_REDIRECT } from "@/routes";
 import { AuthError } from "next-auth";
-import { generateTwoFactorToken, generateVerificationTOken } from "@/src/lib/token";
+// import { generateTwoFactorToken, generateVerificationTOken } from "@/src/lib/token";
 import { getUserByPhoneNumber } from "@/src/data/user";
 import { sendVerificationEmail, sendTwoFactorTokenEmail } from "@/src/lib/mail";
 import { getTwoFactorTokenByPhoneNumber } from "@/src/data/two-factor-token";
@@ -87,7 +87,7 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
 
         } else {
 
-            const twoFactorToken = await generateTwoFactorToken(existingUser.phoneNumber);
+            // const twoFactorToken = await generateTwoFactorToken(existingUser.phoneNumber);
             // await sendTwoFactorTokenEmail(
             //     twoFactorToken.phoneNumber,
             //     twoFactorToken.token

@@ -1,6 +1,6 @@
 "use server"
 
-import { getUserByEmail } from "@/src/data/user"
+import { getUserByPhoneNumber } from "@/src/data/user"
 import { getVerificationTOkenBYToken } from "@/src/data/verifiction-token"
 import { db } from "@/src/lib/db"
 
@@ -18,10 +18,10 @@ export const newVerification = async (token: string) => {
         return { error: "Token has expired" }
     }
 
-    const existingUser = await getUserByEmail(existingToken.email);
+    const existingUser = await getUserByPhoneNumber(existingToken.phoneNumber);
 
     if (!existingUser) {
-        return { error: "Email does not exist" };
+        return { error: "Phone Number does not exist" };
     }
 
     await db.user.update({
@@ -30,7 +30,7 @@ export const newVerification = async (token: string) => {
         },
         data: {
             emailVerified: new Date(),
-            email: existingToken.email
+            phoneNumber: existingToken.phoneNumber
         }
     })
 
@@ -38,5 +38,5 @@ export const newVerification = async (token: string) => {
         where: { id: existingToken.id }
     })
 
-    return { success: "Email Verified" }
+    return { success: "Phone number Verified" }
 }
