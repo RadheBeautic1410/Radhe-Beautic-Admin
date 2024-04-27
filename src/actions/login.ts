@@ -88,10 +88,10 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
         } else {
 
             const twoFactorToken = await generateTwoFactorToken(existingUser.phoneNumber);
-            await sendTwoFactorTokenEmail(
-                twoFactorToken.email,
-                twoFactorToken.token
-            )
+            // await sendTwoFactorTokenEmail(
+            //     twoFactorToken.phoneNumber,
+            //     twoFactorToken.token
+            // )
 
             return { twoFactor: true }
         }
