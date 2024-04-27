@@ -69,7 +69,7 @@ const Navbar = () => {
                                 />
                             </a>
                         </div>
-                        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+                        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
                             <Button
                                 asChild
                                 variant={pathname === "/upload" ? "default" : "outline"}
@@ -78,7 +78,7 @@ const Navbar = () => {
                             </Button>
                         </RoleGateForComponent>
 
-                        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+                        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
                             <Button
                                 asChild
                                 variant={pathname.includes('/catalogue') ? "default" : "outline"}
@@ -86,8 +86,8 @@ const Navbar = () => {
                                 <Link href="/catalogue">Catalogue</Link>
                             </Button>
                         </RoleGateForComponent>
-                        
-                        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+
+                        <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                             <Button
                                 asChild
                                 variant={pathname === "/request" ? "default" : "outline"}
@@ -170,8 +170,22 @@ const Navbar = () => {
                                 </Link>
                             </li>
 
-                            
-                            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+                            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER]}>
+
+                                <li className="text-balck">
+                                    <Link href="/upload" onClick={() => setNavbar(false)}>
+                                        Upload
+                                    </Link>
+                                </li>
+                            </RoleGateForComponent>
+
+                            <li className="text-balck">
+                                <Link href="/catalogue" onClick={() => setNavbar(false)}>
+                                    Catalogue
+                                </Link>
+                            </li>
+
+                            <RoleGateForComponent allowedRole={[UserRole.ADMIN,]}>
                                 <li className="text-balck">
                                     <Link href="/request" onClick={() => setNavbar(false)}>
                                         Requests

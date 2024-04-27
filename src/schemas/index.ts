@@ -81,7 +81,7 @@ export const SettingSchema = z.object({
 export const LoginSchema = z.object({
 
     phoneNumber: z.string().length(10, {
-        message: "Email is required"
+        message: "Phone Number is required"
     }),
     password: z.string().min(1, {
         message: "Password is required"

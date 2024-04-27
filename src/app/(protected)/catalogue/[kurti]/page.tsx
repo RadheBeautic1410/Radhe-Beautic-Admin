@@ -94,11 +94,13 @@ const ListPage = () => {
                         />
                     </div>
                 </CardContent>
-                <CardContent className="w-full flex flex-row space-evenely justify-center flex-wrap gap-3">
-                    {displayData.map((data, i) => (
-                        <KurtiPicCard data={data} key={i} />
-                    ))}
-                </CardContent>
+                {displayData ?
+                    <CardContent className="w-full flex flex-row space-evenely justify-center flex-wrap gap-3">
+                        {displayData.map((data, i) => (
+                            <KurtiPicCard data={data} key={i} />
+                        ))}
+                    </CardContent>
+                    : ""}
             </Card>
         </>
     )

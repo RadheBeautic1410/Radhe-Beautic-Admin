@@ -109,7 +109,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
         try {
             setDownloading2(true);
             let obj = JSON.stringify({ size: downloadSize, quantity: downloadQuantity });
-            const res = await axios.get(`http://localhost:5000/generate-pdf?data=${obj}&id=${data.code}`, {
+            const res = await axios.get(`${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf?data=${obj}&id=${data.code}`, {
                 responseType: 'blob'
             });
             console.log(res);
@@ -138,7 +138,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
         try {
             setDownloading1(true);
             let obj = JSON.stringify(data.sizes);
-            const res = await axios.get(`http://localhost:5000/generate-pdf2?data=${obj}&id=${data.code}`, {
+            const res = await axios.get(`${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${data.code}`, {
                 responseType: 'blob'
             });
             console.log(res);
@@ -235,7 +235,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
     return (
         <>
             {data ?
-                <div className='flex flex-row gap-3'>
+                <div className='flex flex-row flex-wrap space-evenely gap-3'>
                     <Button className='mr-3' asChild>
                         <DialogDemo
                             dialogTrigger="Edit Stock"

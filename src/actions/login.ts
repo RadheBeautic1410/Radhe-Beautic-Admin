@@ -28,7 +28,7 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
     const existingUser = await getUserByPhoneNumber(phoneNumber);
     console.log(existingUser);
     if (!existingUser || !existingUser.phoneNumber || !existingUser.password) {
-        return { error: "Email does not exist!" }
+        return { error: "Phone Number does not exist!" }
     }
 
     // if (!existingUser.emailVerified) {

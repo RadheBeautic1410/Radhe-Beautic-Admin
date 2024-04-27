@@ -1,10 +1,12 @@
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
+import axios from 'axios';
 import { log } from 'console';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react'
+import { toast } from 'sonner';
 import { ImageWatermark } from 'watermark-js-plus'
 
 interface KurtiPicCardSingleProps {
@@ -18,8 +20,19 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
     const [stockString, setStockString] = useState(``);
     let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
     const pathname = usePathname();
+    const [isBrowserMobile, setIsBrowserMobile] = useState(false);
+    useEffect(() => {
+        const handleResize = () => {
+            setIsBrowserMobile(window.innerWidth < 992);
+        };
+
+        window.addEventListener('resize', handleResize);
+        handleResize();
+
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
     function downloadImage(imageId: string) {
-        var image = document.getElementById(imageId) as HTMLImageElement;
+        var image = document.getElementById(`${data.code}${idx}`) as HTMLImageElement;
         var downloadLink = document.createElement('a');
         // console.log(image.src)
         downloadLink.href = image.src;
@@ -28,114 +41,91 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
         downloadLink.click();
         document.body.removeChild(downloadLink);
     }
-
-    useEffect(() => {
-        const imgDom = document.querySelector(`#${data.code}`) as HTMLImageElement;
-        const imgDom2 = document.querySelector(`#${data.code}`) as HTMLImageElement;
-        const loadWatermark = (rightText: string, leftText: string) => {
-            const watermark = new ImageWatermark({
-                contentType: 'multi-line-text',
-                content: rightText,
-                width: imgDom.width,
-                height: imgDom.height,
-                dom: imgDom,
-                rotate: 0,
-                translatePlacement: 'top-end',
-                fontColor: '#000',
-                globalAlpha: 1,
-                translateX: -10,
-                translateY: 100,
-                fontSize: '20px',
-                fontFamily: 'serif',
-                fontWeight: 'bold'
-            });
-            // let txt = ``+rightText+`  `;
-            const watermark2 = new ImageWatermark({
-                contentType: 'multi-line-text',
-                content: leftText,
-                width: 130,
-                height: imgDom2.height,
-                dom: imgDom2,
-                rotate: 0,
-                translatePlacement: 'top-start',
-                fontColor: '#000',
-                globalAlpha: 1,
-                translateX: -1000,
-                translateY: 150,
-                fontSize: '13px',
-                fontFamily: 'serif',
-                lineHeight: 16,
-                fontWeight: 'bold'
-            });
-            setWatermark2(watermark2);
-            setWatermark(watermark);
-            // watermark.create();
-        };
-
-        const findBlocks = () => {
-            let sizesArray: any[] = data.sizes;
-            sizesArray.sort((a, b) => selectSizes.indexOf(a.size) - selectSizes.indexOf(b.size));
-            let ele = [];
-            let blocks: string = ``;
-            let stk = ``;
-            for (let i = 0; i < sizesArray.length; i++) {
-                ele.push(selectSizes.indexOf(sizesArray[i].size.toUpperCase()));
-                if (selectSizes.indexOf(sizesArray[i].size.toUpperCase()) > 0) {
-                    ele.push(selectSizes.indexOf(sizesArray[i].size.toUpperCase()) - 1);
-                }
-                stk += `${sizesArray[i].size.toUpperCase()} - ${sizesArray[i].quantity}\n`;
-            }
-            console.log(stk);
-            setStockString(stk);
-            ele.sort((a, b) => a - b);
-            let S1 = ``;
-            for (let i = 0; i < ele.length; i++) {
-                if (i === 0 || ele[i] !== ele[i - 1]) {
-                    // console.log(i, S1.length,  selectSizes[ele[i]]?.length);
-                    if (S1.length + selectSizes[ele[i]]?.length + 2 <= 21) {
-                        S1 += ` ${selectSizes[ele[i]]} `;
-                        if (S1.length === 21) {
-                            blocks += S1;
-                            S1 = ``;
-                        }
-                        // console.log(i, S1);
-                    }
-                    else {
-                        while (S1.length <= 21) {
-                            S1 += ` `;
-                        }
-                        blocks += S1;
-                        S1 = `  ${selectSizes[ele[i]]} `;
-                    }
-                }
-            }
-            blocks += S1;
-            // console.log(blocks, blocks.length);
-            return blocks;
-        }
-
-        if (imgDom.complete) {
-            let rightText: string = ` ${data.code.toUpperCase()}   `;
-            let leftText: string = findBlocks();
-            loadWatermark(rightText, leftText);
-        } else {
-            imgDom.onload = function (this: GlobalEventHandlers, ev: Event) {
-                // Call loadWatermark function with the appropriate text argument
-                loadWatermark("", "");
-            };
-        }
-
-
-    }, [stockString]);
-
-    const handleClick = async () => {
+    const loadWatermark = async (rightText: string, leftText: string) => {
+        const imgDom = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
+        const imgDom2 = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
+        let width = isBrowserMobile ? 60 : 250;
+        let height = isBrowserMobile ? 25 : 90;
+        let width1 = isBrowserMobile ? 50 : 200;
+        let height1 = isBrowserMobile ? 15 : 50;
+        const watermark = new ImageWatermark({
+            contentType: 'image',
+            image: rightText,
+            imageWidth: width1,
+            imageHeight: height1,
+            width: imgDom.width,
+            height: imgDom.height,
+            dom: imgDom,
+            rotate: 0,
+            globalAlpha: 1,
+            translatePlacement: 'top-end'
+        });
+        // let txt = ``+rightText+`  `;
+        
+        const watermark2 = new ImageWatermark({
+            contentType: 'image',
+            image: leftText,
+            imageWidth: width,
+            imageHeight: height,
+            width: imgDom2.width,
+            height: imgDom2.height,
+            dom: imgDom2,
+            rotate: 0,
+            globalAlpha: 1,
+            translatePlacement: 'top-start'
+        });
         await watermark.create();
         await watermark2.create();
+        // setWatermark2(watermark2);
+        // setWatermark(watermark);
+        // watermark.create();
+    };
+    const findBlocks = async () => {
+        let sizesArray: any[] = data.sizes;
+        sizesArray.sort((a, b) => selectSizes.indexOf(a.size) - selectSizes.indexOf(b.size));
+        let ele = [];
+        let blocks: string = ``;
+        let stk = ``;
+        for (let i = 0; i < sizesArray.length; i++) {
+            ele.push(selectSizes.indexOf(sizesArray[i].size.toUpperCase()));
+            if (selectSizes.indexOf(sizesArray[i].size.toUpperCase()) > 0) {
+                ele.push(selectSizes.indexOf(sizesArray[i].size.toUpperCase()) - 1);
+            }
+            stk += `${sizesArray[i].size.toUpperCase()} - ${sizesArray[i].quantity}\n`;
+        }
+        console.log(stk);
+        setStockString(stk);
+        ele.sort((a, b) => a - b);
+        let S1 = ``;
+        for (let i = 0; i < ele.length; i++) {
+            if (i === 0 || ele[i] !== ele[i - 1]) {
+                blocks += `\u2063  ${selectSizes[ele[i]]}`
+            }
+        }
+        console.log(blocks, blocks.length);
+        const res = await axios.get(`http://localhost:5000/genImg?text=${blocks}`);
+        console.log(res.data);
+        const res2 = await axios.get(`http://localhost:5000/genImg2?text=${data.code.toUpperCase()}`);
+        // let rightText: string = ` ${data.code.toUpperCase()}   `;
+        await loadWatermark(res2.data, res.data);
+        // return res.data;
+    }
+
+    const handleClick = async () => {
+        const imgDom = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
+        const imgDom2 = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
+        if(imgDom.complete){
+            await findBlocks();
+        }
+        else {
+            toast.error('Image not loaded yet');
+        }
         downloadImage(data.code);
     }
     return (
         <div id='container' className='p-3 bg-slate-300'>
-            <img id={data.code} src={data.images[idx].url} crossOrigin="anonymous" height={'500px'} width={'500px'}></img>
+            <img id={`${data.code}${idx}-visible`} src={data.images[idx].url} crossOrigin="anonymous" width={'500px'} height={'500px'}></img>
+            <img id={`${data.code}${idx}`} src={data.images[idx].url} crossOrigin="anonymous" hidden></img>
             <Button className="mt-2" type='button' onClick={handleClick} variant={'outline'} key={'download'}>⬇️</Button>
         </div>
     )

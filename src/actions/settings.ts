@@ -24,19 +24,13 @@ export const settings = async (
     }
 
     if (values.password && values.newPassword && dbUser.password) {
-        const passwordsMatch = await bcrypt.compare(
-            values.password,
-            dbUser.password,
-        );
+        const passwordsMatch = (values.password === dbUser.password);
 
         if (!passwordsMatch) {
             return { error: "Incorrect password!" };
         }
 
-        const hashedPassword = await bcrypt.hash(
-            values.newPassword,
-            10,
-        );
+        const hashedPassword = values.newPassword
         values.password = hashedPassword;
         values.newPassword = undefined;
     }

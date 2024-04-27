@@ -19,7 +19,10 @@ export const register = async (values: z.infer<typeof RegisterSchema>) => {
     }
 
     const { phoneNumber, password, name, role } = validatedFields.data;
-
+    const existingUser = await getUserByPhoneNumber(phoneNumber);
+    if (existingUser) {
+        return { error: "Phone Number already exist!" }
+    }
     const hashedPassword = password;
 
     await db.user.create({
