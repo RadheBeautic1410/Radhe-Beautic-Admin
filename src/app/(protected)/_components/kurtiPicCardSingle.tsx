@@ -40,6 +40,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
+        image.src = data.images[idx].url
     }
     const loadWatermark = async (rightText: string, leftText: string) => {
         const imgDom = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
