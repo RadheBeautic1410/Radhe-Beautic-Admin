@@ -12,7 +12,7 @@ import {
     Video,
     X,
 } from "lucide-react";
-import { Dispatch, SetStateAction, useCallback, useState } from "react";
+import React, { Dispatch, SetStateAction, forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { ScrollArea } from "@/src/components/ui/scroll-area";
 import ProgressBar from "@/src/components/ui/progress";
 import { db } from "@/src/lib/db";
@@ -61,10 +61,26 @@ const OtherColor = {
     fillColor: "fill-gray-400",
 };
 
-const ImageUpload: React.FC<ChildProps> = ({onImageChange, images}) => {
+export interface ImageUploadRef {
+    reset: () => void;
+}
+
+
+const ImageUpload = React.forwardRef(({ onImageChange, images }: ChildProps, ref: React.Ref<ImageUploadRef>) => {
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
     const [imgs, setImgs] = useState<any[]>([]);
+
     const [filesToUpload, setFilesToUpload] = useState<FileUploadProgress[]>([]);
+
+    const reset = () => {
+        setUploadedFiles([]);
+        setImgs([]);
+        setFilesToUpload([]);
+    };
+
+    useImperativeHandle(ref, () => ({
+        reset
+    }));
 
     const getFileIconAndColor = (file: File) => {
         if (file.type.includes(FileTypes.Image)) {
@@ -120,8 +136,8 @@ const ImageUpload: React.FC<ChildProps> = ({onImageChange, images}) => {
     const removeFile = (file: File) => {
         let temp = [];
         console.log('uploaded', uploadedFiles);
-        for(let i = 0; i < uploadedFiles.length;i++){
-            if(uploadedFiles[i]!==file){
+        for (let i = 0; i < uploadedFiles.length; i++) {
+            if (uploadedFiles[i] !== file) {
                 console.log(i);
                 temp.push(images[i]);
             }
@@ -136,7 +152,7 @@ const ImageUpload: React.FC<ChildProps> = ({onImageChange, images}) => {
             return prevUploadProgress.filter((item) => item !== file);
         });
     };
-    
+
     const uploadImagetoBB = async (
         formData: FormData,
         onUploadProgress: (progressEvent: AxiosProgressEvent) => void,
@@ -164,7 +180,7 @@ const ImageUpload: React.FC<ChildProps> = ({onImageChange, images}) => {
                 }),
             ];
         });
-        
+
 
         const fileUploadBatch = acceptedFiles.map(async (file) => {
             const formData = new FormData();
@@ -177,7 +193,7 @@ const ImageUpload: React.FC<ChildProps> = ({onImageChange, images}) => {
             );
             console.log('xxx', imgs);
             let prevImages = imgs;
-            prevImages.push({url: res.data.data.url});
+            prevImages.push({ url: res.data.data.url });
             setImgs(prevImages);
             onImageChange(prevImages);
         });
@@ -207,7 +223,7 @@ const ImageUpload: React.FC<ChildProps> = ({onImageChange, images}) => {
                             <span className="font-semibold">Drag files</span>
                         </p>
                         <p className="text-xs text-gray-500">
-                            Click to upload files &#40;files should be under 10 MB &#41;
+                            Click to upload files &#40;files should be under 25 MB &#41;
                         </p>
                     </div>
                 </label>
@@ -229,7 +245,7 @@ const ImageUpload: React.FC<ChildProps> = ({onImageChange, images}) => {
                             {filesToUpload.map((fileUploadProgress, i) => {
                                 return (
                                     <div
-                                        key={`${fileUploadProgress.File.lastModified} - ${Math.floor(Math.random()*10000)}`}
+                                        key={`${fileUploadProgress.File.lastModified} - ${Math.floor(Math.random() * 10000)}`}
                                         className="flex justify-between gap-2 rounded-lg overflow-hidden border border-slate-100 group hover:pr-0 pr-2"
                                     >
                                         <div className="flex items-center flex-1 p-2">
@@ -312,6 +328,6 @@ const ImageUpload: React.FC<ChildProps> = ({onImageChange, images}) => {
             )}
         </>
     );
-}
+})
 
 export default ImageUpload;

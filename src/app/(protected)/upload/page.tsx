@@ -14,11 +14,11 @@ import {
     Video,
     X,
 } from "lucide-react";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState, useTransition } from "react";
 import { ScrollArea } from "@/src/components/ui/scroll-area";
 import ProgressBar from "@/src/components/ui/progress";
 import { db } from "@/src/lib/db";
-import ImageUpload from "../_components/imageUpload";
+import ImageUpload, { ImageUploadRef } from "../_components/imageUpload";
 import { Button } from "@/src/components/ui/button";
 import {
     Form, FormItem, FormLabel, FormControl, FormMessage, FormField,
@@ -33,6 +33,7 @@ import { partyAddition } from "@/src/actions/party";
 import { toast } from "sonner";
 import { categoryAddition } from "@/src/actions/category";
 import { kurtiAddition } from "@/src/actions/kurti";
+import { useRouter } from "next/navigation";
 
 interface party {
     id: string;
@@ -64,8 +65,8 @@ const AddSizeForm: React.FC<{ idx: number; sizes: Size[]; onAddSize: (sizes: Siz
                 let x = size;
                 let obj = { size: x, quantity };
                 let temp = sizes;
-                for(let i = 0; i < temp.length;i++){
-                    if(temp[i].size === x) {
+                for (let i = 0; i < temp.length; i++) {
+                    if (temp[i].size === x) {
                         toast.error('The size is already selected!!!');
                         return;
                     }
@@ -126,6 +127,8 @@ const AddSizeForm: React.FC<{ idx: number; sizes: Size[]; onAddSize: (sizes: Siz
 const UploadPage = () => {
     const [isPending, startTransition] = useTransition()
 
+    const imageUploadRef = useRef<ImageUploadRef>(null);
+
     const [party, setParty] = useState<any[]>([]);
     const [partyLoader, setPartyLoader] = useState(true);
     const [categoryLoader, setCategoryLoader] = useState(true);
@@ -135,6 +138,7 @@ const UploadPage = () => {
     const [generatorLoader, setGeneratorLoader] = useState(false);
     const [components, setComponents] = useState<any[]>([]);
     const [sizes, setSizes] = useState<Size[]>([]);
+    const router = useRouter();
 
     const handleAddSize = (sizes: Size[]) => {
         setSizes(sizes);
@@ -254,7 +258,15 @@ const UploadPage = () => {
                     .then((data) => {
                         if (data.success) {
                             form.reset();
+                            setSizes([]);
+                            setGeneratedCode("");
+                            setComponents([]);
+                            setImages([]);
+                            if (imageUploadRef.current) {
+                                imageUploadRef.current.reset();
+                            }
                             toast.success(data.success);
+                            router.refresh();
                         }
                     })
                     .catch(() => toast.error("Something went wrong!"));
@@ -306,7 +318,7 @@ const UploadPage = () => {
                 </p>
             </CardHeader>
             <CardContent className="text-center">
-                <ImageUpload onImageChange={handleImageChange} images={images} />
+                <ImageUpload onImageChange={handleImageChange} images={images} ref={imageUploadRef} />
                 <div className="text-left w-[100%]">
                     <Form {...form}>
                         {/* Add Category Component */}
@@ -338,7 +350,7 @@ const UploadPage = () => {
                                             </Select>
                                             <FormMessage />
                                         </FormItem>
-                                    )} 
+                                    )}
                                 />
                                 <div className="ml-3 mt-7">
                                     <Button
@@ -489,7 +501,7 @@ const UploadPage = () => {
                                             <Select
                                                 disabled={isPending}
                                                 onValueChange={field.onChange}
-                                                defaultValue={field.value}
+                                                defaultValue={field.value === "" ? undefined : field.value}
                                             >
                                                 <FormControl>
                                                     <SelectTrigger>
