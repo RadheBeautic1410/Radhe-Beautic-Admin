@@ -277,19 +277,20 @@ const UploadPage = () => {
     const CodeGenerator = async () => {
         try {
             setGeneratorLoader(true);
-            const response = await fetch('/api/kurti/count'); // Adjust the API endpoint based on your actual setup
-            const result = await response.json();
-            const count = result.data + 1;
             const categorySelected = form.getValues().category;
             if (categorySelected === "") {
                 toast.error('Please select the cateory first');
             }
-            else {
-                let code = categorySelected.substring(0, 3).toLowerCase();
-                let str = String(count).padStart(4, '0');
-                code = code.concat(str);
-                setGeneratedCode(code);
-            }
+            const response = await fetch(`/api/kurti/count?cat=${categorySelected}`); // Adjust the API endpoint based on your actual setup
+            const result = await response.json();
+            const count = result.data + 1;
+
+
+            let code = categorySelected.substring(0, 3).toLowerCase();
+            let str = String(count).padStart(4, '0');
+            code = code.concat(str);
+            setGeneratedCode(code);
+
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {

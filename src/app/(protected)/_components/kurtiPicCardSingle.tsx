@@ -62,12 +62,12 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
             translatePlacement: 'top-end'
         });
         // let txt = ``+rightText+`  `;
-        
+
         const watermark2 = new ImageWatermark({
             contentType: 'image',
             image: leftText,
-            imageWidth: imgDom2.width/3.1,
-            imageHeight: imgDom2.height/10.5,
+            imageWidth: imgDom2.width / 3.1,
+            imageHeight: imgDom2.height / 10.5,
             width: imgDom2.width,
             height: imgDom2.height,
             dom: imgDom2,
@@ -117,7 +117,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
     const handleClick = async () => {
         const imgDom = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
         const imgDom2 = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
-        if(imgDom.complete){
+        if (imgDom.complete) {
             await findBlocks();
         }
         else {
@@ -128,7 +128,9 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
     return (
         <div id='container' className='p-3 bg-slate-300'>
             <img id={`${data.code}${idx}-visible`} src={data.images[idx].url} crossOrigin="anonymous" width={'500px'} height={'500px'}></img>
-            <img id={`${data.code}${idx}`} src={data.images[idx].url} crossOrigin="anonymous" height={'auto'} width={'auto'} hidden></img>
+            <div className='w-[1000px] h-[1000px]' hidden>
+                <img id={`${data.code}${idx}`} className="h-full w-full object-cover" src={data.images[0].url} crossOrigin="anonymous"></img>
+            </div>
             <Button className="mt-2" type='button' onClick={handleClick} variant={'outline'} key={'download'}>⬇️</Button>
         </div>
     )

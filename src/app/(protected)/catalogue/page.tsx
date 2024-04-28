@@ -6,9 +6,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 interface category {
-    id: string;
     name: string
-    normalizedLowerCase: string;
+    count: any;
 }
 
 const ListPage = () => {
@@ -20,6 +19,7 @@ const ListPage = () => {
             try {
                 const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
                 const result = await response.json();
+                console.log(result);
                 const sortedCategory = (result.data || []).sort((a: category, b: category) => a.name.localeCompare(b.name));
                 setCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
             } catch (error) {
@@ -46,8 +46,8 @@ const ListPage = () => {
                         {category.map((org) => (
                             <div>
                                 {"✦ "}
-                                <Link key={org.id} href={`/catalogue/${org.name.toLowerCase()}`}>
-                                    {org.name}
+                                <Link key={org.name} href={`/catalogue/${org.name.toLowerCase()}`}>
+                                    {`${org.name} (${org.count})`}
                                 </Link>
                             </div>
                         ))}

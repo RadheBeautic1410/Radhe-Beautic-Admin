@@ -34,3 +34,18 @@ export const getAllCategory = async () => {
         return null;
     }
 };
+
+export const getAllCategoryWithCount = async () => {
+    try {
+        const category = await db.category.findMany({});
+        let arr = [];
+        for(let i = 0; i < category.length; i++) {
+            const data = await db.kurti.count({where: {category: category[i].name}});
+            arr.push({name: category[i].name, count: data});
+        }
+        return {category, counts: arr};
+    } catch (error) {
+        console.error('Error fetching category', error);
+        return null;
+    }
+};
