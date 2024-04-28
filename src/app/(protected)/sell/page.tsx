@@ -46,6 +46,17 @@ function SellPage() {
         }
     }
 
+    // const handleCheck = ()=>{
+    //     console.log(code);
+    //     if (code.length > 7) {
+    //         let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+    //         let temp = code.substring(7).toUpperCase();
+    //         if(selectSizes.includes(temp)){
+    //             handleSell();
+    //         }
+    //     }
+    // }
+
     return (
         <Card className="w-[90%]">
             <CardHeader>
@@ -61,7 +72,15 @@ function SellPage() {
                             className='w-[100%]'
                             placeholder='Enter code'
                             value={code}
-                            onChange={(e) => { setCode(e.target.value) }}
+                            onKeyUp={
+                                (e)=>{
+                                    if(e.key === 'Enter') {
+                                        handleSell();
+                                    }
+                                }
+                            }
+                            onChange={(e) => { setCode(e.target.value);}}
+                            // disabled
                         ></Input>
                     </div>
                     <Button type='button' className='mt-5' onClick={handleSell} disabled={selling}>
