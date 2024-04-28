@@ -51,6 +51,7 @@ export const sellKurti = async (code: string) => {
         }
         if (kurti?.sizes !== undefined) {
             let arr: any[] = kurti?.sizes;
+            let newArr: any[] = []
             for (let i = 0; i < arr?.length; i++) {
                 let obj = arr[i];
                 if (!obj) {
@@ -62,8 +63,13 @@ export const sellKurti = async (code: string) => {
                     }
                     else {
                         obj.quantity -= 1;
-                        arr[i] = obj;
+                        if (obj.quantity > 0) {
+                            newArr.push(obj);
+                        }
                     }
+                }
+                else{
+                    newArr.push(arr[i]);
                 }
             }
             const updateUser = await db.kurti.update({
@@ -71,7 +77,7 @@ export const sellKurti = async (code: string) => {
                     code: code.substring(0, 7).toLowerCase(),
                 },
                 data: {
-                    sizes: arr,
+                    sizes: newArr,
                 },
             })
 
