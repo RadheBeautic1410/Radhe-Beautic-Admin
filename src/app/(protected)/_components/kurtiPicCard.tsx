@@ -139,7 +139,7 @@ function KurtiPicCard(data: any) {
             <div className='w-[1000px] h-[1000px]' hidden>
                 <img id={data.data.code} className="h-full w-full object-cover" src={data.data.images[0].url}  crossOrigin="anonymous"></img>
             </div>
-            <img id={`${data.data.code}-visible`} src={data.data.images[0].url} crossOrigin="anonymous" height={'500px'} width={'500px'}></img>
+            <img id={`${data.data.code}-visible`} src={data.data.images[0].url} crossOrigin="anonymous" height={'300px'} width={'300px'}></img>
 
 
             <p key={'code'} className='font-bold'>{`Code: ${data.data.code.toUpperCase()}`}</p>

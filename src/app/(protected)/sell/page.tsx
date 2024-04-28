@@ -32,6 +32,7 @@ function SellPage() {
                 else {
                     toast.success('Sold Successfully');
                     // console.log(result);
+                    
                     setKurti(result.data.kurti);
                     setSellSize(result.data.kurti.sizes.length);
                 }
@@ -42,6 +43,7 @@ function SellPage() {
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
+            setCode("");
             setSelling(false);
         }
     }

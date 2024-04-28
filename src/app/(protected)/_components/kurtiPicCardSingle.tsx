@@ -127,7 +127,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
     }
     return (
         <div id='container' className='p-3 bg-slate-300'>
-            <img id={`${data.code}${idx}-visible`} src={data.images[idx].url} crossOrigin="anonymous" width={'500px'} height={'500px'}></img>
+            <img id={`${data.code}${idx}-visible`} src={data.images[idx].url} crossOrigin="anonymous" width={'300px'} height={'300px'}></img>
             <div className='w-[1000px] h-[1000px]' hidden>
                 <img id={`${data.code}${idx}`} className="h-full w-full object-cover" src={data.images[0].url} crossOrigin="anonymous"></img>
             </div>
