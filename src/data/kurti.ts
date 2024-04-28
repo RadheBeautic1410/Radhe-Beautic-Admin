@@ -1,4 +1,5 @@
 import { db } from "@/src/lib/db";
+import { error } from "console";
 
 export const getKurtiCount = async (cat: string) => {
     try {
@@ -31,6 +32,53 @@ export const getKurtiByCategory = async (category: string) => {
             }
         });
         return kurti;
+    } catch {
+        return null;
+    }
+}
+
+export const sellKurti = async (code: string) => {
+    try {
+        interface Size {
+            size: string;
+            quantity: number;
+        }
+        const kurti = await db.kurti.findUnique({
+            where: { code: code.substring(0, 7).toLowerCase() }
+        });
+        if (!kurti) {
+            return { error: 'No Kurti found!!!' };
+        }
+        if (kurti?.sizes !== undefined) {
+            let arr: any[] = kurti?.sizes;
+            for (let i = 0; i < arr?.length; i++) {
+                let obj = arr[i];
+                if (!obj) {
+                    break;
+                }
+                if (obj.size === code.substring(7)) {
+                    if (obj.quantity == 0) {
+                        return { error: 'Stock is equal to 0, add stock first' };
+                    }
+                    else {
+                        obj.quantity -= 1;
+                        arr[i] = obj;
+                    }
+                }
+            }
+            const updateUser = await db.kurti.update({
+                where: {
+                    code: code.substring(0, 7).toLowerCase(),
+                },
+                data: {
+                    sizes: arr,
+                },
+            })
+
+            return {success: 'Sold', kurti: updateUser};
+        }
+
+        return {error: 'Not in stock, update the stock!!!'};
     } catch {
         return null;
     }
