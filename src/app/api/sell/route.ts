@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
     try {
         const code = request.nextUrl.searchParams.get("code") || "";
-        console.log(code, code.substring(0, 7), code.substring(7));
+        // console.log(code, code.substring(0, 7), code.substring(7));
         const data = await sellKurti(code.toUpperCase());
         return new NextResponse(JSON.stringify({ data }), { status: 200 });
     } catch (error: any) {

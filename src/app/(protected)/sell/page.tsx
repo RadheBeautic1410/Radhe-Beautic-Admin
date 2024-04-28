@@ -24,14 +24,14 @@ function SellPage() {
             else {
                 const response = await fetch(`/api/sell?code=${code}`); // Adjust the API endpoint based on your actual setup
                 const result = await response.json();
-                console.log(result.data);
+                // console.log(result.data);
                 if (result.data.error) {
                     toast.error(result.data.error);
                     setKurti(null);
                 }
                 else {
                     toast.success('Sold Successfully');
-                    console.log(result);
+                    // console.log(result);
                     setKurti(result.data.kurti);
                     setSellSize(result.data.kurti.sizes.length);
                 }
