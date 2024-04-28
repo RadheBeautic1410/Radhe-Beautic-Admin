@@ -51,7 +51,8 @@ export const sellKurti = async (code: string) => {
         }
         if (kurti?.sizes !== undefined) {
             let arr: any[] = kurti?.sizes;
-            let newArr: any[] = []
+            let newArr: any[] = [];
+            let flag = 0;
             for (let i = 0; i < arr?.length; i++) {
                 let obj = arr[i];
                 if (!obj) {
@@ -62,29 +63,33 @@ export const sellKurti = async (code: string) => {
                         return { error: 'Stock is equal to 0, add stock first' };
                     }
                     else {
+                        flag = 1;
                         obj.quantity -= 1;
                         if (obj.quantity > 0) {
                             newArr.push(obj);
                         }
                     }
                 }
-                else{
+                else {
                     newArr.push(arr[i]);
                 }
             }
-            const updateUser = await db.kurti.update({
-                where: {
-                    code: code.substring(0, 7).toLowerCase(),
-                },
-                data: {
-                    sizes: newArr,
-                },
-            })
+            if (flag === 1) {
+                const updateUser = await db.kurti.update({
+                    where: {
+                        code: code.substring(0, 7).toLowerCase(),
+                    },
+                    data: {
+                        sizes: newArr,
+                    },
+                })
 
-            return {success: 'Sold', kurti: updateUser};
+                return { success: 'Sold', kurti: updateUser };
+            }
+
         }
 
-        return {error: 'Not in stock, update the stock!!!'};
+        return { error: 'Not in stock, update the stock!!!' };
     } catch {
         return null;
     }
