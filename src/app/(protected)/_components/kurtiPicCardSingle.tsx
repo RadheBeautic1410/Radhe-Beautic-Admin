@@ -31,17 +31,31 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
 
         return () => window.removeEventListener('resize', handleResize);
     }, []);
-    function downloadImage(imageId: string) {
-        var image = document.getElementById(`${data.code}${idx}`) as HTMLImageElement;
+
+    async function downloadImage(imageId: string) {
+        var image = document.getElementById(imageId) as HTMLImageElement;
+        var canvas = document.createElement('canvas');
+        var ctx = await canvas.getContext('2d');
+
+        canvas.width = image.width;
+        canvas.height = image.height;
+
+        // Draw image onto canvas
+        ctx?.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        // Convert canvas to compressed image format (JPEG)
+        var compressedImage = canvas.toDataURL('image/jpeg', 0.8);
         var downloadLink = document.createElement('a');
         // console.log(image.src)
-        downloadLink.href = image.src;
+        downloadLink.href = compressedImage;
         downloadLink.download = 'image.jpg';
+        // downloadLink.target = "_blank";
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
         image.src = data.images[idx].url
     }
+    
     const loadWatermark = async (rightText: string, leftText: string) => {
         const imgDom = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
         const imgDom2 = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
@@ -119,7 +133,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
         const imgDom2 = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
         if (imgDom.complete) {
             await findBlocks();
-            downloadImage(data.code);
+            downloadImage(`${data.code}${idx}`);
         }
         else {
             toast.error('Image not loaded yet');
@@ -128,7 +142,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
     return (
         <div id='container' className='p-3 bg-slate-300'>
             <img id={`${data.code}${idx}-visible`} src={data.images[idx].url} crossOrigin="anonymous" width={'300px'} height={'300px'}></img>
-            <div className='w-[1000px] h-[1000px]' hidden>
+            <div className='w-[2200px] h-[2200px]' hidden>
                 <img id={`${data.code}${idx}`} className="h-full w-full object-cover" src={data.images[0].url} crossOrigin="anonymous"></img>
             </div>
             <Button className="mt-2" type='button' onClick={handleClick} variant={'outline'} key={'download'}>⬇️</Button>

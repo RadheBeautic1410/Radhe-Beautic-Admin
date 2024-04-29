@@ -39,11 +39,22 @@ function KurtiPicCard(data: any) {
 
         return () => window.removeEventListener('resize', handleResize);
     }, []);
-    function downloadImage(imageId: string) {
+    async function downloadImage(imageId: string) {
         var image = document.getElementById(imageId) as HTMLImageElement;
+        var canvas = document.createElement('canvas');
+        var ctx = await canvas.getContext('2d');
+
+        canvas.width = image.width;
+        canvas.height = image.height;
+
+        // Draw image onto canvas
+        ctx?.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        // Convert canvas to compressed image format (JPEG)
+        var compressedImage = canvas.toDataURL('image/jpeg', 0.8);
         var downloadLink = document.createElement('a');
         // console.log(image.src)
-        downloadLink.href = image.src;
+        downloadLink.href = compressedImage;
         downloadLink.download = 'image.jpg';
         // downloadLink.target = "_blank";
         document.body.appendChild(downloadLink);
@@ -61,8 +72,8 @@ function KurtiPicCard(data: any) {
         const watermark = new ImageWatermark({
             contentType: 'image',
             image: rightText,
-            imageWidth: imgDom.width/6,
-            imageHeight: imgDom.height/14,
+            imageWidth: imgDom.width / 6,
+            imageHeight: imgDom.height / 14,
             width: imgDom.width,
             height: imgDom.height,
             dom: imgDom,
@@ -75,8 +86,8 @@ function KurtiPicCard(data: any) {
         const watermark2 = new ImageWatermark({
             contentType: 'image',
             image: leftText,
-            imageWidth: imgDom2.width/3.8,
-            imageHeight: imgDom2.height/12,
+            imageWidth: imgDom2.width / 3.8,
+            imageHeight: imgDom2.height / 12,
             width: imgDom2.width,
             height: imgDom2.height,
             dom: imgDom2,
@@ -86,6 +97,9 @@ function KurtiPicCard(data: any) {
         });
         await watermark.create();
         await watermark2.create();
+        // imgDom2.height = 2000;
+        // imgDom2.width = 2000;
+        // imgDom.classList.value = 'h-full w-full object-cover'
         // setWatermark2(watermark2);
         // setWatermark(watermark);
         // watermark.create();
@@ -126,7 +140,7 @@ function KurtiPicCard(data: any) {
     const handleClick = async () => {
         const imgDom = document.querySelector(`#${data.data.code}`) as HTMLImageElement;
         const imgDom2 = document.querySelector(`#${data.data.code}`) as HTMLImageElement;
-        if(imgDom.complete){
+        if (imgDom.complete) {
             await findBlocks();
             downloadImage(data.data.code);
         }
@@ -136,8 +150,8 @@ function KurtiPicCard(data: any) {
     }
     return (
         <div id='container' className='p-3 bg-slate-300'>
-            <div className='w-[600px] h-[600px]' hidden>
-                <img id={data.data.code} height={'600px'} width={'600px'} className="h-full w-full object-cover" src={data.data.images[0].url}  crossOrigin="anonymous"></img>
+            <div className='w-[2200px] h-[2200px]' hidden>
+                <img id={data.data.code} className="h-full w-full object-cover" src={data.data.images[0].url} crossOrigin="anonymous"></img>
             </div>
             <img id={`${data.data.code}-visible`} src={data.data.images[0].url} crossOrigin="anonymous" height={'300px'} width={'300px'}></img>
 
