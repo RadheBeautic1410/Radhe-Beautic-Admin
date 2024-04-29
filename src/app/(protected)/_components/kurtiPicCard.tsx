@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/src
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
 import axios from 'axios';
 import { log } from 'console';
+import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react'
@@ -22,8 +23,7 @@ interface kurti {
 
 function KurtiPicCard(data: any) {
     console.log(data);
-    const [watermark, setWatermark] = useState<any>(null);
-    const [watermark2, setWatermark2] = useState<any>(null);
+    const [downloading, setDownloading] = useState(false);
     const [stockString, setStockString] = useState(``);
     let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
     const pathname = usePathname();
@@ -51,11 +51,11 @@ function KurtiPicCard(data: any) {
         ctx?.drawImage(image, 0, 0, canvas.width, canvas.height);
 
         // Convert canvas to compressed image format (JPEG)
-        var compressedImage = canvas.toDataURL('image/jpeg', 0.8);
+        var compressedImage = canvas.toDataURL('image/jpeg', 0.2);
         var downloadLink = document.createElement('a');
         // console.log(image.src)
         downloadLink.href = compressedImage;
-        downloadLink.download = 'image.jpg';
+        downloadLink.download = `${imageId}.jpeg`;
         // downloadLink.target = "_blank";
         document.body.appendChild(downloadLink);
         downloadLink.click();
@@ -141,8 +141,10 @@ function KurtiPicCard(data: any) {
         const imgDom = document.querySelector(`#${data.data.code}`) as HTMLImageElement;
         const imgDom2 = document.querySelector(`#${data.data.code}`) as HTMLImageElement;
         if (imgDom.complete) {
+            setDownloading(true);
             await findBlocks();
-            downloadImage(data.data.code);
+            await downloadImage(data.data.code);
+            setDownloading(false);
         }
         else {
             toast.error('Image not loaded yet');
@@ -201,7 +203,12 @@ function KurtiPicCard(data: any) {
                 </Table>
             </div>
 
-            <Button type='button' onClick={handleClick} variant={'outline'} key={'download'}>⬇️</Button>
+            <Button type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
+                {downloading ?
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : ""}
+                ⬇️
+            </Button>
             <Link href={`${pathname}/${data.data.code.toLowerCase()}`} className='mt-0 pt-0'>
                 <Button type='button' className="ml-3" variant={'outline'} key={'edit'}>
                     ✏️

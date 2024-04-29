@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/src
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
 import axios from 'axios';
 import { log } from 'console';
+import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react'
@@ -21,6 +22,8 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
     let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
     const pathname = usePathname();
     const [isBrowserMobile, setIsBrowserMobile] = useState(false);
+    const [downloading, setDownloading] = useState(false);
+
     useEffect(() => {
         const handleResize = () => {
             setIsBrowserMobile(window.innerWidth < 992);
@@ -44,21 +47,21 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
         ctx?.drawImage(image, 0, 0, canvas.width, canvas.height);
 
         // Convert canvas to compressed image format (JPEG)
-        var compressedImage = canvas.toDataURL('image/jpeg', 0.8);
+        var compressedImage = canvas.toDataURL('image/jpeg', 0.2);
         var downloadLink = document.createElement('a');
         // console.log(image.src)
         downloadLink.href = compressedImage;
-        downloadLink.download = 'image.jpg';
+        downloadLink.download = `${imageId}.jpeg`;
         // downloadLink.target = "_blank";
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
         image.src = data.images[idx].url
     }
-    
+
     const loadWatermark = async (rightText: string, leftText: string) => {
-        const imgDom = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
-        const imgDom2 = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
+        const imgDom = document.querySelector(`#${data.code}-${idx}`) as HTMLImageElement;
+        const imgDom2 = document.querySelector(`#${data.code}-${idx}`) as HTMLImageElement;
         let width = isBrowserMobile ? 60 : 250;
         let height = isBrowserMobile ? 25 : 90;
         let width1 = isBrowserMobile ? 50 : 200;
@@ -129,11 +132,13 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
     }
 
     const handleClick = async () => {
-        const imgDom = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
-        const imgDom2 = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
+        const imgDom = document.querySelector(`#${data.code}-${idx}`) as HTMLImageElement;
+        const imgDom2 = document.querySelector(`#${data.code}-${idx}`) as HTMLImageElement;
         if (imgDom.complete) {
+            setDownloading(true);
             await findBlocks();
-            downloadImage(`${data.code}${idx}`);
+            await downloadImage(`${data.code}-${idx}`);
+            setDownloading(false);
         }
         else {
             toast.error('Image not loaded yet');
@@ -143,9 +148,14 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
         <div id='container' className='p-3 bg-slate-300'>
             <img id={`${data.code}${idx}-visible`} src={data.images[idx].url} crossOrigin="anonymous" width={'300px'} height={'300px'}></img>
             <div className='w-[2200px] h-[2200px]' hidden>
-                <img id={`${data.code}${idx}`} className="h-full w-full object-cover" src={data.images[0].url} crossOrigin="anonymous"></img>
+                <img id={`${data.code}-${idx}`} className="w-max-[2200px] h-max-[2200px] object-cover" src={data.images[0].url} crossOrigin="anonymous"></img>
             </div>
-            <Button className="mt-2" type='button' onClick={handleClick} variant={'outline'} key={'download'}>⬇️</Button>
+            <Button type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
+                {downloading ?
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : ""}
+                ⬇️
+            </Button>
         </div>
     )
 }
