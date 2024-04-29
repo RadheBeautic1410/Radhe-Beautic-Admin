@@ -4,6 +4,18 @@ import { error } from "console";
 export const getKurtiCount = async (cat: string) => {
     try {
         const party = await db.kurti.count({ where: { category: cat } });
+        if (cat === "KTD") {
+            return party + 2;
+        }
+        return party;
+    } catch {
+        return null;
+    }
+};
+
+export const getKurtiCountForCode = async (cat: string) => {
+    try {
+        const party = await db.kurti.count({ where: { category: cat } });
         return party;
     } catch {
         return null;
