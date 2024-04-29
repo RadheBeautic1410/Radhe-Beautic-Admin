@@ -61,7 +61,7 @@ model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   name          String?
   phoneNumber   String   @unique
-  email         String?   @unique
+  email         String?   
   emailVerified DateTime?
   image         String?
   password      String?
@@ -199,4 +199,5 @@ model Kurti {
     category      String
     code          String   @unique
     images        Json[]
+    isDeleted     Boolean  @default(false)
 }

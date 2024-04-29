@@ -3,7 +3,7 @@ import { error } from "console";
 
 export const getKurtiCount = async (cat: string) => {
     try {
-        const party = await db.kurti.count({ where: { category: cat } });
+        const party = await db.kurti.count({ where: { category: cat, isDeleted: false } });
         return party;
     } catch {
         return null;
@@ -28,7 +28,33 @@ export const getKurtiByCategory = async (category: string) => {
                 category: {
                     mode: 'insensitive',
                     endsWith: category
-                }
+                },
+                isDeleted: false
+            }
+        });
+        return kurti;
+    } catch {
+        return null;
+    }
+}
+
+export const deleteKurti = async (code: string, category: string) => {
+    try {
+        await db.kurti.update({
+            where: {
+                code: code.toLowerCase()
+            },
+            data: {
+                isDeleted: true
+            }
+        });
+        const kurti = await db.kurti.findMany({
+            where: {
+                category: {
+                    mode: 'insensitive',
+                    endsWith: category
+                },
+                isDeleted: false
             }
         });
         return kurti;
@@ -90,6 +116,23 @@ export const sellKurti = async (code: string) => {
         }
 
         return { error: 'Not in stock, update the stock!!!' };
+    } catch {
+        return null;
+    }
+}
+
+export const migrate = async () => {
+    try {
+        const kurti = await db.kurti.updateMany({
+            where: {
+                
+            },
+            data: {
+                isDeleted: false
+            }
+        });
+        
+        return kurti;
     } catch {
         return null;
     }

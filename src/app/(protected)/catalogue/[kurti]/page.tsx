@@ -46,6 +46,13 @@ const ListPage = () => {
         setDisplayData(kurtiData);
     };
     let paths = pathname.split('/');
+
+    const handleKurtiDelete = async (data: kurti[])=>{
+        console.log('data', [...data]);
+        await setKurtiData([...data]);
+        setCategoryLoader(true);
+    }
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -55,8 +62,8 @@ const ListPage = () => {
                     setValid(result.data);
                     const response2 = await fetch(`/api/kurti/getByCategory?category=${paths[2]}`);
                     const result2 = await response2.json();
-                    setKurtiData(result2.data);
                     setDisplayData(result2.data);
+                    setKurtiData(result2.data);
                     // console.log(result2.data);
                 }
                 else {
@@ -68,8 +75,10 @@ const ListPage = () => {
                 setCategoryLoader(false);
             }
         };
-        fetchData();
-    }, []);
+        if(categoryLoader){
+            fetchData();
+        }
+    }, [paths, categoryLoader, setKurtiData]);
 
     return (
         <>
@@ -97,7 +106,7 @@ const ListPage = () => {
                 {displayData ?
                     <CardContent className="w-full flex flex-row space-evenely justify-center flex-wrap gap-3">
                         {displayData.map((data, i) => (
-                            <KurtiPicCard data={data} key={i} />
+                            <KurtiPicCard data={data} key={i} onKurtiDelete={handleKurtiDelete}/>
                         ))}
                     </CardContent>
                     : ""}
