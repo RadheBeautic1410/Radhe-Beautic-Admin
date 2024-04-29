@@ -61,8 +61,8 @@ function KurtiPicCard(data: any) {
         const watermark = new ImageWatermark({
             contentType: 'image',
             image: rightText,
-            imageWidth: width1,
-            imageHeight: height1,
+            imageWidth: imgDom.width/6,
+            imageHeight: imgDom.height/14,
             width: imgDom.width,
             height: imgDom.height,
             dom: imgDom,
@@ -75,8 +75,8 @@ function KurtiPicCard(data: any) {
         const watermark2 = new ImageWatermark({
             contentType: 'image',
             image: leftText,
-            imageWidth: imgDom2.width/3.1,
-            imageHeight: imgDom2.height/10.5,
+            imageWidth: imgDom2.width/3.8,
+            imageHeight: imgDom2.height/12,
             width: imgDom2.width,
             height: imgDom2.height,
             dom: imgDom2,
@@ -128,16 +128,16 @@ function KurtiPicCard(data: any) {
         const imgDom2 = document.querySelector(`#${data.data.code}`) as HTMLImageElement;
         if(imgDom.complete){
             await findBlocks();
+            downloadImage(data.data.code);
         }
         else {
             toast.error('Image not loaded yet');
         }
-        downloadImage(data.data.code);
     }
     return (
         <div id='container' className='p-3 bg-slate-300'>
-            <div className='w-[1000px] h-[1000px]' hidden>
-                <img id={data.data.code} className="h-full w-full object-cover" src={data.data.images[0].url}  crossOrigin="anonymous"></img>
+            <div className='w-[500px] h-[500px]' hidden>
+                <img id={data.data.code} height={'500px'} width={'500px'} className="h-full w-full object-cover" src={data.data.images[0].url}  crossOrigin="anonymous"></img>
             </div>
             <img id={`${data.data.code}-visible`} src={data.data.images[0].url} crossOrigin="anonymous" height={'300px'} width={'300px'}></img>
 

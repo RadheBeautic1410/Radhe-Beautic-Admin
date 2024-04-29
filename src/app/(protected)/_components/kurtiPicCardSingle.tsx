@@ -52,8 +52,8 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
         const watermark = new ImageWatermark({
             contentType: 'image',
             image: rightText,
-            imageWidth: width1,
-            imageHeight: height1,
+            imageWidth: imgDom.width/6,
+            imageHeight: imgDom.height/14,
             width: imgDom.width,
             height: imgDom.height,
             dom: imgDom,
@@ -119,11 +119,11 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
         const imgDom2 = document.querySelector(`#${data.code}${idx}`) as HTMLImageElement;
         if (imgDom.complete) {
             await findBlocks();
+            downloadImage(data.code);
         }
         else {
             toast.error('Image not loaded yet');
         }
-        downloadImage(data.code);
     }
     return (
         <div id='container' className='p-3 bg-slate-300'>
