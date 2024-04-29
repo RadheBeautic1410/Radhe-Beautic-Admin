@@ -109,7 +109,7 @@ const ModeratorPage = () => {
                             </TableHeader>
                             <TableBody>
                                 {users.map((user) => (
-                                    user.role !== UserRole.ADMIN &&
+                                    user.role !== UserRole.MOD &&
                                     (<ModeratorRow key={user.id} userData={user} onUpdateUserData={updateUserData} onDeleteUserData={deleteUserData} />)
                                 ))}
                             </TableBody>

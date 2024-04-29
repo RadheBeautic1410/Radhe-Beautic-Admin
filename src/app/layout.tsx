@@ -12,7 +12,7 @@ import { Toaster } from "@/src/components/ui/sonner"
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Radhe Beutic',
+  title: 'Radhe Beautic',
   description: 'Unlock your destiny with ACD Referrals',
 }
 

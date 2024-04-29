@@ -21,7 +21,7 @@ export default function Home() {
             <div className='space-y-6 text-center'>
                 <div className="flex flex-row items-center">
                     <Logo />
-                    <h1 className={cn('text-6xl font-semibold text-white drop-shadow-md', font.className,)}>RADHE BEUTIC</h1>
+                    <h1 className={cn('text-6xl font-semibold text-white drop-shadow-md', font.className,)}>RADHE Beautic</h1>
                 </div>
                 <div className="flex justify-center gap-x-2">
                     <LoginButton>
