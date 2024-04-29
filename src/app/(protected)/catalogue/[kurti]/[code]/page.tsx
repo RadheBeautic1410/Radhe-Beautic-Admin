@@ -1,4 +1,4 @@
-"use client";
+// "use client";
 
 import PageLoader from '@/src/components/loader';
 import { Card, CardContent, CardHeader } from '@/src/components/ui/card';
