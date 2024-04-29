@@ -55,7 +55,7 @@ function KurtiPicCard(data: any) {
         var downloadLink = document.createElement('a');
         // console.log(image.src)
         downloadLink.href = compressedImage;
-        downloadLink.download = `${imageId}.jpeg`;
+        downloadLink.download = `${imageId}.jpg`;
         // downloadLink.target = "_blank";
         document.body.appendChild(downloadLink);
         downloadLink.click();
