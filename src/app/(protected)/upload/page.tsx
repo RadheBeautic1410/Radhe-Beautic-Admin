@@ -85,6 +85,7 @@ const AddSizeForm: React.FC<{ idx: number; sizes: Size[]; onAddSize: (sizes: Siz
             }
         };
 
+
         return (
             <div>
                 <h3>Add New Size</h3>
@@ -139,10 +140,42 @@ const UploadPage = () => {
     const [components, setComponents] = useState<any[]>([]);
     const [sizes, setSizes] = useState<Size[]>([]);
     const router = useRouter();
+    const [barcodeDownloading, setBarcodeDownloading] = useState(false);
 
     const handleAddSize = (sizes: Size[]) => {
         setSizes(sizes);
     };
+
+    const handleBarcodeDownload = async () => {
+        if (sizes.length === 0 || generatedCode.length === 0 || images.length === 0) {
+            toast.error('Fill out the form first!!!');
+        }
+        else {
+            try {
+                setBarcodeDownloading(true);
+                let obj = JSON.stringify(sizes);
+                const res = await axios.get(`${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${generatedCode}`, {
+                    responseType: 'blob'
+                });
+                console.log(res);
+                let blob = res.data;
+                console.log(blob);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'document.pdf';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (e: any) {
+                console.log(e.message);
+            }
+            finally {
+                setBarcodeDownloading(false);
+            }
+        }
+    }
 
     const addComponent = () => {
         setComponents([...components,
@@ -572,6 +605,18 @@ const UploadPage = () => {
                                     </Button>
                                 </div>
                             </div>
+                            <Button 
+                                className="mr-2" 
+                                onClick={handleBarcodeDownload} 
+                                disabled={isPending || barcodeDownloading}
+                                type="button"
+                            >
+                                {barcodeDownloading ?
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    : ""}
+
+                                Download Full Stock
+                            </Button>
                             <Button
                                 type="button"
                                 disabled={isPending}
