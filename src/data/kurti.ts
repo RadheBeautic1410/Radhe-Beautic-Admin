@@ -3,7 +3,7 @@ import { error } from "console";
 
 export const getKurtiCount = async (cat: string) => {
     try {
-        const party = await db.kurti.count({ where: { category: cat, isDeleted: false } });
+        const party = await db.kurti.count({ where: { category: cat } });
         return party;
     } catch {
         return null;
