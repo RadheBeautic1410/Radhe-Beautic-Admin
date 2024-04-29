@@ -13,7 +13,7 @@ export const getKurtiCount = async (cat: string) => {
 export const getKurtiByCode = async (code: string) => {
     try {
         const kurti = await db.kurti.findUnique({
-            where: { code }
+            where: { code, isDeleted: false},
         });
         return kurti;
     } catch {
@@ -70,7 +70,7 @@ export const sellKurti = async (code: string) => {
             quantity: number;
         }
         const kurti = await db.kurti.findUnique({
-            where: { code: code.substring(0, 7).toLowerCase() }
+            where: { code: code.substring(0, 7).toLowerCase(), isDeleted: false }
         });
         if (!kurti) {
             return { error: 'No Kurti found!!!' };
