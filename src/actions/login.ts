@@ -11,6 +11,8 @@ import { sendVerificationEmail, sendTwoFactorTokenEmail } from "@/src/lib/mail";
 import { getTwoFactorTokenByPhoneNumber } from "@/src/data/two-factor-token";
 import { db } from "@/src/lib/db";
 import { getTwoFactorConfirmationByUserId } from "@/src/data/two-factor-confirmation";
+import { currentRole, currentUser } from "../lib/auth";
+import { UserRole } from "@prisma/client";
 
 
 
@@ -30,7 +32,7 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
     if (!existingUser || !existingUser.phoneNumber || !existingUser.password) {
         return { error: "Phone Number does not exist!" }
     }
-
+    const role = existingUser.role;
     // if (!existingUser.emailVerified) {
     //     const verifictionToken = await generateVerificationTOken(
     //         existingUser.phoneNumber,
@@ -98,10 +100,17 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
     }
 
     try {
+        const user = await currentUser();
+        
+        console.log("role", role);
+        let url = DEFAULT_LOGIN_REDIRECT;
+        if(role === UserRole.SELLER){
+            url = '/sell';
+        }
         await signIn("credentials", {
             phoneNumber,
             password,
-            redirectTo: DEFAULT_LOGIN_REDIRECT
+            redirectTo: url
         })
     } catch (error) {
         if (error instanceof AuthError) {

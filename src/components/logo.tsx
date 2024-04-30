@@ -10,7 +10,7 @@ const Logo = () => {
         <Image
             // onClick={() => router.push('/')}
             className="hidden md:block"
-            src="/images/logo.png"
+            src="/images/logoRB.png"
             height="80"
             width="80"
             alt="Logo"

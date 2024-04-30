@@ -179,7 +179,7 @@ const Navbar = () => {
                                 </Link>
                             </li>
 
-                            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER]}>
+                            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
 
                                 <li className="text-balck">
                                     <Link href="/upload" onClick={() => setNavbar(false)}>
