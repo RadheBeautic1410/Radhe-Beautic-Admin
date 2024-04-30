@@ -16,14 +16,14 @@ interface KurtiPicCardSingleProps {
 }
 
 const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) => {
-    const [watermark, setWatermark] = useState<any>(null);
-    const [watermark2, setWatermark2] = useState<any>(null);
+    // const [watermark, setWatermark] = useState<any>(null);
+    // const [watermark2, setWatermark2] = useState<any>(null);
     const [stockString, setStockString] = useState(``);
     let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
-    const pathname = usePathname();
+    // const pathname = usePathname();
     const [isBrowserMobile, setIsBrowserMobile] = useState(false);
     const [downloading, setDownloading] = useState(false);
-
+    console.log(idx, data.code);
     useEffect(() => {
         const handleResize = () => {
             setIsBrowserMobile(window.innerWidth < 992);
@@ -148,7 +148,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
         <div id='container' className='p-3 bg-slate-300'>
             <img id={`${data.code}${idx}-visible`} src={data.images[idx].url} crossOrigin="anonymous" width={'300px'} height={'300px'}></img>
             <div className='w-[2200px] h-[2200px]' hidden>
-                <img id={`${data.code}-${idx}`} className="w-max-[2200px] h-max-[2200px] object-cover" src={data.images[0].url} crossOrigin="anonymous"></img>
+                <img id={`${data.code}-${idx}`} className="w-max-[2200px] h-max-[2200px] object-cover" src={data.images[idx].url} crossOrigin="anonymous"></img>
             </div>
             <Button type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
                 {downloading ?
