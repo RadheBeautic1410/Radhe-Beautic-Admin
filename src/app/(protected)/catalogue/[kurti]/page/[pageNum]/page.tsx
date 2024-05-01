@@ -24,6 +24,7 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/src/components/ui/pagination"
+import NotAllowedPage from '@/src/app/(protected)/_components/errorPages/NotAllowedPage';
 
 interface category {
     id: string;
@@ -291,7 +292,7 @@ const KurtiListPageHelper = () => {
                 <KurtiListPage/>
             </RoleGateForComponent>
             <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
-                <KurtiListPage/>
+                <NotAllowedPage/>
             </RoleGateForComponent>
         </>
     );
