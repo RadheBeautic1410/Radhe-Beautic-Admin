@@ -75,7 +75,7 @@ export const { handlers: { GET, POST }, auth,
 
             if (session.user) {
                 session.user.name = token.name;
-                session.user.email = token.email;
+                // session.user.phoneNumber = token.phoneNumber;
                 session.user.organization = token.organization as string;
 
                 session.user.isOAuth = token.isOAuth as boolean;
@@ -97,7 +97,7 @@ export const { handlers: { GET, POST }, auth,
 
             token.isOAuth = !!existingAccount;
             token.name = existingUser.name;
-            token.email = existingUser.email;
+            token.phoneNumber = existingUser.phoneNumber;
             token.role = existingUser.role;
             token.organization = existingUser.organization;
             token.isTwoFactorEnabled = existingUser.isTwoFactorEnabled

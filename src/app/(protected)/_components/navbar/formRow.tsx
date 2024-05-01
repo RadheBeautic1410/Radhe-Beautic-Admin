@@ -44,7 +44,7 @@ import { Input } from "@/src/components/ui/input";
 import { formDelete, formUpdate } from "@/src/actions/formUpdate";
 import { DialogFooter } from "@/src/components/ui/dialog";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
-import { VerifierDetail } from "./verifierDetail";
+import { VerifierDetail } from "../request/verifierDetail";
 
 
 export const FormRow = ({ formData, onUpdateFormData, onDeleteFormData }: formRowDataProps) => {

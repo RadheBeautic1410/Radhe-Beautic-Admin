@@ -5,9 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import KurtiPicCard from "../../_components/kurtiPicCard";
+import KurtiPicCard from "../../_components/kurti/kurtiPicCard";
 import PageLoader from "@/src/components/loader";
 import SearchBar from '@mkyy/mui-search-bar'
+import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
+import NotAllowedPage from "../../_components/errorPages/NotAllowedPage";
+import { UserRole } from "@prisma/client";
 
 interface category {
     id: string;
@@ -115,4 +118,17 @@ const ListPage = () => {
     )
 }
 
-export default ListPage;
+const CatalogueHelper = () => {
+    return (
+        <>
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+                <ListPage/>
+            </RoleGateForComponent>
+            <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
+                <NotAllowedPage/>
+            </RoleGateForComponent>
+        </>
+    );
+}
+
+export default CatalogueHelper;

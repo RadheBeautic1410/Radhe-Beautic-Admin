@@ -1,14 +1,17 @@
 "use client";
 
+import { RoleGateForComponent } from '@/src/components/auth/role-gate-component';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/src/components/ui/card';
 import { Input } from '@/src/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
+import { UserRole } from '@prisma/client';
 import { Value } from '@radix-ui/react-select';
 import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 import React, { useState } from 'react'
 import { toast } from 'sonner';
+import NotAllowedPage from '../_components/errorPages/NotAllowedPage';
 
 function SellPage() {
     const [code, setCode] = useState("");
@@ -162,4 +165,17 @@ function SellPage() {
     )
 }
 
-export default SellPage
+const SellerHelp = () =>{
+    return (
+        <>
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.SELLER]}>
+                <SellPage/>
+            </RoleGateForComponent>
+            <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
+                <NotAllowedPage/>
+            </RoleGateForComponent>
+        </>
+    )
+}
+
+export default SellerHelp

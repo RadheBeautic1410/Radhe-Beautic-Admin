@@ -4,8 +4,11 @@ import PageLoader from '@/src/components/loader';
 import { Card, CardContent, CardHeader } from '@/src/components/ui/card';
 import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react'
-import KurtiPicCardSingle from '../../../_components/kurtiPicCardSingle';
-import KurtiUpdate from '../../../_components/kurtiUpdate';
+import KurtiPicCardSingle from '../../../_components/kurti/kurtiPicCardSingle';
+import KurtiUpdate from '../../../_components/kurti/kurtiUpdate';
+import { RoleGateForComponent } from '@/src/components/auth/role-gate-component';
+import NotAllowedPage from '../../../_components/errorPages/NotAllowedPage';
+import { UserRole } from '@prisma/client';
 interface kurti {
     id: string;
     category: string;
@@ -73,4 +76,18 @@ function OneKurtiPage() {
     )
 }
 
-export default OneKurtiPage
+const CatalogueKurtiHelper = () => {
+    return (
+        <>
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+                <OneKurtiPage/>
+                
+            </RoleGateForComponent>
+            <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
+                <NotAllowedPage/>
+            </RoleGateForComponent>
+        </>
+    );
+}
+
+export default CatalogueKurtiHelper;

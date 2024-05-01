@@ -18,7 +18,7 @@ import { useCallback, useEffect, useReducer, useRef, useState, useTransition } f
 import { ScrollArea } from "@/src/components/ui/scroll-area";
 import ProgressBar from "@/src/components/ui/progress";
 import { db } from "@/src/lib/db";
-import ImageUpload, { ImageUploadRef } from "../_components/imageUpload";
+import ImageUpload, { ImageUploadRef } from "../_components/upload/imageUpload";
 import { Button } from "@/src/components/ui/button";
 import {
     Form, FormItem, FormLabel, FormControl, FormMessage, FormField,
@@ -34,6 +34,10 @@ import { toast } from "sonner";
 import { categoryAddition } from "@/src/actions/category";
 import { kurtiAddition } from "@/src/actions/kurti";
 import { useRouter } from "next/navigation";
+import { currentRole } from "@/src/lib/auth";
+import { UserRole } from "@prisma/client";
+import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
+import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 
 interface party {
     id: string;
@@ -238,6 +242,7 @@ const UploadPage = () => {
 
     useEffect(() => {
         const fetchData = async () => {
+            
             try {
                 const response = await fetch('/api/party'); // Adjust the API endpoint based on your actual setup
                 const result = await response.json();
@@ -633,4 +638,17 @@ const UploadPage = () => {
     );
 }
 
-export default UploadPage;
+const UploadHelper = () => {
+    return (
+        <>
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+                <UploadPage/>
+            </RoleGateForComponent>
+            <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
+                <NotAllowedPage/>
+            </RoleGateForComponent>
+        </>
+    )
+}
+
+export default UploadHelper;

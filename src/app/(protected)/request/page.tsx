@@ -8,10 +8,11 @@ import { useEffect, useState } from "react";
 
 import { Table, TableBody, TableCaption, TableHead, TableHeader, TableRow, } from "@/src/components/ui/table"
 
-import { ModeratorRow } from "../_components/moderatorRow";
+import { ModeratorRow } from "../_components/request/moderatorRow";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import PageLoader from "@/src/components/loader";
 import { useCurrentRole } from "@/src/hooks/use-currrent-role";
+import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 
 
 
@@ -122,4 +123,17 @@ const ModeratorPage = () => {
     );
 };
 
-export default ModeratorPage;
+const ModeratorPage2 = () => {
+    return (
+        <>
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+                <ModeratorPage />
+            </RoleGateForComponent>
+            <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.UPLOADER]}>
+                <NotAllowedPage/>
+            </RoleGateForComponent>
+        </>
+    );
+}
+
+export default ModeratorPage2;

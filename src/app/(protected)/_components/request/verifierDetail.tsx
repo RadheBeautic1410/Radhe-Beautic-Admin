@@ -131,24 +131,6 @@ export const VerifierDetail = ({ id }: referrerDataProps) => {
                             <p className="text-sm text-muted-foreground">
                                 {details?.phoneNumber}
                             </p>
-                            {/* <p className="text-sm font-medium leading-none">
-                                Organization
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                {details?.organization}
-                            </p>
-                            <p className="text-sm font-medium leading-none">
-                                Verification Status
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                {details?.isVerified ? "True" : "False"}
-                            </p>
-                            <p className="text-sm font-medium leading-none">
-                                Total Referred
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                {details?.totalReferred}
-                            </p> */}
                         </div>
                     </div>
 

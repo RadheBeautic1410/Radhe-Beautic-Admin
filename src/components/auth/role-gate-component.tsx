@@ -18,12 +18,12 @@ export const RoleGateForComponent = ({
     allowedRole,
 }: RoleGateProps) => {
     const role = useCurrentRole();
-
     if (!role) {
         return (<></>)
     }
-
+    
     if (!allowedRole.includes(role)) {
+        // console.log(role, allowedRole);
         return (
             <></>
         )

@@ -1,9 +1,12 @@
 "use client"
 
+import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import PageLoader from "@/src/components/loader";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import { UserRole } from "@prisma/client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 
 interface category {
     name: string
@@ -58,4 +61,17 @@ const ListPage = () => {
     )
 }
 
-export default ListPage;
+const CatalogueListHelper = () => {
+    return (
+        <>
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+                <ListPage/>
+            </RoleGateForComponent>
+            <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
+                <NotAllowedPage/>
+            </RoleGateForComponent>
+        </>
+    );
+}
+
+export default CatalogueListHelper;
