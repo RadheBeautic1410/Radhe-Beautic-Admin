@@ -9,6 +9,7 @@ import KurtiUpdate from '../../../_components/kurti/kurtiUpdate';
 import { RoleGateForComponent } from '@/src/components/auth/role-gate-component';
 import NotAllowedPage from '../../../_components/errorPages/NotAllowedPage';
 import { UserRole } from '@prisma/client';
+import { useRouter } from 'next/router';
 interface kurti {
     id: string;
     category: string;
@@ -89,5 +90,6 @@ const CatalogueKurtiHelper = () => {
         </>
     );
 }
+
 
 export default CatalogueKurtiHelper;

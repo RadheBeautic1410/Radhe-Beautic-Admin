@@ -13,7 +13,7 @@ export default auth(async (req) => {
     const { nextUrl } = req;
     // console.log(req.auth);
     const role = await currentRole();
-    console.log(role);
+    // console.log(role);
     const isLoggedIn = !!req.auth;
 
     const isApiAuthRoute = nextUrl.pathname.startsWith(apiAuthPrefix)

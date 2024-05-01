@@ -4,9 +4,23 @@ import { error } from "console";
 export const getKurtiCount = async (cat: string) => {
     try {
         const party = await db.kurti.count({ where: { category: cat } });
+
         if (cat === "KTD") {
             return party + 2;
         }
+        return party;
+    } catch {
+        return null;
+    }
+};
+
+export const getKurtiCountWithoutDeleted = async (cat: string) => {
+    try {
+        const party = await db.kurti.count({ where: { category: cat, isDeleted: false } });
+        
+        // if (cat === "KTD") {
+        //     return party + 2;
+        // }
         return party;
     } catch {
         return null;
@@ -43,6 +57,26 @@ export const getKurtiByCategory = async (category: string) => {
                 },
                 isDeleted: false
             }
+        });
+        return kurti;
+    } catch {
+        return null;
+    }
+}
+
+export const getKurtiByCategoryWithPages = async (category: string, page: number) => {
+    try {
+        let skip = 20*(page - 1);
+        const kurti = await db.kurti.findMany({
+            where: {
+                category: {
+                    mode: 'insensitive',
+                    endsWith: category
+                },
+                isDeleted: false
+            },
+            skip: 20*(page - 1),
+            take: 20
         });
         return kurti;
     } catch {

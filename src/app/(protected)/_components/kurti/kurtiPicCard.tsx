@@ -27,7 +27,7 @@ interface KurtiPicCardProps {
 }
 
 const KurtiPicCard: React.FC<KurtiPicCardProps> = ({data, onKurtiDelete }) => {
-    console.log(data);
+    // console.log(data);
     const [downloading, setDownloading] = useState(false);
     const [stockString, setStockString] = useState(``);
     let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];

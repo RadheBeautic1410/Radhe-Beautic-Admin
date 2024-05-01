@@ -37,7 +37,7 @@ const ListPage = () => {
     return (
         <>
             <PageLoader loading={categoryLoader}/>
-
+            
             <Card className="w-[90%]">
                 <CardHeader>
                     <p className="text-2xl font-semibold text-center">
