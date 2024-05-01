@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
@@ -58,6 +58,7 @@ function KurtiListPage() {
     const [currentPage, setCurrentPage] = useState(parseInt(pageNum));
     const [totalPages, setTotalPages] = useState(1);
     const [pageLoader, setPageLoader] = useState(true);
+    const router = useRouter();
 
     const handleSearch = (newVal: string) => {
         const filteredRows = kurtiData.filter((row) => {
@@ -76,6 +77,12 @@ function KurtiListPage() {
         console.log('data', [...data]);
         await setKurtiData([...data]);
         setLoading(true);
+    }
+
+    const handlePageChange = (page: number) => {
+        if (page <= totalPages && page >= 1) {
+            router.replace(`${baseUrl}${page}`);
+        }
     }
     useEffect(() => {
         const fetchData = async () => {
@@ -122,11 +129,9 @@ function KurtiListPage() {
                     <PaginationContent>
                         <PaginationItem>
                             <PaginationPrevious
+                                className='cursor-pointer'
                                 isActive={currentPage !== 1}
-                                href={currentPage !== 1 ?
-                                    `${baseUrl}${currentPage - 1}` :
-                                    `#`
-                                }
+                                onClick={() => handlePageChange(currentPage - 1)}
                             />
                         </PaginationItem>
                         {currentPage - 2 <= 0 ? "" :
@@ -137,8 +142,10 @@ function KurtiListPage() {
                         {currentPage - 1 <= 0 ? "" :
                             <PaginationItem>
                                 <PaginationLink
-                                    href={`${baseUrl}${currentPage - 1}`}
-                                // isActive
+                                    className='cursor-pointer'
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    // href={`${baseUrl}${currentPage - 1}`}
+                                    // isActive
                                 >
                                     {currentPage - 1}
                                 </PaginationLink>
@@ -155,7 +162,8 @@ function KurtiListPage() {
                         {currentPage + 1 > totalPages ? "" :
                             <PaginationItem>
                                 <PaginationLink
-                                    href={`${baseUrl}${currentPage + 1}`}
+                                    className='cursor-pointer'
+                                    onClick={() => handlePageChange(currentPage + 1)}
                                 // isActive
                                 >
                                     {currentPage + 1}
@@ -183,11 +191,13 @@ function KurtiListPage() {
 
                         <PaginationItem>
                             <PaginationNext
+                                className='cursor-pointer'
                                 isActive={currentPage < totalPages}
-                                href={currentPage < totalPages ?
-                                    `${baseUrl}${currentPage + 1}` :
-                                    `#`
-                                }
+                                onClick={() => handlePageChange(currentPage + 1)}
+                            // href={currentPage < totalPages ?
+                            //     `${baseUrl}${currentPage + 1}` :
+                            //     `#`
+                            // }
                             />
                         </PaginationItem>
                     </PaginationContent>
