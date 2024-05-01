@@ -17,7 +17,7 @@ export const getKurtiCount = async (cat: string) => {
 export const getKurtiCountWithoutDeleted = async (cat: string) => {
     try {
         const party = await db.kurti.count({ where: { category: cat, isDeleted: false } });
-        
+
         // if (cat === "KTD") {
         //     return party + 2;
         // }
@@ -39,7 +39,7 @@ export const getKurtiCountForCode = async (cat: string) => {
 export const getKurtiByCode = async (code: string) => {
     try {
         const kurti = await db.kurti.findUnique({
-            where: { code, isDeleted: false},
+            where: { code, isDeleted: false },
         });
         return kurti;
     } catch {
@@ -66,7 +66,7 @@ export const getKurtiByCategory = async (category: string) => {
 
 export const getKurtiByCategoryWithPages = async (category: string, page: number) => {
     try {
-        let skip = 20*(page - 1);
+        let skip = 20 * (page - 1);
         const kurti = await db.kurti.findMany({
             where: {
                 category: {
@@ -75,7 +75,7 @@ export const getKurtiByCategoryWithPages = async (category: string, page: number
                 },
                 isDeleted: false
             },
-            skip: 20*(page - 1),
+            skip: 20 * (page - 1),
             take: 20
         });
         return kurti;
@@ -109,14 +109,25 @@ export const deleteKurti = async (code: string, category: string) => {
     }
 }
 
+function isDigit(character: any) {
+    return !isNaN(parseInt(character)) && isFinite(character);
+}
+
 export const sellKurti = async (code: string) => {
     try {
         interface Size {
             size: string;
             quantity: number;
         }
+        
+        let search = code.substring(0, 7).toLowerCase();
+        let cmp = code.substring(7);
+        if (code.toLowerCase().substring(0, 2) === 'ck' && isDigit(code[2])) {
+            search = code.substring(0, 6).toLowerCase();
+            cmp = code.substring(6);
+        }
         const kurti = await db.kurti.findUnique({
-            where: { code: code.substring(0, 7).toLowerCase(), isDeleted: false }
+            where: { code: search, isDeleted: false }
         });
         if (!kurti) {
             return { error: 'No Kurti found!!!' };
@@ -130,7 +141,7 @@ export const sellKurti = async (code: string) => {
                 if (!obj) {
                     break;
                 }
-                if (obj.size === code.substring(7)) {
+                if (obj.size === cmp) {
                     if (obj.quantity == 0) {
                         return { error: 'Stock is equal to 0, add stock first' };
                     }
@@ -149,7 +160,7 @@ export const sellKurti = async (code: string) => {
             if (flag === 1) {
                 const updateUser = await db.kurti.update({
                     where: {
-                        code: code.substring(0, 7).toLowerCase(),
+                        code: search,
                     },
                     data: {
                         sizes: newArr,
@@ -171,13 +182,13 @@ export const migrate = async () => {
     try {
         const kurti = await db.kurti.updateMany({
             where: {
-                
+
             },
             data: {
                 isDeleted: false
             }
         });
-        
+
         return kurti;
     } catch {
         return null;
