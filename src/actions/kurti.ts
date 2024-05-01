@@ -5,6 +5,7 @@ import { currentRole, currentUser } from "@/src/lib/auth";
 
 import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
+import { size } from "pdfkit/js/page";
 
 
 export const kurtiAddition = async (
@@ -13,28 +14,33 @@ export const kurtiAddition = async (
     const user = await currentUser();
     const role = await currentRole();
 
-    const { code } = data;
+    const { code, countOfPiece, category, party } = data;
 
 
     await db.kurti.create({
         data
     });
 
+
     const dbpartyFetch = await getKurtiByCode(code);
     return { success: "Catalog Added!", data: dbpartyFetch }
 }
 
-export const stockAddition = async (data: any)=>{
+export const stockAddition = async (data: any) => {
     const user = await currentUser();
     const role = await currentRole();
 
-    const { code } = data;
-
+    const { code, sizes } = data;
+    let cnt = 0;
+    for (let i = 0; i < sizes.length; i++) {
+        cnt += sizes[i].quantity;
+    }
 
     await db.kurti.update({
-        where: {code},
+        where: { code },
         data: {
-            sizes: data.sizes
+            sizes: data.sizes,
+            countOfPiece: cnt
         }
     });
 
@@ -42,7 +48,7 @@ export const stockAddition = async (data: any)=>{
     return { success: "Stock Updated!", data: dbpartyFetch?.sizes }
 }
 
-export const priceChange = async (data: any)=>{
+export const priceChange = async (data: any) => {
     const user = await currentUser();
     const role = await currentRole();
 
@@ -50,9 +56,9 @@ export const priceChange = async (data: any)=>{
 
 
     await db.kurti.update({
-        where: {code},
+        where: { code },
         data: {
-            sellingPrice: data.sellingPrice, 
+            sellingPrice: data.sellingPrice,
             actualPrice: data.actualPrice
         }
     });

@@ -165,12 +165,14 @@ model Party {
   id String @id @default(auto()) @map("_id") @db.ObjectId
   normalizedLowerCase String @unique
   name String
+  countOfPiece Int @default(0)
 }
 
 model Category {
   id String @id @default(auto()) @map("_id") @db.ObjectId
   normalizedLowerCase String @unique
   name String
+  countOfPiece Int @default(0)
 }
 
 
@@ -200,4 +202,5 @@ model Kurti {
     code          String   @unique
     images        Json[]
     isDeleted     Boolean  @default(false)
+    countOfPiece  Int @default(0)
 }

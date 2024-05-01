@@ -137,6 +137,7 @@ export const KurtiSchema = z.object({
     }, {
         message: "Actual price must be a number greater than 0 and less than or equal to sell price"
     }),
+    countOfPiece: z.number(),
     category: z.string().min(1, { message: "Please select the category." }),
     code: z.string(),
 });

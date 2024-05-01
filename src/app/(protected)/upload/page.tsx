@@ -242,7 +242,6 @@ const UploadPage = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            
             try {
                 const response = await fetch('/api/party'); // Adjust the API endpoint based on your actual setup
                 const result = await response.json();
@@ -277,6 +276,7 @@ const UploadPage = () => {
             actualPrice: "0",
             category: "",
             code: "",
+            countOfPiece: 0,
         }
     });
 
@@ -288,8 +288,16 @@ const UploadPage = () => {
         if (images.length === 0) {
             toast.error("Upload Images");
         }
+        else if(sizes.length === 0) {
+            toast.error("Add Stock");
+        }
         else {
-            console.log(sizes);
+            // console.log(sizes);
+            let cnt = 0;
+            for(let i = 0; i < sizes.length; i++) {
+                cnt += sizes[i].quantity;
+            }
+            form.setValue('countOfPiece', cnt);
             const values = form.getValues();
             startTransition(() => {
                 kurtiAddition(values)

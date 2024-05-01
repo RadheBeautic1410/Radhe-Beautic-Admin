@@ -9,8 +9,9 @@ import { useEffect, useState } from "react";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 
 interface category {
-    name: string
+    name: string;
     count: any;
+    countOfPiece: any;
 }
 
 const ListPage = () => {
@@ -50,7 +51,7 @@ const ListPage = () => {
                             <div>
                                 {"✦ "}
                                 <Link key={org.name} href={`/catalogue/${org.name.toLowerCase()}`}>
-                                    {`${org.name} (${org.count})`}
+                                    {`${org.name} (${org.count}) (${org.countOfPiece})`}
                                 </Link>
                             </div>
                         ))}

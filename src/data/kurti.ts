@@ -4,7 +4,7 @@ import { error } from "console";
 export const getKurtiCount = async (cat: string) => {
     try {
         const party = await db.kurti.count({ where: { category: cat } });
-
+        const cnt = await db.kurti.count({ where: { category: cat } });
         if (cat === "KTD") {
             return party + 2;
         }
@@ -113,6 +113,11 @@ function isDigit(character: any) {
     return !isNaN(parseInt(character)) && isFinite(character);
 }
 
+function isSize(size: string) {
+    let arr: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+    return arr.includes(size);
+}
+
 export const sellKurti = async (code: string) => {
     try {
         interface Size {
@@ -122,7 +127,7 @@ export const sellKurti = async (code: string) => {
         
         let search = code.substring(0, 7).toLowerCase();
         let cmp = code.substring(7);
-        if (code.toLowerCase().substring(0, 2) === 'ck' && isDigit(code[2])) {
+        if (code.toLowerCase().substring(0, 2) === 'ck' && isDigit(code[2]) && isSize(code.substring(6))) {
             search = code.substring(0, 6).toLowerCase();
             cmp = code.substring(6);
         }
@@ -164,6 +169,9 @@ export const sellKurti = async (code: string) => {
                     },
                     data: {
                         sizes: newArr,
+                        countOfPiece: {
+                            increment: -1
+                        }
                     },
                 })
 
@@ -180,14 +188,51 @@ export const sellKurti = async (code: string) => {
 
 export const migrate = async () => {
     try {
-        const kurti = await db.kurti.updateMany({
-            where: {
-
-            },
-            data: {
-                isDeleted: false
+        const kurti: any[] = await db.kurti.findMany({where: {isDeleted: false}});
+        for (let i = 0; i < kurti.length; i++) {
+            let cnt = 0;
+            for (let j = 0; j < kurti[i].sizes.length; j++) {
+                if (kurti[i].sizes[j] !== null) {
+                    cnt += kurti[i]?.sizes[j]?.quantity ? kurti[i].sizes[j].quantity : 0;
+                }
             }
-        });
+            console.log(kurti[i].id, cnt);
+            // try {
+            //     await db.category.update({
+            //         where: {
+            //             normalizedLowerCase: kurti[i].category.toLowerCase()
+            //         },
+            //         data: {
+            //             countOfPiece: {
+            //                 increment: cnt
+            //             }
+            //         }
+            //     });
+            // }catch (e: any){
+            //     console.log(e.message);
+            // }
+            
+            // console.log(kurti[i].id, cnt);
+            // await db.party.update({
+            //     where: {
+            //         normalizedLowerCase: kurti[i].party.toLowerCase()
+            //     },
+            //     data: {
+            //         countOfPiece: {
+            //             increment: cnt
+            //         }
+            //     }
+            // });
+
+            // // await db.kurti.update({
+            //     where: {
+            //         id: kurti[i].id,
+            //     },
+            //     data: {
+            //         countOfPiece: cnt
+            //     }
+            // })
+        }
 
         return kurti;
     } catch {
