@@ -282,6 +282,19 @@ function KurtiListPage() {
             }
         </>
     )
+};
+
+const KurtiListPageHelper = () => {
+    return (
+        <>
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+                <KurtiListPage/>
+            </RoleGateForComponent>
+            <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
+                <KurtiListPage/>
+            </RoleGateForComponent>
+        </>
+    );
 }
 
-export default KurtiListPage
+export default KurtiListPageHelper
