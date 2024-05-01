@@ -3,8 +3,11 @@ import { error } from "console";
 
 export const getKurtiCount = async (cat: string) => {
     try {
-        const party = await db.kurti.count({ where: { category: cat } });
-        const cnt = await db.kurti.count({ where: { category: cat } });
+        console.log('debg', cat);
+        const party = await db.kurti.count({ where: { category: {
+            mode: 'insensitive',
+            endsWith: cat
+        }, } });
         if (cat === "KTD") {
             return party + 2;
         }

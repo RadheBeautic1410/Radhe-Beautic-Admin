@@ -315,7 +315,7 @@ const UploadPage = () => {
                             router.refresh();
                         }
                     })
-                    .catch(() => toast.error("Something went wrong!"));
+                    .catch((e) => {console.log(e); toast.error("Something went wrong!")});
             });
         }
     }
