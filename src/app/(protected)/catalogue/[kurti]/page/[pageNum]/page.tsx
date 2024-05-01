@@ -134,18 +134,33 @@ function KurtiListPage() {
                                 onClick={() => handlePageChange(currentPage - 1)}
                             />
                         </PaginationItem>
-                        {currentPage - 2 <= 0 ? "" :
-                            <PaginationItem>
-                                <PaginationEllipsis />
-                            </PaginationItem>
+                        {currentPage - 2 <= 0 ?
+                            "" :
+                            <>
+                                {currentPage === 2 ? "" :
+                                    <PaginationItem >
+                                        <PaginationLink
+                                            className='cursor-pointer'
+                                            onClick={() => handlePageChange(1)}
+                                        >
+                                            {1}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                }
+                                {currentPage === 3 ? "" :
+                                    <PaginationItem>
+                                        <PaginationEllipsis />
+                                    </PaginationItem>
+                                }
+                            </>
                         }
                         {currentPage - 1 <= 0 ? "" :
                             <PaginationItem>
                                 <PaginationLink
                                     className='cursor-pointer'
                                     onClick={() => handlePageChange(currentPage - 1)}
-                                    // href={`${baseUrl}${currentPage - 1}`}
-                                    // isActive
+                                // href={`${baseUrl}${currentPage - 1}`}
+                                // isActive
                                 >
                                     {currentPage - 1}
                                 </PaginationLink>
@@ -170,11 +185,32 @@ function KurtiListPage() {
                                 </PaginationLink>
                             </PaginationItem>
                         }
-                        {currentPage + 2 > totalPages ? "" :
+                        {currentPage + 2 > totalPages ?
+                            "" :
+                            <>
+                                {totalPages - currentPage <= 2 ? "" :
+                                    <PaginationItem>
+                                        <PaginationEllipsis />
+                                    </PaginationItem>
+                                }
+                                {totalPages - currentPage < 2 ? "" :
+                                    <PaginationItem >
+                                        <PaginationLink
+                                            className='cursor-pointer'
+                                            onClick={() => handlePageChange(totalPages)}
+                                        >
+                                            {totalPages}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                }
+
+                            </>
+                        }
+                        {/* {currentPage + 2 > totalPages ? "" :
                             <PaginationItem>
                                 <PaginationEllipsis />
                             </PaginationItem>
-                        }
+                        } */}
                         {/* {Array.from({ length: totalPages }, (_, index) => index + 1).map(
                             (page, idx) => (
                                 <PaginationItem key={page}>
@@ -201,47 +237,48 @@ function KurtiListPage() {
                             />
                         </PaginationItem>
                     </PaginationContent>
-                </Pagination>
+                </Pagination >
             }
 
-            {valid ?
-                <Card className="w-[90%]">
-                    <CardHeader>
-                        <p className="text-2xl font-semibold text-center">
-                            {`👜 Catalogue - ${paths[2]}`}
-                        </p>
-                    </CardHeader>
-                    <CardContent>
+            {
+                valid ?
+                    <Card className="w-[90%]">
+                        <CardHeader>
+                            <p className="text-2xl font-semibold text-center">
+                                {`👜 Catalogue - ${paths[2]}`}
+                            </p>
+                        </CardHeader>
+                        <CardContent>
 
-                        <div>
-                            <SearchBar
-                                value={textFieldValue}
-                                onChange={newValue => handleSearch(newValue)}
-                                onCancelResearch={() => cancelSearch()}
-                                width={'100%'}
-                                style={{
-                                    backgroundColor: '#fff',
-                                    border: '1px solid #ccc',
-                                }}
-                            />
-                        </div>
-                        {/* :
+                            <div>
+                                <SearchBar
+                                    value={textFieldValue}
+                                    onChange={newValue => handleSearch(newValue)}
+                                    onCancelResearch={() => cancelSearch()}
+                                    width={'100%'}
+                                    style={{
+                                        backgroundColor: '#fff',
+                                        border: '1px solid #ccc',
+                                    }}
+                                />
+                            </div>
+                            {/* :
                         <div>
                             <p className="text-2xl font-semibold text-center">
                                 {`👜 Error`}
                             </p>
                         </div> */}
 
-                    </CardContent>
-                    {displayData ?
-                        <CardContent className="w-full flex flex-row space-evenely justify-center flex-wrap gap-3">
-                            {displayData.map((data, i) => (
-                                <KurtiPicCard data={data} key={i} onKurtiDelete={handleKurtiDelete} />
-                            ))}
                         </CardContent>
-                        : ""}
-                </Card> :
-                <NotValidKurtiCode />
+                        {displayData ?
+                            <CardContent className="w-full flex flex-row space-evenely justify-center flex-wrap gap-3">
+                                {displayData.map((data, i) => (
+                                    <KurtiPicCard data={data} key={i} onKurtiDelete={handleKurtiDelete} />
+                                ))}
+                            </CardContent>
+                            : ""}
+                    </Card> :
+                    <NotValidKurtiCode />
             }
         </>
     )
