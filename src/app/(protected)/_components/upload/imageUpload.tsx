@@ -158,8 +158,17 @@ const ImageUpload = React.forwardRef(({ onImageChange, images }: ChildProps, ref
         onUploadProgress: (progressEvent: AxiosProgressEvent) => void,
         cancelSource: CancelTokenSource
     ) => {
+        function getRandomInt(max: number) {
+            return Math.floor(Math.random() * (max + 1));
+        }
+        let apiKeys = [
+            'ea969f533a6a89234ee370a812f55fdb',
+            'd6a35aefd3aeb6cdb7e9b8f21eb55076',
+            '667f5bbe7fb48119d2bd520dbeef5c57'
+        ]
+        let idx = getRandomInt(apiKeys.length - 1);
         return axios.post(
-            `https://api.imgbb.com/1/upload?&key=ea969f533a6a89234ee370a812f55fdb`,
+            `https://api.imgbb.com/1/upload?&key=${apiKeys[idx]}`,
             formData,
             {
                 onUploadProgress,
