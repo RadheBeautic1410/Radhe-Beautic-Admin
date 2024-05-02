@@ -62,10 +62,17 @@ function KurtiListPage() {
     const router = useRouter();
 
     const handleSearch = (newVal: string) => {
-        const filteredRows = kurtiData.filter((row) => {
-            return row.code.toUpperCase().includes(newVal.toUpperCase());
-        }).slice(20 * (parseInt(pageNum) - 1), 20 * (parseInt(pageNum) - 1) + 20);
-        setDisplayData(filteredRows);
+        if (newVal === "") {
+            setTextFieldValue("");
+            // handleSearch(textFieldValue);
+            setDisplayData(kurtiData.slice(20 * (parseInt(pageNum) - 1), 20 * (parseInt(pageNum) - 1) + 20));
+        }
+        else {
+            const filteredRows = kurtiData.filter((row) => {
+                return row.code.toUpperCase().includes(newVal.toUpperCase());
+            }).slice(0, 20);
+            setDisplayData(filteredRows);
+        }
     }
     const cancelSearch = () => {
         setTextFieldValue("");
@@ -289,10 +296,10 @@ const KurtiListPageHelper = () => {
     return (
         <>
             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-                <KurtiListPage/>
+                <KurtiListPage />
             </RoleGateForComponent>
             <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
-                <NotAllowedPage/>
+                <NotAllowedPage />
             </RoleGateForComponent>
         </>
     );
