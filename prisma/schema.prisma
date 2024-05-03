@@ -171,6 +171,7 @@ model Party {
 model Category {
   id String @id @default(auto()) @map("_id") @db.ObjectId
   normalizedLowerCase String @unique
+  code String? @unique
   name String
   countOfPiece Int @default(0)
 }

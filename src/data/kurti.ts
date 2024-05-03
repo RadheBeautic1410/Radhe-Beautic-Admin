@@ -4,15 +4,34 @@ import { error } from "console";
 export const getKurtiCount = async (cat: string) => {
     try {
         console.log('debg', cat);
-        const party = await db.kurti.count({ where: { category: {
-            mode: 'insensitive',
-            endsWith: cat
-        }, } });
+        const party = await db.kurti.count({
+            where: {
+                category: {
+                    mode: 'insensitive',
+                    endsWith: cat
+                },
+            }
+        });
         if (cat === "KTD") {
             return party + 2;
         }
         return party;
     } catch {
+        return null;
+    }
+};
+
+export const getCode = async (cat: string) => {
+    try {
+        console.log('debg', cat);
+        const party = await db.category.findUnique({
+            where: {
+                normalizedLowerCase: cat.toLowerCase(),
+            }
+        });
+        return party?.code;
+    } catch (e: any) {
+        return e.message;
         return null;
     }
 };
@@ -42,7 +61,7 @@ export const getKurtiCountForCode = async (cat: string) => {
 export const getKurtiByCode = async (code: string) => {
     try {
         const kurti = await db.kurti.findUnique({
-            where: { code, isDeleted: false },
+            where: { code: code.toUpperCase(), isDeleted: false },
         });
         return kurti;
     } catch {
@@ -127,7 +146,7 @@ export const sellKurti = async (code: string) => {
             size: string;
             quantity: number;
         }
-        
+
         let search = code.substring(0, 7).toLowerCase();
         let cmp = code.substring(7);
         if (code.toLowerCase().substring(0, 2) === 'ck' && isDigit(code[2]) && isSize(code.substring(6))) {
@@ -191,55 +210,20 @@ export const sellKurti = async (code: string) => {
 
 export const migrate = async () => {
     try {
-        const kurti: any[] = await db.kurti.findMany({where: {isDeleted: false}});
-        for (let i = 0; i < kurti.length; i++) {
-            let cnt = 0;
-            for (let j = 0; j < kurti[i].sizes.length; j++) {
-                if (kurti[i].sizes[j] !== null) {
-                    cnt += kurti[i]?.sizes[j]?.quantity ? kurti[i].sizes[j].quantity : 0;
+        const kurti: any[] = await db.kurti.findMany();
+        for(let i = 0; i < kurti.length; i++) {
+            await db.kurti.update({
+                where: {
+                    id: kurti[i].id,
+                },
+                data: {
+                    code: kurti[i].code.toUpperCase(),
                 }
-            }
-            console.log(kurti[i].id, cnt);
-            // try {
-            //     await db.category.update({
-            //         where: {
-            //             normalizedLowerCase: kurti[i].category.toLowerCase()
-            //         },
-            //         data: {
-            //             countOfPiece: {
-            //                 increment: cnt
-            //             }
-            //         }
-            //     });
-            // }catch (e: any){
-            //     console.log(e.message);
-            // }
-            
-            // console.log(kurti[i].id, cnt);
-            // await db.party.update({
-            //     where: {
-            //         normalizedLowerCase: kurti[i].party.toLowerCase()
-            //     },
-            //     data: {
-            //         countOfPiece: {
-            //             increment: cnt
-            //         }
-            //     }
-            // });
-
-            // // await db.kurti.update({
-            //     where: {
-            //         id: kurti[i].id,
-            //     },
-            //     data: {
-            //         countOfPiece: cnt
-            //     }
-            // })
-        }
-
+            })
+        }   
         return kurti;
-    } catch {
-        return null;
+    } catch (e: any) {
+        return e.message;
     }
 }
 

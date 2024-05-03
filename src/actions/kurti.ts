@@ -66,3 +66,22 @@ export const priceChange = async (data: any) => {
     const dbpartyFetch = await getKurtiByCode(code);
     return { success: "Price Changed!", data: dbpartyFetch?.sizes }
 }
+
+export const categoryChange = async (data: any) => {
+    const user = await currentUser();
+    const role = await currentRole();
+
+    const { code, newCode } = data;
+    console.log(code, newCode);
+
+    await db.kurti.update({
+        where: { code },
+        data: {
+            category: data.category,
+            code: newCode
+        }
+    });
+
+    const dbpartyFetch = await getKurtiByCode(newCode);
+    return { success: "Category Changed!", code: dbpartyFetch?.code, category: dbpartyFetch?.category }
+}

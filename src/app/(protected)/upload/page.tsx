@@ -327,15 +327,9 @@ const UploadPage = () => {
             if (categorySelected === "") {
                 toast.error('Please select the cateory first');
             }
-            const response = await fetch(`/api/kurti/count?cat=${categorySelected}`); // Adjust the API endpoint based on your actual setup
+            const response = await fetch(`/api/kurti/generateCode?cat=${categorySelected}`); // Adjust the API endpoint based on your actual setup
             const result = await response.json();
-            const count = result.data + 1;
-
-
-            let code = categorySelected.substring(0, 3).toLowerCase();
-            let str = String(count).padStart(4, '0');
-            code = code.concat(str);
-            setGeneratedCode(code);
+            setGeneratedCode(result.code);
 
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -512,7 +506,7 @@ const UploadPage = () => {
                                         render={({ field }) => (
                                             <FormItem className="w-[90%]">
                                                 <FormControl>
-                                                    <Input
+                                                    <Input 
                                                         {...field}
                                                         disabled
                                                         placeholder={generatedCode}

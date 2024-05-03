@@ -1,6 +1,6 @@
 'use client'
 
-import { priceChange, stockAddition } from '@/src/actions/kurti';
+import { categoryChange, priceChange, stockAddition } from '@/src/actions/kurti';
 import { DialogDemo } from '@/src/components/dialog-demo';
 import { Button } from '@/src/components/ui/button';
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/src/components/ui/form';
@@ -14,6 +14,13 @@ import fs from 'fs';
 import Link from 'next/link';
 import axios from 'axios';
 import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+interface category {
+    id: string;
+    name: string
+    normalizedLowerCase: string;
+}
 
 export const AddSizeForm: React.FC<{ idx: number; sizes: Size[]; onAddSize: (sizes: Size[]) => void }> =
     ({ idx, sizes, onAddSize }) => {
@@ -99,6 +106,10 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
     const [downloadQuantity, setDownloadQuanitity] = useState(0);
     const [downloading1, setDownloading1] = useState(false);
     const [downloading2, setDownloading2] = useState(false);
+    const [allCategory, setAllCategory] = useState<any[]>([]);
+    const [changedCategory, setCategory] = useState(data?.category);
+    const router = useRouter();
+
     let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
 
     const handleAddSize = (sizes: Size[]) => {
@@ -188,6 +199,20 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
             />
             ]);
         }
+        const fetchData = async () => {
+
+            try {
+                const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
+                const result = await response.json();
+                const sortedCategory = (result.data || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
+                setAllCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            } finally {
+                // setCategoryLoader(false);
+            }
+        }
+        fetchData();
         return () => {
             setComponents([]);
         }
@@ -232,6 +257,53 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
         });
     }
 
+    const [generatedCode, setGeneratedCode] = useState("");
+    const [generatorLoader, setGeneratorLoader] = useState(false);
+    const CodeGenerator = async () => {
+        try {
+            if (changedCategory === data?.category) {
+                setGeneratorLoader(true);
+                setGeneratedCode(data?.code);
+                setGeneratorLoader(false);
+                return;
+            }
+            
+            const categorySelected = changedCategory;
+            if (categorySelected === "") {
+                toast.error('Please select the cateory first');
+            }
+            const response = await fetch(`/api/kurti/generateCode?cat=${categorySelected}`); // Adjust the API endpoint based on your actual setup
+            const result = await response.json();
+            setGeneratedCode(result.code);
+
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setGeneratorLoader(false);
+        }
+    }
+
+    const handleCategoryChange = async () => {
+        await CodeGenerator();
+        startTransition(() => {
+            categoryChange({ code: data?.code, category: changedCategory, newCode: generatedCode })
+                .then((data: any) => {
+                    console.log(data);
+                    if (data.error) {
+                        // formCategory.reset();
+                        toast.error(data.error);
+                    }
+                    if (data.success) {
+                        // formCategory.reset();
+                        toast.success(data.success);
+                        
+                        router.replace(`/catalogue/${data.category}/${data.code.toLowerCase()}`);
+                        // setSizes(data.data);
+                    }
+                })
+                .catch(() => toast.error("Something went wrong!"));
+        });
+    }
     return (
         <>
             {data ?
@@ -264,7 +336,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                     <Button asChild className='ml-3'>
                         <DialogDemo
                             dialogTrigger="Edit Price"
-                            dialogTitle="Edit Pricw"
+                            dialogTitle="Edit Price"
                             dialogDescription="Edit previous prices"
                             bgColor="destructive"
                         >
@@ -285,6 +357,54 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                             <Button
                                 type="button"
                                 onClick={handlePriceChange}
+                            // onClick={formCategory.handleSubmit(handleSubmitCategory)}
+                            >
+                                Save
+                            </Button>
+                        </DialogDemo>
+                    </Button>
+                    <Button asChild className='ml-3'>
+                        <DialogDemo
+                            dialogTrigger="Move Catalogue"
+                            dialogTitle="Edit Catalogue"
+                            dialogDescription="Edit previous catalogue"
+                            bgColor="destructive"
+                        >
+                            <div>
+                                <Select
+                                    disabled={isPending}
+                                    onValueChange={(val) => { setCategory(val) }}
+                                    defaultValue={changedCategory}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {allCategory.map((org) => (
+                                            <SelectItem key={org.id} value={org.name}>
+                                                {org.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Input
+                                    disabled
+                                    className='mt-1 mb-1'
+                                    placeholder={'Generate the code'}
+                                    value={generatedCode.toUpperCase()}
+                                />
+                                <Button onClick={CodeGenerator} disabled={generatorLoader} type="button">
+                                    {generatorLoader ?
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        :
+                                        ""
+                                    }
+                                    Generate Code
+                                </Button>
+                            </div>
+                            <Button
+                                type="button"
+                                onClick={handleCategoryChange}
                             // onClick={formCategory.handleSubmit(handleSubmitCategory)}
                             >
                                 Save
