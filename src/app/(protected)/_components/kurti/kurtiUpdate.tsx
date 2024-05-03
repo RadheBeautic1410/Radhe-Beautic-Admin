@@ -110,17 +110,25 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
     const [changedCategory, setCategory] = useState(data?.category);
     const router = useRouter();
 
+    const [sizesDownload, setSizesDownload] = useState<Size[]>([]);
+    const [componentsDownload, setComponentsDownload] = useState<any[]>([]);
     let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
 
     const handleAddSize = (sizes: Size[]) => {
         setSizes(sizes);
     };
 
+    const handleAddSizeDownload = (sizes: Size[]) => {
+        setSizesDownload(sizes);
+    };
+
     const handleDownload = async () => {
+        // console.log(sizesDownload)
+        // return;
         try {
             setDownloading2(true);
-            let obj = JSON.stringify({ size: downloadSize, quantity: downloadQuantity });
-            const res = await axios.get(`${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf?data=${obj}&id=${data.code}`, {
+            let obj = JSON.stringify(sizesDownload);
+            const res = await axios.get(`${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${data.code}`, {
                 responseType: 'blob'
             });
             console.log(res);
@@ -139,13 +147,14 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
             console.log(e);
         }
         finally {
-            setDownloadQuanitity(0);
-            setDownloadSize('');
+            setComponentsDownload([]);
+            setSizesDownload([]);
             setDownloading2(false);
         }
     }
 
     const handleDownload2 = async () => {
+        
         try {
             setDownloading1(true);
             let obj = JSON.stringify(data.sizes);
@@ -185,6 +194,17 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
         ]);
     };
 
+    const addComponent2 = () => {
+        console.log(componentsDownload)
+        setComponentsDownload([...componentsDownload,
+        <AddSizeForm
+            key={componentsDownload.length}
+            idx={componentsDownload.length}
+            sizes={sizesDownload}
+            onAddSize={handleAddSizeDownload}
+        />
+        ]);
+    };
     useEffect(() => {
         // console.log(data, data?.sizes.length);
         setSizes(data?.sizes);
@@ -211,7 +231,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                 // setCategoryLoader(false);
             }
         }
-        
+
         fetchData();
         return () => {
             setComponents([]);
@@ -267,7 +287,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                 setGeneratorLoader(false);
                 return;
             }
-            
+
             const categorySelected = changedCategory;
             if (categorySelected === "") {
                 toast.error('Please select the cateory first');
@@ -296,7 +316,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                     if (data.success) {
                         // formCategory.reset();
                         toast.success(data.success);
-                        
+
                         router.replace(`/catalogue/${data.category}/${data.code.toLowerCase()}`);
                         // setSizes(data.data);
                     }
@@ -427,27 +447,12 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                         >
                             <div>
                                 <h2>Size</h2>
-                                <Select
-                                    onValueChange={(e) => setDownloadSize(e)}
-                                    defaultValue={downloadSize}
-                                >
-                                    <SelectTrigger className="w-[100%]">
-                                        <SelectValue placeholder="Select Size" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {selectSizes.map((org) => (
-                                            <SelectItem key={org} value={org}>
-                                                {org}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <h2 className='pt-2'>Quanitity</h2>
-                                <Input
-                                    value={downloadQuantity}
-                                    defaultValue={downloadQuantity}
-                                    onChange={(e) => { setDownloadQuanitity(parseInt(e.target.value)) }}
-                                ></Input>
+                                {componentsDownload.map((component, index) => (
+                                    <div key={index}>
+                                        {component}
+                                    </div>
+                                ))}
+                                <Button type="button" onClick={addComponent2}>+ Add</Button>
                             </div>
                             <Button
                                 type="button"
