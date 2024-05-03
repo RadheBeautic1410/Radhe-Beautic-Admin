@@ -147,14 +147,14 @@ export const sellKurti = async (code: string) => {
             quantity: number;
         }
 
-        let search = code.substring(0, 7).toLowerCase();
+        let search = code.substring(0, 7).toUpperCase();
         let cmp = code.substring(7);
-        if (code.toLowerCase().substring(0, 2) === 'ck' && isDigit(code[2]) && isSize(code.substring(6))) {
-            search = code.substring(0, 6).toLowerCase();
+        if (code.toUpperCase().substring(0, 2) === 'CK' && isDigit(code[2]) && isSize(code.substring(6))) {
+            search = code.substring(0, 6).toUpperCase();
             cmp = code.substring(6);
         }
         const kurti = await db.kurti.findUnique({
-            where: { code: search, isDeleted: false }
+            where: { code: search.toUpperCase(), isDeleted: false }
         });
         if (!kurti) {
             return { error: 'No Kurti found!!!' };

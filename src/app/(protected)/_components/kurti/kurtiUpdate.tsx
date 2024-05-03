@@ -200,7 +200,6 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
             ]);
         }
         const fetchData = async () => {
-
             try {
                 const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
                 const result = await response.json();
@@ -212,6 +211,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                 // setCategoryLoader(false);
             }
         }
+        
         fetchData();
         return () => {
             setComponents([]);

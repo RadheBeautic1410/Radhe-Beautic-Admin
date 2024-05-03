@@ -48,7 +48,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({data, onKurtiDelete }) => {
 
     const handleDelete = async () => {
         try {
-            const res = await fetch(`/api/kurti/delete?cat=${data.category}&code=${data.code}`);
+            const res = await fetch(`/api/kurti/delete?cat=${data?.category}&code=${data?.code}`);
             const result = await res.json();
             console.log("res", result);
             await onKurtiDelete(result.data);
