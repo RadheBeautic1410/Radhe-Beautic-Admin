@@ -5,7 +5,7 @@ import { currentRole, currentUser } from "@/src/lib/auth";
 
 import { UserRole } from "@prisma/client";
 import { getPartybyId, getPartybyName } from "../data/party";
-import { getCategoryByID, getCategorybyName } from "../data/category";
+import { getAllCategory, getCategoryByID, getCategorybyName } from "../data/category";
 
 interface partyAddtionProps {
     name: string
@@ -22,8 +22,21 @@ export const categoryAddition = async (
     const lowercaseName = name.toLowerCase();
 
     const dbCategory = await getCategorybyName(lowercaseName);
-
-    if (dbCategory) {
+    let code = lowercaseName.toUpperCase().substring(0,3);
+    const allCategory: any[] = await getAllCategory() || [];
+    let arr: any[] = [];
+    for (let i = 0; i < allCategory?.length; i++) {
+        arr.push(allCategory[i].code);
+    }
+    let cnt = 0;
+    while(arr.includes(code)) {
+        cnt++;
+        if(cnt === 10) {
+            break;
+        }
+        code = code.substring(0,2).concat(String(cnt));
+    } 
+    if (dbCategory || cnt === 10) {
         return { error: "Category Already Exist" }
     }
 
@@ -31,6 +44,7 @@ export const categoryAddition = async (
         data: {
             normalizedLowerCase: lowercaseName,
             name,
+            code
         },
     });
 
