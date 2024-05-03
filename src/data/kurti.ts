@@ -110,7 +110,7 @@ export const deleteKurti = async (code: string, category: string) => {
     try {
         await db.kurti.update({
             where: {
-                code: code.toLowerCase()
+                code: code.toUpperCase()
             },
             data: {
                 isDeleted: true
