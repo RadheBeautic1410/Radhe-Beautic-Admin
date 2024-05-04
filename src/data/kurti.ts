@@ -196,7 +196,16 @@ export const sellKurti = async (code: string) => {
                         }
                     },
                 })
-
+                await db.category.update({
+                    where: {
+                        code: search.toUpperCase().substring(0, 3),
+                    },
+                    data: {
+                        countOfPiece: {
+                            increment: -1
+                        }
+                    },
+                })
                 return { success: 'Sold', kurti: updateUser };
             }
 
@@ -210,18 +219,31 @@ export const sellKurti = async (code: string) => {
 
 export const migrate = async () => {
     try {
-        const kurti: any[] = await db.kurti.findMany();
-        for(let i = 0; i < kurti.length; i++) {
-            await db.kurti.update({
+        let category = await db.category.findMany({});
+        let arr = [];
+        for (let i = 0; i < category.length; i++) {
+            const data = await db.kurti.count({ where: { category: category[i].name, isDeleted: false } });
+            const data2 = await db.kurti.aggregate({
                 where: {
-                    id: kurti[i].id,
+                    isDeleted: false,
+                    category: category[i].name
+                },
+                _sum: {
+                    countOfPiece: true,
+                }
+            });
+            await db.category.update({
+                where: {
+                    normalizedLowerCase: category[i].name.toLowerCase(),
                 },
                 data: {
-                    code: kurti[i].code.toUpperCase(),
+                    countOfPiece: data2._sum.countOfPiece || 0,
                 }
             })
-        }   
-        return kurti;
+            arr.push({ name: category[i].name, count: data, countOfPiece: data2._sum.countOfPiece || 0 });
+        }
+        category = await db.category.findMany({});
+        return category;
     } catch (e: any) {
         return e.message;
     }

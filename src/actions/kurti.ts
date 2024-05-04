@@ -14,13 +14,25 @@ export const kurtiAddition = async (
     const user = await currentUser();
     const role = await currentRole();
 
-    const { code, countOfPiece, category, party } = data;
-
+    const { code, countOfPiece, category, sizes } = data;
+    let cnt = 0;
+    for (let i = 0; i < sizes.length; i++) {
+        cnt += sizes[i].quantity;
+    }
 
     await db.kurti.create({
         data
     });
-
+    await db.category.update({
+        where: {
+            normalizedLowerCase: category.toLowerCase(),
+        },
+        data: {
+            countOfPiece: {
+                increment: cnt,
+            },
+        }
+    })
 
     const dbpartyFetch = await getKurtiByCode(code);
     return { success: "Catalog Added!", data: dbpartyFetch }
@@ -35,7 +47,12 @@ export const stockAddition = async (data: any) => {
     for (let i = 0; i < sizes.length; i++) {
         cnt += sizes[i].quantity;
     }
-
+    let kurti = await db.kurti.findUnique({
+        where: {
+            code: code,
+        }
+    });
+    cnt -= kurti?.countOfPiece || 0;
     await db.kurti.update({
         where: { code },
         data: {
@@ -43,6 +60,16 @@ export const stockAddition = async (data: any) => {
             countOfPiece: cnt
         }
     });
+    await db.category.update({
+        where: {
+            code: code.substring(0,3),
+        },
+        data: {
+            countOfPiece: {
+                increment: cnt,
+            },
+        }
+    })
 
     const dbpartyFetch = await getKurtiByCode(code);
     return { success: "Stock Updated!", data: dbpartyFetch?.sizes }
@@ -74,11 +101,33 @@ export const categoryChange = async (data: any) => {
     const { code, newCode } = data;
     console.log(code, newCode);
 
-    await db.kurti.update({
+    const kurti = await db.kurti.update({
         where: { code },
         data: {
             category: data.category,
             code: newCode
+        }
+    });
+    console.log('count:', kurti.countOfPiece);
+    await db.category.update({
+        where: {
+            code: code.substring(0, 3).toUpperCase(),
+        },
+        data: {
+            countOfPiece: {
+                decrement: kurti.countOfPiece,
+            }
+        }
+    });
+
+    await db.category.update({
+        where: {
+            normalizedLowerCase: data.category.toLowerCase(),
+        },
+        data: {
+            countOfPiece: {
+                increment: kurti.countOfPiece,
+            }
         }
     });
 
