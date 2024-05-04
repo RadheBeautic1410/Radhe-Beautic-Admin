@@ -166,6 +166,7 @@ export const sellKurti = async (code: string) => {
             search = code.substring(0, 6).toUpperCase();
             cmp = code.substring(6);
         }
+        console.log('search: ',search);
         const kurti = await db.kurti.findUnique({
             where: { code: search.toUpperCase(), isDeleted: false }
         });
@@ -198,6 +199,7 @@ export const sellKurti = async (code: string) => {
                 }
             }
             if (flag === 1) {
+                console.log('search2', search);
                 const updateUser = await db.kurti.update({
                     where: {
                         code: search,
@@ -230,39 +232,67 @@ export const sellKurti = async (code: string) => {
         return null;
     }
 }
-
-export const migrate = async () => {
-    try {
-        let category = await db.category.findMany({});
-        let arr = [];
-        for (let i = 0; i < category.length; i++) {
-            const data = await db.kurti.count({ where: { category: category[i].name, isDeleted: false } });
-            const data2 = await db.kurti.aggregate({
-                where: {
-                    isDeleted: false,
-                    category: category[i].name
-                },
-                _sum: {
-                    countOfPiece: true,
-                }
-            });
-            await db.category.update({
-                where: {
-                    normalizedLowerCase: category[i].name.toLowerCase(),
-                },
-                data: {
-                    countOfDesign: data,
-                    countOfPiece: data2._sum.countOfPiece || 0
-                }
-            })
-            // arr.push({ name: category[i].name, count: data, countOfPiece: data2._sum.countOfPiece || 0 });
-        }
-        category = await db.category.findMany({});
-        return category;
-    } catch (e: any) {
-        return e.message;
-    }
+export const migrate = async () => { 
+    return null;
 }
+// export const migrate = async () => {
+//     try {
+//         const kurti: any[] = await db.kurti.findMany({where: {isDeleted : false}});
+//         const category: any[] = await db.category.findMany({});
+//         for(let i = 0; i  < category.length; i++) {
+//             await db.category.update({
+//                 where: {
+//                     id: category[i].id,
+//                 },
+//                 data: {
+//                     countOfPiece: 0,
+//                 }
+//             })
+//         }
+//         console.log(kurti.length);
+//         for(let i = 0; i < kurti.length; i++) {
+//             let cnt = 0;
+//             let lower = kurti[i].category.toLowerCase();
+//             let flag = 0;
+//             for (let j = 0; j < category.length; j++) {
+//                 if (lower === category[j].normalizedLowerCase) {
+//                     flag = 1;
+//                 }
+//             }
+//             if(flag === 0) {
+//                 continue;
+//             }
+//             let sizes = kurti[i]?.sizes || [];
+//             for(let j = 0; j < sizes.length; j++) {
+//                 cnt += sizes[j].quantity || 0;
+//             }
+//             await db.kurti.update({
+//                 where: {
+//                     id: kurti[i].id,
+//                 },
+//                 data: {
+//                     countOfPiece: cnt,
+//                 }
+//             });
+//             console.log(kurti[i].category.toLowerCase());
+//             await db.category.update({
+//                 where: {
+//                     normalizedLowerCase: kurti[i].category.toLowerCase() || "",
+//                 },
+//                 data: {
+//                     countOfPiece: {
+//                         increment: cnt,
+//                     }
+//                 }
+//             });
+//         }
+        
+//         return category;
+//     } catch (e: any) {
+//         console.log(e);
+//         return e.message;
+//     }
+// }
 
 
 

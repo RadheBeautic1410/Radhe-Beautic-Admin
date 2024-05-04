@@ -105,11 +105,11 @@ function KurtiListPage() {
                     const [resPage, response2] = await Promise.all([prom1, prom2]);
                     const result2 = await response2.json();
                     const pageResult = await resPage.json();
-                    console.log(Math.ceil(pageResult.data / 20));
-                    console.log(result2.data.slice(20 * (parseInt(pageNum) - 1), 20 * (parseInt(pageNum) - 1) + 20));
+                    console.log(Math.ceil(result2.data.length / 20));
+                    console.log(result2);
                     setDisplayData(result2.data.slice(20 * (parseInt(pageNum) - 1), 20 * (parseInt(pageNum) - 1) + 20));
                     setKurtiData(result2.data);
-                    setTotalPages(Math.ceil(pageResult.data / 20));
+                    setTotalPages(Math.ceil(result2.data.length / 20));
                     // setCurrentPage(parseInt(pageNum));
                     // console.log(result2.data);
                 }
