@@ -31,6 +31,9 @@ export const kurtiAddition = async (
             countOfPiece: {
                 increment: cnt,
             },
+            countOfDesign: {
+                increment: 1,
+            }
         }
     })
 
@@ -52,7 +55,6 @@ export const stockAddition = async (data: any) => {
             code: code,
         }
     });
-    cnt -= kurti?.countOfPiece || 0;
     await db.kurti.update({
         where: { code },
         data: {
@@ -60,6 +62,7 @@ export const stockAddition = async (data: any) => {
             countOfPiece: cnt
         }
     });
+    cnt -= kurti?.countOfPiece || 0;
     await db.category.update({
         where: {
             code: code.substring(0,3),
@@ -116,17 +119,23 @@ export const categoryChange = async (data: any) => {
         data: {
             countOfPiece: {
                 decrement: kurti.countOfPiece,
+            },
+            countOfDesign: {
+                decrement: 1,
             }
         }
     });
 
     await db.category.update({
         where: {
-            normalizedLowerCase: data.category.toLowerCase(),
+            code: newCode.toUpperCase().substring(0, 3),
         },
         data: {
             countOfPiece: {
                 increment: kurti.countOfPiece,
+            },
+            countOfDesign: {
+                increment: 1,
             }
         }
     });

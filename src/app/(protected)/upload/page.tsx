@@ -38,6 +38,7 @@ import { currentRole } from "@/src/lib/auth";
 import { UserRole } from "@prisma/client";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
+import PageLoader from "@/src/components/loader";
 
 interface party {
     id: string;
@@ -288,13 +289,13 @@ const UploadPage = () => {
         if (images.length === 0) {
             toast.error("Upload Images");
         }
-        else if(sizes.length === 0) {
+        else if (sizes.length === 0) {
             toast.error("Add Stock");
         }
         else {
             // console.log(sizes);
             let cnt = 0;
-            for(let i = 0; i < sizes.length; i++) {
+            for (let i = 0; i < sizes.length; i++) {
                 cnt += sizes[i].quantity;
             }
             form.setValue('countOfPiece', cnt);
@@ -315,7 +316,7 @@ const UploadPage = () => {
                             router.refresh();
                         }
                     })
-                    .catch((e) => {console.log(e); toast.error("Something went wrong!")});
+                    .catch((e) => { console.log(e); toast.error("Something went wrong!") });
             });
         }
     }
@@ -351,292 +352,297 @@ const UploadPage = () => {
     });
 
     return (
-        <Card className="w-[90%]">
+        <>
+            <PageLoader loading={partyLoader || categoryLoader} />
+            {(partyLoader || categoryLoader) ? "" :
+                <Card className="w-[90%]">
 
-            <CardHeader>
-                <p className="text-2xl font-semibold text-center">
-                    ⬆️ UPLOAD
-                </p>
-            </CardHeader>
-            <CardContent className="text-center">
-                <ImageUpload onImageChange={handleImageChange} images={images} ref={imageUploadRef} />
-                <div className="text-left w-[100%]">
-                    <Form {...form}>
-                        {/* Add Category Component */}
-                        <form className="space-y-6 w-auto" onSubmit={handleFormSubmit}>
-                            <div className="flex flex-row justify-normal">
-                                <FormField
-                                    control={form.control}
-                                    name="category"
-                                    render={({ field }) => (
-                                        <FormItem className="w-[30%]">
-                                            <FormLabel>Category</FormLabel>
-                                            <Select
-                                                disabled={isPending}
-                                                onValueChange={field.onChange}
-                                                defaultValue={field.value}
+                    <CardHeader>
+                        <p className="text-2xl font-semibold text-center">
+                            ⬆️ UPLOAD
+                        </p>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                        <ImageUpload onImageChange={handleImageChange} images={images} ref={imageUploadRef} />
+                        <div className="text-left w-[100%]">
+                            <Form {...form}>
+                                {/* Add Category Component */}
+                                <form className="space-y-6 w-auto" onSubmit={handleFormSubmit}>
+                                    <div className="flex flex-row justify-normal">
+                                        <FormField
+                                            control={form.control}
+                                            name="category"
+                                            render={({ field }) => (
+                                                <FormItem className="w-[30%]">
+                                                    <FormLabel>Category</FormLabel>
+                                                    <Select
+                                                        disabled={isPending}
+                                                        onValueChange={field.onChange}
+                                                        defaultValue={field.value}
+                                                    >
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select Category" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {category.map((org) => (
+                                                                <SelectItem key={org.id} value={org.name}>
+                                                                    {org.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <div className="ml-3 mt-7">
+                                            <Button
+                                                asChild
                                             >
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select Category" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {category.map((org) => (
-                                                        <SelectItem key={org.id} value={org.name}>
-                                                            {org.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <div className="ml-3 mt-7">
-                                    <Button
-                                        asChild
-                                    >
-                                        <DialogDemo
-                                            dialogTrigger="Add Category"
-                                            dialogTitle="New Category Addition"
-                                            dialogDescription="give Category name and click add Category"
-                                            bgColor="destructive"
-                                        >
-
-                                            <Form {...formCategory}>
-                                                <form
-                                                    className="space-y-6"
+                                                <DialogDemo
+                                                    dialogTrigger="Add Category"
+                                                    dialogTitle="New Category Addition"
+                                                    dialogDescription="give Category name and click add Category"
+                                                    bgColor="destructive"
                                                 >
 
-                                                    <FormField
-                                                        control={formCategory.control}
-                                                        name="name"
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>Category</FormLabel>
-                                                                <FormControl>
-                                                                    <Input
-                                                                        {...field}
-                                                                        disabled={isPending}
-                                                                        placeholder="enter category name"
+                                                    <Form {...formCategory}>
+                                                        <form
+                                                            className="space-y-6"
+                                                        >
 
-                                                                    />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
+                                                            <FormField
+                                                                control={formCategory.control}
+                                                                name="name"
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel>Category</FormLabel>
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                {...field}
+                                                                                disabled={isPending}
+                                                                                placeholder="enter category name"
+
+                                                                            />
+                                                                        </FormControl>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
 
 
-                                                    <Button
-                                                        type="button"
-                                                        disabled={isPending}
-                                                        onClick={formCategory.handleSubmit(handleSubmitCategory)}
-                                                    >
-                                                        Add Category
-                                                    </Button>
-                                                </form>
-                                            </Form>
+                                                            <Button
+                                                                type="button"
+                                                                disabled={isPending}
+                                                                onClick={formCategory.handleSubmit(handleSubmitCategory)}
+                                                            >
+                                                                Add Category
+                                                            </Button>
+                                                        </form>
+                                                    </Form>
 
-                                        </DialogDemo>
+                                                </DialogDemo>
 
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <FormField
-                                control={form.control}
-                                name="actualPrice"
-                                render={({ field }) => (
-                                    <FormItem className="w-[30%]">
-                                        <FormLabel>Actual Price</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                disabled={isPending}
-                                                type="number"
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            Enter Actual Price of the Piece.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
-                                name="sellingPrice"
-                                render={({ field }) => (
-                                    <FormItem className="w-[30%]">
-                                        <FormLabel>Sell Price</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                disabled={isPending}
-                                                type="number"
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            Enter Selling Price of the Piece.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <div>
-                                <h2>Sizes</h2>
-                                {components.map((component, index) => (
-                                    <div key={index}>
-                                        {component}
+                                            </Button>
+                                        </div>
                                     </div>
-                                ))}
-                                <Button type="button" onClick={addComponent}>+ Add</Button>
-                            </div>
 
-                            <div className="flex flex-row justify-normal">
-
-                                <div>
                                     <FormField
                                         control={form.control}
-                                        name="code"
+                                        name="actualPrice"
                                         render={({ field }) => (
-                                            <FormItem className="w-[90%]">
+                                            <FormItem className="w-[30%]">
+                                                <FormLabel>Actual Price</FormLabel>
                                                 <FormControl>
-                                                    <Input 
+                                                    <Input
                                                         {...field}
-                                                        disabled
-                                                        placeholder={generatedCode}
-                                                        value={generatedCode.toUpperCase()}
+                                                        disabled={isPending}
+                                                        type="number"
                                                     />
                                                 </FormControl>
                                                 <FormDescription>
-                                                    Generate the code.
+                                                    Enter Actual Price of the Piece.
                                                 </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
-                                </div>
-                                <Button onClick={CodeGenerator} disabled={generatorLoader} type="button">
-                                    {generatorLoader ?
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        :
-                                        ""
-                                    }
-                                    Generate Code
-                                </Button>
-                            </div>
 
-                            {/* Add Party Component */}
-                            <div className="flex flex-row justify-normal">
-                                <FormField
-                                    control={form.control}
-                                    name="party"
-                                    render={({ field }) => (
-                                        <FormItem className="w-[30%]">
-                                            <FormLabel>Party</FormLabel>
-                                            <Select
-                                                disabled={isPending}
-                                                onValueChange={field.onChange}
-                                                defaultValue={field.value === "" ? undefined : field.value}
-                                            >
+                                    <FormField
+                                        control={form.control}
+                                        name="sellingPrice"
+                                        render={({ field }) => (
+                                            <FormItem className="w-[30%]">
+                                                <FormLabel>Sell Price</FormLabel>
                                                 <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select Party" />
-                                                    </SelectTrigger>
+                                                    <Input
+                                                        {...field}
+                                                        disabled={isPending}
+                                                        type="number"
+                                                    />
                                                 </FormControl>
-                                                <SelectContent>
-                                                    {party.map((org) => (
-                                                        <SelectItem key={org.id} value={org.name}>
-                                                            {org.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <div className="ml-3 mt-7">
-                                    <Button
-                                        asChild
-                                    >
-                                        <DialogDemo
-                                            dialogTrigger="Add Party"
-                                            dialogTitle="New Party Addition"
-                                            dialogDescription="give party name and click add party"
-                                            bgColor="destructive"
-                                        >
+                                                <FormDescription>
+                                                    Enter Selling Price of the Piece.
+                                                </FormDescription>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
 
-                                            <Form {...formParty}>
-                                                <form
-                                                    className="space-y-6"
+                                    <div>
+                                        <h2>Sizes</h2>
+                                        {components.map((component, index) => (
+                                            <div key={index}>
+                                                {component}
+                                            </div>
+                                        ))}
+                                        <Button type="button" onClick={addComponent}>+ Add</Button>
+                                    </div>
+
+                                    <div className="flex flex-row justify-normal">
+
+                                        <div>
+                                            <FormField
+                                                control={form.control}
+                                                name="code"
+                                                render={({ field }) => (
+                                                    <FormItem className="w-[90%]">
+                                                        <FormControl>
+                                                            <Input
+                                                                {...field}
+                                                                disabled
+                                                                placeholder={generatedCode}
+                                                                value={generatedCode.toUpperCase()}
+                                                            />
+                                                        </FormControl>
+                                                        <FormDescription>
+                                                            Generate the code.
+                                                        </FormDescription>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                        <Button onClick={CodeGenerator} disabled={generatorLoader} type="button">
+                                            {generatorLoader ?
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                :
+                                                ""
+                                            }
+                                            Generate Code
+                                        </Button>
+                                    </div>
+
+                                    {/* Add Party Component */}
+                                    <div className="flex flex-row justify-normal">
+                                        <FormField
+                                            control={form.control}
+                                            name="party"
+                                            render={({ field }) => (
+                                                <FormItem className="w-[30%]">
+                                                    <FormLabel>Party</FormLabel>
+                                                    <Select
+                                                        disabled={isPending}
+                                                        onValueChange={field.onChange}
+                                                        defaultValue={field.value === "" ? undefined : field.value}
+                                                    >
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select Party" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {party.map((org) => (
+                                                                <SelectItem key={org.id} value={org.name}>
+                                                                    {org.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <div className="ml-3 mt-7">
+                                            <Button
+                                                asChild
+                                            >
+                                                <DialogDemo
+                                                    dialogTrigger="Add Party"
+                                                    dialogTitle="New Party Addition"
+                                                    dialogDescription="give party name and click add party"
+                                                    bgColor="destructive"
                                                 >
 
-                                                    <FormField
-                                                        control={formParty.control}
-                                                        name="name"
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>Party</FormLabel>
-                                                                <FormControl>
-                                                                    <Input
-                                                                        {...field}
-                                                                        disabled={isPending}
-                                                                        placeholder="enter party name"
+                                                    <Form {...formParty}>
+                                                        <form
+                                                            className="space-y-6"
+                                                        >
 
-                                                                    />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
+                                                            <FormField
+                                                                control={formParty.control}
+                                                                name="name"
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel>Party</FormLabel>
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                {...field}
+                                                                                disabled={isPending}
+                                                                                placeholder="enter party name"
+
+                                                                            />
+                                                                        </FormControl>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
 
 
-                                                    <Button
-                                                        type="button"
-                                                        disabled={isPending}
-                                                        onClick={formParty.handleSubmit(handleSubmitParty)}
-                                                    >
-                                                        Add Party
-                                                    </Button>
-                                                </form>
-                                            </Form>
+                                                            <Button
+                                                                type="button"
+                                                                disabled={isPending}
+                                                                onClick={formParty.handleSubmit(handleSubmitParty)}
+                                                            >
+                                                                Add Party
+                                                            </Button>
+                                                        </form>
+                                                    </Form>
 
-                                        </DialogDemo>
+                                                </DialogDemo>
 
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        className="mr-2"
+                                        onClick={handleBarcodeDownload}
+                                        disabled={isPending || barcodeDownloading}
+                                        type="button"
+                                    >
+                                        {barcodeDownloading ?
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            : ""}
+
+                                        Download Full Stock
                                     </Button>
-                                </div>
-                            </div>
-                            <Button 
-                                className="mr-2" 
-                                onClick={handleBarcodeDownload} 
-                                disabled={isPending || barcodeDownloading}
-                                type="button"
-                            >
-                                {barcodeDownloading ?
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    : ""}
-
-                                Download Full Stock
-                            </Button>
-                            <Button
-                                type="button"
-                                disabled={isPending}
-                                onClick={form.handleSubmit(handleFormSubmit)}
-                            >
-                                Submit
-                            </Button>
-                        </form>
-                    </Form>
-                </div>
-                {/* <Button className="mt-2" onClick={handleSubmit}>Submit</Button> */}
-            </CardContent>
-        </Card >
+                                    <Button
+                                        type="button"
+                                        disabled={isPending}
+                                        onClick={form.handleSubmit(handleFormSubmit)}
+                                    >
+                                        Submit
+                                    </Button>
+                                </form>
+                            </Form>
+                        </div>
+                        {/* <Button className="mt-2" onClick={handleSubmit}>Submit</Button> */}
+                    </CardContent>
+                </Card >
+            }
+        </>
     );
 }
 
@@ -644,10 +650,10 @@ const UploadHelper = () => {
     return (
         <>
             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-                <UploadPage/>
+                <UploadPage />
             </RoleGateForComponent>
             <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
-                <NotAllowedPage/>
+                <NotAllowedPage />
             </RoleGateForComponent>
         </>
     )

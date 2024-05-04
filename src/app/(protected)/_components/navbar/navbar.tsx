@@ -201,7 +201,13 @@ const Navbar = () => {
                                     </Link>
                                 </li>
                             </RoleGateForComponent>
-
+                            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+                                <li className="text-balck">
+                                    <Link href="/sell" onClick={() => setNavbar(false)}>
+                                        Sell
+                                    </Link>
+                                </li>
+                            </RoleGateForComponent>
                             <li className="text-balck">
                                 <Link href="/settings" onClick={() => setNavbar(false)}>
                                     Settings

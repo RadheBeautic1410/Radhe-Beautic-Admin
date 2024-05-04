@@ -40,7 +40,7 @@ export const getAllCategoryWithCount = async () => {
         const category = await db.category.findMany({});
         let arr = [];
         for(let i = 0; i < category.length; i++) {
-            const data = await db.kurti.count({where: {category: category[i].name, isDeleted: false}});
+            // const data = await db.kurti.count({where: {category: category[i].name, isDeleted: false}});
             // const data2 = await db.kurti.aggregate({
             //     where: {
             //         isDeleted: false,
@@ -50,7 +50,7 @@ export const getAllCategoryWithCount = async () => {
             //         countOfPiece: true,
             //     }
             // });
-            arr.push({name: category[i].name, count: data, countOfPiece: category[i].countOfPiece});
+            arr.push({name: category[i].name, count: category[i].countOfDesign, countOfPiece: category[i].countOfPiece});
         }
         return {category, counts: arr};
     } catch (error) {
