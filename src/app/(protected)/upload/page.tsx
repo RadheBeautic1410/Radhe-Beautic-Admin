@@ -302,8 +302,9 @@ const UploadPage = () => {
             const values = form.getValues();
             startTransition(() => {
                 kurtiAddition(values)
-                    .then((data) => {
+                    .then(async (data) => {
                         if (data.success) {
+                            await handleBarcodeDownload();
                             form.reset();
                             setSizes([]);
                             setGeneratedCode("");
@@ -616,7 +617,7 @@ const UploadPage = () => {
                                             </Button>
                                         </div>
                                     </div>
-                                    <Button
+                                    {/* <Button
                                         className="mr-2"
                                         onClick={handleBarcodeDownload}
                                         disabled={isPending || barcodeDownloading}
@@ -627,12 +628,15 @@ const UploadPage = () => {
                                             : ""}
 
                                         Download Full Stock
-                                    </Button>
+                                    </Button> */}
                                     <Button
                                         type="button"
-                                        disabled={isPending}
+                                        disabled={isPending || barcodeDownloading}
                                         onClick={form.handleSubmit(handleFormSubmit)}
                                     >
+                                        {(isPending || barcodeDownloading) ?
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            : ""}
                                         Submit
                                     </Button>
                                 </form>
