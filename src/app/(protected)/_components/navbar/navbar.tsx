@@ -78,7 +78,7 @@ const Navbar = () => {
                             </Button>
                         </RoleGateForComponent>
 
-                        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+                        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER]}>
                             <Button
                                 asChild
                                 variant={pathname.includes('/catalogue') ? "default" : "outline"}
@@ -201,7 +201,7 @@ const Navbar = () => {
                                     </Link>
                                 </li>
                             </RoleGateForComponent>
-                            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+                            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER]}>
                                 <li className="text-balck">
                                     <Link href="/sell" onClick={() => setNavbar(false)}>
                                         Sell

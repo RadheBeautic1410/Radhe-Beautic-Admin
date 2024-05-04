@@ -65,7 +65,7 @@ export const stockAddition = async (data: any) => {
     cnt -= kurti?.countOfPiece || 0;
     await db.category.update({
         where: {
-            code: code.substring(0,3),
+            code: code.substring(0, 3),
         },
         data: {
             countOfPiece: {
@@ -142,4 +142,15 @@ export const categoryChange = async (data: any) => {
 
     const dbpartyFetch = await getKurtiByCode(newCode);
     return { success: "Category Changed!", code: dbpartyFetch?.code, category: dbpartyFetch?.category }
+}
+
+export const deleteCategory = async (data: any) => {
+    const { category } = data;
+    const categories = await db.category.findMany({});
+    await db.category.delete({
+        where: {
+            normalizedLowerCase: category.toLowerCase(),
+        }
+    });
+    return {success: `Category ${category} Deleted`};
 }
