@@ -1,6 +1,8 @@
+import { RoleGateForComponent } from '@/src/components/auth/role-gate-component';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
+import { UserRole } from '@prisma/client';
 import axios from 'axios';
 import { log } from 'console';
 import { Loader2 } from 'lucide-react';
@@ -26,7 +28,7 @@ interface KurtiPicCardProps {
     onKurtiDelete: (data: any) => void;
 }
 
-const KurtiPicCard: React.FC<KurtiPicCardProps> = ({data, onKurtiDelete }) => {
+const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     // console.log(data);
     const [downloading, setDownloading] = useState(false);
     const [stockString, setStockString] = useState(``);
@@ -229,14 +231,16 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({data, onKurtiDelete }) => {
                     : ""}
                 ⬇️
             </Button>
-            <Link href={`${pathname}/${data.code.toLowerCase()}`} className='mt-0 pt-0'>
-                <Button type='button' className="ml-3" variant={'outline'} key={'edit'}>
-                    ✏️
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+                <Link href={`${pathname}/${data.code.toLowerCase()}`} className='mt-0 pt-0'>
+                    <Button type='button' className="ml-3" variant={'outline'} key={'edit'}>
+                        ✏️
+                    </Button>
+                </Link>
+                <Button type='button' className="ml-3" variant={'outline'} key={'edit'} onClick={handleDelete}>
+                    🗑️
                 </Button>
-            </Link>
-            <Button type='button' className="ml-3" variant={'outline'} key={'edit'} onClick={handleDelete}>
-                🗑️
-            </Button>
+            </RoleGateForComponent>
         </div>
     )
 }

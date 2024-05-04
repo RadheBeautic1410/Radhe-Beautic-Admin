@@ -135,12 +135,12 @@ const ListPage = () => {
 const CatalogueListHelper = () => {
     return (
         <>
-            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER]}>
                 <ListPage />
             </RoleGateForComponent>
-            <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
+            {/* <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
                 <NotAllowedPage />
-            </RoleGateForComponent>
+            </RoleGateForComponent> */}
         </>
     );
 }
