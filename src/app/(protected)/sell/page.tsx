@@ -8,16 +8,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { UserRole } from '@prisma/client';
 import { Value } from '@radix-ui/react-select';
 import axios from 'axios';
-import { Loader2 } from 'lucide-react';
+import { Axis3D, Loader2 } from 'lucide-react';
 import React, { useState } from 'react'
 import { toast } from 'sonner';
 import NotAllowedPage from '../_components/errorPages/NotAllowedPage';
+import { useCurrentUser } from '@/src/hooks/use-current-user';
 
 function SellPage() {
     const [code, setCode] = useState("");
     const [kurti, setKurti] = useState<any>(null);
     const [selling, setSelling] = useState(false);
     const [sizes, setSellSize] = useState(0);
+    const currentUser = useCurrentUser();
+    // console.log(currentUser);
     const handleSell = async () => {
         try {
             setSelling(true);
@@ -25,19 +28,33 @@ function SellPage() {
                 toast.error('PLease enter correct code!!!');
             }
             else {
-                const response = await fetch(`/api/sell?code=${code}`); // Adjust the API endpoint based on your actual setup
-                const result = await response.json();
-                // console.log(result.data);
-                if (result.data.error) {
-                    toast.error(result.data.error);
+                console.log(currentUser);
+                const currentTime = new Date();
+
+                // Calculate the offset for IST (UTC+5:30)
+                const ISTOffset = 5.5 * 60 * 60 * 1000;
+
+                // Convert the local time to IST
+                const ISTTime = new Date(currentTime.getTime() + ISTOffset);
+                const res = await axios.post(`/api/sell`, {
+                    code,
+                    currentUser,
+                    currentTime: ISTTime,
+                })
+                // const response = await fetch(`/api/sell?code=${code}`); // Adjust the API endpoint based on your actual setup
+                // const result = await response.json();
+                console.log(res.data);
+                const data = res.data.data;
+                if (data.error) {
+                    toast.error(data.error);
                     setKurti(null);
                 }
                 else {
                     toast.success('Sold Successfully');
                     // console.log(result);
-                    
-                    setKurti(result.data.kurti);
-                    setSellSize(result.data.kurti.sizes.length);
+
+                    setKurti(data.kurti);
+                    setSellSize(data.kurti.sizes.length);
                 }
             }
 
@@ -78,14 +95,14 @@ function SellPage() {
                             placeholder='Enter code'
                             value={code}
                             onKeyUp={
-                                (e)=>{
-                                    if(e.key === 'Enter') {
+                                (e) => {
+                                    if (e.key === 'Enter') {
                                         handleSell();
                                     }
                                 }
                             }
-                            onChange={(e) => { setCode(e.target.value);}}
-                            // disabled
+                            onChange={(e) => { setCode(e.target.value); }}
+                        // disabled
                         ></Input>
                     </div>
                     <Button type='button' className='mt-5' onClick={handleSell} disabled={selling}>
@@ -165,14 +182,14 @@ function SellPage() {
     )
 }
 
-const SellerHelp = () =>{
+const SellerHelp = () => {
     return (
         <>
             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.SELLER]}>
-                <SellPage/>
+                <SellPage />
             </RoleGateForComponent>
             <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
-                <NotAllowedPage/>
+                <NotAllowedPage />
             </RoleGateForComponent>
         </>
     )

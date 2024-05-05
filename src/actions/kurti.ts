@@ -146,11 +146,22 @@ export const categoryChange = async (data: any) => {
 
 export const deleteCategory = async (data: any) => {
     const { category } = data;
-    const categories = await db.category.findMany({});
+    // const categories = await db.category.findMany({});
     await db.category.delete({
         where: {
             normalizedLowerCase: category.toLowerCase(),
         }
     });
+    await db.kurti.updateMany({
+        where: {
+            category: {
+                mode: 'insensitive',
+                endsWith: category.toLowerCase(),
+            },
+        },
+        data: {
+            isDeleted: true,
+        }
+    })
     return {success: `Category ${category} Deleted`};
 }

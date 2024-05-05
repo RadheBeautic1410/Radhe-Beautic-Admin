@@ -90,7 +90,7 @@ const Navbar = () => {
                         <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.SELLER]}>
                             <Button
                                 asChild
-                                variant={pathname.includes('/sell') ? "default" : "outline"}
+                                variant={pathname === '/sell' ? "default" : "outline"}
                             >
                                 <Link href="/sell">Sell</Link>
                             </Button>
@@ -102,6 +102,15 @@ const Navbar = () => {
                                 variant={pathname === "/request" ? "default" : "outline"}
                             >
                                 <Link href="/request">Requests</Link>
+                            </Button>
+                        </RoleGateForComponent>
+
+                        <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+                            <Button
+                                asChild
+                                variant={pathname === "/sellinghistory" ? "default" : "outline"}
+                            >
+                                <Link href="/sellinghistory">Selling History</Link>
                             </Button>
                         </RoleGateForComponent>
 

@@ -178,6 +178,8 @@ model Category {
 }
 
 
+
+
 model User2 {
     id            String    @id @default(auto()) @map("_id") @db.ObjectId
     name          String?
@@ -205,4 +207,13 @@ model Kurti {
     images        Json[]
     isDeleted     Boolean  @default(false)
     countOfPiece  Int @default(0)
+}
+
+model Sell {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  sellTime DateTime
+  code String
+  kurtiSize String
+  sellerName String
+  kurti Json[]
 }
