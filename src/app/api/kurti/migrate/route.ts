@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { migrate, sellKurti } from "@/src/data/kurti";
+import { migrate } from "@/src/data/kurti";
 import { NextRequest, NextResponse } from "next/server";
 
 
