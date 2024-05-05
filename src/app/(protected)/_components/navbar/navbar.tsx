@@ -131,7 +131,7 @@ const Navbar = () => {
                             {navbar ? (
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
-                                    className="w-6 h-6 text-balck"
+                                    className="w-6 h-6 text-black"
                                     viewBox="0 0 20 20"
                                     fill="black"
                                 >
@@ -144,7 +144,7 @@ const Navbar = () => {
                             ) : (
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
-                                    className="w-6 h-6 text-balck"
+                                    className="w-6 h-6 text-black"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="black"
@@ -182,7 +182,7 @@ const Navbar = () => {
                             }`}
                     >
                         <ul className="items-center justify-center space-y-8 md:flex md:space-x-6 md:space-y-0">
-                            <li className="text-balck">
+                            <li className="text-black">
                                 <Link href="/" onClick={() => setNavbar(false)}>
                                     Home
                                 </Link>
@@ -190,34 +190,44 @@ const Navbar = () => {
 
                             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
 
-                                <li className="text-balck">
+                                <li className="text-black">
                                     <Link href="/upload" onClick={() => setNavbar(false)}>
                                         Upload
                                     </Link>
                                 </li>
                             </RoleGateForComponent>
 
-                            <li className="text-balck">
+                            <li className="text-black">
                                 <Link href="/catalogue" onClick={() => setNavbar(false)}>
                                     Catalogue
                                 </Link>
                             </li>
 
                             <RoleGateForComponent allowedRole={[UserRole.ADMIN,]}>
-                                <li className="text-balck">
+                                <li className="text-black">
                                     <Link href="/request" onClick={() => setNavbar(false)}>
                                         Requests
                                     </Link>
                                 </li>
                             </RoleGateForComponent>
+                            
                             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER]}>
-                                <li className="text-balck">
+                                <li className="text-black">
                                     <Link href="/sell" onClick={() => setNavbar(false)}>
                                         Sell
                                     </Link>
                                 </li>
                             </RoleGateForComponent>
-                            <li className="text-balck">
+
+                            <RoleGateForComponent allowedRole={[UserRole.ADMIN,]}>
+                                <li className="text-black">
+                                    <Link href="/sellinghistory" onClick={() => setNavbar(false)}>
+                                        Selling History
+                                    </Link>
+                                </li>
+                            </RoleGateForComponent>
+
+                            <li className="text-black">
                                 <Link href="/settings" onClick={() => setNavbar(false)}>
                                     Settings
                                 </Link>
