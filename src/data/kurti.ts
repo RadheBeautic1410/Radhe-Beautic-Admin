@@ -408,13 +408,19 @@ export const migrate = async () => {
 }
 
 export const getSellHistory = async () => {
-    const currentDate = new Date().toISOString().slice(0, 10);
+    // const currentDate = new Date().toISOString().slice(0, 10);
+    const currentTime = new Date();
 
+    // Calculate the offset for IST (UTC+5:30)
+    const ISTOffset = 5.5 * 60 * 60 * 1000;
+
+    // Convert the local time to IST
+    const ISTTime = new Date(currentTime.getTime() + ISTOffset).toISOString().slice(0, 10);
     const sellData = await db.sell.findMany({
         where: {
             sellTime: {
-                gte: new Date(`${currentDate}T00:00:00.000Z`),
-                lt: new Date(`${currentDate}T23:59:59.999Z`),
+                gte: new Date(`${ISTTime}T00:00:00.000Z`),
+                lt: new Date(`${ISTTime}T23:59:59.999Z`),
             },
         },
     });
