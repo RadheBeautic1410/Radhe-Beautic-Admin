@@ -96,8 +96,8 @@ const ModeratorPage = () => {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="text-center">Name</TableHead>
-                                    <TableHead className="text-center">Email</TableHead>
-                                    <TableHead className="text-center">Organization</TableHead>
+                                    <TableHead className="text-center">Phone Number</TableHead>
+                                    {/* <TableHead className="text-center">Organization</TableHead> */}
                                     <TableHead className="text-center">Verified</TableHead>
                                     <TableHead className="text-center">Role</TableHead>
                                     <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>

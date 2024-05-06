@@ -100,7 +100,7 @@ export const ModeratorRow = ({ userData, onUpdateUserData, onDeleteUserData }: m
         <TableRow key={userData.id}>
             <TableCell className="text-center font-medium">{userData.name}</TableCell>
             <TableCell className="text-center">{userData.phoneNumber}</TableCell>
-            <TableCell className="text-center">{userData.organization}</TableCell>
+            {/* <TableCell className="text-center">{userData.organization}</TableCell> */}
             <TableCell className="text-center">
                 <div className="flex justify-center">
                     {userData.isVerified ? <IoMdCheckmark /> : <ImCross />}
