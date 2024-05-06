@@ -36,6 +36,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
     }, []);
 
     async function downloadImage(imageId: string) {
+        console.log(imageId);
         var image = document.getElementById(imageId) as HTMLImageElement;
         var canvas = document.createElement('canvas');
         var ctx = await canvas.getContext('2d');
@@ -60,8 +61,8 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
     }
 
     const loadWatermark = async (rightText: string, leftText: string) => {
-        const imgDom = document.querySelector(`#${data.code}-${idx}`) as HTMLImageElement;
-        const imgDom2 = document.querySelector(`#${data.code}-${idx}`) as HTMLImageElement;
+        const imgDom = document.querySelector(`#download${data.code}-${idx}`) as HTMLImageElement;
+        const imgDom2 = document.querySelector(`#download${data.code}-${idx}`) as HTMLImageElement;
         let width = isBrowserMobile ? 60 : 250;
         let height = isBrowserMobile ? 25 : 90;
         let width1 = isBrowserMobile ? 50 : 200;
@@ -132,12 +133,12 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
     }
 
     const handleClick = async () => {
-        const imgDom = document.querySelector(`#${data.code}-${idx}`) as HTMLImageElement;
-        const imgDom2 = document.querySelector(`#${data.code}-${idx}`) as HTMLImageElement;
+        const imgDom = document.querySelector(`#download${data.code}-${idx}`) as HTMLImageElement;
+        const imgDom2 = document.querySelector(`#download${data.code}-${idx}`) as HTMLImageElement;
         if (imgDom.complete) {
             setDownloading(true);
             await findBlocks();
-            await downloadImage(`${data.code}-${idx}`);
+            await downloadImage(`download${data.code}-${idx}`);
             setDownloading(false);
         }
         else {
@@ -148,7 +149,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
         <div id='container' className='p-3 bg-slate-300'>
             <img id={`${data.code}${idx}-visible`} src={data.images[idx].url} crossOrigin="anonymous" width={'300px'} height={'300px'}></img>
             <div className='w-[2200px] h-[2200px]' hidden>
-                <img id={`${data.code}-${idx}`} className="w-max-[2200px] h-max-[2200px] object-cover" src={data.images[idx].url} crossOrigin="anonymous"></img>
+                <img id={`download${data.code}-${idx}`} className="w-max-[2200px] h-max-[2200px] object-cover" src={data.images[idx].url} crossOrigin="anonymous"></img>
             </div>
             <Button type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
                 {downloading ?

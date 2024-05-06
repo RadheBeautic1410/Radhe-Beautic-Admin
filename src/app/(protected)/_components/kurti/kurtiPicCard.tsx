@@ -85,8 +85,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         image.src = data.images[0].url
     }
     const loadWatermark = async (rightText: string, leftText: string) => {
-        const imgDom = document.querySelector(`#${data.code}`) as HTMLImageElement;
-        const imgDom2 = document.querySelector(`#${data.code}`) as HTMLImageElement;
+        const imgDom = document.querySelector(`#download${data.code}`) as HTMLImageElement;
+        const imgDom2 = document.querySelector(`#download${data.code}`) as HTMLImageElement;
         let width = isBrowserMobile ? 60 : 250;
         let height = isBrowserMobile ? 25 : 90;
         let width1 = isBrowserMobile ? 50 : 200;
@@ -160,12 +160,12 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     }
 
     const handleClick = async () => {
-        const imgDom = document.querySelector(`#${data.code}`) as HTMLImageElement;
-        const imgDom2 = document.querySelector(`#${data.code}`) as HTMLImageElement;
+        const imgDom = document.querySelector(`#download${data.code}`) as HTMLImageElement;
+        const imgDom2 = document.querySelector(`#download${data.code}`) as HTMLImageElement;
         if (imgDom.complete) {
             setDownloading(true);
             await findBlocks();
-            await downloadImage(data.code);
+            await downloadImage(`download${data.code}`);
             setDownloading(false);
         }
         else {
@@ -175,7 +175,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     return (
         <div id='container' className='p-3 bg-slate-300'>
             <div className='w-[2200px] h-[2200px]' hidden>
-                <img id={data.code} className="h-full w-full object-cover" src={data.images[0].url} crossOrigin="anonymous"></img>
+                <img id={`download${data.code}`} className="h-full w-full object-cover" src={data.images[0].url} crossOrigin="anonymous"></img>
             </div>
             <img id={`${data.code}-visible`} src={data.images[0].url} crossOrigin="anonymous" height={'300px'} width={'300px'}></img>
 
