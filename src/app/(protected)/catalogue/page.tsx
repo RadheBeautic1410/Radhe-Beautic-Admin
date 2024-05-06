@@ -113,6 +113,12 @@ const ListPage = () => {
                                 <TableCaption>List of all category</TableCaption>
                                 <TableHeader>
                                     <TableRow className="text-black">
+                                    <TableHead
+                                            key={'sr.'}
+                                            className="text-center font-bold text-base"
+                                        >
+                                            Sr.
+                                        </TableHead>
                                         <TableHead
                                             key={'Category'}
                                             className="text-center font-bold text-base"
@@ -148,13 +154,21 @@ const ListPage = () => {
                                             key={idx}
                                         // className="" 
                                         >
+                                            <TableCell 
+                                                key={idx*idx}
+                                                className="text-center"
+                                            >
+                                                {idx + 1}
+                                            </TableCell>
                                             <TableCell
                                                 key={cat.name}
                                                 className="text-center text-blue-800 font-bold cursor-pointer"
                                                 aria-label={`open categry ${cat.name} by clicking`}
-                                                onClick={() => router.push(`/catalogue/${cat.name.toLowerCase()}`)}
+                                                // onClick={() => router.push(`/catalogue/${cat.name.toLowerCase()}`)}
                                             >
-                                                {cat.name}
+                                                <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
+                                                    {cat.name}
+                                                </Link>
                                             </TableCell>
                                             <TableCell
                                                 className="text-center"
