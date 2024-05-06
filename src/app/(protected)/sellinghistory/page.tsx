@@ -92,7 +92,7 @@ function SellingHistory() {
                                         return (
                                             <TableRow key={obj.id}>
                                                 <TableCell className="text-center">
-                                                    {idx+1}
+                                                    {sellData.length - idx}
                                                 </TableCell>
                                                 <TableCell className="text-center">
                                                     {`${finalHours}:${finalMinutes}:${finalSeconds}`}
