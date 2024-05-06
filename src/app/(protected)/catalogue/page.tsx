@@ -213,6 +213,9 @@ const ListPage = () => {
                                     ))}
                                     <TableRow className="text-red-600 font-bold text-center text-base">
                                         <TableCell>
+                                            {'-'}
+                                        </TableCell>
+                                        <TableCell>
                                             {'Total'}
                                         </TableCell>
                                         <TableCell>
