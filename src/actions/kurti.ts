@@ -41,15 +41,25 @@ export const kurtiAddition = async (
     return { success: "Catalog Added!", data: dbpartyFetch }
 }
 
-export const stockAddition = async (data: any) => {
-    const user = await currentUser();
-    const role = await currentRole();
+function isDigit(character: any) {
+    return !isNaN(parseInt(character)) && isFinite(character);
+}
 
+function isSize(size: string) {
+    let arr: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+    return arr.includes(size);
+}
+
+export const stockAddition = async (data: any) => {
+    // const user = await currentUser();
+    // const role = await currentRole();
+    console.log(data);
     const { code, sizes } = data;
     let cnt = 0;
     for (let i = 0; i < sizes.length; i++) {
         cnt += sizes[i].quantity;
     }
+    console.log(code);
     let kurti = await db.kurti.findUnique({
         where: {
             code: code,
@@ -63,14 +73,15 @@ export const stockAddition = async (data: any) => {
         }
     });
     cnt -= kurti?.countOfPiece || 0;
+    console.log(code);
     await db.category.update({
         where: {
-            code: code.substring(0, 3),
+            normalizedLowerCase: kurti?.category.toLowerCase(),
         },
         data: {
             countOfPiece: {
                 increment: cnt,
-            },
+            }
         }
     })
 
@@ -98,12 +109,14 @@ export const priceChange = async (data: any) => {
 }
 
 export const categoryChange = async (data: any) => {
-    const user = await currentUser();
-    const role = await currentRole();
 
     const { code, newCode } = data;
     console.log(code, newCode);
-
+    const oldKurti = await db.kurti.findUnique({
+        where: {
+            code: code,
+        }
+    });
     const kurti = await db.kurti.update({
         where: { code },
         data: {
@@ -114,7 +127,7 @@ export const categoryChange = async (data: any) => {
     console.log('count:', kurti.countOfPiece);
     await db.category.update({
         where: {
-            code: code.substring(0, 3).toUpperCase(),
+            normalizedLowerCase: oldKurti?.category.toLowerCase(),
         },
         data: {
             countOfPiece: {
@@ -128,7 +141,7 @@ export const categoryChange = async (data: any) => {
 
     await db.category.update({
         where: {
-            code: newCode.toUpperCase().substring(0, 3),
+            normalizedLowerCase: kurti.category.toLowerCase(),
         },
         data: {
             countOfPiece: {
@@ -163,5 +176,5 @@ export const deleteCategory = async (data: any) => {
             isDeleted: true,
         }
     })
-    return {success: `Category ${category} Deleted`};
+    return { success: `Category ${category} Deleted` };
 }

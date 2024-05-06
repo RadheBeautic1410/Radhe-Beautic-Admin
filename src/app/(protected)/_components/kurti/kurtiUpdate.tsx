@@ -254,7 +254,10 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                         setSizes(data.data);
                     }
                 })
-                .catch(() => toast.error("Something went wrong!"));
+                .catch((e: any) => {
+                    console.log(e.message);
+                    toast.error("Something went wrong!")
+                });
         });
     }
 

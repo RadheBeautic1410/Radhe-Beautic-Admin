@@ -301,7 +301,7 @@ export const sellKurti2 = async (data: any) => {
                 console.log('code2', search.toUpperCase().substring(0, 3));
                 await db.category.update({
                     where: {
-                        code: search.toUpperCase().substring(0, 3),
+                        normalizedLowerCase: updateUser.category.toLowerCase(),
                     },
                     data: {
                         countOfPiece: {
@@ -338,7 +338,7 @@ export const sellKurti2 = async (data: any) => {
 
 export const migrate = async () => {
     try {
-        const kurti: any[] = await db.kurti.findMany({ where: { isDeleted: false } });
+        // const kurti: any[] = await db.kurti.findMany({ where: { isDeleted: false } });
         const category: any[] = await db.category.findMany({});
         for (let i = 0; i < category.length; i++) {
             await db.category.update({
@@ -351,54 +351,100 @@ export const migrate = async () => {
                 }
             })
         }
-        console.log(kurti.length);
-        for (let i = 0; i < kurti.length; i++) {
-            let cnt = 0;
-            let lower = kurti[i].category.toLowerCase();
-            let flag = 0;
-            for (let j = 0; j < category.length; j++) {
-                if (lower === category[j].normalizedLowerCase) {
-                    flag = 1;
+        for (let i = 0; i < category.length; i++) {
+            const kurtis: any[] = await db.kurti.findMany({
+                where: {
+                    isDeleted: false,
+                    category: {
+                        mode: 'insensitive',
+                        startsWith: category[i].name
+                    }
                 }
-            }
-            if (flag === 0) {
+            });
+            console.log(category[i].name, kurtis.length);
+            for (let j = 0; j < kurtis.length; j++) {
+                let sizes = kurtis[j]?.sizes || [];
+                let cnt = 0;
+                for (let k = 0; k < sizes.length; k++) {
+                    if (sizes[k].quantity <= 0) {
+                        continue;
+                    }
+                    cnt += sizes[k].quantity || 0;
+                }
                 await db.kurti.update({
                     where: {
-                        id: kurti[i].id,
+                        id: kurtis[j].id,
                     },
                     data: {
-                        isDeleted: true,
+                        countOfPiece: cnt,
                     }
                 });
-                continue;
-            }
-            let sizes = kurti[i]?.sizes || [];
-            for (let j = 0; j < sizes.length; j++) {
-                cnt += sizes[j].quantity || 0;
-            }
-            await db.kurti.update({
-                where: {
-                    id: kurti[i].id,
-                },
-                data: {
-                    countOfPiece: cnt,
-                }
-            });
-            // console.log(kurti[i].category.toLowerCase());
-            await db.category.update({
-                where: {
-                    normalizedLowerCase: kurti[i].category.toLowerCase() || "",
-                },
-                data: {
-                    countOfPiece: {
-                        increment: cnt,
+                await db.category.update({
+                    where: {
+                        id: category[i].id,
                     },
-                    countOfDesign: {
-                        increment: 1,
+                    data: {
+                        countOfPiece: {
+                            increment: cnt,
+                        },
+                        countOfDesign: {
+                            increment: 1,
+                        }
                     }
-                }
-            });
+                });
+            }
         }
+        // console.log(kurti.length);
+        // for (let i = 0; i < kurti.length; i++) {
+        //     let cnt = 0;
+        //     let lower = kurti[i].category.toLowerCase();
+        //     let flag = 0;
+        //     for (let j = 0; j < category.length; j++) {
+        //         if (lower === category[j].normalizedLowerCase) {
+        //             flag = 1;
+        //         }
+        //     }
+        //     if (flag === 0) {
+        //         await db.kurti.update({
+        //             where: {
+        //                 id: kurti[i].id,
+        //             },
+        //             data: {
+        //                 isDeleted: true,
+        //             }
+        //         });
+        //         continue;
+        //     }
+        //     let sizes = kurti[i]?.sizes || [];
+        //     for (let j = 0; j < sizes.length; j++) {
+        //         if (sizes[j].quantity <= 0) {
+        //             continue;
+        //         }
+        //         cnt += sizes[j].quantity || 0;
+        //     }
+        //     await db.kurti.update({
+        //         where: {
+        //             id: kurti[i].id,
+        //         },
+        //         data: {
+        //             countOfPiece: cnt,
+        //         }
+        //     });
+        //     // console.log(kurti[i].category.toLowerCase());
+        //     await db.category.update({
+        //         where: {
+        //             normalizedLowerCase: kurti[i].category.toLowerCase() || "",
+        //         },
+        //         data: {
+        //             countOfPiece: {
+        //                 increment: cnt,
+        //             },
+        //             countOfDesign: {
+        //                 increment: 1,
+        //             }
+        //         }
+        //     });
+        // }
 
         return category;
     } catch (e: any) {
