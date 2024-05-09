@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface SingleSizeProps {
-    onSetSize: (size: string) => void;
+    onSetSize: (size: string, quantity: number) => void;
     quantity: any;
     size: any;
 }
@@ -93,7 +93,6 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes })
     //         onAddSize([]);
     //     }
     // }, [])
-
     return (
         <div className="flex flex-col gap-2 w-[100%]">
             {sizes.map((obj, index) => (
