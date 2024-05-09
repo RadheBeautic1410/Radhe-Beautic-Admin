@@ -57,78 +57,167 @@ interface Size {
     quantity: number;
 }
 
-const AddSizeForm: React.FC<{ idx: number; sizes: Size[]; onAddSize: (sizes: Size[]) => void }> =
-    ({ idx, sizes, onAddSize }) => {
-        let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
-        const [size, setSize] = useState<string>('S');
-        const [quantity, setQuantity] = useState<number>(0);
-        const [confirm, setConfirm] = useState(false);
+// const AddSizeForm: React.FC<{ idx: number; sizes: Size[]; onAddSize: (sizes: Size[]) => void }> =
+//     ({ idx, sizes, onAddSize }) => {
+//         let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+//         const [size, setSize] = useState<string>('S');
+//         const [quantity, setQuantity] = useState<number>(0);
+//         const [confirm, setConfirm] = useState(false);
 
-        const handleAddSize = (event: any) => {
-            event.preventDefault();
-            if (size.trim() !== '' && quantity > 0) {
-                let x = size;
-                let obj = { size: x, quantity };
-                let temp = sizes;
-                for (let i = 0; i < temp.length; i++) {
-                    if (temp[i].size === x) {
-                        toast.error('The size is already selected!!!');
-                        return;
-                    }
-                }
-                if (idx < temp.length) {
-                    temp[idx] = obj;
-                }
-                else {
-                    temp.push(obj);
-                }
-                console.log('edit', temp);
-                onAddSize(temp);
-                setConfirm(true);
-            } else {
-                toast.error('Please enter a valid size and quantity.');
-            }
-        };
+//         const handleAddSize = (event: any) => {
+//             event.preventDefault();
+//             if (size.trim() !== '' && quantity > 0) {
+//                 let x = size;
+//                 let obj = { size: x, quantity };
+//                 let temp = sizes;
+//                 for (let i = 0; i < temp.length; i++) {
+//                     if (temp[i].size === x) {
+//                         toast.error('The size is already selected!!!');
+//                         return;
+//                     }
+//                 }
+//                 if (idx < temp.length) {
+//                     temp[idx] = obj;
+//                 }
+//                 else {
+//                     temp.push(obj);
+//                 }
+//                 console.log('edit', temp);
+//                 onAddSize(temp);
+//                 setConfirm(true);
+//             } else {
+//                 toast.error('Please enter a valid size and quantity.');
+//             }
+//         };
 
 
-        return (
-            <div>
-                <h3>Add New Size</h3>
-                <div className="flex flex-row w-[50%]">
-                    <Select
-                        onValueChange={(e) => setSize(e)}
-                        defaultValue={'S'}
-                    >
-                        <SelectTrigger className="w-[20%]">
-                            <SelectValue placeholder="Select Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {selectSizes.map((org) => (
-                                <SelectItem key={org} value={org}>
-                                    {org}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Input
-                        className="ml-2 w-[20%]"
-                        type="number"
-                        placeholder="Quantity"
-                        value={quantity}
-                        onChange={(e) => setQuantity(parseInt(e.target.value))}
-                    />
-                    <Button
-                        type="button"
-                        onClick={handleAddSize}
-                        className="ml-2"
-                    >
-                        {confirm ? "✅ " : ""}Confirm
-                    </Button>
-                </div>
-            </div>
-        );
+//         return (
+//             <div>
+//                 <h3>Add New Size</h3>
+//                 <div className="flex flex-row w-[50%]">
+//                     <Select
+//                         onValueChange={(e) => setSize(e)}
+//                         defaultValue={'S'}
+//                     >
+//                         <SelectTrigger className="w-[20%]">
+//                             <SelectValue placeholder="Select Category" />
+//                         </SelectTrigger>
+//                         <SelectContent>
+//                             {selectSizes.map((org) => (
+//                                 <SelectItem key={org} value={org}>
+//                                     {org}
+//                                 </SelectItem>
+//                             ))}
+//                         </SelectContent>
+//                     </Select>
+//                     <Input
+//                         className="ml-2 w-[20%]"
+//                         type="number"
+//                         placeholder="Quantity"
+//                         value={quantity}
+//                         onChange={(e) => setQuantity(parseInt(e.target.value))}
+//                     />
+//                     <Button
+//                         type="button"
+//                         onClick={handleAddSize}
+//                         className="ml-2"
+//                     >
+//                         {confirm ? "✅ " : ""}Confirm
+//                     </Button>
+//                 </div>
+//             </div>
+//         );
+//     };
+
+interface SingleSizeProps {
+    onSetSize: (size: string) => void;
+}
+
+const SingleSize: React.FC<SingleSizeProps> = ({ onSetSize }) => {
+    const selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+    const [selectedSize, setSelectedSize] = useState<string>('S');
+    const [quantity, setQuantity] = useState(0);
+
+    const handleChange = (e: any) => {
+        setSelectedSize(e);
+        onSetSize(e, quantity);
+    };
+    const handleQuantityChange = (e: any) => {
+        let quan = parseInt(e.target.value)
+        setQuantity(quan);
+        onSetSize(selectedSize, quan);
+    }
+    return (
+        <>
+            <Select
+                onValueChange={(e) => handleChange(e)}
+                defaultValue={'S'}
+            >
+                <SelectTrigger className="w-[20%]">
+                    <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent>
+                    {selectSizes.map((org) => (
+                        <SelectItem key={org} value={org}>
+                            {org}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <Input
+                className="ml-2 w-[30%]"
+                type="number"
+                placeholder="Quantity"
+                value={quantity}
+                onChange={(e) => handleQuantityChange(e)}
+            />
+        </>
+    );
+};
+
+interface AddSizeFormProps {
+    onAddSize: (sizes: any[]) => void;
+}
+
+const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize }) => {
+    const [sizes, setSizes] = useState<any[]>([]);
+
+    const handleAddSize = () => {
+        const newSizes = [...sizes, {size: 'S', quantity: 0}]; // Default size 'S' added
+        setSizes(newSizes);
+        onAddSize(newSizes);
     };
 
+    const handleRemoveSize = (index: number) => {
+        const updatedSizes = sizes.filter((_, i) => i !== index);
+        setSizes(updatedSizes);
+        onAddSize(updatedSizes);
+    };
+
+    return (
+        <div className="flex flex-col gap-2 w-[30%]">
+            {sizes.map((_, index) => (
+                <div key={index} className="flex items-center">
+                    <SingleSize
+                        onSetSize={(size: any, quantity: any) => {
+                            const updatedSizes = [...sizes];
+                            updatedSizes[index] = {
+                                size,
+                                quantity
+                            };
+                            setSizes(updatedSizes);
+                            onAddSize(updatedSizes);
+                        }}
+                    />
+                    <Button type="button" className="ml-2" onClick={() => handleRemoveSize(index)}>Remove</Button>
+                </div>
+            ))}
+            <Button className="w-[30%]" type="button" onClick={handleAddSize}>
+                + Add
+            </Button>
+        </div>
+    );
+};
 
 const UploadPage = () => {
     const [isPending, startTransition] = useTransition()
@@ -142,12 +231,12 @@ const UploadPage = () => {
     const [category, setCategory] = useState<category[]>([]);
     const [images, setImages] = useState<any[]>([]);
     const [generatorLoader, setGeneratorLoader] = useState(false);
-    const [components, setComponents] = useState<any[]>([]);
+    // const [components, setComponents] = useState<any[]>([]);
     const [sizes, setSizes] = useState<Size[]>([]);
     const router = useRouter();
     const [barcodeDownloading, setBarcodeDownloading] = useState(false);
 
-    const handleAddSize = (sizes: Size[]) => {
+    const onAddSize = (sizes: Size[]) => {
         setSizes(sizes);
     };
 
@@ -182,16 +271,16 @@ const UploadPage = () => {
         }
     }
 
-    const addComponent = () => {
-        setComponents([...components,
-        <AddSizeForm
-            key={components.length}
-            idx={components.length}
-            sizes={sizes}
-            onAddSize={handleAddSize}
-        />
-        ]);
-    };
+    // const addComponent = () => {
+    //     setComponents([...components,
+    //     <AddSizeForm
+    //         key={components.length}
+    //         idx={components.length}
+    //         sizes={sizes}
+    //         onAddSize={handleAddSize}
+    //     />
+    //     ]);
+    // };
 
     const handleImageChange = (data: any) => {
         setImages(data)
@@ -308,7 +397,7 @@ const UploadPage = () => {
                             form.reset();
                             setSizes([]);
                             setGeneratedCode("");
-                            setComponents([]);
+                            // setComponents([]);
                             setImages([]);
                             if (imageUploadRef.current) {
                                 imageUploadRef.current.reset();
@@ -494,12 +583,16 @@ const UploadPage = () => {
 
                                     <div>
                                         <h2>Sizes</h2>
-                                        {components.map((component, index) => (
+                                        {/* {components.map((component, index) => (
                                             <div key={index}>
                                                 {component}
                                             </div>
                                         ))}
-                                        <Button type="button" onClick={addComponent}>+ Add</Button>
+                                        <Button type="button" onClick={addComponent}>+ Add</Button> */}
+                                        <AddSizeForm
+                                            // sizes={sizes}
+                                            onAddSize={onAddSize}
+                                        />
                                     </div>
 
                                     <div className="flex flex-row justify-normal">
@@ -617,18 +710,6 @@ const UploadPage = () => {
                                             </Button>
                                         </div>
                                     </div>
-                                    {/* <Button
-                                        className="mr-2"
-                                        onClick={handleBarcodeDownload}
-                                        disabled={isPending || barcodeDownloading}
-                                        type="button"
-                                    >
-                                        {barcodeDownloading ?
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            : ""}
-
-                                        Download Full Stock
-                                    </Button> */}
                                     <Button
                                         type="button"
                                         disabled={isPending || barcodeDownloading}
@@ -642,7 +723,6 @@ const UploadPage = () => {
                                 </form>
                             </Form>
                         </div>
-                        {/* <Button className="mt-2" onClick={handleSubmit}>Submit</Button> */}
                     </CardContent>
                 </Card >
             }
