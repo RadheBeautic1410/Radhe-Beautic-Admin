@@ -13,9 +13,10 @@ import { ImageWatermark } from 'watermark-js-plus'
 interface KurtiPicCardSingleProps {
     data: any;
     idx: number;
+    onPicDelete: (data: any) => void;
 }
 
-const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) => {
+const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx, onPicDelete }) => {
     // const [watermark, setWatermark] = useState<any>(null);
     // const [watermark2, setWatermark2] = useState<any>(null);
     const [stockString, setStockString] = useState(``);
@@ -145,17 +146,45 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx }) =>
             toast.error('Image not loaded yet');
         }
     }
+
+    const handleDelete = async ()=>{
+        try{
+            if(data.images.length === 1) {
+                toast.error('You cannnot delete last image.');
+                return;
+            }
+            const res = await fetch(`/api/kurti/deletePic?code=${data?.code}&idx=${idx}`);
+            const result = await res.json();
+            console.log("res", result);
+            await onPicDelete(result.data);
+        }catch(e:any){
+            console.log(e.message);
+            toast.error('Something went wrong');
+        }
+    }
+
     return (
         <div id='container' className='p-3 bg-slate-300'>
             <img id={`${data.code}${idx}-visible`} src={data.images[idx].url} crossOrigin="anonymous" width={'300px'} height={'300px'}></img>
             <div className='w-[2200px] h-[2200px]' hidden>
                 <img id={`download${data.code}-${idx}`} className="w-max-[2200px] h-max-[2200px] object-cover" src={data.images[idx].url} crossOrigin="anonymous"></img>
             </div>
-            <Button type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
+            <Button  className="mt-2" type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
                 {downloading ?
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     : ""}
                 ⬇️
+            </Button>
+            <Button className="mt-2 ml-2" type='button' 
+                onClick={handleDelete} 
+                variant={'outline'} 
+                key={'delete'} 
+                disabled={downloading}
+            >
+                {downloading ?
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : ""}
+                🗑️
             </Button>
         </div>
     )

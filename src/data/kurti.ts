@@ -144,6 +144,35 @@ export const deleteKurti = async (code: string, category: string) => {
     }
 }
 
+function removeAtIndex(array: any, index: number) {
+    return [...array.slice(0, index), ...array.slice(index + 1)];
+}
+
+export const deletePicture = async (code: string, idx: number) => {
+    try {
+        const kurti = await db.kurti.findUnique({
+            where: {
+                code: code.toUpperCase(),
+            }
+        });
+        let images = kurti?.images || [];
+        if(images?.length < idx || images.length <= 1) {
+            return kurti;
+        }
+        let newImages = removeAtIndex(images, idx) || [];
+        const updatedKurti = await db.kurti.update({
+            where: {
+                code: code.toUpperCase(),
+            },
+            data: {
+                images: newImages,
+            }
+        });
+        return updatedKurti;
+    } catch {
+        return null;
+    }
+}
 function isDigit(character: any) {
     return !isNaN(parseInt(character)) && isFinite(character);
 }

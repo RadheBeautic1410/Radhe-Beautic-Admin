@@ -25,9 +25,15 @@ function OneKurtiPage() {
     const [kurtiData, setKurtiData] = useState<kurti>();
     const [loader, setLoader] = useState(true);
     const [valid, setValid] = useState(true);
+    const [loading, setLoading] = useState(true);
     const pathname = usePathname();
-    let paths = pathname.split('/');
 
+    let paths = pathname.split('/');
+    const handleKurtiUpdate = async (data: kurti) => {
+        console.log('data', data);
+        await setKurtiData(data);
+        setLoading(true);
+    }
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -45,11 +51,13 @@ function OneKurtiPage() {
                 console.error('Error fetching data:', error);
             } finally {
                 setLoader(false);
+                setLoading(false);
             }
         }
-
-        fetchData();
-    }, [setKurtiData]);
+        if(loading) {
+            fetchData();
+        }
+    }, [setKurtiData, loading]);
 
     return (
         <>
@@ -62,12 +70,12 @@ function OneKurtiPage() {
                 </CardHeader>
                 <CardContent className='w-full'>
                     <div className='w-full flex flex-row justify-center pb-4'>
-                        {kurtiData ? <KurtiUpdate data={kurtiData}/> : ""}
+                        {kurtiData ? <KurtiUpdate data={kurtiData} onKurtiUpdate={handleKurtiUpdate}/> : ""}
                     </div>
                     <div className="w-full flex flex-row space-evenely justify-center flex-wrap gap-3">
                         {kurtiData?.images.map((img, idx) => {
                             return (
-                                <KurtiPicCardSingle data={kurtiData} idx={idx}/>
+                                <KurtiPicCardSingle data={kurtiData} idx={idx} onPicDelete={handleKurtiUpdate}/>
                             )
                         })}
                     </div>

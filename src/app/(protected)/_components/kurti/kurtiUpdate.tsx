@@ -1,6 +1,6 @@
 'use client'
 
-import { categoryChange, priceChange, stockAddition } from '@/src/actions/kurti';
+import { addNewImages, categoryChange, priceChange, stockAddition } from '@/src/actions/kurti';
 import { DialogDemo } from '@/src/components/dialog-demo';
 import { Button } from '@/src/components/ui/button';
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/src/components/ui/form';
@@ -16,6 +16,7 @@ import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AddSizeForm } from '../dynamicFields/sizes';
+import ImageUpload, { ImageUploadRef } from '../upload/imageUpload';
 
 interface category {
     id: string;
@@ -25,6 +26,7 @@ interface category {
 
 interface KurtiUpdateProps {
     data: any;
+    onKurtiUpdate: (data: any) => void;
 }
 
 interface Size {
@@ -32,7 +34,7 @@ interface Size {
     quantity: number;
 }
 
-const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
+const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
     const [sizes, setSizes] = useState<Size[]>(data?.sizes || []);
     const [components, setComponents] = useState<any[]>([]);
     const [isPending, startTransition] = useTransition();
@@ -44,11 +46,20 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
     const [downloading2, setDownloading2] = useState(false);
     const [allCategory, setAllCategory] = useState<any[]>([]);
     const [changedCategory, setCategory] = useState(data?.category);
+    const [uploading, setUploading] = useState(false);
+
     const router = useRouter();
 
     const [sizesDownload, setSizesDownload] = useState<Size[]>([]);
     const [componentsDownload, setComponentsDownload] = useState<any[]>([]);
     let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+    const imageUploadRef = useRef<ImageUploadRef>(null);
+
+    const [images, setImages] = useState<any[]>([]);
+    const handleImageChange = (data: any) => {
+        setImages(data)
+        console.log(data);
+    }
 
     const handleAddSize = (sizes: Size[]) => {
         setSizes(sizes);
@@ -57,6 +68,35 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
     const handleAddSizeDownload = (sizes: Size[]) => {
         setSizesDownload(sizes);
     };
+
+    const handleUpload = () => {
+        if (images.length === 0) {
+            toast.error('Upload some images');
+        }
+        else {
+            let allImages: any[] = data.images || [];
+            for (let i = 0; i < images.length; i++) {
+                allImages.push(images[i]);
+            }
+            console.log(allImages);
+            startTransition(() => {
+                addNewImages({ images: allImages, code: data.code }).
+                    then(async (data) => {
+                        if (data.success) {
+                            toast.success(data.success);
+                            setImages([]);
+                            if (imageUploadRef.current) {
+                                imageUploadRef.current.reset();
+                            }
+                            await onKurtiUpdate(data.kurti);
+                        }
+                    }).catch((e: any) => {
+                        toast.error('Something went wrong!!!');
+                        console.log(e.message);
+                    })
+            })
+        }
+    }
 
     const handleDownload = async () => {
         // console.log(sizesDownload)
@@ -90,7 +130,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
     }
 
     const handleDownload2 = async () => {
-        
+
         try {
             setDownloading1(true);
             let obj = JSON.stringify(data.sizes);
@@ -240,7 +280,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                         >
                             <div className='h-72 overflow-y-scroll w-full'>
                                 <h2>Sizes</h2>
-                                <AddSizeForm preSizes={sizes} onAddSize={handleAddSize}/>
+                                <AddSizeForm preSizes={sizes} onAddSize={handleAddSize} />
                             </div>
                             <Button
                                 type="button"
@@ -277,6 +317,30 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                             // onClick={formCategory.handleSubmit(handleSubmitCategory)}
                             >
                                 Save
+                            </Button>
+                        </DialogDemo>
+                    </Button>
+                    <Button asChild className='ml-3'>
+                        <DialogDemo
+                            dialogTrigger="Upload New Images"
+                            dialogTitle="upload images"
+                            dialogDescription=""
+                            bgColor="destructive"
+                        >
+                            <div className='h-72 overflow-y-scroll p-1'>
+                                <h2>Images</h2>
+                                <ImageUpload onImageChange={handleImageChange} images={images} ref={imageUploadRef} />
+                            </div>
+                            <Button
+                                type="button"
+                                onClick={handleUpload}
+                                disabled={uploading}
+                            // onClick={formCategory.handleSubmit(handleSubmitCategory)}
+                            >
+                                {uploading ?
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    : ""}
+                                Upload
                             </Button>
                         </DialogDemo>
                     </Button>
@@ -344,7 +408,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                         >
                             <div>
                                 <h2>Size</h2>
-                                <AddSizeForm preSizes={[]} onAddSize={handleAddSizeDownload}/>
+                                <AddSizeForm preSizes={[]} onAddSize={handleAddSizeDownload} />
                             </div>
                             <Button
                                 type="button"
@@ -359,6 +423,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                             </Button>
                         </DialogDemo>
                     </Button>
+
                 </div>
                 : ""}
 

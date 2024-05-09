@@ -178,3 +178,22 @@ export const deleteCategory = async (data: any) => {
     })
     return { success: `Category ${category} Deleted` };
 }
+
+export const addNewImages = async (data: any) => {
+    const { images, code } = data;
+    // const categories = await db.category.findMany({});
+    // await db.category.delete({
+    //     where: {
+    //         normalizedLowerCase: category.toLowerCase(),
+    //     }
+    // });
+    const kurti = await db.kurti.update({
+        where: {
+            code: code.toUpperCase(),
+        },
+        data: {
+            images: images
+        }
+    })
+    return { success: `New Images added`, kurti: kurti };
+}
