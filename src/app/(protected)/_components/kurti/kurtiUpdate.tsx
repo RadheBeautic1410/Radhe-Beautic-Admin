@@ -15,77 +15,13 @@ import Link from 'next/link';
 import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { AddSizeForm } from '../dynamicFields/sizes';
 
 interface category {
     id: string;
     name: string
     normalizedLowerCase: string;
 }
-
-export const AddSizeForm: React.FC<{ idx: number; sizes: Size[]; onAddSize: (sizes: Size[]) => void }> =
-    ({ idx, sizes, onAddSize }) => {
-        // console.log(sizes[idx], idx);
-        let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
-        const [size, setSize] = useState<string>(sizes[idx]?.size.toUpperCase() || 'S');
-        const [quantity, setQuantity] = useState<number>(sizes[idx]?.quantity);
-        const [confirm, setConfirm] = useState(false);
-        const handleAddSize = (event: any) => {
-            event.preventDefault();
-            if (size.trim() !== '' && quantity > 0) {
-                let x = size;
-                let obj = { size: x, quantity };
-                let temp = sizes;
-                if (idx < temp.length) {
-                    temp[idx] = obj;
-                }
-                else {
-                    temp.push(obj);
-                }
-                console.log('edit', temp);
-                onAddSize(temp);
-                setConfirm(true);
-            } else {
-                toast.error('Please enter a valid size and quantity.');
-            }
-        };
-
-        return (
-            <div>
-                <h3>Add New Size</h3>
-                <div className="flex flex-row w-[100%]">
-                    <Select
-                        onValueChange={(e) => setSize(e)}
-                        defaultValue={size}
-                    >
-                        <SelectTrigger className="w-[30%]">
-                            <SelectValue placeholder="Select Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {selectSizes.map((org) => (
-                                <SelectItem key={org} value={org}>
-                                    {org}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Input
-                        className="ml-2 w-[30%]"
-                        type="number"
-                        placeholder="Quantity"
-                        value={quantity}
-                        onChange={(e) => setQuantity(parseInt(e.target.value))}
-                    />
-                    <Button
-                        type="button"
-                        onClick={handleAddSize}
-                        className="ml-2"
-                    >
-                        {confirm ? "✅ " : ""}Confirm
-                    </Button>
-                </div>
-            </div>
-        );
-    };
 
 interface KurtiUpdateProps {
     data: any;
@@ -182,43 +118,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
             setDownloading1(false);
         }
     }
-
-    const addComponent = () => {
-        setComponents([...components,
-        <AddSizeForm
-            key={components.length}
-            idx={components.length}
-            sizes={sizes}
-            onAddSize={handleAddSize}
-        />
-        ]);
-    };
-
-    const addComponent2 = () => {
-        console.log(componentsDownload)
-        setComponentsDownload([...componentsDownload,
-        <AddSizeForm
-            key={componentsDownload.length}
-            idx={componentsDownload.length}
-            sizes={sizesDownload}
-            onAddSize={handleAddSizeDownload}
-        />
-        ]);
-    };
     useEffect(() => {
-        // console.log(data, data?.sizes.length);
-        setSizes(data?.sizes);
-        for (let i = 0; i < data?.sizes.length; i++) {
-            // console.log(i, components.length);
-            setComponents((prev) => [...prev,
-            <AddSizeForm
-                key={prev.length}
-                idx={prev.length}
-                sizes={sizes}
-                onAddSize={handleAddSize}
-            />
-            ]);
-        }
         const fetchData = async () => {
             try {
                 const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
@@ -236,7 +136,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
         return () => {
             setComponents([]);
         }
-    }, []);
+    }, [sizes, sizesDownload]);
 
 
     const handleStockUpdate = () => {
@@ -338,19 +238,13 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                             dialogDescription="Edit previous stock or add new stock"
                             bgColor="destructive"
                         >
-                            <div className='h-72 overflow-y-scroll'>
+                            <div className='h-72 overflow-y-scroll w-full'>
                                 <h2>Sizes</h2>
-                                {components.map((component, index) => (
-                                    <div key={index}>
-                                        {component}
-                                    </div>
-                                ))}
-                                <Button type="button" onClick={addComponent}>+ Add</Button>
+                                <AddSizeForm preSizes={sizes} onAddSize={handleAddSize}/>
                             </div>
                             <Button
                                 type="button"
                                 onClick={handleStockUpdate}
-                            // onClick={formCategory.handleSubmit(handleSubmitCategory)}
                             >
                                 Save
                             </Button>
@@ -450,12 +344,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data }) => {
                         >
                             <div>
                                 <h2>Size</h2>
-                                {componentsDownload.map((component, index) => (
-                                    <div key={index}>
-                                        {component}
-                                    </div>
-                                ))}
-                                <Button type="button" onClick={addComponent2}>+ Add</Button>
+                                <AddSizeForm preSizes={[]} onAddSize={handleAddSizeDownload}/>
                             </div>
                             <Button
                                 type="button"
