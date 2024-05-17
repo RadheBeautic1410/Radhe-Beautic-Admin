@@ -75,7 +75,8 @@ export const getKurtiByCategory = async (category: string) => {
             where: {
                 category: {
                     mode: 'insensitive',
-                    endsWith: category
+                    startsWith: category,
+                    endsWith: category,
                 },
                 isDeleted: false
             }
@@ -386,7 +387,8 @@ export const migrate = async () => {
                     isDeleted: false,
                     category: {
                         mode: 'insensitive',
-                        startsWith: category[i].name
+                        startsWith: category[i].name,
+                        endsWith: category[i].name,
                     }
                 }
             });
