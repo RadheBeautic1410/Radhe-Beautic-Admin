@@ -34,6 +34,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     const [stockString, setStockString] = useState(``);
     let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
     const pathname = usePathname();
+    // console.log(pathname.split('/'));
     let sizes = data.sizes.length;
     const [isBrowserMobile, setIsBrowserMobile] = useState(false);
 
@@ -232,7 +233,13 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                 ⬇️
             </Button>
             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-                <Link href={`${pathname}/${data.code.toLowerCase()}`} className='mt-0 pt-0'>
+                <Link 
+                    href= {pathname.split('/').length !== 2  ?
+                        `${pathname}/${data.code.toLowerCase()}` : 
+                        `${pathname}/${data.category.toLowerCase()}/${data.code.toLowerCase()}`
+                    } 
+                    className='mt-0 pt-0'
+                >
                     <Button type='button' className="ml-3" variant={'outline'} key={'edit'}>
                         ✏️
                     </Button>

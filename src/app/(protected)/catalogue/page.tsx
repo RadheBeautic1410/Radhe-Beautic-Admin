@@ -13,6 +13,8 @@ import { Button } from "@/src/components/ui/button";
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { deleteCategory } from "@/src/actions/kurti";
 import { toast } from "sonner";
+import SearchBar from "@mkyy/mui-search-bar";
+import KurtiPicCard from "../_components/kurti/kurtiPicCard";
 
 interface category {
     name: string;
@@ -20,13 +22,56 @@ interface category {
     countOfPiece: number;
 }
 
+interface kurti {
+    id: string;
+    category: string;
+    code: string;
+    images: any[],
+    sizes: any[],
+    party: string,
+    sellingPrice: string,
+    actualPrice: string,
+}
+
+
 const ListPage = () => {
     const [categoryLoader, setCategoryLoader] = useState(true);
     const [category, setCategory] = useState<category[]>([]);
     const [totalPiece, setTotalPiece] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
     const [isPending, startTransition] = useTransition();
+    const [textFieldValue, setTextFieldValue] = useState('');
     const router = useRouter();
+    const [kurtiData, setKurtiData] = useState<kurti[]>([]);
+    const [displayData, setDisplayData] = useState<kurti[]>([]);
+    const [isSearching, setSearching] = useState(false);
+    const [loading, setLoading] = useState(true);
+
+    const handleSearch = (newVal: string) => {
+        if (newVal === "") {
+            setTextFieldValue("");
+            setSearching(false);
+            // handleSearch(textFieldValue);
+            setDisplayData(kurtiData);
+        }
+        else {
+            if (!isSearching) {
+                setSearching(true);
+            }
+            const filteredRows = kurtiData.filter((row) => {
+                return row.code.toUpperCase().includes(newVal.toUpperCase());
+            }).slice(0, 20);
+            setDisplayData(filteredRows);
+
+        }
+    }
+    const cancelSearch = () => {
+        setTextFieldValue("");
+        handleSearch(textFieldValue);
+        setDisplayData(kurtiData);
+        setSearching(false);
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -42,16 +87,25 @@ const ListPage = () => {
                 setTotalItems(sum1);
                 setTotalPiece(sum2);
                 setCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
+
+                let res2 = await fetch(`/api/kurti/getall`);
+                const res = await res2.json();
+                console.log(res.data);
+                setKurtiData(res.data);
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {
+                setLoading(false);
                 setCategoryLoader(false);
             }
         };
         // if (categoryLoader) {
-        fetchData();
+        if (loading) {
+            fetchData();
+
+        }
         // }
-    }, []);
+    }, [loading]);
 
     const handleDelete = async (category: string) => {
         startTransition(() => {
@@ -96,6 +150,13 @@ const ListPage = () => {
         return 0;
     }
 
+
+    const handleKurtiDelete = async (data: kurti[]) => {
+        console.log('data', [...data]);
+        await setKurtiData([...data]);
+        setLoading(true);
+    }
+
     return (
         <>
             <PageLoader loading={categoryLoader} />
@@ -107,127 +168,148 @@ const ListPage = () => {
                         </p>
                     </CardHeader>
                     <CardContent>
+                        <div className="pb-2">
+                            <SearchBar
+                                value={textFieldValue}
+                                onChange={newValue => handleSearch(newValue)}
+                                onCancelResearch={() => cancelSearch()}
+                                width={'100%'}
+                                style={{
+                                    backgroundColor: '#fff',
+                                    border: '1px solid #ccc',
+                                }}
+                            />
+                        </div>
+                        {isSearching ? <>
+                            {displayData ?
+                                <CardContent className="w-full flex flex-row space-evenely justify-center flex-wrap gap-3">
+                                    {displayData.map((data, i) => (
+                                        <KurtiPicCard data={data} key={i} onKurtiDelete={handleKurtiDelete} />
+                                    ))}
+                                </CardContent>
+                                : ""} </> :
 
-                        <div className="flex flex-col gap-2">
-                            <Table>
-                                <TableCaption>List of all category</TableCaption>
-                                <TableHeader>
-                                    <TableRow className="text-black">
-                                    <TableHead
-                                            key={'sr.'}
-                                            className="text-center font-bold text-base"
-                                        >
-                                            Sr.
-                                        </TableHead>
-                                        <TableHead
-                                            key={'Category'}
-                                            className="text-center font-bold text-base"
-                                        >
-                                            Category
-                                        </TableHead>
-                                        <TableHead
-                                            className="text-center font-bold text-base"
-                                            key={'Total Items'}
-                                        >
-                                            Total Items
-                                        </TableHead>
-                                        <TableHead
-                                            className="text-center font-bold text-base"
-                                            key={'Total Pieces'}
-                                        >
-                                            Total Pieces
-                                        </TableHead>
-                                        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-
+                            <div className="flex flex-col gap-2">
+                                <Table>
+                                    <TableCaption>List of all category</TableCaption>
+                                    <TableHeader>
+                                        <TableRow className="text-black">
+                                            <TableHead
+                                                key={'sr.'}
+                                                className="text-center font-bold text-base"
+                                            >
+                                                Sr.
+                                            </TableHead>
+                                            <TableHead
+                                                key={'Category'}
+                                                className="text-center font-bold text-base"
+                                            >
+                                                Category
+                                            </TableHead>
                                             <TableHead
                                                 className="text-center font-bold text-base"
-                                                key={'Delete Buttons'}
+                                                key={'Total Items'}
                                             >
-                                                {'Delete Buttons'}
+                                                Total Items
                                             </TableHead>
-                                        </RoleGateForComponent>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {category.map((cat, idx) => (
-                                        <TableRow
-                                            key={idx}
-                                        // className="" 
-                                        >
-                                            <TableCell 
-                                                key={idx*idx}
-                                                className="text-center"
+                                            <TableHead
+                                                className="text-center font-bold text-base"
+                                                key={'Total Pieces'}
                                             >
-                                                {idx + 1}
-                                            </TableCell>
-                                            <TableCell
-                                                key={cat.name}
-                                                className="text-center text-blue-800 font-bold cursor-pointer"
-                                                aria-label={`open categry ${cat.name} by clicking`}
-                                                // onClick={() => router.push(`/catalogue/${cat.name.toLowerCase()}`)}
-                                            >
-                                                <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
-                                                    {cat.name}
-                                                </Link>
-                                            </TableCell>
-                                            <TableCell
-                                                className="text-center"
-                                                key={`${cat.name}-${cat.count}`}
-                                            >
-                                                {cat.count}
-                                            </TableCell>
-                                            <TableCell
-                                                className="text-center"
-                                                key={`${cat.name}-${cat.countOfPiece}`}
-                                            >
-                                                {cat.countOfPiece}
-                                            </TableCell>
+                                                Total Pieces
+                                            </TableHead>
                                             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
 
-                                                <TableCell className="text-center"
-                                                    key={`${cat.name}-delete`}
+                                                <TableHead
+                                                    className="text-center font-bold text-base"
+                                                    key={'Delete Buttons'}
                                                 >
-
-                                                    <DialogDemo
-                                                        dialogTrigger="Delete Category"
-                                                        dialogTitle="Delete Category"
-                                                        dialogDescription="Delete the category"
-                                                        bgColor="destructive"
-                                                    >
-                                                        <div>
-                                                            <h1>Delete</h1>
-                                                            <h3>Are you sure wanted to delete category {`${cat.name}`}?</h3>
-                                                        </div>
-                                                        <Button
-                                                            type="button"
-                                                            disabled={isPending}
-                                                            onClick={() => { handleDelete(cat.name) }}
-                                                        // onClick={formCategory.handleSubmit(handleSubmitCategory)}
-                                                        >
-                                                            Delete
-                                                        </Button>
-                                                    </DialogDemo>
-                                                </TableCell>
+                                                    {'Delete Buttons'}
+                                                </TableHead>
                                             </RoleGateForComponent>
                                         </TableRow>
-                                    ))}
-                                    <TableRow className="text-red-600 font-bold text-center text-base">
-                                        <TableCell>
-                                            {'-'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {'Total'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {totalItems}
-                                        </TableCell>
-                                        <TableCell>
-                                            {totalPiece}
-                                        </TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </div>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {category.map((cat, idx) => (
+                                            <TableRow
+                                                key={idx}
+                                            // className="" 
+                                            >
+                                                <TableCell
+                                                    key={idx * idx}
+                                                    className="text-center"
+                                                >
+                                                    {idx + 1}
+                                                </TableCell>
+                                                <TableCell
+                                                    key={cat.name}
+                                                    className="text-center text-blue-800 font-bold cursor-pointer"
+                                                    aria-label={`open categry ${cat.name} by clicking`}
+                                                // onClick={() => router.push(`/catalogue/${cat.name.toLowerCase()}`)}
+                                                >
+                                                    <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
+                                                        {cat.name}
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell
+                                                    className="text-center"
+                                                    key={`${cat.name}-${cat.count}`}
+                                                >
+                                                    {cat.count}
+                                                </TableCell>
+                                                <TableCell
+                                                    className="text-center"
+                                                    key={`${cat.name}-${cat.countOfPiece}`}
+                                                >
+                                                    {cat.countOfPiece}
+                                                </TableCell>
+                                                <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+
+                                                    <TableCell className="text-center"
+                                                        key={`${cat.name}-delete`}
+                                                    >
+
+                                                        <DialogDemo
+                                                            dialogTrigger="Delete Category"
+                                                            dialogTitle="Delete Category"
+                                                            dialogDescription="Delete the category"
+                                                            bgColor="destructive"
+                                                        >
+                                                            <div>
+                                                                <h1>Delete</h1>
+                                                                <h3>Are you sure wanted to delete category {`${cat.name}`}?</h3>
+                                                            </div>
+                                                            <Button
+                                                                type="button"
+                                                                disabled={isPending}
+                                                                onClick={() => { handleDelete(cat.name) }}
+                                                            // onClick={formCategory.handleSubmit(handleSubmitCategory)}
+                                                            >
+                                                                Delete
+                                                            </Button>
+                                                        </DialogDemo>
+                                                    </TableCell>
+                                                </RoleGateForComponent>
+                                            </TableRow>
+                                        ))}
+                                        <TableRow className="text-red-600 font-bold text-center text-base">
+                                            <TableCell>
+                                                {'-'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {'Total'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {totalItems}
+                                            </TableCell>
+                                            <TableCell>
+                                                {totalPiece}
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        }
                     </CardContent>
                 </Card>
             }

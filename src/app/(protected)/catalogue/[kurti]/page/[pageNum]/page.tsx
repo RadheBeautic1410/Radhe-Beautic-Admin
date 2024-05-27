@@ -100,6 +100,8 @@ function KurtiListPage() {
                 const result = await response.json();
                 if (result.data) {
                     setValid(result.data);
+                    
+
                     let prom1 = fetch(`/api/kurti/countAvail?cat=${code.toLowerCase()}`);
                     let prom2 = fetch(`/api/kurti/getByCategory?category=${code}`);
                     const [resPage, response2] = await Promise.all([prom1, prom2]);
@@ -112,6 +114,8 @@ function KurtiListPage() {
                     setTotalPages(Math.ceil(result2.data.length / 20));
                     // setCurrentPage(parseInt(pageNum));
                     // console.log(result2.data);
+
+                    
                 }
                 else {
                     setValid(false);

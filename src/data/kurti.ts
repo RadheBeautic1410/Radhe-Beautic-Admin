@@ -25,6 +25,19 @@ export const getKurtiCount = async (cat: string) => {
     }
 };
 
+export const getAllKurti = async () => {
+    try {
+        const allKurti = await db.kurti.findMany({
+            where: {
+                isDeleted: false,
+            }
+        });
+        return allKurti;
+    } catch {
+        return null;
+    }
+};
+
 export const getCode = async (cat: string) => {
     try {
         console.log('debg', cat);
