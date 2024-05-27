@@ -16,7 +16,7 @@ export const getKurtiCount = async (cat: string) => {
         if (cat === "KTD") {
             return party + 2;
         }
-        if(cat === "JR4") {
+        if (cat === "JR4") {
             return party + 9;
         }
         return party;
@@ -161,7 +161,7 @@ export const deletePicture = async (code: string, idx: number) => {
             }
         });
         let images = kurti?.images || [];
-        if(images?.length < idx || images.length <= 1) {
+        if (images?.length < idx || images.length <= 1) {
             return kurti;
         }
         let newImages = removeAtIndex(images, idx) || [];
@@ -429,57 +429,6 @@ export const migrate = async () => {
                 });
             }
         }
-        // console.log(kurti.length);
-        // for (let i = 0; i < kurti.length; i++) {
-        //     let cnt = 0;
-        //     let lower = kurti[i].category.toLowerCase();
-        //     let flag = 0;
-        //     for (let j = 0; j < category.length; j++) {
-        //         if (lower === category[j].normalizedLowerCase) {
-        //             flag = 1;
-        //         }
-        //     }
-        //     if (flag === 0) {
-        //         await db.kurti.update({
-        //             where: {
-        //                 id: kurti[i].id,
-        //             },
-        //             data: {
-        //                 isDeleted: true,
-        //             }
-        //         });
-        //         continue;
-        //     }
-        //     let sizes = kurti[i]?.sizes || [];
-        //     for (let j = 0; j < sizes.length; j++) {
-        //         if (sizes[j].quantity <= 0) {
-        //             continue;
-        //         }
-        //         cnt += sizes[j].quantity || 0;
-        //     }
-        //     await db.kurti.update({
-        //         where: {
-        //             id: kurti[i].id,
-        //         },
-        //         data: {
-        //             countOfPiece: cnt,
-        //         }
-        //     });
-        //     // console.log(kurti[i].category.toLowerCase());
-        //     await db.category.update({
-        //         where: {
-        //             normalizedLowerCase: kurti[i].category.toLowerCase() || "",
-        //         },
-        //         data: {
-        //             countOfPiece: {
-        //                 increment: cnt,
-        //             },
-        //             countOfDesign: {
-        //                 increment: 1,
-        //             }
-        //         }
-        //     });
-        // }
 
         return category;
     } catch (e: any) {
@@ -509,3 +458,71 @@ export const getSellHistory = async () => {
     return sellData;
 }
 
+export const addStock = async (code: string) => {
+    try{
+        console.log(code);
+        let search = code.substring(0, 7).toUpperCase();
+        let cmp = code.substring(7);
+        if (code.toUpperCase().substring(0, 2) === 'CK' && isDigit(code[2]) && isSize(code.substring(6))) {
+            search = code.substring(0, 6).toUpperCase();
+            cmp = code.substring(6);
+        }
+        if(cmp.length === 0) {
+            return { error: 'Enter valid code' };
+        }
+        console.log('search: ', search);
+        const kurti = await db.kurti.findUnique({
+            where: { code: search.toUpperCase(), isDeleted: false }
+        });
+        console.log(kurti); 
+        if (!kurti) {
+            return { error: 'No Kurti found!!!' };
+        }
+        let sizes: any[] = kurti.sizes || [];
+        let flag = 0;
+        for(let i=0;i<sizes.length;i++){
+            if(sizes[i].size === cmp) {
+                sizes[i].quantity += 1;
+                flag=1;
+                break;
+            }
+        }
+        if(flag === 0) {
+            sizes.push({
+                size: cmp,
+                quantity: 1
+            });
+        }
+        console.log(sizes);
+        const updateUser = await db.kurti.update({
+            where: {
+                code: search,
+            },
+            data: {
+                sizes: sizes,
+                countOfPiece: {
+                    increment: 1
+                }
+            },
+        });
+        await db.category.update({
+            where: {
+                normalizedLowerCase: updateUser.category.toLowerCase(),
+            },
+            data: {
+                countOfPiece: {
+                    increment: 1
+                }
+            },
+        });
+        const KurtiNew = await db.kurti.findUnique({
+            where: {
+                code: search,
+            }
+        })
+        return KurtiNew;
+    } catch (e: any){
+        console.log(e.message);
+        return {error: "Something went wrong"};
+    }
+}

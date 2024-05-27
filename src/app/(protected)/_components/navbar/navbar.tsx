@@ -99,6 +99,15 @@ const Navbar = () => {
                         <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                             <Button
                                 asChild
+                                variant={pathname === '/addstock' ? "default" : "outline"}
+                            >
+                                <Link href="/addstock">Add Stock</Link>
+                            </Button>
+                        </RoleGateForComponent>
+
+                        <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+                            <Button
+                                asChild
                                 variant={pathname === "/request" ? "default" : "outline"}
                             >
                                 <Link href="/request">Requests</Link>
