@@ -112,22 +112,33 @@ export const categoryChange = async (data: any) => {
 
     const { code, newCode } = data;
     console.log(code, newCode);
-    const oldKurti = await db.kurti.findUnique({
+    let oldKurti = await db.kurti.findUnique({
         where: {
             code: code,
         }
     });
-    const kurti = await db.kurti.update({
+    if(oldKurti === null) {
+        return {error: "Kurti Not found"};
+    }
+    let kurti = await db.kurti.update({
         where: { code },
         data: {
-            category: data.category,
-            code: newCode
+            // category: data.category,
+            // code: newCode
+            isDeleted: true,
         }
     });
+    oldKurti.category = data.category;
+    oldKurti.code = newCode;
+    let old: any = oldKurti;
+    delete old.id;
+    kurti = await db.kurti.create({
+        data: old
+    })
     console.log('count:', kurti.countOfPiece);
     await db.category.update({
         where: {
-            normalizedLowerCase: oldKurti?.category.toLowerCase(),
+            normalizedLowerCase: old?.category.toLowerCase(),
         },
         data: {
             countOfPiece: {

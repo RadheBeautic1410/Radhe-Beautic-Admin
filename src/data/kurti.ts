@@ -8,12 +8,16 @@ export const getKurtiCount = async (cat: string) => {
             where: {
                 category: {
                     mode: 'insensitive',
-                    endsWith: cat
+                    endsWith: cat,
+                    startsWith: cat
                 },
             }
         });
         if (cat === "KTD") {
             return party + 2;
+        }
+        if(cat === "JR4") {
+            return party + 9;
         }
         return party;
     } catch {
