@@ -4,22 +4,12 @@ import { error } from "console";
 export const getKurtiCount = async (cat: string) => {
     try {
         console.log('debg', cat);
-        const party = await db.kurti.count({
+        const party: any = await db.category.findUnique({
             where: {
-                category: {
-                    mode: 'insensitive',
-                    endsWith: cat,
-                    startsWith: cat
-                },
+                normalizedLowerCase: cat.toLowerCase(),
             }
         });
-        if (cat === "KTD") {
-            return party + 2;
-        }
-        if (cat === "JR4") {
-            return party + 9;
-        }
-        return party;
+        return party.countTotal || 0;
     } catch {
         return null;
     }
@@ -393,12 +383,28 @@ export const migrate = async () => {
                     id: category[i].id,
                 },
                 data: {
+                    countTotal: 0,
                     countOfPiece: 0,
                     countOfDesign: 0,
                 }
             })
         }
         for (let i = 0; i < category.length; i++) {
+            const ok: any[] = await db.kurti.findMany({
+                where: {
+                    category: {
+                        mode: 'insensitive',
+                        startsWith: category[i].name,
+                        endsWith: category[i].name,
+                    }
+                }
+            });
+            let maxi = 0;
+            for(let j = 0; j < ok.length; j++) {
+                let code = ok[j].code;
+                let cnt = parseInt(code.substring(3));
+                maxi = Math.max(maxi, cnt);
+            }
             const kurtis: any[] = await db.kurti.findMany({
                 where: {
                     isDeleted: false,
@@ -410,6 +416,7 @@ export const migrate = async () => {
                 }
             });
             console.log(category[i].name, kurtis.length);
+            let overallCnt = 0, uniqueCnt = 0;
             for (let j = 0; j < kurtis.length; j++) {
                 let sizes = kurtis[j]?.sizes || [];
                 let cnt = 0;
@@ -427,20 +434,24 @@ export const migrate = async () => {
                         countOfPiece: cnt,
                     }
                 });
-                await db.category.update({
-                    where: {
-                        id: category[i].id,
-                    },
-                    data: {
-                        countOfPiece: {
-                            increment: cnt,
-                        },
-                        countOfDesign: {
-                            increment: 1,
-                        }
-                    }
-                });
+                overallCnt += cnt;
+                uniqueCnt += 1;
+                
             }
+            await db.category.update({
+                where: {
+                    id: category[i].id,
+                },
+                data: {
+                    countTotal: maxi,
+                    countOfPiece: {
+                        increment: overallCnt,
+                    },
+                    countOfDesign: {
+                        increment: uniqueCnt,
+                    }
+                }
+            });
         }
 
         return category;
@@ -537,5 +548,32 @@ export const addStock = async (code: string) => {
     } catch (e: any){
         console.log(e.message);
         return {error: "Something went wrong"};
+    }
+}
+
+
+export const migrate2 = async () => {
+    try {
+        // const kurti: any[] = await db.kurti.findMany({ where: { isDeleted: false } });
+        const allKurties: any[] = await db.kurti.findMany({});
+        for(let i = 0; i < allKurties.length; i++) {
+            let cat = allKurties[i].category.toLowerCase();
+            let fnd = await db.category.findUnique({
+                where: {
+                    normalizedLowerCase: cat,
+                }
+            });
+            if(!fnd || fnd === undefined || fnd === null) {
+                await db.kurti.delete({
+                    where: {
+                        id: allKurties[i].id,
+                    }
+                });
+            }
+        }
+    }
+    catch(e: any) {
+        console.log(e.message);
+        return e;
     }
 }

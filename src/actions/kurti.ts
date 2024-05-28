@@ -33,6 +33,9 @@ export const kurtiAddition = async (
             },
             countOfDesign: {
                 increment: 1,
+            },
+            countTotal: {
+                increment: 1,
             }
         }
     })
@@ -81,6 +84,12 @@ export const stockAddition = async (data: any) => {
         data: {
             countOfPiece: {
                 increment: cnt,
+            },
+            countTotal: {
+                increment: 1,
+            },
+            countOfDesign: {
+                increment: 1,
             }
         }
     })
@@ -160,6 +169,9 @@ export const categoryChange = async (data: any) => {
             },
             countOfDesign: {
                 increment: 1,
+            },
+            countTotal: {
+                increment: 1,
             }
         }
     });
@@ -176,16 +188,14 @@ export const deleteCategory = async (data: any) => {
             normalizedLowerCase: category.toLowerCase(),
         }
     });
-    await db.kurti.updateMany({
+    await db.kurti.deleteMany({
         where: {
             category: {
                 mode: 'insensitive',
                 endsWith: category.toLowerCase(),
+                startsWith: category.toLowerCase()
             },
         },
-        data: {
-            isDeleted: true,
-        }
     })
     return { success: `Category ${category} Deleted` };
 }

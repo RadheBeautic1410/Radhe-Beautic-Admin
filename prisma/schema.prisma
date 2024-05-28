@@ -173,6 +173,7 @@ model Category {
   normalizedLowerCase String @unique
   code String? @unique
   name String
+  countTotal Int @default(0)
   countOfPiece Int @default(0)
   countOfDesign Int? @default(0)
 }
