@@ -280,7 +280,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                         >
                             <div className='h-72 overflow-y-scroll w-full'>
                                 <h2>Sizes</h2>
-                                <AddSizeForm preSizes={sizes} onAddSize={handleAddSize} />
+                                <AddSizeForm preSizes={sizes} sizes={sizes} onAddSize={handleAddSize} />
                             </div>
                             <Button
                                 type="button"
@@ -408,7 +408,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                         >
                             <div>
                                 <h2>Size</h2>
-                                <AddSizeForm preSizes={[]} onAddSize={handleAddSizeDownload} />
+                                <AddSizeForm preSizes={[]} sizes={sizesDownload} onAddSize={handleAddSizeDownload} />
                             </div>
                             <Button
                                 type="button"
