@@ -56,10 +56,11 @@ const SingleSize: React.FC<SingleSizeProps> = ({ onSetSize, quantity, size }) =>
 interface AddSizeFormProps {
     onAddSize: (sizes: any[]) => void;
     preSizes: any[];
+    sizes: any[];
 }
 
-export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes }) => {
-    const [sizes, setSizes] = useState<any[]>(preSizes);
+export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes, sizes }) => {
+    // const [sizes, setSizes] = useState<any[]>(preSizes);
     // console.log(preSizes.length);
 
     const handleAddSize = () => {
@@ -73,13 +74,13 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes })
             }
         }
         const newSizes = [...sizes, obj]; // Default size 'S' added
-        setSizes(newSizes);
+        // setSizes(newSizes);
         onAddSize(newSizes);
     };
 
     const handleRemoveSize = (index: number) => {
         const updatedSizes = sizes.filter((_, i) => i !== index);
-        setSizes(updatedSizes);
+        // setSizes(updatedSizes);
         onAddSize(updatedSizes);
     };
 
@@ -107,7 +108,7 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes })
                                 size,
                                 quantity
                             };
-                            setSizes(updatedSizes);
+                            // setSizes(updatedSizes);
                             onAddSize(updatedSizes);
                         }}
                     />

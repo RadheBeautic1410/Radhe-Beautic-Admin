@@ -40,6 +40,7 @@ import { RoleGateForComponent } from "@/src/components/auth/role-gate-component"
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import PageLoader from "@/src/components/loader";
 import { AddSizeForm } from "../_components/dynamicFields/sizes";
+import { Sriracha } from "next/font/google";
 
 interface party {
     id: string;
@@ -110,17 +111,6 @@ const UploadPage = () => {
             }
         }
     }
-
-    // const addComponent = () => {
-    //     setComponents([...components,
-    //     <AddSizeForm
-    //         key={components.length}
-    //         idx={components.length}
-    //         sizes={sizes}
-    //         onAddSize={handleAddSize}
-    //     />
-    //     ]);
-    // };
 
     const handleImageChange = (data: any) => {
         setImages(data)
@@ -195,6 +185,16 @@ const UploadPage = () => {
         };
         fetchData();
     }, []);
+    const defaultValues = {
+        images: images,
+        sizes: [],
+        party: "",
+        sellingPrice: "0",
+        actualPrice: "0",
+        category: "",
+        code: "",
+        countOfPiece: 0,
+    };
 
     const form = useForm<z.infer<typeof KurtiSchema>>({
         resolver: zodResolver(KurtiSchema),
@@ -234,7 +234,8 @@ const UploadPage = () => {
                     .then(async (data) => {
                         if (data.success) {
                             await handleBarcodeDownload();
-                            form.reset();
+                            form.reset(defaultValues);
+                            // form.setValue('category', 'Set Category');
                             setSizes([]);
                             setGeneratedCode("");
                             // setComponents([]);
@@ -308,7 +309,7 @@ const UploadPage = () => {
                                                     <Select
                                                         disabled={isPending}
                                                         onValueChange={field.onChange}
-                                                        defaultValue={field.value}
+                                                        value={field.value}
                                                     >
                                                         
                                                         <FormControl>
@@ -427,6 +428,7 @@ const UploadPage = () => {
                                         <AddSizeForm
                                             preSizes={[]}
                                             onAddSize={onAddSize}
+                                            sizes={sizes}
                                         />
                                     </div>
 
@@ -475,7 +477,7 @@ const UploadPage = () => {
                                                     <Select
                                                         disabled={isPending}
                                                         onValueChange={field.onChange}
-                                                        defaultValue={field.value === "" ? undefined : field.value}
+                                                        value={field.value === "" ? "" : field.value}
                                                     >
                                                         <FormControl>
                                                             <SelectTrigger>

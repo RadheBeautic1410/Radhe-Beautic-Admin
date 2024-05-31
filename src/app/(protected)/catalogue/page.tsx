@@ -15,6 +15,8 @@ import { deleteCategory } from "@/src/actions/kurti";
 import { toast } from "sonner";
 import SearchBar from "@mkyy/mui-search-bar";
 import KurtiPicCard from "../_components/kurti/kurtiPicCard";
+import { RadioGroup, RadioGroupItem } from "@/src/components/ui/radio-group";
+import { Label } from "@/src/components/ui/label";
 
 interface category {
     name: string;
@@ -43,32 +45,64 @@ const ListPage = () => {
     const [textFieldValue, setTextFieldValue] = useState('');
     const router = useRouter();
     const [kurtiData, setKurtiData] = useState<kurti[]>([]);
-    const [displayData, setDisplayData] = useState<kurti[]>([]);
+    const [displayKurtiData, setDisplayKurtiData] = useState<kurti[]>([]);
+    const [displayCategoryData, setDisplayCategoryData] = useState<category[]>([]);
     const [isSearching, setSearching] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [searchId, setSearchId] = useState("0");
 
     const handleSearch = (newVal: string) => {
-        if (newVal === "") {
-            setTextFieldValue("");
-            setSearching(false);
-            // handleSearch(textFieldValue);
-            setDisplayData(kurtiData);
+        if (searchId === "0") {
+            if (newVal === "") {
+                setTextFieldValue("");
+                setSearching(false);
+                // handleSearch(textFieldValue);
+                setDisplayKurtiData(kurtiData);
+                setDisplayCategoryData([]);
+            }
+            else {
+                if (!isSearching) {
+                    setSearching(true);
+                }
+                const filteredRows = kurtiData.filter((row) => {
+                    return row.code.toUpperCase().includes(newVal.toUpperCase());
+                }).slice(0, 20);
+                setDisplayKurtiData(filteredRows);
+                setDisplayCategoryData([]);
+            }
         }
         else {
-            if (!isSearching) {
-                setSearching(true);
+            if (newVal === "") {
+                setTextFieldValue("");
+                setSearching(false);
+                // handleSearch(textFieldValue);
+                setDisplayKurtiData([]);
+                setDisplayCategoryData(category);
             }
-            const filteredRows = kurtiData.filter((row) => {
-                return row.code.toUpperCase().includes(newVal.toUpperCase());
-            }).slice(0, 20);
-            setDisplayData(filteredRows);
-
+            else {
+                if (!isSearching) {
+                    setSearching(true);
+                }
+                const filteredRows = category.filter((row) => {
+                    return row.name.toUpperCase().includes(newVal.toUpperCase());
+                });
+                console.log(filteredRows);
+                setDisplayKurtiData([]);
+                setDisplayCategoryData(filteredRows);
+            }
         }
     }
     const cancelSearch = () => {
         setTextFieldValue("");
         handleSearch(textFieldValue);
-        setDisplayData(kurtiData);
+        if (searchId === "0") {
+            setDisplayKurtiData(kurtiData);
+            setDisplayCategoryData([]);
+        }
+        else {
+            setDisplayCategoryData(category);
+            setDisplayKurtiData([]);
+        }
         setSearching(false);
     };
 
@@ -169,6 +203,19 @@ const ListPage = () => {
                     </CardHeader>
                     <CardContent>
                         <div className="pb-2">
+                            <div className="flex flex-row justify-center mb-2">
+                                <RadioGroup value={searchId} onValueChange={(val) => setSearchId(val)} className="flex flex-row">
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="0" id="0" />
+                                        <Label htmlFor="0">Search Design</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="1" id="1" />
+                                        <Label htmlFor="1">Search Category</Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+
                             <SearchBar
                                 value={textFieldValue}
                                 onChange={newValue => handleSearch(newValue)}
@@ -181,13 +228,117 @@ const ListPage = () => {
                             />
                         </div>
                         {isSearching ? <>
-                            {displayData ?
+                            {searchId === "0" ?
                                 <CardContent className="w-full flex flex-row space-evenely justify-center flex-wrap gap-3">
-                                    {displayData.map((data, i) => (
+                                    {displayKurtiData.map((data, i) => (
                                         <KurtiPicCard data={data} key={i} onKurtiDelete={handleKurtiDelete} />
                                     ))}
                                 </CardContent>
-                                : ""} </> :
+                                : <div className="flex flex-col gap-2">
+                                    <Table>
+                                        <TableCaption>List of all category</TableCaption>
+                                        <TableHeader>
+                                            <TableRow className="text-black">
+                                                <TableHead
+                                                    key={'sr.'}
+                                                    className="text-center font-bold text-base"
+                                                >
+                                                    Sr.
+                                                </TableHead>
+                                                <TableHead
+                                                    key={'Category'}
+                                                    className="text-center font-bold text-base"
+                                                >
+                                                    Category
+                                                </TableHead>
+                                                <TableHead
+                                                    className="text-center font-bold text-base"
+                                                    key={'Total Items'}
+                                                >
+                                                    Total Items
+                                                </TableHead>
+                                                <TableHead
+                                                    className="text-center font-bold text-base"
+                                                    key={'Total Pieces'}
+                                                >
+                                                    Total Pieces
+                                                </TableHead>
+                                                <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+
+                                                    <TableHead
+                                                        className="text-center font-bold text-base"
+                                                        key={'Delete Buttons'}
+                                                    >
+                                                        {'Delete Buttons'}
+                                                    </TableHead>
+                                                </RoleGateForComponent>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {displayCategoryData.map((cat, idx) => (
+                                                <TableRow
+                                                    key={`${idx}-1`}
+                                                >
+                                                    <TableCell
+                                                        key={idx * idx}
+                                                        className="text-center"
+                                                    >
+                                                        {idx + 1}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        key={cat.name}
+                                                        className="text-center text-blue-800 font-bold cursor-pointer"
+                                                        aria-label={`open categry ${cat.name} by clicking`}
+                                                    >
+                                                        <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
+                                                            {cat.name}
+                                                        </Link>
+                                                    </TableCell>
+                                                    <TableCell
+                                                        className="text-center"
+                                                        key={`${cat.name}-${cat.count}-count`}
+                                                    >
+                                                        {cat.count}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        className="text-center"
+                                                        key={`${cat.name}-${cat.countOfPiece}-total`}
+                                                    >
+                                                        {cat.countOfPiece}
+                                                    </TableCell>
+                                                    <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+
+                                                        <TableCell className="text-center"
+                                                            key={`${cat.name}-delete`}
+                                                        >
+
+                                                            <DialogDemo
+                                                                dialogTrigger="Delete Category"
+                                                                dialogTitle="Delete Category"
+                                                                dialogDescription="Delete the category"
+                                                                bgColor="destructive"
+                                                            >
+                                                                <div>
+                                                                    <h1>Delete</h1>
+                                                                    <h3>Are you sure wanted to delete category {`${cat.name}`}?</h3>
+                                                                </div>
+                                                                <Button
+                                                                    type="button"
+                                                                    disabled={isPending}
+                                                                    onClick={() => { handleDelete(cat.name) }}
+                                                                // onClick={formCategory.handleSubmit(handleSubmitCategory)}
+                                                                >
+                                                                    Delete
+                                                                </Button>
+                                                            </DialogDemo>
+                                                        </TableCell>
+                                                    </RoleGateForComponent>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            } </> :
 
                             <div className="flex flex-col gap-2">
                                 <Table>
@@ -253,13 +404,13 @@ const ListPage = () => {
                                                 </TableCell>
                                                 <TableCell
                                                     className="text-center"
-                                                    key={`${cat.name}-${cat.count}`}
+                                                    key={`${cat.name}-${cat.count}-count`}
                                                 >
                                                     {cat.count}
                                                 </TableCell>
                                                 <TableCell
                                                     className="text-center"
-                                                    key={`${cat.name}-${cat.countOfPiece}`}
+                                                    key={`${cat.name}-${cat.countOfPiece}-total`}
                                                 >
                                                     {cat.countOfPiece}
                                                 </TableCell>
