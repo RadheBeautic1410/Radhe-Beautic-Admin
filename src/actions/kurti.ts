@@ -36,6 +36,9 @@ export const kurtiAddition = async (
             },
             countTotal: {
                 increment: 1,
+            },
+            actualPrice: {
+                increment: (cnt * data.actualPrice),
             }
         }
     })
@@ -63,7 +66,7 @@ export const stockAddition = async (data: any) => {
         cnt += sizes[i].quantity;
     }
     console.log(code);
-    let kurti = await db.kurti.findUnique({
+    let kurti: any = await db.kurti.findUnique({
         where: {
             code: code,
         }
@@ -85,12 +88,12 @@ export const stockAddition = async (data: any) => {
             countOfPiece: {
                 increment: cnt,
             },
+            actualPrice: {
+                increment: (cnt * kurti.actualPrice),
+            },
             countTotal: {
                 increment: 1,
             },
-            countOfDesign: {
-                increment: 1,
-            }
         }
     })
 
