@@ -402,7 +402,7 @@ export const migrate = async () => {
             let maxi = 0;
             for(let j = 0; j < ok.length; j++) {
                 let code = ok[j].code;
-                let cnt = parseInt(code.substring(3));
+                let cnt = parseInt(code.substring(3)) || 0;
                 maxi = Math.max(maxi, cnt);
             }
             const kurtis: any[] = await db.kurti.findMany({
@@ -438,6 +438,7 @@ export const migrate = async () => {
                 uniqueCnt += 1;
                 
             }
+            console.log('countTotal:', maxi);
             await db.category.update({
                 where: {
                     id: category[i].id,
@@ -536,7 +537,8 @@ export const addStock = async (code: string) => {
             data: {
                 countOfPiece: {
                     increment: 1
-                }
+                },
+                sellingPrice: parseInt(updateUser.sellingPrice || "0")
             },
         });
         const KurtiNew = await db.kurti.findUnique({

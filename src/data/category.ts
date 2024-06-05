@@ -50,7 +50,12 @@ export const getAllCategoryWithCount = async () => {
             //         countOfPiece: true,
             //     }
             // });
-            arr.push({name: category[i].name, count: category[i].countOfDesign, countOfPiece: category[i].countOfPiece});
+            arr.push({
+                name: category[i].name, 
+                count: category[i].countOfDesign, 
+                countOfPiece: category[i].countOfPiece, 
+                sellingPrice: category[i].sellingPrice
+            });
         }
         return {category, counts: arr};
     } catch (error) {

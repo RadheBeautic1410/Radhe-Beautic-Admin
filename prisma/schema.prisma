@@ -176,6 +176,7 @@ model Category {
   countTotal Int @default(0)
   countOfPiece Int @default(0)
   countOfDesign Int? @default(0)
+  sellingPrice Int? @default(0)
 }
 
 

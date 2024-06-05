@@ -311,7 +311,7 @@ const UploadPage = () => {
                                                         onValueChange={field.onChange}
                                                         value={field.value}
                                                     >
-                                                        
+
                                                         <FormControl>
                                                             <SelectTrigger>
                                                                 <SelectValue placeholder="Select Category" />
@@ -380,7 +380,87 @@ const UploadPage = () => {
                                             </Button>
                                         </div>
                                     </div>
+                                    {/* Add Party Component */}
+                                    <div className="flex flex-row justify-normal">
+                                        <FormField
+                                            control={form.control}
+                                            name="party"
+                                            render={({ field }) => (
+                                                <FormItem className="w-[30%]">
+                                                    <FormLabel>Party</FormLabel>
+                                                    <Select
+                                                        disabled={isPending}
+                                                        onValueChange={field.onChange}
+                                                        value={field.value === "" ? "" : field.value}
+                                                    >
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select Party" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {party.map((org) => (
+                                                                <SelectItem key={org.id} value={org.name}>
+                                                                    {org.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <div className="ml-3 mt-7">
+                                            <Button
+                                                asChild
+                                            >
+                                                <DialogDemo
+                                                    dialogTrigger="Add Party"
+                                                    dialogTitle="New Party Addition"
+                                                    dialogDescription="give party name and click add party"
+                                                    bgColor="destructive"
+                                                >
 
+                                                    <Form {...formParty}>
+                                                        <form
+                                                            className="space-y-6"
+                                                        >
+
+                                                            <FormField
+                                                                control={formParty.control}
+                                                                name="name"
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel>Party</FormLabel>
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                {...field}
+                                                                                disabled={isPending}
+                                                                                placeholder="enter party name"
+
+                                                                            />
+                                                                        </FormControl>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+
+
+                                                            <Button
+                                                                type="button"
+                                                                disabled={isPending}
+                                                                onClick={formParty.handleSubmit(handleSubmitParty)}
+                                                            >
+                                                                Add Party
+                                                            </Button>
+                                                        </form>
+                                                    </Form>
+
+                                                </DialogDemo>
+
+                                            </Button>
+                                        </div>
+                                    </div>
                                     <FormField
                                         control={form.control}
                                         name="actualPrice"
@@ -466,87 +546,7 @@ const UploadPage = () => {
                                         </Button>
                                     </div>
 
-                                    {/* Add Party Component */}
-                                    <div className="flex flex-row justify-normal">
-                                        <FormField
-                                            control={form.control}
-                                            name="party"
-                                            render={({ field }) => (
-                                                <FormItem className="w-[30%]">
-                                                    <FormLabel>Party</FormLabel>
-                                                    <Select
-                                                        disabled={isPending}
-                                                        onValueChange={field.onChange}
-                                                        value={field.value === "" ? "" : field.value}
-                                                    >
-                                                        <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Select Party" />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            {party.map((org) => (
-                                                                <SelectItem key={org.id} value={org.name}>
-                                                                    {org.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <div className="ml-3 mt-7">
-                                            <Button
-                                                asChild
-                                            >
-                                                <DialogDemo
-                                                    dialogTrigger="Add Party"
-                                                    dialogTitle="New Party Addition"
-                                                    dialogDescription="give party name and click add party"
-                                                    bgColor="destructive"
-                                                >
 
-                                                    <Form {...formParty}>
-                                                        <form
-                                                            className="space-y-6"
-                                                        >
-
-                                                            <FormField
-                                                                control={formParty.control}
-                                                                name="name"
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel>Party</FormLabel>
-                                                                        <FormControl>
-                                                                            <Input
-                                                                                {...field}
-                                                                                disabled={isPending}
-                                                                                placeholder="enter party name"
-
-                                                                            />
-                                                                        </FormControl>
-                                                                        <FormMessage />
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-
-
-                                                            <Button
-                                                                type="button"
-                                                                disabled={isPending}
-                                                                onClick={formParty.handleSubmit(handleSubmitParty)}
-                                                            >
-                                                                Add Party
-                                                            </Button>
-                                                        </form>
-                                                    </Form>
-
-                                                </DialogDemo>
-
-                                            </Button>
-                                        </div>
-                                    </div>
                                     <Button
                                         type="button"
                                         disabled={isPending || barcodeDownloading}

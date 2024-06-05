@@ -22,6 +22,7 @@ interface category {
     name: string;
     count: number;
     countOfPiece: number;
+    sellingPrice: number;
 }
 
 interface kurti {
@@ -39,8 +40,11 @@ interface kurti {
 const ListPage = () => {
     const [categoryLoader, setCategoryLoader] = useState(true);
     const [category, setCategory] = useState<category[]>([]);
+
     const [totalPiece, setTotalPiece] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
+    const [totalStockPrice, setTotalStockPrice] = useState(0);
+
     const [isPending, startTransition] = useTransition();
     const [textFieldValue, setTextFieldValue] = useState('');
     const router = useRouter();
@@ -71,7 +75,7 @@ const ListPage = () => {
                 setDisplayCategoryData([]);
             }
         }
-        else {
+        else if (searchId === "1") {
             if (newVal === "") {
                 setTextFieldValue("");
                 setSearching(false);
@@ -85,6 +89,26 @@ const ListPage = () => {
                 }
                 const filteredRows = category.filter((row) => {
                     return row.name.toUpperCase().includes(newVal.toUpperCase());
+                });
+                console.log(filteredRows);
+                setDisplayKurtiData([]);
+                setDisplayCategoryData(filteredRows);
+            }
+        }
+        if (searchId === "2") {
+            if (newVal === "") {
+                setTextFieldValue("");
+                setSearching(false);
+                // handleSearch(textFieldValue);
+                setDisplayKurtiData([]);
+                setDisplayCategoryData(category);
+            }
+            else {
+                if (!isSearching) {
+                    setSearching(true);
+                }
+                const filteredRows = category.filter((row) => {
+                    return row.sellingPrice === (parseInt(newVal) || 0);
                 });
                 console.log(filteredRows);
                 setDisplayKurtiData([]);
@@ -114,12 +138,15 @@ const ListPage = () => {
                 console.log(result);
                 const sortedCategory = (result.data || []).sort((a: category, b: category) => a.name.localeCompare(b.name));
                 let sum1 = 0, sum2 = 0;
+                let sum3 = 0;
                 for (let i = 0; i < sortedCategory.length; i++) {
                     sum1 += sortedCategory[i].count;
                     sum2 += sortedCategory[i].countOfPiece;
+                    sum3 += (sortedCategory[i].countOfPiece * sortedCategory[i].sellingPrice);
                 }
                 setTotalItems(sum1);
                 setTotalPiece(sum2);
+                setTotalStockPrice(sum3)
                 setCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
 
                 let res2 = await fetch(`/api/kurti/getall`);
@@ -213,6 +240,10 @@ const ListPage = () => {
                                         <RadioGroupItem value="1" id="1" />
                                         <Label htmlFor="1">Search Category</Label>
                                     </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="2" id="2" />
+                                        <Label htmlFor="2">Search Price</Label>
+                                    </div>
                                 </RadioGroup>
                             </div>
 
@@ -263,6 +294,12 @@ const ListPage = () => {
                                                 >
                                                     Total Pieces
                                                 </TableHead>
+                                                <TableHead
+                                                    className="text-center font-bold text-base"
+                                                    key={'Price'}
+                                                >
+                                                    Price
+                                                </TableHead>
                                                 <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
 
                                                     <TableHead
@@ -305,6 +342,12 @@ const ListPage = () => {
                                                         key={`${cat.name}-${cat.countOfPiece}-total`}
                                                     >
                                                         {cat.countOfPiece}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        className="text-center"
+                                                        key={`${cat.name}-${cat.countOfPiece}-price`}
+                                                    >
+                                                        {cat.sellingPrice}
                                                     </TableCell>
                                                     <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
 
@@ -369,6 +412,13 @@ const ListPage = () => {
                                             >
                                                 Total Pieces
                                             </TableHead>
+                                            <TableHead
+                                                className="text-center font-bold text-base"
+                                                key={'Price'}
+                                            >
+                                                Price
+                                            </TableHead>
+
                                             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
 
                                                 <TableHead
@@ -414,6 +464,12 @@ const ListPage = () => {
                                                 >
                                                     {cat.countOfPiece}
                                                 </TableCell>
+                                                <TableCell
+                                                    className="text-center"
+                                                    key={`${cat.name}-${cat.countOfPiece}-price`}
+                                                >
+                                                    {cat.sellingPrice}
+                                                </TableCell>
                                                 <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
 
                                                     <TableCell className="text-center"
@@ -451,10 +507,13 @@ const ListPage = () => {
                                                 {'Total'}
                                             </TableCell>
                                             <TableCell>
-                                                {totalItems}
+                                                {totalItems.toLocaleString('en-IN')}
                                             </TableCell>
                                             <TableCell>
-                                                {totalPiece}
+                                                {totalPiece.toLocaleString('en-IN')}
+                                            </TableCell>
+                                            <TableCell>
+                                                {totalStockPrice.toLocaleString('en-IN')}
                                             </TableCell>
                                         </TableRow>
                                     </TableBody>

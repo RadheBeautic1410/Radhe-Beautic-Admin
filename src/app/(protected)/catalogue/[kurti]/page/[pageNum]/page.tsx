@@ -106,16 +106,16 @@ function KurtiListPage() {
                     let prom2 = fetch(`/api/kurti/getByCategory?category=${code}`);
                     const [resPage, response2] = await Promise.all([prom1, prom2]);
                     const result2 = await response2.json();
+                    const sortedByStock = await ((result2.data || []).sort((a: any, b: any) => b.countOfPiece - a.countOfPiece));
+                    console.log(sortedByStock);
                     const pageResult = await resPage.json();
                     console.log(Math.ceil(result2.data.length / 20));
                     console.log(result2);
-                    setDisplayData(result2.data.slice(20 * (parseInt(pageNum) - 1), 20 * (parseInt(pageNum) - 1) + 20));
-                    setKurtiData(result2.data);
-                    setTotalPages(Math.ceil(result2.data.length / 20));
+                    setDisplayData(sortedByStock.slice(20 * (parseInt(pageNum) - 1), 20 * (parseInt(pageNum) - 1) + 20));
+                    setKurtiData(sortedByStock);
+                    setTotalPages(Math.ceil(sortedByStock.length / 20));
                     // setCurrentPage(parseInt(pageNum));
                     // console.log(result2.data);
-
-                    
                 }
                 else {
                     setValid(false);

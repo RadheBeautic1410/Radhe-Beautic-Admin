@@ -181,7 +181,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
             <img id={`${data.code}-visible`} src={data.images[0].url} crossOrigin="anonymous" height={'300px'} width={'300px'}></img>
 
 
-            <p key={'code'} className='font-bold'>{`Code: ${data.code.toUpperCase()}`}</p>
+            <p key={'code'} className='font-bold'>{`Code: ${data.code.toUpperCase()} (${data.images.length} Images)`}</p>
             <p key={'price'} className="text-2xl font-semibold mt-2 mb-1">{`Price - ${data.sellingPrice}/-`}</p>
             <div className='flex flex-row space-evenely mb-2 gap-2'>
                 <Table className='border border-collapse border-red'>
@@ -229,7 +229,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
             <Button type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
                 {downloading ?
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    : ""}
+                    : ""} 
                 ⬇️
             </Button>
             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>

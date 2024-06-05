@@ -71,8 +71,8 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx, onPi
         const watermark = new ImageWatermark({
             contentType: 'image',
             image: rightText,
-            imageWidth: imgDom.width/6,
-            imageHeight: imgDom.height/14,
+            imageWidth: 140,
+            imageHeight: 75,
             width: imgDom.width,
             height: imgDom.height,
             dom: imgDom,
