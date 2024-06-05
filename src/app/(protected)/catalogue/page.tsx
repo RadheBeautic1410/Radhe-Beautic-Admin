@@ -23,6 +23,7 @@ interface category {
     count: number;
     countOfPiece: number;
     sellingPrice: number;
+    actualPrice: number;
 }
 
 interface kurti {
@@ -142,7 +143,7 @@ const ListPage = () => {
                 for (let i = 0; i < sortedCategory.length; i++) {
                     sum1 += sortedCategory[i].count;
                     sum2 += sortedCategory[i].countOfPiece;
-                    sum3 += (sortedCategory[i].countOfPiece * sortedCategory[i].sellingPrice);
+                    sum3 += (sortedCategory[i].actualPrice);
                 }
                 setTotalItems(sum1);
                 setTotalPiece(sum2);
@@ -513,7 +514,7 @@ const ListPage = () => {
                                                 {totalPiece.toLocaleString('en-IN')}
                                             </TableCell>
                                             <TableCell>
-                                                {totalStockPrice.toLocaleString('en-IN')}
+                                                {`${totalStockPrice.toLocaleString('en-IN')}/-`}
                                             </TableCell>
                                         </TableRow>
                                     </TableBody>

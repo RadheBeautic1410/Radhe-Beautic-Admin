@@ -14,12 +14,24 @@ export const migrate3 = async () => {
                     }
                 }
             });
+            let sum = 0;
+            console.log(category[i].name);
+            for (let j = 0; j < kurtis.length; j++) {
+                try{
+                    sum += (parseInt(kurtis[j].actualPrice || "0"))*(kurtis[j].countOfPiece||0);
+                }
+                catch(e:any){
+                    console.log(j, e.message);
+                }
+            }
+            console.log(category[i].name, sum);
             await db.category.update({
                 where: {
                     id: category[i].id,
                 },
                 data: {
                     sellingPrice: parseInt(kurtis[0].sellingPrice || "0"),
+                    actualPrice: sum,
                 }
             })
         }

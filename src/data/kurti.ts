@@ -519,7 +519,7 @@ export const addStock = async (code: string) => {
             });
         }
         console.log(sizes);
-        const updateUser = await db.kurti.update({
+        const updateUser: any = await db.kurti.update({
             where: {
                 code: search,
             },
@@ -530,6 +530,7 @@ export const addStock = async (code: string) => {
                 }
             },
         });
+        let inc = (updateUser.actualPrice*updateUser.countOfPiece);
         await db.category.update({
             where: {
                 normalizedLowerCase: updateUser.category.toLowerCase(),
@@ -538,7 +539,10 @@ export const addStock = async (code: string) => {
                 countOfPiece: {
                     increment: 1
                 },
-                sellingPrice: parseInt(updateUser.sellingPrice || "0")
+                sellingPrice: parseInt(updateUser.sellingPrice || "0"),
+                actualPrice: {
+                    increment: inc
+                }
             },
         });
         const KurtiNew = await db.kurti.findUnique({
