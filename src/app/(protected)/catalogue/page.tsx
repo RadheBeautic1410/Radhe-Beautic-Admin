@@ -137,7 +137,7 @@ const ListPage = () => {
                 const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
                 const result = await response.json();
                 console.log(result);
-                const sortedCategory = (result.data || []).sort((a: category, b: category) => a.name.localeCompare(b.name));
+                const sortedCategory = (result.data || []).sort((a: category, b: category) => b.count - a.count);
                 let sum1 = 0, sum2 = 0;
                 let sum3 = 0;
                 for (let i = 0; i < sortedCategory.length; i++) {
