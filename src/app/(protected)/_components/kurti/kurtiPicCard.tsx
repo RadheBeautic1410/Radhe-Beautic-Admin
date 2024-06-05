@@ -11,6 +11,7 @@ import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner';
 import { ImageWatermark } from 'watermark-js-plus'
+import NextImage  from 'next/image';
 
 interface kurti {
     id: string;
@@ -37,6 +38,16 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     // console.log(pathname.split('/'));
     let sizes = data.sizes.length;
     const [isBrowserMobile, setIsBrowserMobile] = useState(false);
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+    useEffect(() => {
+        const img = new Image();
+        img.src = "https://i.ibb.co/qgDyGy4/Whats-App-Image-2024-05-16-at-10-17-19-AM.jpg";
+        img.onload = () => {
+            console.log(img.width, img.height);
+            setDimensions({ width: img.width, height: img.height });
+        };
+    }, []);
 
     useEffect(() => {
         const handleResize = () => {
@@ -74,7 +85,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         ctx?.drawImage(image, 0, 0, canvas.width, canvas.height);
 
         // Convert canvas to compressed image format (JPEG)
-        var compressedImage = canvas.toDataURL('image/jpeg', 0.2);
+        var compressedImage = canvas.toDataURL('image/jpeg', 1);
         var downloadLink = document.createElement('a');
         // console.log(image.src)
         downloadLink.href = compressedImage;
@@ -163,6 +174,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     const handleClick = async () => {
         const imgDom = document.querySelector(`#download${data.code}`) as HTMLImageElement;
         const imgDom2 = document.querySelector(`#download${data.code}`) as HTMLImageElement;
+        console.log(imgDom.complete);
         if (imgDom.complete) {
             setDownloading(true);
             await findBlocks();
@@ -176,9 +188,36 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     return (
         <div id='container' className='p-3 bg-slate-300'>
             <div className='w-[2200px] h-[2200px]' hidden>
-                <img id={`download${data.code}`} className="h-full w-full object-cover" src={data.images[0].url} crossOrigin="anonymous"></img>
+                {/* <NextImage
+                    src={data.images[0].url}
+                    id={`download${data.code}`} className="h-full w-full object-cover"
+                    alt=''
+                    crossOrigin="anonymous"
+                    width={dimensions.width}
+                    height={dimensions.height}
+                /> */}
+                <img 
+                    id={`download${data.code}`} 
+                    className="h-full w-full object-cover" 
+                    src={data.images[0].url} 
+                    crossOrigin="anonymous"
+                    width={dimensions.width}
+                    height={dimensions.height}
+                ></img>
             </div>
-            <img id={`${data.code}-visible`} src={data.images[0].url} crossOrigin="anonymous" height={'300px'} width={'300px'}></img>
+            <NextImage
+                src={data.images[0].url}
+                id={`${data.code}-visible`}
+                alt=''
+                crossOrigin="anonymous"
+                width={dimensions.width}
+                height={dimensions.height}
+                style={{
+                    width: '300px',
+                    height: '300px'
+                }}
+            />
+            {/* <img id={`${data.code}-visible`} src={data.images[0].url} crossOrigin="anonymous" height={'300px'} width={'300px'}></img> */}
 
 
             <p key={'code'} className='font-bold'>{`Code: ${data.code.toUpperCase()} (${data.images.length} Images)`}</p>
@@ -229,15 +268,15 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
             <Button type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
                 {downloading ?
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    : ""} 
+                    : ""}
                 ⬇️
             </Button>
             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-                <Link 
-                    href= {pathname.split('/').length !== 2  ?
-                        `${pathname}/${data.code.toLowerCase()}` : 
+                <Link
+                    href={pathname.split('/').length !== 2 ?
+                        `${pathname}/${data.code.toLowerCase()}` :
                         `${pathname}/${data.category.toLowerCase()}/${data.code.toLowerCase()}`
-                    } 
+                    }
                     className='mt-0 pt-0'
                 >
                     <Button type='button' className="ml-3" variant={'outline'} key={'edit'}>
