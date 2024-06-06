@@ -543,9 +543,9 @@ export const addStock = async (code: string) => {
                     increment: 1
                 },
                 sellingPrice: parseInt(updateUser.sellingPrice || "0"),
-                actualPrice: {
-                    increment: inc
-                }
+                // actualPrice: {
+                //     increment: inc
+                // }
             },
         });
         const KurtiNew = await db.kurti.findUnique({
