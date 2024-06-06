@@ -202,8 +202,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     className="h-full w-full object-cover" 
                     src={data.images[0].url} 
                     crossOrigin="anonymous"
-                    width={dimensions.width}
-                    height={dimensions.height}
+                    // width={dimensions.width}
+                    // height={dimensions.height}
                 ></img>
             </div>
             {/* <NextImage
