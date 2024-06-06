@@ -198,6 +198,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                 /> */}
                 <img 
                     id={`download${data.code}`} 
+                    loading="lazy"
                     className="h-full w-full object-cover" 
                     src={data.images[0].url} 
                     crossOrigin="anonymous"
@@ -217,7 +218,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     height: '300px'
                 }}
             /> */}
-            <img id={`${data.code}-visible`} src={data.images[0].url} crossOrigin="anonymous" height={'300px'} width={'300px'}></img>
+            <img loading="lazy" id={`${data.code}-visible`} src={data.images[0].url} crossOrigin="anonymous" height={'300px'} width={'300px'}></img>
 
 
             <p key={'code'} className='font-bold'>{`Code: ${data.code.toUpperCase()} (${data.images.length} Images)`}</p>

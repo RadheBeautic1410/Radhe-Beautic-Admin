@@ -15,7 +15,7 @@ export const migrate3 = async () => {
                 }
             });
             let sum = 0;
-            console.log(category[i].name);
+            // console.log(category[i].name);
             for (let j = 0; j < kurtis.length; j++) {
                 try{
                     sum += (parseInt(kurtis[j].actualPrice || "0"))*(kurtis[j].countOfPiece||0);
@@ -24,7 +24,7 @@ export const migrate3 = async () => {
                     console.log(j, e.message);
                 }
             }
-            console.log(category[i].name, sum);
+            // console.log(category[i].name, sum);
             await db.category.update({
                 where: {
                     id: category[i].id,
