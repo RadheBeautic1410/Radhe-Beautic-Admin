@@ -139,7 +139,7 @@ const ListPage = () => {
                 const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
                 const result = await response.json();
                 console.log(result);
-                const sortedCategory = (result.data || []).sort((a: category, b: category) => b.count - a.count);
+                const sortedCategory = (result.data || []).sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
                 let sum1 = 0, sum2 = 0;
                 let sum3 = 0;
                 for (let i = 0; i < sortedCategory.length; i++) {
@@ -189,7 +189,7 @@ const ListPage = () => {
                             const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
                             const result = await response.json();
                             console.log(result);
-                            const sortedCategory = (result.data || []).sort((a: category, b: category) => b.count - a.count);
+                            const sortedCategory = (result.data || []).sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
                             let sum1 = 0, sum2 = 0, sum3 = 0;
                             for (let i = 0; i < sortedCategory.length; i++) {
                                 sum1 += sortedCategory[i].count;
@@ -269,10 +269,10 @@ const ListPage = () => {
                                             setSortId(val);
                                             if (val === "0") {
                                                 let data = category;
-                                                data = (data || []).sort((a: category, b: category) => b.count - a.count);
+                                                data = (data || []).sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
                                                 setCategory(data);
                                                 data = displayCategoryData;
-                                                data = (data || []).sort((a: category, b: category) => b.count - a.count);
+                                                data = (data || []).sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
                                                 setDisplayCategoryData(data);
                                             }
                                             else {
