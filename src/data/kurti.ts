@@ -343,6 +343,9 @@ export const sellKurti2 = async (data: any) => {
                     data: {
                         countOfPiece: {
                             increment: -1
+                        },
+                        actualPrice: {
+                            decrement: (parseInt(updateUser.actualPrice || "0")),
                         }
                     },
                 });
@@ -530,7 +533,7 @@ export const addStock = async (code: string) => {
                 }
             },
         });
-        let inc = (updateUser.actualPrice*updateUser.countOfPiece);
+        let inc = (updateUser.actualPrice);
         await db.category.update({
             where: {
                 normalizedLowerCase: updateUser.category.toLowerCase(),

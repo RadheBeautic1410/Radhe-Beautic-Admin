@@ -17,7 +17,7 @@ import SearchBar from "@mkyy/mui-search-bar";
 import KurtiPicCard from "../_components/kurti/kurtiPicCard";
 import { RadioGroup, RadioGroupItem } from "@/src/components/ui/radio-group";
 import { Label } from "@/src/components/ui/label";
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select";
 interface category {
     name: string;
     count: number;
@@ -54,7 +54,9 @@ const ListPage = () => {
     const [displayCategoryData, setDisplayCategoryData] = useState<category[]>([]);
     const [isSearching, setSearching] = useState(false);
     const [loading, setLoading] = useState(true);
+
     const [searchId, setSearchId] = useState("0");
+    const [sortId, setSortId] = useState("0");
 
     const handleSearch = (newVal: string) => {
         if (searchId === "0") {
@@ -187,14 +189,16 @@ const ListPage = () => {
                             const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
                             const result = await response.json();
                             console.log(result);
-                            const sortedCategory = (result.data || []).sort((a: category, b: category) => a.name.localeCompare(b.name));
-                            let sum1 = 0, sum2 = 0;
+                            const sortedCategory = (result.data || []).sort((a: category, b: category) => b.count - a.count);
+                            let sum1 = 0, sum2 = 0, sum3 = 0;
                             for (let i = 0; i < sortedCategory.length; i++) {
                                 sum1 += sortedCategory[i].count;
                                 sum2 += sortedCategory[i].countOfPiece;
+                                sum3 += (sortedCategory[i].actualPrice);
                             }
                             setTotalItems(sum1);
                             setTotalPiece(sum2);
+                            setTotalStockPrice(sum3)
                             setCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
                         } catch (error) {
                             console.error('Error fetching data:', error);
@@ -232,20 +236,70 @@ const ListPage = () => {
                     <CardContent>
                         <div className="pb-2">
                             <div className="flex flex-row justify-center mb-2">
-                                <RadioGroup value={searchId} onValueChange={(val) => setSearchId(val)} className="flex flex-row">
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="0" id="0" />
-                                        <Label htmlFor="0">Search Design</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="1" id="1" />
-                                        <Label htmlFor="1">Search Category</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="2" id="2" />
-                                        <Label htmlFor="2">Search Price</Label>
-                                    </div>
-                                </RadioGroup>
+                                <div className="w-[30%] flex-col">
+                                    <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
+                                        Select search type
+                                    </h2>
+                                    <Select
+                                        onValueChange={(val) => setSearchId(val)}
+                                        value={searchId}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Search Field Type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem key={'search-design-select'} value="0">
+                                                {'Search Design'}
+                                            </SelectItem>
+                                            <SelectItem key={'search-category-select'} value="1">
+                                                {'Search Category'}
+                                            </SelectItem>
+                                            <SelectItem key={'search-price-select'} value="2">
+                                                {'Search Price'}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="w-[30%] ml-3">
+                                    <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
+                                        Select sort type
+                                    </h2>
+                                    <Select
+                                        onValueChange={(val) => {
+                                            setSortId(val);
+                                            if (val === "0") {
+                                                let data = category;
+                                                data = (data || []).sort((a: category, b: category) => b.count - a.count);
+                                                setCategory(data);
+                                                data = displayCategoryData;
+                                                data = (data || []).sort((a: category, b: category) => b.count - a.count);
+                                                setDisplayCategoryData(data);
+                                            }
+                                            else {
+                                                let data = category;
+                                                data = (data || []).sort((a: category, b: category) => a.name.localeCompare(b.name));
+                                                setCategory(data);
+                                                data = displayCategoryData;
+                                                data = (data || []).sort((a: category, b: category) => a.name.localeCompare(b.name));
+                                                setDisplayCategoryData(data);
+                                            }
+                                        }}
+                                        value={sortId}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Sort Type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem key={'sort-count-select'} value="0">
+                                                {'Sort By Piece Count'}
+                                            </SelectItem>
+                                            <SelectItem key={'search-category-select'} value="1">
+                                                {'Sort By Name'}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
                             </div>
 
                             <SearchBar
