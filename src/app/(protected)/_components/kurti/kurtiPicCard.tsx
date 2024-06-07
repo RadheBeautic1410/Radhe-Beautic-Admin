@@ -44,7 +44,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
 
     useEffect(() => {
         const img = new Image();
-        img.src = "https://i.ibb.co/qgDyGy4/Whats-App-Image-2024-05-16-at-10-17-19-AM.jpg";
+        // img.loading = "lazy";
+        img.src = `${data.images[0].url}`;
         img.onload = () => {
             console.log(img.width, img.height);
             setDimensions({ width: img.width, height: img.height });
@@ -87,7 +88,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         ctx?.drawImage(image, 0, 0, canvas.width, canvas.height);
 
         // Convert canvas to compressed image format (JPEG)
-        var compressedImage = canvas.toDataURL('image/jpeg', 0.2);
+        var compressedImage = canvas.toDataURL('image/jpeg', 0.6);
         var downloadLink = document.createElement('a');
         // console.log(image.src)
         downloadLink.href = compressedImage;
@@ -108,8 +109,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         const watermark = new ImageWatermark({
             contentType: 'image',
             image: rightText,
-            imageWidth: imgDom.width / 6,
-            imageHeight: imgDom.height / 14,
+            imageWidth: imgDom.width / 10,
+            imageHeight: imgDom.height / 27,
             width: imgDom.width,
             height: imgDom.height,
             dom: imgDom,
@@ -122,8 +123,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         const watermark2 = new ImageWatermark({
             contentType: 'image',
             image: leftText,
-            imageWidth: imgDom2.width / 3.8,
-            imageHeight: imgDom2.height / 12,
+            imageWidth: imgDom2.width / 6,
+            imageHeight: imgDom2.height / 16,
             width: imgDom2.width,
             height: imgDom2.height,
             dom: imgDom2,
@@ -175,7 +176,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
 
     const handleClick = async () => {
         const imgDom = document.querySelector(`#download${data.code}`) as HTMLImageElement;
-        const imgDom2 = document.querySelector(`#download${data.code}`) as HTMLImageElement;
+        // const imgDom2 = document.querySelector(`#download${data.code}`) as HTMLImageElement;
         console.log(imgDom.complete);
         if (imgDom.complete) {
             setDownloading(true);
@@ -200,12 +201,11 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                 /> */}
                 <img 
                     id={`download${data.code}`} 
-                    loading="lazy"
-                    className="h-full w-full object-cover" 
+                    className="w-full h-full object-cover" 
                     src={data.images[0].url} 
                     crossOrigin="anonymous"
-                    // width={dimensions.width}
-                    // height={dimensions.height}
+                    width={dimensions.width}
+                    height={dimensions.height}
                 ></img>
             </div>
             {/* <NextImage
@@ -220,7 +220,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     height: '300px'
                 }}
             /> */}
-            <img loading="lazy" id={`${data.code}-visible`} src={data.images[0].url} crossOrigin="anonymous" height={'300px'} width={'300px'}></img>
+            <img loading="lazy" id={`${data.code}-visible`} src={data.images[0].url} crossOrigin="anonymous" height={'250px'} width={'250px'}></img>
 
 
             <p key={'code'} className='font-bold'>{`Code: ${data.code.toUpperCase()} (${data.images.length} Images)`}</p>
