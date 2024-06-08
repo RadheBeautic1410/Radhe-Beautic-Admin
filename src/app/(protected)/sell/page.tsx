@@ -14,6 +14,13 @@ import { toast } from 'sonner';
 import NotAllowedPage from '../_components/errorPages/NotAllowedPage';
 import { useCurrentUser } from '@/src/hooks/use-current-user';
 
+export const getCurrTime = async () => {
+    const currentTime = new Date();
+    const ISTOffset = 5.5 * 60 * 60 * 1000;
+    const ISTTime = new Date(currentTime.getTime() + ISTOffset);
+    return ISTTime;
+}
+
 function SellPage() {
     const [code, setCode] = useState("");
     const [kurti, setKurti] = useState<any>(null);

@@ -17,10 +17,10 @@ export const migrate3 = async () => {
             let sum = 0;
             // console.log(category[i].name);
             for (let j = 0; j < kurtis.length; j++) {
-                try{
-                    sum += (parseInt(kurtis[j].actualPrice || "0"))*(kurtis[j].countOfPiece||0);
+                try {
+                    sum += (parseInt(kurtis[j].actualPrice || "0")) * (kurtis[j].countOfPiece || 0);
                 }
-                catch(e:any){
+                catch (e: any) {
                     console.log(j, e.message);
                 }
             }
@@ -35,7 +35,38 @@ export const migrate3 = async () => {
                 }
             })
         }
-        
+
+    } catch (e: any) {
+        console.log(e);
+        return e.message;
+    }
+}
+
+export const migrate4 = async () => {
+    try {
+        const category: any[] = await db.category.findMany({});
+        for (let i = 0; i < category.length; i++) {
+            const currentTime = new Date();
+
+            // Calculate the offset for IST (UTC+5:30)
+            const ISTOffset = 5.5 * 60 * 60 * 1000;
+
+            // Convert the local time to IST
+            const ISTTime = new Date(currentTime.getTime() + ISTOffset);
+            await db.kurti.updateMany({
+                where: {
+                    category: {
+                        mode: 'insensitive',
+                        startsWith: category[i].name,
+                        endsWith: category[i].name,
+                    }
+                },
+                data: {
+                    lastUpdatedTime: ISTTime,
+                }
+            });
+        }
+
     } catch (e: any) {
         console.log(e);
         return e.message;

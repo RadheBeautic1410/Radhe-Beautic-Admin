@@ -7,6 +7,12 @@ import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
 import { size } from "pdfkit/js/page";
 
+export const getCurrTime = async () => {
+    const currentTime = new Date();
+    const ISTOffset = 5.5 * 60 * 60 * 1000;
+    const ISTTime = new Date(currentTime.getTime() + ISTOffset);
+    return ISTTime;
+}
 
 export const kurtiAddition = async (
     data: any
@@ -19,9 +25,12 @@ export const kurtiAddition = async (
     for (let i = 0; i < sizes.length; i++) {
         cnt += sizes[i].quantity;
     }
-
+    const currTime = await getCurrTime();
+    let dataWithTime = data;
+    dataWithTime['countOfPiece'] = cnt;
+    dataWithTime['lastUpdatedTime'] = currTime;
     await db.kurti.create({
-        data
+        data: dataWithTime
     });
     await db.category.update({
         where: {
@@ -71,11 +80,14 @@ export const stockAddition = async (data: any) => {
             code: code,
         }
     });
+
+    const currTime = await getCurrTime();
     await db.kurti.update({
         where: { code },
         data: {
             sizes: data.sizes,
-            countOfPiece: cnt
+            countOfPiece: cnt,
+            lastUpdatedTime: currTime
         }
     });
     cnt -= kurti?.countOfPiece || 0;
@@ -107,12 +119,13 @@ export const priceChange = async (data: any) => {
 
     const { code } = data;
 
-
+    const currTime = await getCurrTime();
     await db.kurti.update({
         where: { code },
         data: {
             sellingPrice: data.sellingPrice,
-            actualPrice: data.actualPrice
+            actualPrice: data.actualPrice,
+            lastUpdatedTime: currTime,
         }
     });
 
@@ -123,6 +136,7 @@ export const priceChange = async (data: any) => {
 export const categoryChange = async (data: any) => {
 
     const { code, newCode } = data;
+    const currTime = await getCurrTime();
     console.log(code, newCode);
     let oldKurti = await db.kurti.findUnique({
         where: {
@@ -138,12 +152,14 @@ export const categoryChange = async (data: any) => {
             // category: data.category,
             // code: newCode
             isDeleted: true,
+            lastUpdatedTime: currTime,
         }
     });
     oldKurti.category = data.category;
     oldKurti.code = newCode;
     let old: any = oldKurti;
     delete old.id;
+    old['lastUpdatedTime'] = currTime
     kurti = await db.kurti.create({
         data: old
     })
@@ -185,6 +201,7 @@ export const categoryChange = async (data: any) => {
 
 export const deleteCategory = async (data: any) => {
     const { category } = data;
+    
     // const categories = await db.category.findMany({});
     await db.category.delete({
         where: {
@@ -205,18 +222,15 @@ export const deleteCategory = async (data: any) => {
 
 export const addNewImages = async (data: any) => {
     const { images, code } = data;
-    // const categories = await db.category.findMany({});
-    // await db.category.delete({
-    //     where: {
-    //         normalizedLowerCase: category.toLowerCase(),
-    //     }
-    // });
+
+    const currTime = await getCurrTime();
     const kurti = await db.kurti.update({
         where: {
             code: code.toUpperCase(),
         },
         data: {
-            images: images
+            images: images,
+            lastUpdatedTime: currTime,
         }
     })
     return { success: `New Images added`, kurti: kurti };

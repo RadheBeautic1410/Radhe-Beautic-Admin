@@ -1,21 +1,16 @@
 export const dynamic = 'force-dynamic'
 
-import { getAllKurti } from "@/src/data/kurti";
+import { getAllKurti, getAllKurtiByTime } from "@/src/data/kurti";
 import { NextResponse, NextRequest } from "next/server";
 
 
 export async function GET(request: NextRequest) {
     try {
         const data = await getAllKurti();
-        console.log('data:');
+        console.log('data', data?.length);
         return new NextResponse(JSON.stringify({ data }),
             {
                 status: 200,
-                headers: {
-                    'Cache-Control': 'public, s-maxage=1',
-                    'CDN-Cache-Control': 'public, s-maxage=60',
-                    'Vercel-CDN-Cache-Control': 'public, s-maxage=3600',
-                }
             });
     } catch (error: any) {
         return new NextResponse(JSON.stringify({ error: error.message }), {
@@ -23,6 +18,24 @@ export async function GET(request: NextRequest) {
         });
     }
 }
+
+export async function POST(request: NextRequest) {
+    try {
+        let { currentTime } = await request.json();
+        console.log(currentTime);
+        const data = await getAllKurtiByTime(currentTime);
+        console.log('data', data?.length);
+        return new NextResponse(JSON.stringify({ data }),
+            {
+                status: 200,
+            });
+    } catch (error: any) {
+        return new NextResponse(JSON.stringify({ error: error.message }), {
+            status: 404
+        });
+    }
+}
+
 
 
 

@@ -18,6 +18,8 @@ import KurtiPicCard from "../_components/kurti/kurtiPicCard";
 import { RadioGroup, RadioGroupItem } from "@/src/components/ui/radio-group";
 import { Label } from "@/src/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select";
+import { getCurrTime } from "../sell/page";
+import axios from "axios";
 interface category {
     name: string;
     count: number;
@@ -152,10 +154,50 @@ const ListPage = () => {
                 setTotalStockPrice(sum3)
                 setCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
 
-                let res2 = await fetch(`/api/kurti/getall`, { next: { revalidate: 3600 } });
-                const res = await res2.json();
-                console.log(res.data);
-                setKurtiData(res.data);
+
+                let storedTime: any = localStorage.getItem('radhe-time');
+                let storedData: any = localStorage.getItem('radhe-data');
+                // console.log(storedTime, storedData);
+                const currTime = await getCurrTime();
+                if (storedTime !== null && storedData !== null) {
+                    storedTime = JSON.parse(storedTime) || currTime.toISOString();
+                    storedData = JSON.parse(storedData) || [];
+                    const res = await axios.post(`/api/kurti/getall`, {
+                        currentTime: storedTime,
+                    })
+                    let fetchedData = res.data.data || [];
+                    console.log(fetchedData);
+                    // Create a map from newArray for quick lookup by code
+                    const newMap = new Map(fetchedData.map((obj: any) => [obj.code, obj]));
+
+                    // Update oldArray objects or add new ones
+                    const updatedArray = storedData.map((obj: any) => {
+                        return newMap.has(obj.code) ? newMap.get(obj.code) : obj;
+                    });
+
+                    // Optionally, add new entries that are only in fetchedData
+                    fetchedData.forEach((obj: any) => {
+                        if (!storedData.some((oldObj: any) => oldObj.code === obj.code)) {
+                            updatedArray.push(obj);
+                        }
+                    });
+                    setKurtiData(updatedArray);
+                    localStorage.setItem('radhe-time', JSON.stringify(currTime.toISOString()));
+                    let store = await JSON.stringify(updatedArray);
+                    localStorage.setItem('radhe-data', store);
+                }
+                else {
+                    let res2 = await fetch(`/api/kurti/getall`);
+                    const res = await res2.json();
+                    console.log(res.data);
+                    setKurtiData(res.data);
+                    localStorage.setItem('radhe-time', JSON.stringify(currTime.toISOString()));
+                    let store = await JSON.stringify(res.data);
+                    localStorage.setItem('radhe-data', store);
+                    console.log('fetched again');
+                }
+
+
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {

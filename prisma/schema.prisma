@@ -210,6 +210,7 @@ model Kurti {
     images        Json[]
     isDeleted     Boolean  @default(false)
     countOfPiece  Int @default(0)
+    lastUpdatedTime DateTime
 }
 
 model Sell {

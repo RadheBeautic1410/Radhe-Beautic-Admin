@@ -1,6 +1,13 @@
 import { db } from "@/src/lib/db";
 import { error } from "console";
 
+export const getCurrTime = async () => {
+    const currentTime = new Date();
+    const ISTOffset = 5.5 * 60 * 60 * 1000;
+    const ISTTime = new Date(currentTime.getTime() + ISTOffset);
+    return ISTTime;
+}
+
 export const getKurtiCount = async (cat: string) => {
     try {
         console.log('debg', cat);
@@ -20,6 +27,24 @@ export const getAllKurti = async () => {
         const allKurti = await db.kurti.findMany({
             where: {
                 isDeleted: false,
+            }
+        });
+        console.log(allKurti.length);
+        return allKurti;
+    } catch (e: any){
+        console.log(e.message)
+        return null;
+    }
+};
+
+export const getAllKurtiByTime = async (currTime: string) => {
+    try {
+        const allKurti = await db.kurti.findMany({
+            where: {
+                isDeleted: false,
+                lastUpdatedTime: {
+                    gt: new Date(currTime),
+                }
             }
         });
         return allKurti;
@@ -163,6 +188,7 @@ export const deletePicture = async (code: string, idx: number) => {
                 code: code.toUpperCase(),
             }
         });
+        const currTime = await getCurrTime();
         let images = kurti?.images || [];
         if (images?.length < idx || images.length <= 1) {
             return kurti;
@@ -174,6 +200,7 @@ export const deletePicture = async (code: string, idx: number) => {
             },
             data: {
                 images: newImages,
+                lastUpdatedTime: currTime
             }
         });
         return updatedKurti;
@@ -324,6 +351,8 @@ export const sellKurti2 = async (data: any) => {
             console.log(flag, newArr);
             if (flag === 1) {
                 console.log('search2', search);
+                const currTime = await getCurrTime();
+                console.log(currTime);
                 const updateUser = await db.kurti.update({
                     where: {
                         code: search,
@@ -332,7 +361,8 @@ export const sellKurti2 = async (data: any) => {
                         sizes: newArr,
                         countOfPiece: {
                             increment: -1
-                        }
+                        },
+                        lastUpdatedTime: currTime
                     },
                 })
                 console.log('code2', search.toUpperCase().substring(0, 3));
@@ -522,6 +552,7 @@ export const addStock = async (code: string) => {
             });
         }
         console.log(sizes);
+        const currTime = await getCurrTime();
         const updateUser: any = await db.kurti.update({
             where: {
                 code: search,
@@ -530,7 +561,8 @@ export const addStock = async (code: string) => {
                 sizes: sizes,
                 countOfPiece: {
                     increment: 1
-                }
+                },
+                lastUpdatedTime: currTime
             },
         });
         let inc = (updateUser.actualPrice);
