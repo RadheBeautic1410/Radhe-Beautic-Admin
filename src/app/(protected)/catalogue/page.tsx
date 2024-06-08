@@ -152,7 +152,7 @@ const ListPage = () => {
                 setTotalStockPrice(sum3)
                 setCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
 
-                let res2 = await fetch(`/api/kurti/getall`);
+                let res2 = await fetch(`/api/kurti/getall`, { next: { revalidate: 3600 } });
                 const res = await res2.json();
                 console.log(res.data);
                 setKurtiData(res.data);
