@@ -7,7 +7,7 @@ import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
 import { size } from "pdfkit/js/page";
 
-export const getCurrTime = async () => {
+export const getCurrTime = () => {
     const currentTime = new Date();
     const ISTOffset = 5.5 * 60 * 60 * 1000;
     const ISTTime = new Date(currentTime.getTime() + ISTOffset);
@@ -25,7 +25,7 @@ export const kurtiAddition = async (
     for (let i = 0; i < sizes.length; i++) {
         cnt += sizes[i].quantity;
     }
-    const currTime = await getCurrTime();
+    const currTime = getCurrTime();
     let dataWithTime = data;
     dataWithTime['countOfPiece'] = cnt;
     dataWithTime['lastUpdatedTime'] = currTime;
@@ -81,7 +81,7 @@ export const stockAddition = async (data: any) => {
         }
     });
 
-    const currTime = await getCurrTime();
+    const currTime = getCurrTime();
     await db.kurti.update({
         where: { code },
         data: {
@@ -119,7 +119,7 @@ export const priceChange = async (data: any) => {
 
     const { code } = data;
 
-    const currTime = await getCurrTime();
+    const currTime = getCurrTime();
     await db.kurti.update({
         where: { code },
         data: {
@@ -136,7 +136,7 @@ export const priceChange = async (data: any) => {
 export const categoryChange = async (data: any) => {
 
     const { code, newCode } = data;
-    const currTime = await getCurrTime();
+    const currTime = getCurrTime();
     console.log(code, newCode);
     let oldKurti = await db.kurti.findUnique({
         where: {
@@ -223,7 +223,7 @@ export const deleteCategory = async (data: any) => {
 export const addNewImages = async (data: any) => {
     const { images, code } = data;
 
-    const currTime = await getCurrTime();
+    const currTime = getCurrTime();
     const kurti = await db.kurti.update({
         where: {
             code: code.toUpperCase(),

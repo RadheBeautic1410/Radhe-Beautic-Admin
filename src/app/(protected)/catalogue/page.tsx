@@ -18,8 +18,16 @@ import KurtiPicCard from "../_components/kurti/kurtiPicCard";
 import { RadioGroup, RadioGroupItem } from "@/src/components/ui/radio-group";
 import { Label } from "@/src/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select";
-import { getCurrTime } from "../sell/page";
+// import { getCurrTime } from "../sell/page";
 import axios from "axios";
+
+const getCurrTime = () => {
+    const currentTime = new Date();
+    const ISTOffset = 5.5 * 60 * 60 * 1000;
+    const ISTTime = new Date(currentTime.getTime() + ISTOffset);
+    return ISTTime;
+}
+
 interface category {
     name: string;
     count: number;
