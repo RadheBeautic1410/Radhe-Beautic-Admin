@@ -52,6 +52,7 @@ export const RegisterForm = () => {
     const [organizations, setOrganizations] = useState<organization[]>([
         {id: 'sell', name: 'SELLER', normalizedLowerCase: 'seller'},
         {id: 'upoad', name: 'UPLOADER', normalizedLowerCase: 'uploader'},
+        {id: 'reseller', name: 'RESELLER', normalizedLowerCase: 'reseller'},
     ]);
 
     const [isLoadingOrganizations, setLoadingOrganizations] = useState(false);

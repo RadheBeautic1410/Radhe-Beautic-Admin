@@ -99,7 +99,7 @@ export const RegisterSchema = z.object({
     name: z.string().min(1, {
         message: "Name is required"
     }),
-    role: z.enum([UserRole.ADMIN, UserRole.SELLER, UserRole.UPLOADER]),
+    role: z.enum([UserRole.ADMIN, UserRole.SELLER, UserRole.UPLOADER, UserRole.RESELLER]),
 
 });
 

@@ -92,7 +92,7 @@ const CatalogueKurtiHelper = () => {
                 <OneKurtiPage/>
                 
             </RoleGateForComponent>
-            <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
+            <RoleGateForComponent allowedRole={[UserRole.SELLER,  UserRole.RESELLER]}>
                 <NotAllowedPage/>
             </RoleGateForComponent>
         </>

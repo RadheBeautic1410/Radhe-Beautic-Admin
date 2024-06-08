@@ -198,6 +198,9 @@ export const ModeratorRow = ({ userData, onUpdateUserData, onDeleteUserData }: m
                                                     <SelectItem value={UserRole.UPLOADER}>
                                                         Uploader
                                                     </SelectItem>
+                                                    <SelectItem value={UserRole.RESELLER}>
+                                                        Reseller
+                                                    </SelectItem>
                                                 </RoleGateForComponent>
 
                                             </SelectContent>

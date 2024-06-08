@@ -299,7 +299,7 @@ function KurtiListPage() {
 const KurtiListPageHelper = () => {
     return (
         <>
-            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER]}>
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.RESELLER]}>
                 <KurtiListPage />
             </RoleGateForComponent>
             {/* <RoleGateForComponent allowedRole={[UserRole.SELLER]}>

@@ -3,6 +3,9 @@ import React, { useEffect, useState } from 'react'
 import PageLoader from "@/src/components/loader";
 import { Card, CardContent, CardHeader } from '@/src/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
+import { RoleGateForComponent } from '@/src/components/auth/role-gate-component';
+import { UserRole } from '@prisma/client';
+import NotAllowedPage from '../_components/errorPages/NotAllowedPage';
 
 const headerCells = [
     {
@@ -115,6 +118,20 @@ function SellingHistory() {
                     </CardContent>
                 </Card>
             }
+        </>
+    )
+}
+
+const SellHistoruHelper = () => {
+    return (
+        <>
+            
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER,]}>
+                <SellingHistory />
+            </RoleGateForComponent>
+            <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.RESELLER]}>
+                <NotAllowedPage />
+            </RoleGateForComponent>
         </>
     )
 }

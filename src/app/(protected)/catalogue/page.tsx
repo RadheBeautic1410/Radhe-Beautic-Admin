@@ -505,25 +505,28 @@ const ListPage = () => {
                                             >
                                                 Category
                                             </TableHead>
-                                            <TableHead
-                                                className="text-center font-bold text-base"
-                                                key={'Total Items'}
+                                            <RoleGateForComponent
+                                                allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
                                             >
-                                                Total Items
-                                            </TableHead>
-                                            <TableHead
-                                                className="text-center font-bold text-base"
-                                                key={'Total Pieces'}
-                                            >
-                                                Total Pieces
-                                            </TableHead>
+                                                <TableHead
+                                                    className="text-center font-bold text-base"
+                                                    key={'Total Items'}
+                                                >
+                                                    Total Items
+                                                </TableHead>
+                                                <TableHead
+                                                    className="text-center font-bold text-base"
+                                                    key={'Total Pieces'}
+                                                >
+                                                    Total Pieces
+                                                </TableHead>
+                                            </RoleGateForComponent>
                                             <TableHead
                                                 className="text-center font-bold text-base"
                                                 key={'Price'}
                                             >
                                                 Price
                                             </TableHead>
-
                                             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
 
                                                 <TableHead
@@ -557,24 +560,30 @@ const ListPage = () => {
                                                         {cat.name}
                                                     </Link>
                                                 </TableCell>
-                                                <TableCell
-                                                    className="text-center"
-                                                    key={`${cat.name}-${cat.count}-count`}
+                                                <RoleGateForComponent
+                                                    allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
                                                 >
-                                                    {cat.count}
-                                                </TableCell>
-                                                <TableCell
-                                                    className="text-center"
-                                                    key={`${cat.name}-${cat.countOfPiece}-total`}
-                                                >
-                                                    {cat.countOfPiece}
-                                                </TableCell>
+
+                                                    <TableCell
+                                                        className="text-center"
+                                                        key={`${cat.name}-${cat.count}-count`}
+                                                    >
+                                                        {cat.count}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        className="text-center"
+                                                        key={`${cat.name}-${cat.countOfPiece}-total`}
+                                                    >
+                                                        {cat.countOfPiece}
+                                                    </TableCell>
+                                                </RoleGateForComponent>
                                                 <TableCell
                                                     className="text-center"
                                                     key={`${cat.name}-${cat.countOfPiece}-price`}
                                                 >
                                                     {cat.sellingPrice}
                                                 </TableCell>
+
                                                 <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
 
                                                     <TableCell className="text-center"
@@ -604,23 +613,27 @@ const ListPage = () => {
                                                 </RoleGateForComponent>
                                             </TableRow>
                                         ))}
-                                        <TableRow className="text-red-600 font-bold text-center text-base">
-                                            <TableCell>
-                                                {'-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {'Total'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {totalItems.toLocaleString('en-IN')}
-                                            </TableCell>
-                                            <TableCell>
-                                                {totalPiece.toLocaleString('en-IN')}
-                                            </TableCell>
-                                            <TableCell>
-                                                {`${totalStockPrice.toLocaleString('en-IN')}/-`}
-                                            </TableCell>
-                                        </TableRow>
+                                        <RoleGateForComponent
+                                            allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
+                                        >
+                                            <TableRow className="text-red-600 font-bold text-center text-base">
+                                                <TableCell>
+                                                    {'-'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {'Total'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {totalItems.toLocaleString('en-IN')}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {totalPiece.toLocaleString('en-IN')}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {`${totalStockPrice.toLocaleString('en-IN')}/-`}
+                                                </TableCell>
+                                            </TableRow>
+                                        </RoleGateForComponent>
                                     </TableBody>
                                 </Table>
                             </div>
@@ -635,7 +648,7 @@ const ListPage = () => {
 const CatalogueListHelper = () => {
     return (
         <>
-            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER]}>
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.RESELLER]}>
                 <ListPage />
             </RoleGateForComponent>
             {/* <RoleGateForComponent allowedRole={[UserRole.SELLER]}>

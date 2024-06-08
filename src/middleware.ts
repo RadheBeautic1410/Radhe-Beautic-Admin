@@ -30,6 +30,10 @@ export default auth(async (req) => {
             if (role === UserRole.SELLER) {
                 url = '/sell';
             }
+            if(role === UserRole.RESELLER) {
+                url = '/catalogue'
+            }
+            console.log("url:", url);
             return Response.redirect(new URL(url, nextUrl))
         }
         return null

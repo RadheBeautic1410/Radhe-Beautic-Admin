@@ -573,7 +573,7 @@ const UploadHelper = () => {
             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
                 <UploadPage />
             </RoleGateForComponent>
-            <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
+            <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.RESELLER]}>
                 <NotAllowedPage />
             </RoleGateForComponent>
         </>

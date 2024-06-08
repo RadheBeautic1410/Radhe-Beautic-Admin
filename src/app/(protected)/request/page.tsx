@@ -129,7 +129,7 @@ const ModeratorPage2 = () => {
             <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                 <ModeratorPage />
             </RoleGateForComponent>
-            <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.UPLOADER]}>
+            <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.UPLOADER, UserRole.RESELLER]}>
                 <NotAllowedPage/>
             </RoleGateForComponent>
         </>
