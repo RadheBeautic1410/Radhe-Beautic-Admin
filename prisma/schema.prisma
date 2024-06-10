@@ -24,7 +24,6 @@ enum Status{
 }
 
 
-
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   name          String?
@@ -46,8 +45,10 @@ model User {
 
   verifiedByUser      User?       @relation("VerifiedBy", fields: [verifiedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+
   verifiedUsers       User[]      @relation("VerifiedBy")
 }
+
 
 
 model VerificationToken{
@@ -102,6 +103,7 @@ model SecretToken{
 }
 
 
+
 model Party {
   id String @id @default(auto()) @map("_id") @db.ObjectId
   normalizedLowerCase String @unique
@@ -120,6 +122,8 @@ model Category {
   sellingPrice Int? @default(0)
   actualPrice Int? @default(0)
 }
+
+
 
 
 model Kurti {

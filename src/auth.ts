@@ -5,7 +5,7 @@ import { db } from "./lib/db"
 import { getUserById } from "./data/user"
 import { UserRole } from "@prisma/client"
 import { getTwoFactorConfirmationByUserId } from "./data/two-factor-confirmation"
-import { getAccountByUserId } from "./data/account"
+
 
 
 export const { handlers: { GET, POST }, auth,
@@ -90,12 +90,12 @@ export const { handlers: { GET, POST }, auth,
             const existingUser = await getUserById(token.sub);
             if (!existingUser) return token;
 
-            const existingAccount = await getAccountByUserId(
-                existingUser.id
-            );
+            // const existingAccount = await getAccountByUserId(
+            //     existingUser.id
+            // );
 
 
-            token.isOAuth = !!existingAccount;
+            // token.isOAuth = !!existingAccount;
             token.name = existingUser.name;
             token.phoneNumber = existingUser.phoneNumber;
             token.role = existingUser.role;

@@ -3,23 +3,13 @@ import * as z from "zod";
 
 import { UserButton } from '@/src/components/ui/user-button'
 import { Button } from '@/src/components/ui/button'
-import { useCurrentRole } from '@/src/hooks/use-currrent-role'
 import { UserRole } from '@prisma/client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
-import { useTransition } from "react";
 import Image from "next/image";
 import { RoleGateForComponent } from '@/src/components/auth/role-gate-component'
-import { DialogDemo } from "@/src/components/dialog-demo";
-import { Form, FormField, FormControl, FormItem, FormLabel, FormDescription, FormMessage, } from "@/src/components/ui/form";
 import { useForm } from "react-hook-form";
-import { Input } from "@/src/components/ui/input";
-import { toast } from "sonner";
-
-import { organizationAddSchema } from "@/src/schemas";
-import { organizationAddition } from "@/src/actions/organization";
-
 
 const Navbar = () => {
     const [navbar, setNavbar] = useState(false);
@@ -28,28 +18,6 @@ const Navbar = () => {
             name: "",
         }
     });
-
-    const [isPending, startTransition] = useTransition()
-
-    const onSubmit = (values: z.infer<typeof organizationAddSchema>) => {
-        startTransition(() => {
-            organizationAddition(values)
-                .then((data) => {
-                    if (data.error) {
-                        form.reset();
-                        toast.error(data.error);
-                    }
-
-                    if (data.success) {
-                        form.reset();
-                        toast.success(data.success);
-
-                    }
-                })
-                .catch(() => toast.error("Something went wrong!"));
-        });
-    }
-
 
 
     const pathname = usePathname();

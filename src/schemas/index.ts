@@ -1,4 +1,4 @@
-import { UserRole, Status } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 import * as z from "zod";
 
 export const RequestSchema = z.object({
@@ -6,24 +6,9 @@ export const RequestSchema = z.object({
 })
 
 
-// correct
-
-
-export const formUpdateSchema = z.object({
-    referrerResponse: (z.string()),
-    status: (z.enum([Status.ACCEPTED, Status.PENDING, Status.REJECTED])),
-})
-
-
 export const ModeratorUpdateSchema = z.object({
     isVerified: (z.boolean()),
     role: (z.enum([UserRole.ADMIN, UserRole.SELLER])),
-})
-
-export const organizationAddSchema = z.object({
-    name: z.string().min(1, {
-        message: "Organization is required"
-    }),
 })
 
 export const partyAddSchema = z.object({
@@ -44,11 +29,6 @@ export const stockUpdateSchema = z.object({
         quantity: z.number(),
     })),
 })
-
-
-
-
-
 
 
 
@@ -74,7 +54,6 @@ export const SettingSchema = z.object({
         message: "Password is required!",
         path: ["password"]
     })
-
 
 
 

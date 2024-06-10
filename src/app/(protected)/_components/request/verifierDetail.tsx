@@ -1,21 +1,6 @@
 "use client"
-import Link from "next/link"
-import * as z from "zod";
+
 import { Button } from "@/src/components/ui/button";
-import { Status, UserRole } from "@prisma/client";
-import { toast } from "sonner";
-import { TableCell, TableRow, } from "@/src/components/ui/table"
-import { useTransition } from "react";
-import { DialogDemo } from "@/src/components/dialog-demo";
-import { Form, FormField, FormControl, FormItem, FormLabel, FormDescription, FormMessage, } from "@/src/components/ui/form";
-import { useForm } from "react-hook-form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/src/components/ui/select";
-
-import { FaGoogleDrive } from "react-icons/fa";
-
-import { BellIcon, CheckIcon } from "@radix-ui/react-icons"
-
-import { cn } from "@/src/lib/utils"
 
 import {
     Dialog,
@@ -27,43 +12,13 @@ import {
     DialogTrigger,
 } from "@/src/components/ui/dialog"
 
-interface formDataProps {
-    id: string;
-    formId: string
-    resume: string;
-    message: string;
-    organization: string;
-    phoneNumber: string;
-    cgpa: string;
-    yoe: string;
-    jobId: string;
-    status: Status;
-    verifiedBy?: string | null
-    referrerResponse?: string | null
-}
-
-interface formRowDataProps {
-    formData: formDataProps;
-    onUpdateFormData: (updateMemberData: formDataProps) => void;
-    onDeleteFormData: (deleteFormData: formDataProps) => void;
-}
-
 
 import * as React from "react"
-import { formUpdateSchema } from "@/src/schemas";
-import { Input } from "@/src/components/ui/input";
-import { formDelete, formUpdate } from "@/src/actions/formUpdate";
-import { RoleGate } from "@/src/components/auth/role-gate";
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { useEffect, useState } from "react";
 
 import {
     Card,
     CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
 } from "@/src/components/ui/card"
 
 interface referrerProps {
