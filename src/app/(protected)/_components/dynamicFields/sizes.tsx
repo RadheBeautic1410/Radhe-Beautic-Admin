@@ -13,11 +13,13 @@ interface SingleSizeProps {
 }
 
 const SingleSize: React.FC<SingleSizeProps> = ({ onSetSize, quantity, size }) => {
-
     const selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
     const [selectedSize, setSelectedSize] = useState<string>(size);
     const [selectedQuantity, setQuantity] = useState(quantity);
-
+    console.log(quantity, size, selectedSize);
+    useEffect(() => {
+        onSetSize(size, quantity);
+    }, [])
     const handleChange = (e: any) => {
         setSelectedSize(e);
         onSetSize(e, selectedQuantity);
@@ -31,14 +33,17 @@ const SingleSize: React.FC<SingleSizeProps> = ({ onSetSize, quantity, size }) =>
         <>
             <Select
                 onValueChange={(e) => handleChange(e)}
-                defaultValue={selectedSize}
+                defaultValue={size}
             >
+
                 <SelectTrigger className="w-[20%]">
-                    <SelectValue placeholder="Select Category" />
+                    <SelectValue>
+                        {size}
+                    </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                     {selectSizes.map((org) => (
-                        <SelectItem key={org} value={org}>
+                        <SelectItem key={org} value={org} >
                             {org}
                         </SelectItem>
                     ))}
@@ -48,7 +53,7 @@ const SingleSize: React.FC<SingleSizeProps> = ({ onSetSize, quantity, size }) =>
                 className="ml-2 w-[30%]"
                 type="number"
                 placeholder="Quantity"
-                value={selectedQuantity}
+                value={quantity}
                 onChange={(e) => handleQuantityChange(e)}
             />
         </>
@@ -63,13 +68,13 @@ interface AddSizeFormProps {
 
 export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes, sizes }) => {
     // const [sizes, setSizes] = useState<any[]>(preSizes);
-    // console.log(preSizes.length);
+    // console.log(sizes);
 
     const handleAddSize = () => {
         let obj = { size: 'S', quantity: 0 };
         for (let i = 0; i < sizes.length; i++) {
             for (let j = 0; j < sizes.length; j++) {
-                if(i!==j && sizes[i].size === sizes[j].size) {
+                if (i !== j && sizes[i].size === sizes[j].size) {
                     toast.error(`Size: ${sizes[i].size} is slected more than once.!!!`);
                     return;
                 }
@@ -82,6 +87,7 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes, s
 
     const handleRemoveSize = (index: number) => {
         const updatedSizes = sizes.filter((_, i) => i !== index);
+        console.log(updatedSizes);
         // setSizes(updatedSizes);
         onAddSize(updatedSizes);
     };
