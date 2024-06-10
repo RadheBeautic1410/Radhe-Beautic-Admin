@@ -216,7 +216,6 @@ const ListPage = () => {
         // if (categoryLoader) {
         if (loading) {
             fetchData();
-
         }
         // }
     }, [loading]);

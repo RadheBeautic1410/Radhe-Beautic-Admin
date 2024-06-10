@@ -88,7 +88,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         ctx?.drawImage(image, 0, 0, canvas.width, canvas.height);
 
         // Convert canvas to compressed image format (JPEG)
-        var compressedImage = canvas.toDataURL('image/jpeg', 0.6);
+        var compressedImage = canvas.toDataURL('image/jpeg', 0.75);
         var downloadLink = document.createElement('a');
         // console.log(image.src)
         downloadLink.href = compressedImage;
@@ -102,10 +102,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     const loadWatermark = async (rightText: string, leftText: string) => {
         const imgDom = document.querySelector(`#download${data.code}`) as HTMLImageElement;
         const imgDom2 = document.querySelector(`#download${data.code}`) as HTMLImageElement;
-        let width = isBrowserMobile ? 60 : 250;
-        let height = isBrowserMobile ? 25 : 90;
-        let width1 = isBrowserMobile ? 50 : 200;
-        let height1 = isBrowserMobile ? 15 : 50;
+       
         const watermark = new ImageWatermark({
             contentType: 'image',
             image: rightText,

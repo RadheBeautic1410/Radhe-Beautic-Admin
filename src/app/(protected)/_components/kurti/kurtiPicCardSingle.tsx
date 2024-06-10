@@ -18,6 +18,37 @@ interface KurtiPicCardSingleProps {
     onPicDelete: (data: any) => void;
 }
 
+interface ImageDownloadProps {
+    url: any;
+    code: any;
+    idx: number;
+}
+
+
+const ImageDownload: React.FC<ImageDownloadProps> = ({ url, code, idx }) => {
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+    useEffect(() => {
+        const img = new Image();
+        // img.loading = "lazy";
+        img.src = `${url}`;
+        img.onload = () => {
+            console.log(img.width, img.height);
+            setDimensions({ width: img.width, height: img.height });
+        };
+    }, []);
+    return (
+        <img
+            id={`download${code}-${idx}`}
+            className="w-full h-full object-cover"
+            src={url}
+            crossOrigin="anonymous"
+            width={dimensions.width}
+            height={dimensions.height}
+        ></img>
+    )
+}
+
 const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx, onPicDelete }) => {
     // const [watermark, setWatermark] = useState<any>(null);
     // const [watermark2, setWatermark2] = useState<any>(null);
@@ -51,7 +82,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx, onPi
         ctx?.drawImage(image, 0, 0, canvas.width, canvas.height);
 
         // Convert canvas to compressed image format (JPEG)
-        var compressedImage = canvas.toDataURL('image/jpeg', 0.2);
+        var compressedImage = canvas.toDataURL('image/jpeg', 0.85);
         var downloadLink = document.createElement('a');
         // console.log(image.src)
         downloadLink.href = compressedImage;
@@ -66,15 +97,12 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx, onPi
     const loadWatermark = async (rightText: string, leftText: string) => {
         const imgDom = document.querySelector(`#download${data.code}-${idx}`) as HTMLImageElement;
         const imgDom2 = document.querySelector(`#download${data.code}-${idx}`) as HTMLImageElement;
-        let width = isBrowserMobile ? 60 : 250;
-        let height = isBrowserMobile ? 25 : 90;
-        let width1 = isBrowserMobile ? 50 : 200;
-        let height1 = isBrowserMobile ? 15 : 50;
+
         const watermark = new ImageWatermark({
             contentType: 'image',
             image: rightText,
-            imageWidth: 140,
-            imageHeight: 75,
+            imageWidth: imgDom.width / 10,
+            imageHeight: imgDom.height / 27,
             width: imgDom.width,
             height: imgDom.height,
             dom: imgDom,
@@ -87,8 +115,8 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx, onPi
         const watermark2 = new ImageWatermark({
             contentType: 'image',
             image: leftText,
-            imageWidth: imgDom2.width / 3.1,
-            imageHeight: imgDom2.height / 10.5,
+            imageWidth: imgDom2.width / 6,
+            imageHeight: imgDom2.height / 16,
             width: imgDom2.width,
             height: imgDom2.height,
             dom: imgDom2,
@@ -149,9 +177,9 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx, onPi
         }
     }
 
-    const handleDelete = async ()=>{
-        try{
-            if(data.images.length === 1) {
+    const handleDelete = async () => {
+        try {
+            if (data.images.length === 1) {
                 toast.error('You cannnot delete last image.');
                 return;
             }
@@ -159,7 +187,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx, onPi
             const result = await res.json();
             console.log("res", result);
             await onPicDelete(result.data);
-        }catch(e:any){
+        } catch (e: any) {
             console.log(e.message);
             toast.error('Something went wrong');
         }
@@ -169,18 +197,19 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({ data, idx, onPi
         <div id='container' className='p-3 bg-slate-300'>
             <img id={`${data.code}${idx}-visible`} src={data.images[idx].url} crossOrigin="anonymous" width={'300px'} height={'300px'}></img>
             <div className='w-[2200px] h-[2200px]' hidden>
-                <img id={`download${data.code}-${idx}`} className="w-max-[2200px] h-max-[2200px] object-cover" src={data.images[idx].url} crossOrigin="anonymous"></img>
+                <ImageDownload url={data.images[idx].url} idx={idx} code={data.code} />
+
             </div>
-            <Button  className="mt-2" type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
+            <Button className="mt-2" type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
                 {downloading ?
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     : ""}
                 ⬇️
             </Button>
-            <Button className="mt-2 ml-2" type='button' 
-                onClick={handleDelete} 
-                variant={'outline'} 
-                key={'delete'} 
+            <Button className="mt-2 ml-2" type='button'
+                onClick={handleDelete}
+                variant={'outline'}
+                key={'delete'}
                 disabled={downloading}
             >
                 {downloading ?
