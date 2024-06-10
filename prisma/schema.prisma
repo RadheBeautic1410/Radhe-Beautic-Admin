@@ -24,39 +24,6 @@ enum Status{
 }
 
 
-model Member {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  name          String
-  email         String   
-  codeForces    String    @unique
-  leetcode      String
-  linkedIn      String?
-  forms         Form[]
-}
-
-model Form{
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  formId        String    @db.ObjectId
-  resume        String
-  message       String
-  organization  String
-  phoneNumber   String
-  cgpa          String
-  yoe           String
-  jobId         String
-  yog           String
-  isGraduated    Boolean? @default(false)
-  status        Status @default(PENDING)
-  formCreatedAt  DateTime   @default(now())
-  referrerResponse String?
-
-  verifiedBy        String?     @db.ObjectId    
-  verifiedAt        DateTime?                    
-
-  member Member @relation(fields: [formId], references: [id], onDelete: Cascade)
-  verifiedByUser    User?       @relation("VerifiedForms", fields: [verifiedBy], references: [id])
-}
-
 
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
@@ -73,34 +40,15 @@ model User {
   verifiedAt          DateTime?                   
 
   role          UserRole @default(USER)
-  accounts      Account[]
+
   isTwoFactorEnabled Boolean @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
 
   verifiedByUser      User?       @relation("VerifiedBy", fields: [verifiedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  verifiedForms       Form[]      @relation("VerifiedForms")
   verifiedUsers       User[]      @relation("VerifiedBy")
 }
 
-
-model Account {
-  id                 String  @id @default(auto()) @map("_id") @db.ObjectId
-  userId             String @db.ObjectId
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.String
-  access_token       String?  @db.String
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.String
-  session_state      String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@unique([provider, providerAccountId])
-}
 
 model VerificationToken{
   id String @id @default(auto()) @map("_id") @db.ObjectId
@@ -153,14 +101,6 @@ model SecretToken{
   @@unique([cfUserName,token])
 }
 
-// organization
-
-model Organization {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-  normalizedLowerCase String @unique
-  name String
-
-}
 
 model Party {
   id String @id @default(auto()) @map("_id") @db.ObjectId
@@ -181,24 +121,6 @@ model Category {
   actualPrice Int? @default(0)
 }
 
-
-
-
-model User2 {
-    id            String    @id @default(auto()) @map("_id") @db.ObjectId
-    name          String?
-    password      String?
-    image         String?
-    isVerified    Boolean   @default(false)
-    
-    verifiedBy          String?     @db.ObjectId   
-    verifiedAt          DateTime?                   
-
-    role          UserRole @default(SELLER)
-
-    verifiedByUser      User2?       @relation("VerifiedBy", fields: [verifiedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-    verifiedUsers       User2[]      @relation("VerifiedBy")
-}
 
 model Kurti {
     id            String    @id @default(auto()) @map("_id") @db.ObjectId
