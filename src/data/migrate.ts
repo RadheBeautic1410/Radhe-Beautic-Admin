@@ -24,13 +24,17 @@ export const migrate3 = async () => {
                     console.log(j, e.message);
                 }
             }
-            // console.log(category[i].name, sum);
+            console.log(category[i].name, sum);
+            let sellPrice = 0;
+            if(kurtis.length !== 0) {
+                sellPrice = parseInt(kurtis[0].sellingPrice || "0");
+            }
             await db.category.update({
                 where: {
                     id: category[i].id,
                 },
                 data: {
-                    sellingPrice: parseInt(kurtis[0].sellingPrice || "0"),
+                    sellingPrice: sellPrice,
                     actualPrice: sum,
                 }
             })

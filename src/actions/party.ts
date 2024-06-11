@@ -18,6 +18,9 @@ export const partyAddition = async (
 
     const { name } = data;
 
+    if(name.length === 0) {
+        return { error: "Party Name Can't be empty" }
+    }
     const lowercaseName = name.toLowerCase();
 
     const dbparty = await getPartybyName(lowercaseName);

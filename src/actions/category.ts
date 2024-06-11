@@ -18,7 +18,9 @@ export const categoryAddition = async (
     const role = await currentRole();
 
     const { name } = data;
-
+    if(name.length === 0) {
+        return { error: "Category Can't be empty" }
+    }
     const lowercaseName = name.toLowerCase();
 
     const dbCategory = await getCategorybyName(lowercaseName);
