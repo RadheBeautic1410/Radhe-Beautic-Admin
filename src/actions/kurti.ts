@@ -29,6 +29,18 @@ export const kurtiAddition = async (
     let dataWithTime = data;
     dataWithTime['countOfPiece'] = cnt;
     dataWithTime['lastUpdatedTime'] = currTime;
+    let obj = {
+        sellingPrice1: parseInt(data.sellingPrice || "0"),
+        sellingPrice2: parseInt(data.sellingPrice || "0"),
+        sellingPrice3: parseInt(data.sellingPrice || "0"),
+        actualPrice1: parseInt(data.actualPrice || "0"),
+        actualPrice2: parseInt(data.actualPrice || "0"),
+        actualPrice3: parseInt(data.actualPrice || "0"),
+    }
+    const price = await db.prices.create({
+        data: obj
+    });
+    dataWithTime['pricesId'] = price.id
     await db.kurti.create({
         data: dataWithTime
     });

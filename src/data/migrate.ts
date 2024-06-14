@@ -1,4 +1,5 @@
 import { db } from "@/src/lib/db";
+import { getCurrTime } from "./kurti";
 
 export const migrate3 = async () => {
     try {
@@ -26,7 +27,7 @@ export const migrate3 = async () => {
             }
             console.log(category[i].name, sum);
             let sellPrice = 0;
-            if(kurtis.length !== 0) {
+            if (kurtis.length !== 0) {
                 sellPrice = parseInt(kurtis[0].sellingPrice || "0");
             }
             await db.category.update({
@@ -71,6 +72,44 @@ export const migrate4 = async () => {
             });
         }
 
+    } catch (e: any) {
+        console.log(e);
+        return e.message;
+    }
+}
+
+// Migrating single selling prices to multi prices model
+export const migrate5 = async () => {
+    try {
+        const kurtis: any[] = await db.kurti.findMany({});
+        const arrFun: any[] = []
+        for (let i = 0; i < kurtis.length; i++) {
+            let obj = {
+                sellingPrice1: parseInt(kurtis[i].sellingPrice || "0"),
+                sellingPrice2: parseInt(kurtis[i].sellingPrice || "0"),
+                sellingPrice3: parseInt(kurtis[i].sellingPrice || "0"),
+                actualPrice1: parseInt(kurtis[i].actualPrice || "0"),
+                actualPrice2: parseInt(kurtis[i].actualPrice || "0"),
+                actualPrice3: parseInt(kurtis[i].actualPrice || "0"),
+            }
+            let price = await db.prices.create({
+                data: obj
+            });
+            // console.log(price);
+            // break;
+            let currTime = await getCurrTime();
+            let fun = await db.kurti.update({
+                where: {
+                    id: kurtis[i].id,
+                },
+                data: {
+                    pricesId: price.id,
+                    lastUpdatedTime: currTime
+                }
+            });
+            arrFun.push(fun);
+        }
+        // await Promise.all(arrFun);
     } catch (e: any) {
         console.log(e);
         return e.message;

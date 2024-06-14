@@ -422,6 +422,7 @@ export const migrate = async () => {
                 }
             })
         }
+        
         for (let i = 0; i < category.length; i++) {
             const ok: any[] = await db.kurti.findMany({
                 where: {
@@ -450,7 +451,9 @@ export const migrate = async () => {
             });
             console.log(category[i].name, kurtis.length);
             let overallCnt = 0, uniqueCnt = 0;
+            let arrFun: any = [];
             for (let j = 0; j < kurtis.length; j++) {
+                uniqueCnt += 1;
                 let sizes = kurtis[j]?.sizes || [];
                 let cnt = 0;
                 for (let k = 0; k < sizes.length; k++) {
@@ -459,7 +462,7 @@ export const migrate = async () => {
                     }
                     cnt += sizes[k].quantity || 0;
                 }
-                await db.kurti.update({
+                const fun =  db.kurti.update({
                     where: {
                         id: kurtis[j].id,
                     },
@@ -467,10 +470,12 @@ export const migrate = async () => {
                         countOfPiece: cnt,
                     }
                 });
+                arrFun.push(fun);
                 overallCnt += cnt;
-                uniqueCnt += 1;
+                
                 
             }
+            await Promise.all(arrFun);
             console.log('countTotal:', maxi);
             await db.category.update({
                 where: {

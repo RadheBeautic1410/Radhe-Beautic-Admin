@@ -1,13 +1,13 @@
 datasource db {
-  provider  = "mongodb"
-  url  	    = env("DATABASE_URL")
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
-generator client{
+generator client {
   provider = "prisma-client-js"
 }
 
-enum UserRole{
+enum UserRole {
   ADMIN
   MOD
   REFERRER
@@ -17,134 +17,136 @@ enum UserRole{
   RESELLER
 }
 
-enum Status{
+enum Status {
   PENDING
   ACCEPTED
   REJECTED
 }
 
-
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   name          String?
-  phoneNumber   String   @unique
-  email         String?   
+  phoneNumber   String    @unique
+  email         String?
   emailVerified DateTime?
   image         String?
   password      String?
   organization  String?
-  isVerified    Boolean @default(false)
- 
-  verifiedBy          String?     @db.ObjectId   
-  verifiedAt          DateTime?                   
+  isVerified    Boolean   @default(false)
 
-  role          UserRole @default(USER)
+  verifiedBy String?   @db.ObjectId
+  verifiedAt DateTime?
 
-  isTwoFactorEnabled Boolean @default(false)
+  role UserRole @default(USER)
+
+  isTwoFactorEnabled    Boolean                @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
 
-  verifiedByUser      User?       @relation("VerifiedBy", fields: [verifiedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  verifiedByUser User? @relation("VerifiedBy", fields: [verifiedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-
-  verifiedUsers       User[]      @relation("VerifiedBy")
+  verifiedUsers User[] @relation("VerifiedBy")
 }
 
-
-
-model VerificationToken{
-  id String @id @default(auto()) @map("_id") @db.ObjectId
+model VerificationToken {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   phoneNumber String
-  token String @unique
-  expires DateTime
+  token       String   @unique
+  expires     DateTime
 
-  @@unique([phoneNumber,token])
+  @@unique([phoneNumber, token])
 }
 
-model PasswordResetToken{
-  id String @id @default(auto()) @map("_id") @db.ObjectId
+model PasswordResetToken {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   phoneNumber String
-  token String @unique
-  expires DateTime
+  token       String   @unique
+  expires     DateTime
 
-  @@unique([phoneNumber,token])
+  @@unique([phoneNumber, token])
 }
 
-
-model TwoFactorToken{
-  id String @id @default(auto()) @map("_id") @db.ObjectId
+model TwoFactorToken {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   phoneNumber String
-  token String @unique
-  expires DateTime
+  token       String   @unique
+  expires     DateTime
 
-  @@unique([phoneNumber,token])
+  @@unique([phoneNumber, token])
 }
 
-model TwoFactorConfirmation{
-  id String @id @default(auto()) @map("_id") @db.ObjectId
+model TwoFactorConfirmation {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
   userId String @db.ObjectId
-  user User @relation(fields: [userId],references: [id],onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId])
 }
 
-
-
 // secret Token
 
-model SecretToken{
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-  cfUserName String
-  token String @unique
-  discordId String
-  tokenIssuedAt  DateTime   @default(now())
-  expires DateTime
+model SecretToken {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  cfUserName    String
+  token         String   @unique
+  discordId     String
+  tokenIssuedAt DateTime @default(now())
+  expires       DateTime
 
-  @@unique([cfUserName,token])
+  @@unique([cfUserName, token])
 }
 
-
-
 model Party {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
+  id                  String @id @default(auto()) @map("_id") @db.ObjectId
   normalizedLowerCase String @unique
-  name String
-  countOfPiece Int @default(0)
+  name                String
+  countOfPiece        Int    @default(0)
 }
 
 model Category {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-  normalizedLowerCase String @unique
-  code String? @unique
-  name String
-  countTotal Int @default(0)
-  countOfPiece Int @default(0)
-  countOfDesign Int? @default(0)
-  sellingPrice Int? @default(0)
-  actualPrice Int? @default(0)
+  id                  String  @id @default(auto()) @map("_id") @db.ObjectId
+  normalizedLowerCase String  @unique
+  code                String? @unique
+  name                String
+  countTotal          Int     @default(0)
+  countOfPiece        Int     @default(0)
+  countOfDesign       Int?    @default(0)
+  sellingPrice        Int?    @default(0)
+  actualPrice         Int?    @default(0)
 }
 
-
-
+model Prices {
+  id            String  @id @default(auto()) @map("_id") @db.ObjectId
+  sellingPrice1 Int     @default(0)
+  sellingPrice2 Int     @default(0)
+  sellingPrice3 Int     @default(0)
+  actualPrice1  Int     @default(0)
+  actualPrice2  Int     @default(0)
+  actualPrice3  Int     @default(0)
+  Kurti         Kurti[]
+}
 
 model Kurti {
-    id            String    @id @default(auto()) @map("_id") @db.ObjectId
-    sizes         Json[]
-    party         String
-    sellingPrice  String 
-    actualPrice   String
-    category      String
-    code          String   @unique
-    images        Json[]
-    isDeleted     Boolean  @default(false)
-    countOfPiece  Int @default(0)
-    lastUpdatedTime DateTime
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  pricesId        String?  @db.ObjectId
+  sizes           Json[]
+  party           String
+  sellingPrice    String
+  actualPrice     String
+  category        String
+  code            String   @unique
+  images          Json[]
+  isDeleted       Boolean  @default(false)
+  countOfPiece    Int      @default(0)
+  lastUpdatedTime DateTime
+
+  prices Prices? @relation(fields: [pricesId], references: [id], onDelete: NoAction)
 }
 
 model Sell {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-  sellTime DateTime
-  code String
-  kurtiSize String
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  sellTime   DateTime
+  code       String
+  kurtiSize  String
   sellerName String
-  kurti Json[]
+  kurti      Json[]
 }

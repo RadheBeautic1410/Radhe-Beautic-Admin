@@ -324,12 +324,28 @@ const ListPage = () => {
                                                 data = (data || []).sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
                                                 setDisplayCategoryData(data);
                                             }
-                                            else {
+                                            else if (val === "1") {
                                                 let data = category;
                                                 data = (data || []).sort((a: category, b: category) => a.name.localeCompare(b.name));
                                                 setCategory(data);
                                                 data = displayCategoryData;
                                                 data = (data || []).sort((a: category, b: category) => a.name.localeCompare(b.name));
+                                                setDisplayCategoryData(data);
+                                            }
+                                            else if (val === "2") {
+                                                let data = category;
+                                                data = (data || []).sort((a: category, b: category) => b.sellingPrice - a.sellingPrice);
+                                                setCategory(data);
+                                                data = displayCategoryData;
+                                                data = (data || []).sort((a: category, b: category) => b.sellingPrice - a.sellingPrice);
+                                                setDisplayCategoryData(data);
+                                            }
+                                            else if (val === "3") {
+                                                let data = category;
+                                                data = (data || []).sort((a: category, b: category) => - b.sellingPrice + a.sellingPrice);
+                                                setCategory(data);
+                                                data = displayCategoryData;
+                                                data = (data || []).sort((a: category, b: category) => - b.sellingPrice + a.sellingPrice);
                                                 setDisplayCategoryData(data);
                                             }
                                         }}
@@ -344,6 +360,12 @@ const ListPage = () => {
                                             </SelectItem>
                                             <SelectItem key={'search-category-select'} value="1">
                                                 {'Sort By Name'}
+                                            </SelectItem>
+                                            <SelectItem key={'price-desc-category-select'} value="2">
+                                                {'Sort By Price High to Low'}
+                                            </SelectItem>
+                                            <SelectItem key={'price-asc-category-select'} value="3">
+                                                {'Sort By Price Low to High'}
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
