@@ -132,7 +132,7 @@ export const priceChange = async (data: any) => {
     const { code } = data;
 
     const currTime = getCurrTime();
-    await db.kurti.update({
+    const updatedKurti = await db.kurti.update({
         where: { code },
         data: {
             sellingPrice: data.sellingPrice,
@@ -140,7 +140,20 @@ export const priceChange = async (data: any) => {
             lastUpdatedTime: currTime,
         }
     });
-
+    let obj = {
+        sellingPrice1: parseInt(data.sellingPrice || "0"),
+        sellingPrice2: parseInt(data.sellingPrice || "0"),
+        sellingPrice3: parseInt(data.sellingPrice || "0"),
+        actualPrice1: parseInt(data.actualPrice || "0"),
+        actualPrice2: parseInt(data.actualPrice || "0"),
+        actualPrice3: parseInt(data.actualPrice || "0"),
+    }
+    await db.prices.update({
+        where: {
+            id: updatedKurti.pricesId
+        },
+        data: obj
+    })
     const dbpartyFetch = await getKurtiByCode(code);
     return { success: "Price Changed!", data: dbpartyFetch?.sizes }
 }

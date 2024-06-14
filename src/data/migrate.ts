@@ -110,6 +110,7 @@ export const migrate5 = async () => {
             arrFun.push(fun);
         }
         // await Promise.all(arrFun);
+        return {success: 'ok'}
     } catch (e: any) {
         console.log(e);
         return e.message;
