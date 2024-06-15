@@ -8,6 +8,20 @@ export const getCurrTime = async () => {
     return ISTTime;
 }
 
+export const getLastDelTime = async () => {
+    try {
+        // console.log('debg', cat);
+        const party: any = await db.deletetime.findUnique({
+            where: {
+                owner: 'DK@123',
+            }
+        });
+        return party;
+    } catch {
+        return null;
+    }
+}
+
 export const getKurtiCount = async (cat: string) => {
     try {
         console.log('debg', cat);
@@ -31,7 +45,7 @@ export const getAllKurti = async () => {
         });
         console.log(allKurti.length);
         return allKurti;
-    } catch (e: any){
+    } catch (e: any) {
         console.log(e.message)
         return null;
     }
@@ -149,24 +163,25 @@ export const deleteKurti = async (code: string, category: string) => {
                 isDeleted: true
             }
         });
-        await db.category.update({
-            where: {
-                code: code.toUpperCase().substring(0, 3),
-            },
-            data: {
-                countOfPiece: {
-                    decrement: updatedKurti.countOfPiece,
-                },
-                countOfDesign: {
-                    decrement: 1,
-                }
-            }
-        })
+        // await db.category.update({
+        //     where: {
+        //         code: code.toUpperCase().substring(0, 3),
+        //     },
+        //     data: {
+        //         countOfPiece: {
+        //             decrement: updatedKurti.countOfPiece,
+        //         },
+        //         countOfDesign: {
+        //             decrement: 1,
+        //         }
+        //     }
+        // })
         const kurti = await db.kurti.findMany({
             where: {
                 category: {
                     mode: 'insensitive',
-                    endsWith: category
+                    endsWith: category,
+                    startsWith: category
                 },
                 isDeleted: false
             }
@@ -217,88 +232,6 @@ function isSize(size: string) {
     return arr.includes(size);
 }
 
-// export const sellKurti = async (code: string) => {
-//     try {
-//         interface Size {
-//             size: string;
-//             quantity: number;
-//         }
-
-//         let search = code.substring(0, 7).toUpperCase();
-//         let cmp = code.substring(7);
-//         if (code.toUpperCase().substring(0, 2) === 'CK' && isDigit(code[2]) && isSize(code.substring(6))) {
-//             search = code.substring(0, 6).toUpperCase();
-//             cmp = code.substring(6);
-//         }
-//         console.log('search: ',search);
-//         const kurti = await db.kurti.findUnique({
-//             where: { code: search.toUpperCase(), isDeleted: false }
-//         });
-//         if (!kurti) {
-//             return { error: 'No Kurti found!!!' };
-//         }
-//         if (kurti?.sizes !== undefined) {
-//             let arr: any[] = kurti?.sizes;
-//             let newArr: any[] = [];
-//             let flag = 0;
-//             for (let i = 0; i < arr?.length; i++) {
-//                 let obj = arr[i];
-//                 if (!obj) {
-//                     break;
-//                 }
-//                 if (obj.size === cmp) {
-//                     if (obj.quantity == 0) {
-//                         return { error: 'Stock is equal to 0, add stock first' };
-//                     }
-//                     else {
-//                         flag = 1;
-//                         obj.quantity -= 1;
-//                         if (obj.quantity > 0) {
-//                             newArr.push(obj);
-//                         }
-//                     }
-//                 }
-//                 else {
-//                     newArr.push(arr[i]);
-//                 }
-//             }
-//             if (flag === 1) {
-//                 console.log('search2', search);
-//                 const updateUser = await db.kurti.update({
-//                     where: {
-//                         code: search,
-//                     },
-//                     data: {
-//                         sizes: newArr,
-//                         countOfPiece: {
-//                             increment: -1
-//                         }
-//                     },
-//                 })
-//                 console.log('code4', search.toUpperCase().substring(0, 3));
-//                 await db.category.update({
-//                     where: {
-//                         code: search.toUpperCase().substring(0, 3),
-//                     },
-//                     data: {
-//                         countOfPiece: {
-//                             increment: -1
-//                         }
-//                     },
-//                 })
-//                 return { success: 'Sold', kurti: updateUser };
-//             }
-
-//         }
-
-//         return { error: 'Not in stock, update the stock!!!' };
-//     } catch {
-//         return null;
-//     }
-// }
-// export const migrate = async () => { 
-//     return null;
-// }
 
 export const sellKurti2 = async (data: any) => {
     try {
@@ -350,36 +283,34 @@ export const sellKurti2 = async (data: any) => {
             }
             console.log(flag, newArr);
             if (flag === 1) {
-                console.log('search2', search);
-                const currTime = await getCurrTime();
-                console.log(currTime);
-                const updateUser = await db.kurti.update({
-                    where: {
-                        code: search,
-                    },
-                    data: {
-                        sizes: newArr,
-                        countOfPiece: {
-                            increment: -1
-                        },
-                        lastUpdatedTime: currTime
-                    },
-                })
-                console.log('code2', search.toUpperCase().substring(0, 3));
-                await db.category.update({
-                    where: {
-                        normalizedLowerCase: updateUser.category.toLowerCase(),
-                    },
-                    data: {
-                        countOfPiece: {
-                            increment: -1
-                        },
-                        actualPrice: {
-                            decrement: (parseInt(updateUser.actualPrice || "0")),
-                        }
-                    },
-                });
+
+                // await db.category.update({
+                //     where: {
+                //         normalizedLowerCase: updateUser.category.toLowerCase(),
+                //     },
+                //     data: {
+                //         countOfPiece: {
+                //             increment: -1
+                //         },
+                //         actualPrice: {
+                //             decrement: (parseInt(updateUser.actualPrice || "0")),
+                //         }
+                //     },
+                // });
                 try {
+                    console.log('search2', search);
+                    const currTime = await getCurrTime();
+                    console.log(currTime);
+                    const updateUser = await db.kurti.update({
+                        where: {
+                            code: search,
+                        },
+                        data: {
+                            sizes: newArr,
+                            lastUpdatedTime: currTime
+                        },
+                    })
+                    console.log('code2', search.toUpperCase().substring(0, 3));
                     const sell = await db.sell.create({
                         data: {
                             sellTime: currentTime,
@@ -390,12 +321,13 @@ export const sellKurti2 = async (data: any) => {
                         }
                     });
                     console.log(sell);
+                    return { success: 'Sold', kurti: updateUser };
                 }
                 catch (e) {
                     console.log(e);
+                    return { error: 'Something went wrong!!!' };
                 }
 
-                return { success: 'Sold', kurti: updateUser };
             }
 
         }
@@ -417,12 +349,10 @@ export const migrate = async () => {
                 },
                 data: {
                     countTotal: 0,
-                    countOfPiece: 0,
-                    countOfDesign: 0,
                 }
             })
         }
-        
+
         for (let i = 0; i < category.length; i++) {
             const ok: any[] = await db.kurti.findMany({
                 where: {
@@ -434,7 +364,7 @@ export const migrate = async () => {
                 }
             });
             let maxi = 0;
-            for(let j = 0; j < ok.length; j++) {
+            for (let j = 0; j < ok.length; j++) {
                 let code = ok[j].code;
                 let cnt = parseInt(code.substring(3)) || 0;
                 maxi = Math.max(maxi, cnt);
@@ -462,7 +392,7 @@ export const migrate = async () => {
                     }
                     cnt += sizes[k].quantity || 0;
                 }
-                const fun =  db.kurti.update({
+                const fun = db.kurti.update({
                     where: {
                         id: kurtis[j].id,
                     },
@@ -472,8 +402,8 @@ export const migrate = async () => {
                 });
                 arrFun.push(fun);
                 overallCnt += cnt;
-                
-                
+
+
             }
             await Promise.all(arrFun);
             console.log('countTotal:', maxi);
@@ -483,12 +413,6 @@ export const migrate = async () => {
                 },
                 data: {
                     countTotal: maxi,
-                    countOfPiece: {
-                        increment: overallCnt,
-                    },
-                    countOfDesign: {
-                        increment: uniqueCnt,
-                    }
                 }
             });
         }
@@ -522,7 +446,7 @@ export const getSellHistory = async () => {
 }
 
 export const addStock = async (code: string) => {
-    try{
+    try {
         console.log(code);
         let search = code.substring(0, 7).toUpperCase();
         let cmp = code.substring(7);
@@ -530,27 +454,27 @@ export const addStock = async (code: string) => {
             search = code.substring(0, 6).toUpperCase();
             cmp = code.substring(6);
         }
-        if(cmp.length === 0) {
+        if (cmp.length === 0) {
             return { error: 'Enter valid code' };
         }
         console.log('search: ', search);
         const kurti = await db.kurti.findUnique({
             where: { code: search.toUpperCase(), isDeleted: false }
         });
-        console.log(kurti); 
+        console.log(kurti);
         if (!kurti) {
             return { error: 'No Kurti found!!!' };
         }
         let sizes: any[] = kurti.sizes || [];
         let flag = 0;
-        for(let i=0;i<sizes.length;i++){
-            if(sizes[i].size === cmp) {
+        for (let i = 0; i < sizes.length; i++) {
+            if (sizes[i].size === cmp) {
                 sizes[i].quantity += 1;
-                flag=1;
+                flag = 1;
                 break;
             }
         }
-        if(flag === 0) {
+        if (flag === 0) {
             sizes.push({
                 size: cmp,
                 quantity: 1
@@ -571,29 +495,29 @@ export const addStock = async (code: string) => {
             },
         });
         let inc = (updateUser.actualPrice);
-        await db.category.update({
-            where: {
-                normalizedLowerCase: updateUser.category.toLowerCase(),
-            },
-            data: {
-                countOfPiece: {
-                    increment: 1
-                },
-                sellingPrice: parseInt(updateUser.sellingPrice || "0"),
-                // actualPrice: {
-                //     increment: inc
-                // }
-            },
-        });
+        // await db.category.update({
+        //     where: {
+        //         normalizedLowerCase: updateUser.category.toLowerCase(),
+        //     },
+        //     data: {
+        //         countOfPiece: {
+        //             increment: 1
+        //         },
+        //         sellingPrice: parseInt(updateUser.sellingPrice || "0"),
+        //         // actualPrice: {
+        //         //     increment: inc
+        //         // }
+        //     },
+        // });
         const KurtiNew = await db.kurti.findUnique({
             where: {
                 code: search,
             }
         })
         return KurtiNew;
-    } catch (e: any){
+    } catch (e: any) {
         console.log(e.message);
-        return {error: "Something went wrong"};
+        return { error: "Something went wrong" };
     }
 }
 
@@ -602,14 +526,14 @@ export const migrate2 = async () => {
     try {
         // const kurti: any[] = await db.kurti.findMany({ where: { isDeleted: false } });
         const allKurties: any[] = await db.kurti.findMany({});
-        for(let i = 0; i < allKurties.length; i++) {
+        for (let i = 0; i < allKurties.length; i++) {
             let cat = allKurties[i].category.toLowerCase();
             let fnd = await db.category.findUnique({
                 where: {
                     normalizedLowerCase: cat,
                 }
             });
-            if(!fnd || fnd === undefined || fnd === null) {
+            if (!fnd || fnd === undefined || fnd === null) {
                 await db.kurti.delete({
                     where: {
                         id: allKurties[i].id,
@@ -618,7 +542,7 @@ export const migrate2 = async () => {
             }
         }
     }
-    catch(e: any) {
+    catch (e: any) {
         console.log(e.message);
         return e;
     }

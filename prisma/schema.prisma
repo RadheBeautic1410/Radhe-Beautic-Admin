@@ -108,10 +108,6 @@ model Category {
   code                String? @unique
   name                String
   countTotal          Int     @default(0)
-  countOfPiece        Int     @default(0)
-  countOfDesign       Int?    @default(0)
-  sellingPrice        Int?    @default(0)
-  actualPrice         Int?    @default(0)
 }
 
 model Prices {
@@ -149,4 +145,10 @@ model Sell {
   kurtiSize  String
   sellerName String
   kurti      Json[]
+}
+
+model Deletetime {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  owner String @unique
+  time DateTime?
 }

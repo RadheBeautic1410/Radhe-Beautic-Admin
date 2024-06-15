@@ -52,13 +52,13 @@ export const getAllCategoryWithCount = async () => {
             // });
             arr.push({
                 name: category[i].name, 
-                count: category[i].countOfDesign, 
-                countOfPiece: category[i].countOfPiece, 
-                sellingPrice: category[i].sellingPrice,
-                actualPrice: category[i].actualPrice,
+                // count: category[i].countOfDesign, 
+                // countOfPiece: category[i].countOfPiece, 
+                // sellingPrice: category[i].sellingPrice,
+                // actualPrice: category[i].actualPrice,
             });
         }
-        return {category, counts: arr};
+        return {counts: arr};
     } catch (error) {
         console.error('Error fetching category', error);
         return null;

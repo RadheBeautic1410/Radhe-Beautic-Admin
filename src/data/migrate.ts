@@ -3,43 +3,35 @@ import { getCurrTime } from "./kurti";
 
 export const migrate3 = async () => {
     try {
-        const category: any[] = await db.category.findMany({});
-        for (let i = 0; i < category.length; i++) {
-            const kurtis: any[] = await db.kurti.findMany({
-                where: {
-                    isDeleted: false,
-                    category: {
-                        mode: 'insensitive',
-                        startsWith: category[i].name,
-                        endsWith: category[i].name,
-                    }
-                }
-            });
-            let sum = 0;
-            // console.log(category[i].name);
-            for (let j = 0; j < kurtis.length; j++) {
-                try {
-                    sum += (parseInt(kurtis[j].actualPrice || "0")) * (kurtis[j].countOfPiece || 0);
-                }
-                catch (e: any) {
-                    console.log(j, e.message);
-                }
+        const currTime = await getCurrTime();
+        await db.kurti.updateMany({
+            data: {
+                lastUpdatedTime: currTime
             }
-            console.log(category[i].name, sum);
-            let sellPrice = 0;
-            if (kurtis.length !== 0) {
-                sellPrice = parseInt(kurtis[0].sellingPrice || "0");
+        });
+        return {success: "updated all kurti"}
+
+    } catch (e: any) {
+        console.log(e);
+        return e.message;
+    }
+}
+
+export const migrate6 = async () => {
+    try {
+        await db.deletetime.deleteMany({
+            where: {
+                owner: 'DK@123',
             }
-            await db.category.update({
-                where: {
-                    id: category[i].id,
-                },
-                data: {
-                    sellingPrice: sellPrice,
-                    actualPrice: sum,
-                }
-            })
-        }
+        });
+        const currTime = await getCurrTime();
+        await db.deletetime.create({
+            data: {
+                owner: 'DK@123',
+                time: currTime,
+            }
+        });
+        return {success: "updated all kurti"}
 
     } catch (e: any) {
         console.log(e);

@@ -143,69 +143,110 @@ const ListPage = () => {
         setSearching(false);
     };
 
+    const fetchUpdatedData = async () => {
+        let storedTime: any = localStorage.getItem('radhe-time-1');
+        let storedDelTime: any = localStorage.getItem('radhe-del-time');
+        let storedData: any = localStorage.getItem('radhe-data');
+        // console.log(storedTime, storedData);
+        const currTime = await getCurrTime();
+        let tempRes: any = await fetch(`/api/kurti/deletetime`);
+        tempRes = await tempRes.json();
+        console.log('tempRes:', tempRes.data.time, storedDelTime);
+        let storedDelTime2 = JSON.parse(storedDelTime);
+        console.log(new Date(storedDelTime2).getTime(), new Date(tempRes.data.time).getTime(), (new Date(storedDelTime2).getTime === new Date(tempRes.data.time).getTime));
+        if (
+            storedDelTime && 
+            storedTime !== null && 
+            storedData !== null && 
+            (new Date(storedDelTime2).getTime() === new Date(tempRes.data.time).getTime())
+        ) {
+            storedTime = JSON.parse(storedTime) || currTime.toISOString();
+            storedData = JSON.parse(storedData) || [];
+            const res = await axios.post(`/api/kurti/getall`, {
+                currentTime: storedTime,
+            })
+            let fetchedData = res.data.data || [];
+            console.log(fetchedData);
+            // Create a map from newArray for quick lookup by code
+            const newMap = new Map(fetchedData.map((obj: any) => [obj.code, obj]));
+
+            // Update oldArray objects or add new ones
+            const updatedArray = storedData.map((obj: any) => {
+                return newMap.has(obj.code) ? newMap.get(obj.code) : obj;
+            });
+
+            // Optionally, add new entries that are only in fetchedData
+            fetchedData.forEach((obj: any) => {
+                if (!storedData.some((oldObj: any) => oldObj.code === obj.code)) {
+                    updatedArray.push(obj);
+                }
+            });
+            setKurtiData(updatedArray);
+            localStorage.setItem('radhe-time-1', JSON.stringify(currTime.toISOString()));
+            let store = await JSON.stringify(updatedArray);
+            localStorage.setItem('radhe-data', store);
+            store = await JSON.stringify(tempRes.data.time);
+            localStorage.setItem('radhe-del-time', store);
+            return updatedArray;
+        }
+        else {
+            let res2 = await fetch(`/api/kurti/getall`);
+            const res = await res2.json();
+            console.log(res.data);
+            setKurtiData(res.data);
+            localStorage.setItem('radhe-time-1', JSON.stringify(currTime.toISOString()));
+            let store = await JSON.stringify(res.data);
+            localStorage.setItem('radhe-data', store);
+            store = await JSON.stringify(tempRes.data.time);
+            localStorage.setItem('radhe-del-time', store);
+            console.log('fetched again');
+            return res.data;
+        }
+    }
+
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
                 const result = await response.json();
                 console.log(result);
-                const sortedCategory = (result.data || []).sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
-                let sum1 = 0, sum2 = 0;
-                let sum3 = 0;
-                for (let i = 0; i < sortedCategory.length; i++) {
-                    sum1 += sortedCategory[i].count;
-                    sum2 += sortedCategory[i].countOfPiece;
-                    sum3 += (sortedCategory[i].actualPrice);
+                const allKurtiData: any[] = await fetchUpdatedData();
+                const allCategoryName = result.data || []
+                console.log(allCategoryName);
+                let sum1 = 0, sum2 = 0, sum3 = 0;
+                for (let j = 0; j < allCategoryName.length; j++) {
+                    allCategoryName[j].count = 0;
+                    allCategoryName[j].countOfPiece = 0;
+                    allCategoryName[j].sellingPrice = 0;
+                    allCategoryName[j].actualPrice = 0;
                 }
+                for (let i = 0; i < allKurtiData.length; i++) {
+                    for (let j = 0; j < allCategoryName.length; j++) {
+                        if (
+                            allKurtiData[i].category.toLowerCase() === allCategoryName[j].name.toLowerCase() &&
+                            allKurtiData[i].isDeleted === false
+                        ) {
+                            allCategoryName[j].count += 1;
+                            sum1 += 1;
+                            let cnt = 0;
+                            for (let k = 0; k < allKurtiData[i].sizes.length || 0; k++) {
+                                cnt += allKurtiData[i].sizes[k].quantity || 0;
+                            }
+                            allCategoryName[j].countOfPiece += cnt;
+                            allCategoryName[j].sellingPrice = Math.max(parseInt(allKurtiData[i].sellingPrice || "0"), allCategoryName[j].sellingPrice);
+                            allCategoryName[j].actualPrice += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
+                            sum2 += cnt;
+                            sum3 += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
+                            break;
+                        }
+                    }
+                }
+                console.log(allCategoryName);
+                const sortedCategory = allCategoryName.sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
                 setTotalItems(sum1);
                 setTotalPiece(sum2);
                 setTotalStockPrice(sum3)
                 setCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
-
-
-                let storedTime: any = localStorage.getItem('radhe-time');
-                let storedData: any = localStorage.getItem('radhe-data');
-                // console.log(storedTime, storedData);
-                const currTime = await getCurrTime();
-                if (storedTime !== null && storedData !== null) {
-                    storedTime = JSON.parse(storedTime) || currTime.toISOString();
-                    storedData = JSON.parse(storedData) || [];
-                    const res = await axios.post(`/api/kurti/getall`, {
-                        currentTime: storedTime,
-                    })
-                    let fetchedData = res.data.data || [];
-                    console.log(fetchedData);
-                    // Create a map from newArray for quick lookup by code
-                    const newMap = new Map(fetchedData.map((obj: any) => [obj.code, obj]));
-
-                    // Update oldArray objects or add new ones
-                    const updatedArray = storedData.map((obj: any) => {
-                        return newMap.has(obj.code) ? newMap.get(obj.code) : obj;
-                    });
-
-                    // Optionally, add new entries that are only in fetchedData
-                    fetchedData.forEach((obj: any) => {
-                        if (!storedData.some((oldObj: any) => oldObj.code === obj.code)) {
-                            updatedArray.push(obj);
-                        }
-                    });
-                    setKurtiData(updatedArray);
-                    localStorage.setItem('radhe-time', JSON.stringify(currTime.toISOString()));
-                    let store = await JSON.stringify(updatedArray);
-                    localStorage.setItem('radhe-data', store);
-                }
-                else {
-                    let res2 = await fetch(`/api/kurti/getall`);
-                    const res = await res2.json();
-                    console.log(res.data);
-                    setKurtiData(res.data);
-                    localStorage.setItem('radhe-time', JSON.stringify(currTime.toISOString()));
-                    let store = await JSON.stringify(res.data);
-                    localStorage.setItem('radhe-data', store);
-                    console.log('fetched again');
-                }
-
-
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {
@@ -238,17 +279,43 @@ const ListPage = () => {
                             const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
                             const result = await response.json();
                             console.log(result);
-                            const sortedCategory = (result.data || []).sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
+                            const allKurtiData: any[] = await fetchUpdatedData();
+                            const allCategoryName = result.data || []
+                            console.log(allCategoryName);
                             let sum1 = 0, sum2 = 0, sum3 = 0;
-                            for (let i = 0; i < sortedCategory.length; i++) {
-                                sum1 += sortedCategory[i].count;
-                                sum2 += sortedCategory[i].countOfPiece;
-                                sum3 += (sortedCategory[i].actualPrice);
+                            for (let j = 0; j < allCategoryName.length; j++) {
+                                allCategoryName[j].count = 0;
+                                allCategoryName[j].countOfPiece = 0;
+                                allCategoryName[j].sellingPrice = 0;
+                                allCategoryName[j].actualPrice = 0;
                             }
+                            for (let i = 0; i < allKurtiData.length; i++) {
+                                for (let j = 0; j < allCategoryName.length; j++) {
+                                    if (
+                                        allKurtiData[i].category.toLowerCase() === allCategoryName[j].name.toLowerCase() &&
+                                        allKurtiData[i].isDeleted === false
+                                    ) {
+                                        allCategoryName[j].count += 1;
+                                        sum1 += 1;
+                                        let cnt = 0;
+                                        for (let k = 0; k < allKurtiData[i].sizes.length || 0; k++) {
+                                            cnt += allKurtiData[i].sizes[k].quantity || 0;
+                                        }
+                                        allCategoryName[j].countOfPiece += cnt;
+                                        allCategoryName[j].sellingPrice = Math.max(parseInt(allKurtiData[i].sellingPrice || "0"), allCategoryName[j].sellingPrice);
+                                        allCategoryName[j].actualPrice += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
+                                        sum2 += cnt;
+                                        sum3 += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
+                                        break;
+                                    }
+                                }
+                            }
+                            console.log(allCategoryName);
+                            const sortedCategory = allCategoryName.sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
                             setTotalItems(sum1);
                             setTotalPiece(sum2);
                             setTotalStockPrice(sum3)
-                            setCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
+                            setCategory(sortedCategory);  // Use an empty array as a default value if result.data is undefined or null
                         } catch (error) {
                             console.error('Error fetching data:', error);
                         } finally {

@@ -6,6 +6,7 @@ import { currentRole, currentUser } from "@/src/lib/auth";
 import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
 import { size } from "pdfkit/js/page";
+import { v4 as uuidv4 } from 'uuid';
 
 export const getCurrTime = () => {
     const currentTime = new Date();
@@ -49,18 +50,9 @@ export const kurtiAddition = async (
             normalizedLowerCase: category.toLowerCase(),
         },
         data: {
-            countOfPiece: {
-                increment: cnt,
-            },
-            countOfDesign: {
-                increment: 1,
-            },
             countTotal: {
                 increment: 1,
             },
-            actualPrice: {
-                increment: (cnt * data.actualPrice),
-            }
         }
     })
 
@@ -98,28 +90,28 @@ export const stockAddition = async (data: any) => {
         where: { code },
         data: {
             sizes: data.sizes,
-            countOfPiece: cnt,
+            // countOfPiece: cnt,
             lastUpdatedTime: currTime
         }
     });
-    cnt -= kurti?.countOfPiece || 0;
-    console.log(code);
-    await db.category.update({
-        where: {
-            normalizedLowerCase: kurti?.category.toLowerCase(),
-        },
-        data: {
-            countOfPiece: {
-                increment: cnt,
-            },
-            actualPrice: {
-                increment: (cnt * kurti.actualPrice),
-            },
-            countTotal: {
-                increment: 1,
-            },
-        }
-    })
+    // cnt -= kurti?.countOfPiece || 0;
+    // console.log(code);
+    // await db.category.update({
+    //     where: {
+    //         normalizedLowerCase: kurti?.category.toLowerCase(),
+    //     },
+    //     data: {
+    //         countOfPiece: {
+    //             increment: cnt,
+    //         },
+    //         actualPrice: {
+    //             increment: (cnt * kurti.actualPrice),
+    //         },
+    //         countTotal: {
+    //             increment: 1,
+    //         },
+    //     }
+    // })
 
     const dbpartyFetch = await getKurtiByCode(code);
     return { success: "Stock Updated!", data: dbpartyFetch?.sizes }
@@ -189,31 +181,25 @@ export const categoryChange = async (data: any) => {
         data: old
     })
     console.log('count:', kurti.countOfPiece);
-    await db.category.update({
-        where: {
-            normalizedLowerCase: old?.category.toLowerCase(),
-        },
-        data: {
-            countOfPiece: {
-                decrement: kurti.countOfPiece,
-            },
-            countOfDesign: {
-                decrement: 1,
-            }
-        }
-    });
+    // await db.category.update({
+    //     where: {
+    //         normalizedLowerCase: old?.category.toLowerCase(),
+    //     },
+    //     data: {
+    //         countOfPiece: {
+    //             decrement: kurti.countOfPiece,
+    //         },
+    //         countOfDesign: {
+    //             decrement: 1,
+    //         }
+    //     }
+    // });
 
     await db.category.update({
         where: {
             normalizedLowerCase: kurti.category.toLowerCase(),
         },
         data: {
-            countOfPiece: {
-                increment: kurti.countOfPiece,
-            },
-            countOfDesign: {
-                increment: 1,
-            },
             countTotal: {
                 increment: 1,
             }
@@ -241,7 +227,17 @@ export const deleteCategory = async (data: any) => {
                 startsWith: category.toLowerCase()
             },
         },
+    });
+    let currTime = await getCurrTime();
+    await db.deletetime.update({
+        where: {
+            owner: 'DK@123'
+        },
+        data:{
+            time: currTime,
+        }
     })
+
     return { success: `Category ${category} Deleted` };
 }
 
