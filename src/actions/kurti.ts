@@ -150,7 +150,7 @@ export const priceChange = async (data: any) => {
     }
     await db.prices.update({
         where: {
-            id: updatedKurti.pricesId
+            id: updatedKurti.pricesId || undefined
         },
         data: obj
     })
