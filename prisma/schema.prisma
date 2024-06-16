@@ -15,7 +15,12 @@ enum UserRole {
   SELLER
   UPLOADER
   RESELLER
-  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  TRACKINGDONE
 }
 
 enum Status {
@@ -45,8 +50,9 @@ model User {
 
   verifiedByUser User? @relation("VerifiedBy", fields: [verifiedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  verifiedUsers User[] @relation("VerifiedBy")
-  cart          cart[]
+  verifiedUsers User[]   @relation("VerifiedBy")
+  cart          Cart[]
+  orders        Orders[]
 }
 
 model VerificationToken {
@@ -160,25 +166,38 @@ model CartProductLink {
   id            String      @id @default(auto()) @map("_id") @db.ObjectId
   cartProductId String      @db.ObjectId
   cartProduct   CartProduct @relation(fields: [cartProductId], references: [id], onDelete: Cascade)
-  cart          cart?       @relation(fields: [cartId], references: [id])
+  cart          Cart?       @relation(fields: [cartId], references: [id])
   cartId        String?     @db.ObjectId
 
   @@unique([cartProductId])
 }
 
-model cart {
+model Cart {
   id           String            @id @default(auto()) @map("_id") @db.ObjectId
   userId       String            @db.ObjectId
   user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   cartProducts CartProductLink[]
   CartProduct  CartProduct[]
+  orders       Orders[]
 }
 
 model CartProduct {
   id              String           @id @default(auto()) @map("_id") @db.ObjectId
   kurtiId         String           @db.ObjectId
   kurti           Kurti            @relation(fields: [kurtiId], references: [id], onDelete: Cascade)
-  cart            cart?            @relation(fields: [cartId], references: [id])
+  cart            Cart?            @relation(fields: [cartId], references: [id])
   cartId          String?          @db.ObjectId
+  sizes           Json[]
   CartProductLink CartProductLink?
+}
+
+model Orders {
+  id     String      @id @default(auto()) @map("_id") @db.ObjectId
+  cart   Cart?       @relation(fields: [cartId], references: [id])
+  cartId String?     @db.ObjectId
+  userId String      @db.ObjectId
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime
+  images Json[]
+  status OrderStatus @default(PENDING)
 }
