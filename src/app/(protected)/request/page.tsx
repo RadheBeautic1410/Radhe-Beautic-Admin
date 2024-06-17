@@ -13,6 +13,9 @@ import { RoleGateForComponent } from "@/src/components/auth/role-gate-component"
 import PageLoader from "@/src/components/loader";
 import { useCurrentRole } from "@/src/hooks/use-currrent-role";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
+import Link from "next/link";
+import { Button } from "@/src/components/ui/button";
+import { CustomerRow } from "../_components/request/customerRow";
 
 
 
@@ -34,36 +37,55 @@ interface user {
 const ModeratorPage = () => {
 
     const [users, setUsers] = useState<user[]>([]);
+    const [customers, setCustomers] = useState<user[]>([]);
 
     const [loadingUsers, setLoadingUsers] = useState(true)
 
+
+    const [tabNum, setTabNum] = useState(0);
     const currentROle = useCurrentRole();
-
-
     useEffect(() => {
-        if (currentROle === UserRole.ADMIN || currentROle === UserRole.MOD) {
-            const fetchData = async () => {
+        const fetchData = async () => {
+            if (currentROle === UserRole.ADMIN || currentROle === UserRole.MOD) {
                 try {
                     const response = await fetch('/api/users'); // Adjust the API endpoint based on your actual setup
                     const result = await response.json();
                     console.log(result);
-                    setUsers(result.data || []); // Use an empty array as a default value if result.data is undefined or null
+                    let staffMembers: user[] = [];
+                    let customerList: user[] = [];
+                    for (let i = 0; i < (result.data || []).length; i++) {
+                        if (result.data[i].role === UserRole.USER) {
+                            customerList.push(result.data[i]);
+                        }
+                        else {
+                            staffMembers.push(result.data[i]);
+                        }
+                    }
+                    setUsers(staffMembers); // Use an empty array as a default value if result.data is undefined or null
+                    setCustomers(customerList);
                 } catch (error) {
                     console.error('Error fetching data:', error);
                 } finally {
                     setLoadingUsers(false);
                 }
-            };
-            fetchData();
-        } else {
-            setLoadingUsers(false);
-
+            } else {
+                setLoadingUsers(false);
+            }
         }
-    }, []);
+
+        if (loadingUsers) {
+            fetchData();
+        }
+    }, [loadingUsers]);
 
 
     const updateUserData = (updatedUserData: user) => {
         setUsers((prevUsers) =>
+            prevUsers.map((user) =>
+                user.id === updatedUserData.id ? { ...updatedUserData } : user
+            )
+        );
+        setCustomers((prevUsers) =>
             prevUsers.map((user) =>
                 user.id === updatedUserData.id ? { ...updatedUserData } : user
             )
@@ -76,6 +98,10 @@ const ModeratorPage = () => {
             const updatedUsers = prevUsers.filter((user) => user.id !== deletedUser.id);
             return updatedUsers;
         });
+        setCustomers((prevUsers) => {
+            const updatedUsers = prevUsers.filter((user) => user.id !== deletedUser.id);
+            return updatedUsers;
+        });
     };
 
 
@@ -83,14 +109,49 @@ const ModeratorPage = () => {
         <>
             <PageLoader loading={loadingUsers} />
             <RoleGate allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
-                <Card className="w-[90%] ">
-                    <CardHeader>
-                        <p className="text-2xl font-semibold text-center">
-                            🆕 Requests
-                        </p>
+                <Card className="w-[90%]">
+                    <CardHeader className="bg-secondary rounded-xl">
+                        <div className="flex flex-row justify-between items-center ">
+                            <div className='flex sm:gap-x-2 max-sm:flex-col max-sm:gap-y-3'>
+                                <Button
+                                    asChild
+                                    className="cursor-pointer"
+                                    variant={tabNum === 0 ? "default" : "outline"}
+                                    onClick={() => {
+                                        if (tabNum !== 0) {
+                                            setTabNum(0);
+                                        }
+                                    }}
+                                >
+                                    <a>🧑‍💼 Staff Members</a>
+                                </Button>
+                                <Button
+                                    asChild
+                                    className="cursor-pointer"
+                                    variant={tabNum === 1 ? "default" : "outline"}
+                                    onClick={() => {
+                                        if (tabNum !== 1) {
+                                            setTabNum(1);
+                                        }
+                                    }}
+                                >
+                                    <a>🧑‍💻 Customers</a>
+                                </Button>
+                            </div>
+                            <Button
+                                asChild
+                                className="cursor-pointer mt-1"
+                                variant={"outline"}
+                                onClick={() => {
+                                    setTabNum(0);
+                                    setLoadingUsers(true);
+                                }}
+                            >
+                                <Link href='/request'>⟳ Refresh Page</Link>
+                            </Button>
+                        </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-
+                    <CardContent>
                         <Table>
                             <TableCaption>End of list</TableCaption>
                             <TableHeader>
@@ -109,15 +170,28 @@ const ModeratorPage = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {users.map((user) => (
-                                    user.role !== UserRole.MOD &&
-                                    (<ModeratorRow key={user.id} userData={user} onUpdateUserData={updateUserData} onDeleteUserData={deleteUserData} />)
-                                ))}
+                                {tabNum === 0 ?
+                                    <>
+                                        {users.map((user) => (
+                                            user.role !== UserRole.MOD &&
+                                            (<ModeratorRow key={user.id} userData={user} onUpdateUserData={updateUserData} onDeleteUserData={deleteUserData} />)
+                                        ))}
+                                    </>
+                                    :
+                                    <>
+                                        {customers.map((user) => (
+                                            user.role !== UserRole.MOD &&
+                                            (<CustomerRow key={user.id} userData={user} onUpdateUserData={updateUserData} onDeleteUserData={deleteUserData} />)
+                                        ))}
+                                    </>
+                                }
+
                             </TableBody>
 
                         </Table>
                     </CardContent>
                 </Card>
+
             </RoleGate>
         </>
     );
@@ -130,7 +204,7 @@ const ModeratorPage2 = () => {
                 <ModeratorPage />
             </RoleGateForComponent>
             <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.UPLOADER, UserRole.RESELLER]}>
-                <NotAllowedPage/>
+                <NotAllowedPage />
             </RoleGateForComponent>
         </>
     );

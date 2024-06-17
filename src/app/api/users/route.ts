@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 export async function GET() {
     const role = await currentRole()
     const query: UserQuery = {
-        role: [UserRole.SELLER, UserRole.UPLOADER, UserRole.ADMIN, UserRole.RESELLER],
+        role: [UserRole.SELLER, UserRole.UPLOADER, UserRole.ADMIN, UserRole.RESELLER, UserRole.USER],
     };
     if (role === UserRole.ADMIN || role === UserRole.MOD) {
         const data = await getAllUsersWithRole(query);
