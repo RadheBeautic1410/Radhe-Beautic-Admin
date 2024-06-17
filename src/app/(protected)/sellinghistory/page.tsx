@@ -6,7 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { RoleGateForComponent } from '@/src/components/auth/role-gate-component';
 import { UserRole } from '@prisma/client';
 import NotAllowedPage from '../_components/errorPages/NotAllowedPage';
-
+import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz'
 const headerCells = [
     {
         name: 'Sr.',
@@ -80,25 +81,34 @@ function SellingHistory() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {sellData && sellData.map((obj, idx)=>{
+                                    {sellData && sellData.map((obj, idx) => {
                                         let isoString = obj.sellTime;
                                         let [date, time] = isoString.split("T");
                                         let [hours, minutes, seconds] = time.split(":");
-                                        let hoursInt = parseInt(hours);
-                                        let minutesInt = parseInt(minutes);
-                                        let secondsInt = parseInt(seconds.split(".")[0]);
-                                        let secondsFraction = parseInt(seconds.split(".")[1]);
-                                        let secondsDecimal = secondsFraction ? secondsFraction / 100 : 0;
-                                        let finalHours = hours;
-                                        let finalMinutes = minutes;
-                                        let finalSeconds = secondsDecimal ? secondsDecimal : seconds;
+                                        hours = parseInt(hours, 10);
+                                        minutes = parseInt(minutes, 10);
+                                        seconds = parseInt(seconds, 10);
+
+                                        // Determine AM or PM
+                                        const period = hours >= 12 ? 'PM' : 'AM';
+
+                                        // Convert hours to 12-hour format
+                                        let displayHours = hours % 12;
+                                        displayHours = displayHours === 0 ? 12 : displayHours; // Handle midnight (0) as 12 AM
+
+                                        // Format minutes and seconds with leading zeros if needed
+                                        const displayMinutes = minutes < 10 ? `0${minutes}` : minutes;
+
+                                        // Construct the final formatted time string
+                                        const formattedTime = `${displayHours}:${displayMinutes} ${period}`;
                                         return (
                                             <TableRow key={obj.id}>
                                                 <TableCell className="text-center">
                                                     {sellData.length - idx}
                                                 </TableCell>
                                                 <TableCell className="text-center">
-                                                    {`${finalHours}:${finalMinutes}:${finalSeconds}`}
+                                                    {/* {format(new Date(timeIn24HourFormat), 'h:mm aa')} */}
+                                                    {formattedTime}
                                                 </TableCell>
                                                 <TableCell className="text-center">
                                                     {obj.sellerName}
@@ -125,7 +135,7 @@ function SellingHistory() {
 const SellHistoruHelper = () => {
     return (
         <>
-            
+
             <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER,]}>
                 <SellingHistory />
             </RoleGateForComponent>

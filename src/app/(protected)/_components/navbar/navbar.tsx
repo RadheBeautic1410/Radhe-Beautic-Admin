@@ -10,7 +10,43 @@ import React, { useEffect, useState } from 'react'
 import Image from "next/image";
 import { RoleGateForComponent } from '@/src/components/auth/role-gate-component'
 import { useForm } from "react-hook-form";
-
+const routes = [
+    {
+        name: 'Upload',
+        href: '/upload',
+        role: [UserRole.ADMIN, UserRole.UPLOADER]
+    },
+    {
+        name: 'Catalogue',
+        href: '/catalogue',
+        role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.RESELLER]
+    },
+    {
+        name: 'sell',
+        href: '/sell',
+        role: [UserRole.ADMIN, UserRole.SELLER],
+    },
+    {
+        name: 'Add Stock',
+        href: '/addstock',
+        role: [UserRole.ADMIN]
+    },
+    {
+        name: 'Request',
+        href: '/request',
+        role: [UserRole.ADMIN],
+    },
+    {
+        name: 'Selling History',
+        href: '/sellinghistory',
+        role: [UserRole.ADMIN],
+    },
+    {
+        name: 'Settings',
+        href: '/settings',
+        role: [UserRole.ADMIN, UserRole.RESELLER, UserRole.SELLER, UserRole.UPLOADER]
+    }
+]
 const Navbar = () => {
     const [navbar, setNavbar] = useState(false);
     const form = useForm({
@@ -37,67 +73,20 @@ const Navbar = () => {
                                 />
                             </a>
                         </div>
-                        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-                            <Button
-                                asChild
-                                variant={pathname === "/upload" ? "default" : "outline"}
-                            >
-                                <Link href="/upload">Upload</Link>
-                            </Button>
-                        </RoleGateForComponent>
 
-                        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.RESELLER]}>
-                            <Button
-                                asChild
-                                variant={pathname.includes('/catalogue') ? "default" : "outline"}
-                            >
-                                <Link href="/catalogue">Catalogue</Link>
-                            </Button>
-                        </RoleGateForComponent>
+                        {routes.map((route) => {
+                            return (
+                                <RoleGateForComponent allowedRole={route.role} key={route.name}>
+                                    <Button
+                                        asChild
+                                        variant={pathname === route.href ? "default" : "outline"}
+                                    >
+                                        <Link href={route.href}>{route.name}</Link>
+                                    </Button>
 
-                        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.SELLER]}>
-                            <Button
-                                asChild
-                                variant={pathname === '/sell' ? "default" : "outline"}
-                            >
-                                <Link href="/sell">Sell</Link>
-                            </Button>
-                        </RoleGateForComponent>
-
-                        <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-                            <Button
-                                asChild
-                                variant={pathname === '/addstock' ? "default" : "outline"}
-                            >
-                                <Link href="/addstock">Add Stock</Link>
-                            </Button>
-                        </RoleGateForComponent>
-
-                        <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-                            <Button
-                                asChild
-                                variant={pathname === "/request" ? "default" : "outline"}
-                            >
-                                <Link href="/request">Requests</Link>
-                            </Button>
-                        </RoleGateForComponent>
-
-                        <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-                            <Button
-                                asChild
-                                variant={pathname === "/sellinghistory" ? "default" : "outline"}
-                            >
-                                <Link href="/sellinghistory">Selling History</Link>
-                            </Button>
-                        </RoleGateForComponent>
-
-                        <Button
-                            asChild
-                            variant={pathname === "/settings" ? "default" : "outline"}
-                        >
-                            <Link href="/settings">Settings</Link>
-                        </Button>
-
+                                </RoleGateForComponent>
+                            )
+                        })}
 
                     </div>
                     <div className="flex gap-x-2 md:hidden">
@@ -164,57 +153,22 @@ const Navbar = () => {
                                     Home
                                 </Link>
                             </li>
+                            {routes.map((route) => {
+                                return (
+                                    <RoleGateForComponent allowedRole={route.role} key={route.name}>
 
-                            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-
-                                <li className="text-black">
-                                    <Link href="/upload" onClick={() => setNavbar(false)}>
-                                        Upload
-                                    </Link>
-                                </li>
-                            </RoleGateForComponent>
-
-                            <li className="text-black">
-                                <Link href="/catalogue" onClick={() => setNavbar(false)}>
-                                    Catalogue
-                                </Link>
-                            </li>
-
-                            <RoleGateForComponent allowedRole={[UserRole.ADMIN,]}>
-                                <li className="text-black">
-                                    <Link href="/request" onClick={() => setNavbar(false)}>
-                                        Requests
-                                    </Link>
-                                </li>
-                            </RoleGateForComponent>
-                            
-                            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER]}>
-                                <li className="text-black">
-                                    <Link href="/sell" onClick={() => setNavbar(false)}>
-                                        Sell
-                                    </Link>
-                                </li>
-                            </RoleGateForComponent>
-
-                            <RoleGateForComponent allowedRole={[UserRole.ADMIN,]}>
-                                <li className="text-black">
-                                    <Link href="/sellinghistory" onClick={() => setNavbar(false)}>
-                                        Selling History
-                                    </Link>
-                                </li>
-                            </RoleGateForComponent>
-
-                            <li className="text-black">
-                                <Link href="/settings" onClick={() => setNavbar(false)}>
-                                    Settings
-                                </Link>
-                            </li>
+                                        <li className="text-black">
+                                            <Link href={route.href} onClick={() => setNavbar(false)}>
+                                                {route.name}
+                                            </Link>
+                                        </li>
+                                    </RoleGateForComponent>
+                                )
+                            })}
                         </ul>
                     </div>
                 </div>
             </nav >
-
-
         </>
     )
 }
