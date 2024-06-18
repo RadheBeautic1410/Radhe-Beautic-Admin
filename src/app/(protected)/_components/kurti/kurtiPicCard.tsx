@@ -230,7 +230,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     </TableHeader>
                     <TableBody>
                         {data.sizes.map((sz: any, i: number) => {
-                            if (i > Math.floor(sizes / 2)) {
+                            if (i > Math.floor(sizes / 2) || sz.quantity === 0) {
                                 return ""
                             }
                             return (
@@ -250,7 +250,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     </TableHeader>
                     <TableBody>
                         {data.sizes.map((sz: any, i: number) => {
-                            if (i <= Math.floor(sizes / 2)) {
+                            if (i <= Math.floor(sizes / 2) || sz.quantity === 0) {
                                 return ""
                             }
                             return (
