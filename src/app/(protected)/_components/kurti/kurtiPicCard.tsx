@@ -217,7 +217,15 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     height: '300px'
                 }}
             /> */}
-            <img loading="lazy" id={`${data.code}-visible`} src={data.images[0].url} crossOrigin="anonymous" height={'250px'} width={'250px'}></img>
+            <img 
+                loading="lazy" 
+                id={`${data.code}-visible`} 
+                src={data.images[0].url} 
+                crossOrigin="anonymous" 
+                className='object-contain w-[250px] h-[250px]'
+                height={'250px'} 
+                width={'250px'}
+            ></img>
 
 
             <p key={'code'} className='font-bold'>{`Code: ${data.code.toUpperCase()} (${data.images.length} Images)`}</p>
@@ -230,7 +238,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     </TableHeader>
                     <TableBody>
                         {data.sizes.map((sz: any, i: number) => {
-                            if (i > Math.floor(sizes / 2) || sz.quantity === 0) {
+                            if (i >= Math.ceil(sizes / 2) || sz.quantity === 0) {
                                 return ""
                             }
                             return (
@@ -250,7 +258,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     </TableHeader>
                     <TableBody>
                         {data.sizes.map((sz: any, i: number) => {
-                            if (i <= Math.floor(sizes / 2) || sz.quantity === 0) {
+                            if (i < Math.ceil(sizes / 2) || sz.quantity === 0) {
                                 return ""
                             }
                             return (
