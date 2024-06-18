@@ -233,7 +233,10 @@ const ListPage = () => {
                                 cnt += allKurtiData[i].sizes[k].quantity || 0;
                             }
                             allCategoryName[j].countOfPiece += cnt;
-                            allCategoryName[j].sellingPrice = Math.max(parseInt(allKurtiData[i].sellingPrice || "0"), allCategoryName[j].sellingPrice);
+                            if (allCategoryName[j].sellingPrice === 0) {
+                                allCategoryName[j].sellingPrice = parseInt(allKurtiData[i].sellingPrice || "0")
+                            }
+                            // allCategoryName[j].sellingPrice = Math.max(parseInt(allKurtiData[i].sellingPrice || "0"), allCategoryName[j].sellingPrice);
                             allCategoryName[j].actualPrice += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
                             sum2 += cnt;
                             sum3 += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
@@ -302,7 +305,9 @@ const ListPage = () => {
                                             cnt += allKurtiData[i].sizes[k].quantity || 0;
                                         }
                                         allCategoryName[j].countOfPiece += cnt;
-                                        allCategoryName[j].sellingPrice = Math.max(parseInt(allKurtiData[i].sellingPrice || "0"), allCategoryName[j].sellingPrice);
+                                        if (allCategoryName[j].sellingPrice === 0) {
+                                            allCategoryName[j].sellingPrice = parseInt(allKurtiData[i].sellingPrice || "0")
+                                        }
                                         allCategoryName[j].actualPrice += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
                                         sum2 += cnt;
                                         sum3 += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
