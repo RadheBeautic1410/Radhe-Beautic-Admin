@@ -205,19 +205,22 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     height={dimensions.height}
                 ></img>
             </div>
-            {/* <NextImage
+            <NextImage
                 src={data.images[0].url}
                 id={`${data.code}-visible`}
                 alt=''
                 crossOrigin="anonymous"
+                loading='lazy'
+                blurDataURL={data.images[0].url}
+                className='object-contain w-[250px] h-[250px]'
                 width={dimensions.width}
                 height={dimensions.height}
                 style={{
                     width: '300px',
                     height: '300px'
                 }}
-            /> */}
-            <img 
+            />
+            {/* <img 
                 loading="lazy" 
                 id={`${data.code}-visible`} 
                 src={data.images[0].url} 
@@ -225,7 +228,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                 className='object-contain w-[250px] h-[250px]'
                 height={'250px'} 
                 width={'250px'}
-            ></img>
+            ></img> */}
 
 
             <p key={'code'} className='font-bold'>{`Code: ${data.code.toUpperCase()} (${data.images.length} Images)`}</p>
