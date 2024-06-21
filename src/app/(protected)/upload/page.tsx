@@ -338,7 +338,7 @@ const UploadPage = () => {
                                                     dialogTitle="New Category Addition"
                                                     dialogDescription="give Category name and click add Category"
                                                     bgColor="destructive"
-                                                >
+                                                > 
 
                                                     <Form {...formCategory}>
                                                         <form

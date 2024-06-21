@@ -13,7 +13,17 @@ import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner';
 import { ImageWatermark } from 'watermark-js-plus'
-import NextImage  from 'next/image';
+import NextImage from 'next/image';
+import { DialogDemo } from '@/src/components/dialog-demo';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/src/components/ui/dialog"
 
 interface kurti {
     id: string;
@@ -102,7 +112,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     const loadWatermark = async (rightText: string, leftText: string) => {
         const imgDom = document.querySelector(`#download${data.code}`) as HTMLImageElement;
         const imgDom2 = document.querySelector(`#download${data.code}`) as HTMLImageElement;
-       
+
         const watermark = new ImageWatermark({
             contentType: 'image',
             image: rightText,
@@ -196,10 +206,10 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     width={dimensions.width}
                     height={dimensions.height}
                 /> */}
-                <img 
-                    id={`download${data.code}`} 
-                    className="w-full h-full object-cover" 
-                    src={data.images[0].url} 
+                <img
+                    id={`download${data.code}`}
+                    className="w-full h-full object-cover"
+                    src={data.images[0].url}
                     crossOrigin="anonymous"
                     width={dimensions.width}
                     height={dimensions.height}
@@ -275,29 +285,58 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     </TableBody>
                 </Table>
             </div>
+            <div className='flex flex-row space-evenely gap-3'>
 
-            <Button type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
-                {downloading ?
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    : ""}
-                ⬇️
-            </Button>
-            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-                <Link
-                    href={pathname.split('/').length !== 2 ?
-                        `${pathname}/${data.code.toLowerCase()}` :
-                        `${pathname}/${data.category.toLowerCase()}/${data.code.toLowerCase()}`
-                    }
-                    className='mt-0 pt-0'
-                >
-                    <Button type='button' className="ml-3" variant={'outline'} key={'edit'}>
-                        ✏️
-                    </Button>
-                </Link>
-                <Button type='button' className="ml-3" variant={'outline'} key={'edit'} onClick={handleDelete}>
-                    🗑️
+                <Button type='button' onClick={handleClick} variant={'outline'} key={'download'} disabled={downloading}>
+                    {downloading ?
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        : ""}
+                    ⬇️
                 </Button>
-            </RoleGateForComponent>
+                <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+
+
+                    <Link
+                        href={pathname.split('/').length !== 2 ?
+                            `${pathname}/${data.code.toLowerCase()}` :
+                            `${pathname}/${data.category.toLowerCase()}/${data.code.toLowerCase()}`
+                        }
+                        className='mt-0 pt-0 mr-3'
+                    >
+                        <Button type='button' className="ml-3" variant={'outline'} key={'edit'}>
+                            ✏️
+                        </Button>
+                    </Link>
+                    <Button
+                        className='mt-0'
+                        asChild
+                    >
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant={'destructive'}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="25" height="25" viewBox="0 0 30 30"
+                                        style={{
+                                            fill: '#ffffff'
+                                        }}>
+                                        <path d="M 14.984375 2.4863281 A 1.0001 1.0001 0 0 0 14 3.5 L 14 4 L 8.5 4 A 1.0001 1.0001 0 0 0 7.4863281 5 L 6 5 A 1.0001 1.0001 0 1 0 6 7 L 24 7 A 1.0001 1.0001 0 1 0 24 5 L 22.513672 5 A 1.0001 1.0001 0 0 0 21.5 4 L 16 4 L 16 3.5 A 1.0001 1.0001 0 0 0 14.984375 2.4863281 z M 6 9 L 7.7929688 24.234375 C 7.9109687 25.241375 8.7633438 26 9.7773438 26 L 20.222656 26 C 21.236656 26 22.088031 25.241375 22.207031 24.234375 L 24 9 L 6 9 z"></path>
+                                    </svg>
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                    <DialogTitle>Delete Kurti</DialogTitle>
+                                    <DialogDescription>
+                                        Delete the kurti <span className='font-bold'>{data.code}</span>
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <Button type={'button'} variant={'destructive'} onClick={handleDelete}>
+                                    Delete
+                                </Button>
+                            </DialogContent>
+                        </Dialog>
+                    </Button>
+                </RoleGateForComponent>
+            </div>
         </div>
     )
 }
