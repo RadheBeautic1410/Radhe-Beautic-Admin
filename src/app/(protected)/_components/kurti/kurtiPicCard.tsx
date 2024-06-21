@@ -1,4 +1,4 @@
-// "use client";
+"use client";
 
 import { RoleGateForComponent } from '@/src/components/auth/role-gate-component';
 import { Button } from '@/src/components/ui/button';
