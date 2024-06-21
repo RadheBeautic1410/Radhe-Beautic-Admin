@@ -243,10 +243,10 @@ export const sellKurti2 = async (data: any) => {
         code = code.toUpperCase();
         let search = code.substring(0, 7).toUpperCase();
         let cmp = code.substring(7);
-        if (code.toUpperCase().substring(0, 2) === 'CK' && code[2]==="0" && isSize(code.substring(6))) {
-            search = code.substring(0, 6).toUpperCase();
-            cmp = code.substring(6);
-        }
+        // if (code.toUpperCase().substring(0, 2) === 'CK' && code[2]==="0" && isSize(code.substring(6))) {
+        //     search = code.substring(0, 6).toUpperCase();
+        //     cmp = code.substring(6);
+        // }
         console.log('search: ', search);
         const kurti = await db.kurti.findUnique({
             where: { code: search.toUpperCase(), isDeleted: false }
