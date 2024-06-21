@@ -450,10 +450,10 @@ export const addStock = async (code: string) => {
         console.log(code);
         let search = code.substring(0, 7).toUpperCase();
         let cmp = code.substring(7);
-        if (code.toUpperCase().substring(0, 2) === 'CK' && isDigit(code[2]) && isSize(code.substring(6))) {
-            search = code.substring(0, 6).toUpperCase();
-            cmp = code.substring(6);
-        }
+        // if (code.toUpperCase().substring(0, 2) === 'CK' && isDigit(code[2]) && isSize(code.substring(6))) {
+        //     search = code.substring(0, 6).toUpperCase();
+        //     cmp = code.substring(6);
+        // }
         if (cmp.length === 0) {
             return { error: 'Enter valid code' };
         }
