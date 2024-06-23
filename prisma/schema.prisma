@@ -133,6 +133,7 @@ model Kurti {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   pricesId        String?  @db.ObjectId
   sizes           Json[]
+  reservedSizes   Json[]   @default([])
   party           String
   sellingPrice    String
   actualPrice     String
@@ -162,33 +163,22 @@ model Deletetime {
   time  DateTime?
 }
 
-model CartProductLink {
-  id            String      @id @default(auto()) @map("_id") @db.ObjectId
-  cartProductId String      @db.ObjectId
-  cartProduct   CartProduct @relation(fields: [cartProductId], references: [id], onDelete: Cascade)
-  cart          Cart?       @relation(fields: [cartId], references: [id])
-  cartId        String?     @db.ObjectId
-
-  @@unique([cartProductId])
-}
-
 model Cart {
-  id           String            @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String            @db.ObjectId
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cartProducts CartProductLink[]
-  CartProduct  CartProduct[]
-  orders       Orders[]
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String        @unique @db.ObjectId
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  CartProduct CartProduct[]
+  orders      Orders[]
 }
 
 model CartProduct {
-  id              String           @id @default(auto()) @map("_id") @db.ObjectId
-  kurtiId         String           @db.ObjectId
-  kurti           Kurti            @relation(fields: [kurtiId], references: [id], onDelete: Cascade)
-  cart            Cart?            @relation(fields: [cartId], references: [id])
-  cartId          String?          @db.ObjectId
-  sizes           Json[]
-  CartProductLink CartProductLink?
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  kurtiId String  @db.ObjectId
+  kurti   Kurti   @relation(fields: [kurtiId], references: [id], onDelete: Cascade)
+  sizes   Json[]
+  adminSideSizes Json[]
+  Cart    Cart?   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId  String? @db.ObjectId
 }
 
 model Orders {
