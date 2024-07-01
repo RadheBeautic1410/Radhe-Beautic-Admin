@@ -7,6 +7,7 @@ import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
 import { size } from "pdfkit/js/page";
 import { v4 as uuidv4 } from 'uuid';
+import { error } from "console";
 
 export const getCurrTime = () => {
     const currentTime = new Date();
@@ -177,10 +178,29 @@ export const categoryChange = async (data: any) => {
     let old: any = oldKurti;
     delete old.id;
     old['lastUpdatedTime'] = currTime
-    kurti = await db.kurti.create({
-        data: old
+    
+    const newKurti = await db.$transaction(async ()=>{
+        try {
+            kurti = await db.kurti.create({
+                data: old
+            })
+            await db.category.update({
+                where: {
+                    normalizedLowerCase: kurti.category.toLowerCase(),
+                },
+                data: {
+                    countTotal: {
+                        increment: 1,
+                    }
+                }
+            });
+            return kurti;
+        }catch (e) {
+            return null;
+        }
+        
     })
-    console.log('count:', kurti.countOfPiece);
+    // console.log('count:', kurti.countOfPiece);
     // await db.category.update({
     //     where: {
     //         normalizedLowerCase: old?.category.toLowerCase(),
@@ -194,17 +214,10 @@ export const categoryChange = async (data: any) => {
     //         }
     //     }
     // });
-
-    await db.category.update({
-        where: {
-            normalizedLowerCase: kurti.category.toLowerCase(),
-        },
-        data: {
-            countTotal: {
-                increment: 1,
-            }
-        }
-    });
+    if (!newKurti) {
+        return {error: 'Try again later'};
+    }
+    
 
     const dbpartyFetch = await getKurtiByCode(newCode);
     return { success: "Category Changed!", code: dbpartyFetch?.code, category: dbpartyFetch?.category }

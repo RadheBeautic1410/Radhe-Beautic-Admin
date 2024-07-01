@@ -41,6 +41,7 @@ interface kurti {
     party: string,
     sellingPrice: string,
     actualPrice: string,
+    reservedSizes: [],
 }
 
 function KurtiListPage() {
@@ -112,9 +113,9 @@ function KurtiListPage() {
                         for (let j = 0; j < result2.data[i].sizes.length || 0; j++) {
                             cnt += result2.data[i].sizes[j].quantity;
                         }
-                        for (let j = 0; j < result2.data[i].reservedSizes.length || 0; j++) {
-                            cnt -= result2.data[i].reservedSizes[j].quantity;
-                        }
+                        // for (let j = 0; j < result2.data[i].reservedSizes.length || 0; j++) {
+                        //     cnt -= result2.data[i].reservedSizes[j].quantity;
+                        // }
                         result2.data[i].countOfPiece = cnt;
                     }
                     const sortedByStock = await ((result2.data || []).sort((a: any, b: any) => b.countOfPiece - a.countOfPiece));
