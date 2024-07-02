@@ -386,6 +386,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                             <Button
                                 type="button"
                                 onClick={handleCategoryChange}
+                                disabled={isPending}
                             // onClick={formCategory.handleSubmit(handleSubmitCategory)}
                             >
                                 Save
