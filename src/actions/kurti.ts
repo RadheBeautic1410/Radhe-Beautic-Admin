@@ -153,79 +153,63 @@ export const priceChange = async (data: any) => {
 
 export const categoryChange = async (data: any) => {
 
-    const { code, newCode } = data;
+    const { code, newCode, category } = data;
     const currTime = getCurrTime();
     console.log(code, newCode);
-    let oldKurti = await db.kurti.findUnique({
-        where: {
-            code: code,
+    const ret = await db.$transaction(async (transaction) => {
+        const oldKurti = await transaction.kurti.findUnique({
+            where: { code, isDeleted: false }
+        });
+        if (!oldKurti) {
+            return { error: "Kurti Not found" };
         }
-    });
-    if(oldKurti === null) {
-        return {error: "Kurti Not found"};
-    }
-    let kurti = await db.kurti.update({
-        where: { code },
-        data: {
-            // category: data.category,
-            // code: newCode
-            isDeleted: true,
-            lastUpdatedTime: currTime,
-        }
-    });
-    oldKurti.category = data.category;
-    oldKurti.code = newCode;
-    let old: any = oldKurti;
-    delete old.id;
-    old['lastUpdatedTime'] = currTime
-    
-    const newKurti = await db.$transaction(async ()=>{
-        try {
-            kurti = await db.kurti.create({
-                data: old
-            })
-            await db.category.update({
-                where: {
-                    normalizedLowerCase: kurti.category.toLowerCase(),
-                },
-                data: {
-                    countTotal: {
-                        increment: 1,
-                    }
-                }
-            });
-            return kurti;
-        }catch (e) {
-            return null;
-        }
-        
-    })
-    // console.log('count:', kurti.countOfPiece);
-    // await db.category.update({
-    //     where: {
-    //         normalizedLowerCase: old?.category.toLowerCase(),
-    //     },
-    //     data: {
-    //         countOfPiece: {
-    //             decrement: kurti.countOfPiece,
-    //         },
-    //         countOfDesign: {
-    //             decrement: 1,
-    //         }
-    //     }
-    // });
-    if (!newKurti) {
-        return {error: 'Try again later'};
-    }
-    
 
-    const dbpartyFetch = await getKurtiByCode(newCode);
-    return { success: "Category Changed!", code: dbpartyFetch?.code, category: dbpartyFetch?.category }
+        const updatedKurti = await transaction.kurti.update({
+            where: { code },
+            data: {
+                isDeleted: true,
+                lastUpdatedTime: currTime,
+            }
+        });
+
+        const newKurtiData = oldKurti;
+        oldKurti.category = data.category;
+        oldKurti.code = newCode;
+        let old: any = oldKurti;
+        delete old.id;
+        old['lastUpdatedTime'] = currTime
+        const newKurti = await transaction.kurti.create({
+            data: old,
+        });
+        await transaction.category.update({
+            where: {
+                normalizedLowerCase: category.toLowerCase(),
+            },
+            data: {
+                countTotal: {
+                    increment: 1,
+                }
+            }
+        });
+
+        const dbpartyFetch = await transaction.kurti.findUnique({
+            where: { code: newCode },
+        });
+
+        return {
+            success: "Category Changed!",
+            code: dbpartyFetch?.code,
+            category: dbpartyFetch?.category,
+        };
+    })
+
+    return ret;
+    
 }
 
 export const deleteCategory = async (data: any) => {
     const { category } = data;
-    
+
     // const categories = await db.category.findMany({});
     await db.category.delete({
         where: {
@@ -246,7 +230,7 @@ export const deleteCategory = async (data: any) => {
         where: {
             owner: 'DK@123'
         },
-        data:{
+        data: {
             time: currTime,
         }
     })
