@@ -31,6 +31,7 @@ export const kurtiAddition = async (
     let dataWithTime = data;
     dataWithTime['countOfPiece'] = cnt;
     dataWithTime['lastUpdatedTime'] = currTime;
+    dataWithTime['reservedSizes'] = []
     let obj = {
         sellingPrice1: parseInt(data.sellingPrice || "0"),
         sellingPrice2: parseInt(data.sellingPrice || "0"),
