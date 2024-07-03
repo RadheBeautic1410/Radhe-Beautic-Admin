@@ -20,13 +20,20 @@ enum UserRole {
 enum OrderStatus {
   PENDING
   PROCESSING
-  TRACKINGDONE
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }
 
 enum Status {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+enum CartStatus {
+  PENDING
+  ORDERED
 }
 
 model User {
@@ -50,9 +57,10 @@ model User {
 
   verifiedByUser User? @relation("VerifiedBy", fields: [verifiedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  verifiedUsers User[]   @relation("VerifiedBy")
+  verifiedUsers User[]    @relation("VerifiedBy")
   cart          Cart[]
   orders        Orders[]
+  Address       Address[]
 }
 
 model VerificationToken {
@@ -169,25 +177,50 @@ model Cart {
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   CartProduct CartProduct[]
   orders      Orders[]
+  isOrdered   CartStatus    @default(PENDING)
 }
 
 model CartProduct {
-  id      String  @id @default(auto()) @map("_id") @db.ObjectId
-  kurtiId String  @db.ObjectId
-  kurti   Kurti   @relation(fields: [kurtiId], references: [id], onDelete: Cascade)
-  sizes   Json[]
+  id             String  @id @default(auto()) @map("_id") @db.ObjectId
+  kurtiId        String  @db.ObjectId
+  kurti          Kurti   @relation(fields: [kurtiId], references: [id], onDelete: Cascade)
+  sizes          Json[]
+  isRejected     Boolean  @default(false)
   adminSideSizes Json[]
-  Cart    Cart?   @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  cartId  String? @db.ObjectId
+  scannedSizes   Json[]   
+  Cart           Cart?   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId         String? @db.ObjectId
 }
 
 model Orders {
-  id     String      @id @default(auto()) @map("_id") @db.ObjectId
-  cart   Cart?       @relation(fields: [cartId], references: [id])
-  cartId String?     @db.ObjectId
-  userId String      @db.ObjectId
-  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date   DateTime
-  images Json[]
-  status OrderStatus @default(PENDING)
+  id               String      @id @default(auto()) @map("_id") @db.ObjectId
+  orderId          String      @unique
+  cart             Cart        @relation(fields: [cartId], references: [id])
+  cartId           String      @db.ObjectId
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String      @db.ObjectId
+  date             DateTime    @default(now())
+  trackingIdImages Json[]
+  status           OrderStatus @default(PENDING)
+  total            Int
+  shippingAddress  Address     @relation(fields: [addressId], references: [id])
+  addressId        String      @db.ObjectId
+  trackingId       String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+model Address {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String   @db.ObjectId
+  address String
+  zipCode String
+  orders  Orders[]
+}
+
+model OrderCounter {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  date     String @unique
+  sequence Int
 }

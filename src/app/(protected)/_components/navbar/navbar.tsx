@@ -42,6 +42,11 @@ const routes = [
         role: [UserRole.ADMIN],
     },
     {
+        name: 'Orders',
+        href: '/orders',
+        role: [UserRole.ADMIN],
+    },
+    {
         name: 'Settings',
         href: '/settings',
         role: [UserRole.ADMIN, UserRole.RESELLER, UserRole.SELLER, UserRole.UPLOADER]
