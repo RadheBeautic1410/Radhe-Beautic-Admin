@@ -1,3 +1,5 @@
+'use client';
+
 import { Button } from '@/src/components/ui/button'
 import { Card, CardContent } from '@/src/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/src/components/ui/carousel';
@@ -43,7 +45,7 @@ export function ViewOrderDialog({ data }: ViewOrderDialogProps) {
                         </Carousel>
                         <div className="flex justify-between items-center bg-slate-200 p-2 mt-2">
                             <span className="font-medium mr-2">Address:</span>
-                            <span className="font-bold text-sm">{data.shippingAddress?.address || ""}</span>
+                            <span className="font-bold text-sm break-all overflow-wrap-anywhere max-w-full" >{data.shippingAddress?.address || ""}</span>
                         </div>
                     </DialogContent>
                 </Dialog>

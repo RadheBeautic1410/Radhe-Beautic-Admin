@@ -12,7 +12,7 @@ import { Button } from '@/src/components/ui/button';
 import { ArrowUpDown, CheckCheck, MoreHorizontal, Trash2 } from "lucide-react"
 import OrderTable from './OrderTable';
 import ViewOrderDialog from './ViewOrderDialog';
-import { deleteOrder } from '@/src/actions/order';
+import { deleteOrder, shippedOrder } from '@/src/actions/order';
 import { toast } from 'sonner';
 import {
 	useQuery,
@@ -34,10 +34,11 @@ import {
 } from '@/src/components/ui/popover';
 import { cn } from '@/src/lib/utils';
 import { Calendar } from '@/src/components/ui/calendar';
-import { Dialog, DialogContent, DialogTitle } from '@/src/components/ui/dialog';
-import { DialogTrigger } from '@radix-ui/react-dialog';
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/src/components/ui/dialog';
 import PackingPending from './PackingPendingDialog';
 import { Input } from '@/src/components/ui/input';
+import { useInvalidateQueries } from '../../orders/layout';
+import TrackingDialog from './TrackingDialog';
 
 interface Order {
 	id: string;
@@ -59,24 +60,27 @@ const getCurrTime = () => {
 }
 
 
-const ReadyOrders = () => {
+const PackedOrders = () => {
 	// const [isError, setIsError] = useState(false);
 	const queryClient = useQueryClient();
 	const [search, setSearch] = useState('');
-
 	const [dateRange, setDateRange] = useState<DateRange | undefined>({
 		from: addDays(new Date(), -20),
 		to: new Date(),
 	});
+	const invalidateQueries = useInvalidateQueries();
+
+	const [isOpen, setIsOpen] = useState(false);
 	const [page, setPage] = React.useState(0)
 	const [pageSize, setPageSize] = useState(10);
-	const fetchReadyOrders = async (pageParam: number, pageSizeParam: number, dateRange: DateRange | undefined) => {
+	const [trackingId, setTrackingId] = useState('');
+	const fetchPackedOrders = async (pageParam: number, pageSizeParam: number, dateRange: DateRange | undefined) => {
 		console.log(pageParam);
 		const res = await fetch(
 			"/api/orders/getOrderslist", {
 			method: "POST",
 			body: JSON.stringify({
-				status: "PROCESSING",
+				status: "TRACKINGPENDING",
 				pageNum: pageParam,
 				pageSize: pageSizeParam,
 				dateRange: dateRange
@@ -91,8 +95,8 @@ const ReadyOrders = () => {
 
 	const { isPending, isError, error, data, isFetching, isPlaceholderData } =
 		useQuery({
-			queryKey: ['readyOrders', page, pageSize, dateRange],
-			queryFn: () => fetchReadyOrders(page, pageSize, dateRange),
+			queryKey: ['packedOrder', page, pageSize, dateRange],
+			queryFn: () => fetchPackedOrders(page, pageSize, dateRange),
 			placeholderData: keepPreviousData,
 			staleTime: 5 * 60 * 1000,
 		})
@@ -108,7 +112,7 @@ const ReadyOrders = () => {
 	const fetchOrderById = async (orderId: string) => {
 		const res = await fetch("/api/orders/getOrderById", {
 			method: "POST",
-			body: JSON.stringify({ orderId, status: 'PROCESSING' }),
+			body: JSON.stringify({ orderId, status: 'TRACKINGPENDING' }),
 			headers: {
 				"Content-type": "application/json; charset=UTF-8"
 			}
@@ -120,11 +124,10 @@ const ReadyOrders = () => {
 	const handleSearch = async (searchId: string) => {
 		searchId = searchId.trim();
 		if (searchId.length !== 13) {
-
 			toast.error('Enter valid orderId');
 			queryClient.invalidateQueries({
                 predicate: (query) =>
-                    query.queryKey[0] === 'readyOrders' 
+                    query.queryKey[0] === 'packedOrder' 
             });
 		}
 		else {
@@ -151,8 +154,7 @@ const ReadyOrders = () => {
 	const ordersToDisplay = searchOrderQuery.isSuccess && searchOrderQuery.data && searchOrderQuery.data.success
 		? [searchOrderQuery.data.data]
 		: data?.data?.pendingOrders || [];
-
-
+	
 	const columns: ColumnDef<Order>[] = [
 		{
 			header: 'OrderId',
@@ -236,7 +238,8 @@ const ReadyOrders = () => {
 			cell: ({ row }) => {
 				return (
 					<>
-						<PackingPending data={row.original.orderId} />
+						<TrackingDialog data={row.original.orderId}/>
+						{/* <PackingPending data={row.original.orderId}/> */}
 					</>
 				)
 			},
@@ -303,7 +306,6 @@ const ReadyOrders = () => {
 						}
 						onChange={(e) => { setSearch(e.target.value); }}
 					></Input>
-
 				</div>
 				<Card className="w-full max-w-md mx-auto mt-8 mb-2">
 					<CardContent className="flex flex-col items-center justify-center p-6">
@@ -358,21 +360,21 @@ const ReadyOrders = () => {
 							numberOfMonths={2}
 						/>
 					</PopoverContent>
-				</Popover>
-				<Input
-					className='w-48'
-					placeholder='Search Order'
-					value={search}
-					onKeyUp={
-						(e) => {
-							e.preventDefault();
-							if (e.key === 'Enter') {
-								handleSearch(search);
+					<Input
+						className='w-48'
+						placeholder='Search Order'
+						value={search}
+						onKeyUp={
+							(e) => {
+								e.preventDefault();
+								if (e.key === 'Enter') {
+									handleSearch(search);
+								}
 							}
 						}
-					}
-					onChange={(e) => { setSearch(e.target.value); }}
-				></Input>
+						onChange={(e) => { setSearch(e.target.value); }}
+					></Input>
+				</Popover>
 			</div>
 			<OrderTable data={ordersToDisplay} columns={columns} />
 			<div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
@@ -440,4 +442,4 @@ const ReadyOrders = () => {
 	)
 }
 
-export default ReadyOrders;
+export default PackedOrders;

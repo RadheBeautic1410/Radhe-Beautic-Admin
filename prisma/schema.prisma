@@ -21,6 +21,7 @@ enum OrderStatus {
   PENDING
   PROCESSING
   SHIPPED
+  TRACKINGPENDING
   DELIVERED
   CANCELLED
 }
@@ -185,9 +186,9 @@ model CartProduct {
   kurtiId        String  @db.ObjectId
   kurti          Kurti   @relation(fields: [kurtiId], references: [id], onDelete: Cascade)
   sizes          Json[]
-  isRejected     Boolean  @default(false)
+  isRejected     Boolean @default(false)
   adminSideSizes Json[]
-  scannedSizes   Json[]   
+  scannedSizes   Json[]
   Cart           Cart?   @relation(fields: [cartId], references: [id], onDelete: Cascade)
   cartId         String? @db.ObjectId
 }

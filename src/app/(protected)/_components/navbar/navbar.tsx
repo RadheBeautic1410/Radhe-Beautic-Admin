@@ -82,12 +82,22 @@ const Navbar = () => {
                         {routes.map((route) => {
                             return (
                                 <RoleGateForComponent allowedRole={route.role} key={route.name}>
-                                    <Button
-                                        asChild
-                                        variant={pathname === route.href ? "default" : "outline"}
-                                    >
-                                        <Link href={route.href}>{route.name}</Link>
-                                    </Button>
+                                    {
+                                        route.href === '/sell' || route.href === '/sellHistory' ?
+                                            <Button
+                                                asChild
+                                                variant={pathname === route.href ? "default" : "outline"}
+                                            >
+                                                <Link href={route.href}>{route.name}</Link>
+                                            </Button>
+                                            :
+                                            <Button
+                                                asChild
+                                                variant={pathname.includes(route.href) ? "default" : "outline"}
+                                            >
+                                                <Link href={route.href}>{route.name}</Link>
+                                            </Button>
+                                    }
 
                                 </RoleGateForComponent>
                             )

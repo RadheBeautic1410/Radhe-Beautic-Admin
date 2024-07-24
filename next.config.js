@@ -17,6 +17,11 @@ const nextConfig = {
         source: '/catalogue/:code/page/:pageNum/:kurti',
         destination: '/catalogue/:code/:kurti',
         permanent: true,
+      },
+      {
+        source: '/orders',
+        destination: '/orders/pending',
+        permanent: true,
       }
     ]
   },

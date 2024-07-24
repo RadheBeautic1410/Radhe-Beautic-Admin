@@ -29,11 +29,12 @@ import { Card, CardContent } from '@/src/components/ui/card';
 import { Calendar as CalendarIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import {
-    Popover, PopoverContent,
-    PopoverTrigger,
+	Popover, PopoverContent,
+	PopoverTrigger,
 } from '@/src/components/ui/popover';
 import { cn } from '@/src/lib/utils';
 import { Calendar } from '@/src/components/ui/calendar';
+import { Input } from '@/src/components/ui/input';
 
 interface Order {
 	id: string;
@@ -45,6 +46,7 @@ interface Order {
 	total: number;
 	shippingAddress: any;
 	user: any;
+	trackingId: string;
 }
 
 const getCurrTime = () => {
@@ -58,10 +60,11 @@ const getCurrTime = () => {
 const ShippedOrders = () => {
 	// const [isError, setIsError] = useState(false);
 	const queryClient = useQueryClient();
+	const [search, setSearch] = useState('');
 	const [dateRange, setDateRange] = useState<DateRange | undefined>({
-        from: addDays(new Date(), -20),
-        to: new Date(),
-    });
+		from: addDays(new Date(), -20),
+		to: new Date(),
+	});
 	const [page, setPage] = React.useState(0)
 	const [pageSize, setPageSize] = useState(10);
 	const fetchShippedOrders = async (pageParam: number, pageSizeParam: number, dateRange: DateRange | undefined) => {
@@ -78,7 +81,7 @@ const ShippedOrders = () => {
 			headers: {
 				"Content-type": "application/json; charset=UTF-8"
 			},
-			next: {revalidate: 300}
+			next: { revalidate: 300 }
 		})
 		return res.json()
 	}
@@ -93,6 +96,57 @@ const ShippedOrders = () => {
 
 	console.log('query-data', data);
 
+	const searchOrderQuery = useQuery({
+		queryKey: ['searchOrder', search],
+		queryFn: () => fetchOrderById(search),
+		enabled: false, // This query won't run automatically
+	});
+
+	const fetchOrderById = async (orderId: string) => {
+		const res = await fetch("/api/orders/getOrderById", {
+			method: "POST",
+			body: JSON.stringify({ orderId, status: 'SHIPPED' }),
+			headers: {
+				"Content-type": "application/json; charset=UTF-8"
+			}
+		});
+		let ret = await res.json();
+		console.log('search:', ret);
+		return ret;
+	};
+	const handleSearch = async (searchId: string) => {
+		searchId = searchId.trim();
+		if (searchId.length !== 13) {
+			toast.error('Enter valid orderId');
+			queryClient.invalidateQueries({
+                predicate: (query) =>
+                    query.queryKey[0] === 'shippedOrders' 
+            });
+		}
+		else {
+			await searchOrderQuery.refetch();
+			if (searchOrderQuery.isSuccess && searchOrderQuery.data && searchOrderQuery.data.success) {
+				// If the order is found, update the local state to show this order
+				queryClient.setQueryData(['pendingOrders', page, pageSize, dateRange], (old: any) => ({
+					...old,
+					data: {
+						...old.data,
+						pendingOrders: [searchOrderQuery.data]
+					}
+				}));
+			} else if (searchOrderQuery.isError || (searchOrderQuery.data && !searchOrderQuery.data.success)) {
+				if ((searchOrderQuery.data && !searchOrderQuery.data.success)) {
+					toast.error(searchOrderQuery.data.message);
+				}
+				else {
+					toast.error('Order not found or an error occurred');
+				}
+			}
+		}
+	}
+	const ordersToDisplay = searchOrderQuery.isSuccess && searchOrderQuery.data && searchOrderQuery.data.success
+		? [searchOrderQuery.data.data]
+		: data?.data?.pendingOrders || [];
 
 	const columns: ColumnDef<Order>[] = [
 		{
@@ -129,7 +183,7 @@ const ShippedOrders = () => {
 					<>
 						<div className="text-gray-600">Customer:</div>
 						<div className="font-semibold text-gray-800">
-						{row.original.user.name}
+							{row.original.user.name}
 						</div>
 					</>
 				)
@@ -172,11 +226,27 @@ const ShippedOrders = () => {
 				)
 			},
 		},
+		{
+			header: 'TrackingId',
+			accessorKey: 'TrackingId',
+			cell: ({ row }) => {
+				return (
+					<>
+						<>
+							<div className="text-gray-600">TrackingId:</div>
+							<div className="font-semibold text-gray-800">
+								{`${row.original.trackingId}`}
+							</div>
+						</>
+					</>
+				)
+			},
+		},
 	];
 
-	if (isFetching) {
+	if (isFetching || searchOrderQuery.isFetching) {
 		return (
-			<DataLoader loading={isFetching} />
+			<DataLoader loading={isFetching || searchOrderQuery.isFetching} />
 		)
 	}
 
@@ -220,15 +290,29 @@ const ShippedOrders = () => {
 							/>
 						</PopoverContent>
 					</Popover>
+					<Input
+						className='w-48'
+						placeholder='Search Order'
+						value={search}
+						onKeyUp={
+							(e) => {
+								e.preventDefault();
+								if (e.key === 'Enter') {
+									handleSearch(search);
+								}
+							}
+						}
+						onChange={(e) => { setSearch(e.target.value); }}
+					></Input>
 				</div>
 				<Card className="w-full max-w-md mx-auto mt-8 mb-2">
 					<CardContent className="flex flex-col items-center justify-center p-6">
 						<AlertCircle className="w-12 h-12 text-yellow-500 mb-4" />
 						<h3 className="text-lg font-semibold text-gray-700 mb-2">
-							No shipped Orders
+							No pending Orders
 						</h3>
 						<p className="text-sm text-gray-500 text-center">
-							There are currently no orders in the shipped state.
+							There are currently no orders in the pending state.
 						</p>
 					</CardContent>
 				</Card>
@@ -275,8 +359,22 @@ const ShippedOrders = () => {
 						/>
 					</PopoverContent>
 				</Popover>
+				<Input
+					className='w-48'
+					placeholder='Search Order'
+					value={search}
+					onKeyUp={
+						(e) => {
+							e.preventDefault();
+							if (e.key === 'Enter') {
+								handleSearch(search);
+							}
+						}
+					}
+					onChange={(e) => { setSearch(e.target.value); }}
+				></Input>
 			</div>
-			<OrderTable data={data.data.pendingOrders} columns={columns} />
+			<OrderTable data={ordersToDisplay} columns={columns} />
 			<div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
 				<div className="flex flex-col sm:flex-row items-center gap-4">
 					<span>Rows per page</span>

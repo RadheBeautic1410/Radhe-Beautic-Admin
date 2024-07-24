@@ -368,3 +368,39 @@ export const readyOrder = async (orderId: any) => {
 
     return {success: `Order ${newOrder.orderId} marked ready.`}
 }
+
+export const packedOrder = async (orderId: any) => {
+    const newOrder = await db.orders.update({
+        where: {
+            id: orderId,
+            status: 'PROCESSING'
+        },
+        data: {
+            status: 'TRACKINGPENDING'
+        }
+    })
+    if(!newOrder || newOrder.status !== 'TRACKINGPENDING') {
+        return {error: 'Something went wrong, refersh the page.'};
+    }
+
+    return {success: `Order ${newOrder.orderId} marked ready.`}
+}
+
+export const shippedOrder = async (orderId: any, trackingId: any) => {
+    console.log('orderId:', orderId);
+    const newOrder = await db.orders.update({
+        where: {
+            orderId: orderId,
+            status: 'TRACKINGPENDING'
+        },
+        data: {
+            status: 'SHIPPED',
+            trackingId: trackingId,
+        }
+    })
+    if(!newOrder || newOrder.status !== 'SHIPPED') {
+        return {error: 'Something went wrong, refersh the page.'};
+    }
+
+    return {success: `Order ${newOrder.orderId} marked shipped.`}
+}

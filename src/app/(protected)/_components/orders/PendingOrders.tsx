@@ -34,6 +34,10 @@ import {
 } from '@/src/components/ui/popover';
 import { cn } from '@/src/lib/utils';
 import { Calendar } from '@/src/components/ui/calendar';
+import { useInvalidateQueries } from '../../orders/layout';
+import { Input } from '@/src/components/ui/input';
+import axios from 'axios';
+import { Dialog, DialogTitle, DialogTrigger, DialogContent } from '@/src/components/ui/dialog';
 
 interface Order {
 	id: string;
@@ -58,6 +62,9 @@ const getCurrTime = () => {
 const PendingOrders = () => {
 	// const [isError, setIsError] = useState(false);
 	const queryClient = useQueryClient();
+	const invalidateQueries = useInvalidateQueries();
+	const [search, setSearch] = useState('');
+	const [downloading, setDownloading] = useState(false);
 	const [dateRange, setDateRange] = useState<DateRange | undefined>({
 		from: addDays(new Date(), -20),
 		to: new Date(),
@@ -91,6 +98,19 @@ const PendingOrders = () => {
 			staleTime: 5 * 60 * 1000,
 		})
 
+	const fetchAdresses = async () => {
+		const res = await fetch("/api/orders/getAddress");
+		const ret = await res.json();
+		return ret;
+	}
+
+	const addressQuery = useQuery({
+		queryKey: ['fetchAdress'],
+		queryFn: () => fetchAdresses(),
+		staleTime: 5 * 60 * 1000,
+	})
+
+
 	console.log('query-data', data);
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deleteOrder(id),
@@ -113,28 +133,72 @@ const PendingOrders = () => {
 		},
 		onSuccess: () => {
 			// Invalidate the queries you want to refetch
-			queryClient.invalidateQueries({ queryKey: ['pendingOrdersCount'] });
-			queryClient.invalidateQueries({ queryKey: ['readyOrdersCount'] });
-			queryClient.invalidateQueries({ queryKey: ['shippedOrdersCount'] });
-			queryClient.invalidateQueries({ queryKey: ['rejectedOrdersCount'] });
-			queryClient.invalidateQueries({ queryKey: ['pendingOrders', page, pageSize, dateRange]});
+			invalidateQueries();
+			queryClient.invalidateQueries({ queryKey: ['pendingOrders', page, pageSize, dateRange] });
 		},
 	})
+
 	const moveMutation = useMutation({
 		mutationFn: (id: string) => readyOrder(id),
 		onError: (err, newTodo, context: any) => {
 			console.log(err);
-			queryClient.invalidateQueries({ queryKey: ['pendingOrders', page, pageSize, dateRange]});
+			queryClient.invalidateQueries({ queryKey: ['pendingOrders', page, pageSize, dateRange] });
 		},
 		onSuccess: () => {
 			// Invalidate the queries you want to refetch
-			queryClient.invalidateQueries({ queryKey: ['pendingOrdersCount'] });
-			queryClient.invalidateQueries({ queryKey: ['readyOrdersCount'] });
-			queryClient.invalidateQueries({ queryKey: ['shippedOrdersCount'] });
-			queryClient.invalidateQueries({ queryKey: ['rejectedOrdersCount'] });
-			queryClient.invalidateQueries({ queryKey: ['pendingOrders', page, pageSize, dateRange]});
+			invalidateQueries();
+			queryClient.invalidateQueries({ queryKey: ['pendingOrders', page, pageSize, dateRange] });
 		},
-	})
+	});
+
+	const searchOrderQuery = useQuery({
+		queryKey: ['searchOrder', search],
+		queryFn: () => fetchOrderById(search),
+		enabled: false, // This query won't run automatically
+	});
+
+	const fetchOrderById = async (orderId: string) => {
+		const res = await fetch("/api/orders/getOrderById", {
+			method: "POST",
+			body: JSON.stringify({ orderId, status: 'PENDING' }),
+			headers: {
+				"Content-type": "application/json; charset=UTF-8"
+			}
+		});
+		let ret = await res.json();
+		console.log('search:', ret);
+		return ret;
+	};
+	const handleSearch = async (searchId: string) => {
+		searchId = searchId.trim();
+		if (searchId.length !== 13) {
+			toast.error('Enter valid orderId');
+		}
+		else {
+			await searchOrderQuery.refetch();
+			if (searchOrderQuery.isSuccess && searchOrderQuery.data && searchOrderQuery.data.success) {
+				// If the order is found, update the local state to show this order
+				queryClient.setQueryData(['pendingOrders', page, pageSize, dateRange], (old: any) => ({
+					...old,
+					data: {
+						...old.data,
+						pendingOrders: [searchOrderQuery.data]
+					}
+				}));
+			} else if (searchOrderQuery.isError || (searchOrderQuery.data && !searchOrderQuery.data.success)) {
+				if ((searchOrderQuery.data && !searchOrderQuery.data.success)) {
+					toast.error(searchOrderQuery.data.message);
+				}
+				else {
+					toast.error('Order not found or an error occurred');
+				}
+			}
+		}
+	}
+	const ordersToDisplay = searchOrderQuery.isSuccess && searchOrderQuery.data && searchOrderQuery.data.success
+		? [searchOrderQuery.data.data]
+		: data?.data?.pendingOrders || [];
+	console.log('ordersToDisplay:', ordersToDisplay);
 	const columns: ColumnDef<Order>[] = [
 		{
 			header: 'OrderId',
@@ -217,19 +281,49 @@ const PendingOrders = () => {
 			header: 'Ready Order',
 			cell: ({ row }) => {
 				return (
-					<Button
-						// variant={'destructive'}
-						className='bg-green-500 hover:bg-green-700'
-						aria-label='delete order'
-						onClick={async (e: any) => {
-							e.preventDefault();
-							await moveMutation.mutate(row.original.id)
-						}}
-						disabled={moveMutation.isPending || deleteMutation.isPending}
-					>
-						<CheckCheck  className="h-5 w-5 mr-2" />
-						Order Ready
-					</Button>
+					<Dialog>
+						<DialogTrigger asChild>
+							<Button
+								// variant={'destructive'}
+								className='bg-green-500 hover:bg-green-700'
+								aria-label='delete order'
+								disabled={moveMutation.isPending || deleteMutation.isPending}
+							>
+								<CheckCheck className="h-5 w-5 mr-2" />
+								Order Ready
+							</Button>
+						</DialogTrigger>
+						<DialogContent>
+							<DialogTitle>
+								{`Is order ${row.original.orderId} ready?`}
+							</DialogTitle>
+							<div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
+								<div className="flex items-center">
+									<svg className="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+										<path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+									</svg>
+									<p className="font-bold text-lg">Warning!</p>
+								</div>
+								<p className="mt-2 font-semibold">
+									⚠️ This process is irreversible! ⚠️
+								</p>
+							</div>
+							<Button
+								// variant={'destructive'}
+								className='bg-green-500 hover:bg-green-700'
+								aria-label='delete order'
+								onClick={async (e: any) => {
+									e.preventDefault();
+									await moveMutation.mutate(row.original.id)
+								}}
+								disabled={moveMutation.isPending || deleteMutation.isPending}
+							>
+								<CheckCheck className="h-5 w-5 mr-2" />
+								Order Ready
+							</Button>
+						</DialogContent>
+					</Dialog>
+
 				)
 			},
 		},
@@ -237,26 +331,55 @@ const PendingOrders = () => {
 			header: 'Delete Order',
 			cell: ({ row }) => {
 				return (
-					<Button
-						variant={'destructive'}
-						aria-label='delete order'
-						onClick={async (e: any) => {
-							e.preventDefault();
-							await deleteMutation.mutate(row.original.id)
-						}}
-						disabled={moveMutation.isPending || deleteMutation.isPending}
-					>
-						<Trash2 className="h-5 w-5 mr-2" />
-						Reject Order
-					</Button>
+					<Dialog>
+						<DialogTrigger asChild>
+							<Button
+								variant={'destructive'}
+								aria-label='delete order'
+								type='button'
+								disabled={moveMutation.isPending || deleteMutation.isPending}
+							>
+								<Trash2 className="h-5 w-5 mr-2" />
+								Reject Order
+							</Button>
+						</DialogTrigger>
+						<DialogContent>
+							<DialogTitle>
+								{`Delete the order ${row.original.orderId}`}
+							</DialogTitle>
+							<div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
+								<div className="flex items-center">
+									<svg className="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+										<path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+									</svg>
+									<p className="font-bold text-lg">Warning!</p>
+								</div>
+								<p className="mt-2 font-semibold">
+									⚠️ This process is irreversible! ⚠️
+								</p>
+							</div>
+							<Button
+								variant={'destructive'}
+								aria-label='delete order'
+								onClick={async (e: any) => {
+									e.preventDefault();
+									await deleteMutation.mutate(row.original.id)
+								}}
+								disabled={moveMutation.isPending || deleteMutation.isPending}
+							>
+								<Trash2 className="h-5 w-5 mr-2" />
+								Reject Order
+							</Button>
+						</DialogContent>
+					</Dialog>
 				)
 			},
 		},
 	];
 
-	if (isFetching) {
+	if (isFetching || searchOrderQuery.isFetching) {
 		return (
-			<DataLoader loading={isFetching} />
+			<DataLoader loading={isFetching || searchOrderQuery.isFetching} />
 		)
 	}
 
@@ -300,6 +423,20 @@ const PendingOrders = () => {
 							/>
 						</PopoverContent>
 					</Popover>
+					<Input
+						className='w-48'
+						placeholder='Search Order'
+						value={search}
+						onKeyUp={
+							(e) => {
+								e.preventDefault();
+								if (e.key === 'Enter') {
+									handleSearch(search);
+								}
+							}
+						}
+						onChange={(e) => { setSearch(e.target.value); }}
+					></Input>
 				</div>
 				<Card className="w-full max-w-md mx-auto mt-8 mb-2">
 					<CardContent className="flex flex-col items-center justify-center p-6">
@@ -314,6 +451,37 @@ const PendingOrders = () => {
 				</Card>
 			</>
 		)
+	}
+
+	const downlodLabels = async (labelsData: any) => {
+		try {
+			if (!labelsData || labelsData.length === 0) {
+				toast.error('Labels no available');
+				return;
+			}
+			setDownloading(true);
+			let obj = JSON.stringify(labelsData);
+			const res = await axios.get(`${process.env.NEXT_PUBLIC_SERVER_URL}/generate-label?data=${obj}`, {
+				responseType: 'blob'
+			});
+			console.log(res);
+			let blob = res.data;
+			console.log(blob);
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = 'labels.pdf';
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			window.URL.revokeObjectURL(url);
+		}
+		catch (e) {
+			console.log(e);
+		}
+		finally {
+			setDownloading(false);
+		}
 	}
 
 	return (
@@ -355,8 +523,29 @@ const PendingOrders = () => {
 						/>
 					</PopoverContent>
 				</Popover>
+				<Input
+					className='w-48'
+					placeholder='Search Order'
+					value={search}
+					onKeyUp={
+						(e) => {
+							e.preventDefault();
+							if (e.key === 'Enter') {
+								handleSearch(search);
+							}
+						}
+					}
+					onChange={(e) => { setSearch(e.target.value); }}
+				></Input>
+				<Button
+					type='button'
+					disabled={!(!addressQuery.isFetching && addressQuery.data && addressQuery.data.data) || downloading}
+					onClick={() => downlodLabels(addressQuery.data.data)}
+				>
+					Download Labels
+				</Button>
 			</div>
-			<OrderTable data={data.data.pendingOrders} columns={columns} />
+			<OrderTable data={ordersToDisplay} columns={columns} />
 			<div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
 				<div className="flex flex-col sm:flex-row items-center gap-4">
 					<span>Rows per page</span>
