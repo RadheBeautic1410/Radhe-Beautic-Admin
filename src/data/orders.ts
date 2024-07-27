@@ -53,14 +53,14 @@ export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number,
         console.log(e.message);
     }
 
-
+    const currTIme = await getCurrTime();
     const ordersOfUser = await db.orders.findMany({
         where: {
             // userId: currUser.id, 
             status: status,
             createdAt: {
                 gte: dateRange.from ? dateRange.from : addDays(new Date(), -20),
-                lte: dateRange.to ? dateRange.to : await getCurrTime(),
+                lte: dateRange.to ? dateRange.to : currTIme,
             }
         },
         include: {

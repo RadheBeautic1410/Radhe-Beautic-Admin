@@ -57,7 +57,7 @@ const getCurrTime = () => {
 	const ISTTime = new Date(currentTime.getTime() + ISTOffset);
 	return ISTTime;
 }
-
+const todatDate = new Date();
 
 const PendingOrders = () => {
 	// const [isError, setIsError] = useState(false);
@@ -66,8 +66,8 @@ const PendingOrders = () => {
 	const [search, setSearch] = useState('');
 	const [downloading, setDownloading] = useState(false);
 	const [dateRange, setDateRange] = useState<DateRange | undefined>({
-		from: addDays(new Date(), -20),
-		to: new Date(),
+		from: addDays(todatDate, -20),
+		to: todatDate,
 	});
 	const [page, setPage] = React.useState(0)
 	const [pageSize, setPageSize] = useState(10);

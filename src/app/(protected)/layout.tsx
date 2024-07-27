@@ -10,6 +10,7 @@ import {
 interface ProtectedLayoutProps {
     children: React.ReactNode
 }
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 const queryClient = new QueryClient()
 
 const ProtectedLayout = ({ children }: ProtectedLayoutProps) => {
@@ -19,7 +20,8 @@ const ProtectedLayout = ({ children }: ProtectedLayoutProps) => {
             <Navbar />
             <QueryClientProvider client={queryClient}>
 
-            {children}
+                {children}
+                <ReactQueryDevtools />
             </QueryClientProvider>
         </div>
     )

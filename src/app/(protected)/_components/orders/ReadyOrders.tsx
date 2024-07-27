@@ -58,15 +58,15 @@ const getCurrTime = () => {
 	return ISTTime;
 }
 
-
+const todayDate = new Date();
 const ReadyOrders = () => {
 	// const [isError, setIsError] = useState(false);
 	const queryClient = useQueryClient();
 	const [search, setSearch] = useState('');
 
 	const [dateRange, setDateRange] = useState<DateRange | undefined>({
-		from: addDays(new Date(), -20),
-		to: new Date(),
+		from: addDays(todayDate, -20),
+		to: todayDate,
 	});
 	const [page, setPage] = React.useState(0)
 	const [pageSize, setPageSize] = useState(10);
