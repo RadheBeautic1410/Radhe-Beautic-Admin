@@ -205,8 +205,9 @@ model Orders {
   status           OrderStatus @default(PENDING)
   total            Int
   shippingAddress  Address     @relation(fields: [addressId], references: [id])
+  shippingCharge   Int         @default(0)
   addressId        String      @db.ObjectId
-  trackingId       String?
+  trackingId       String? 
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 }

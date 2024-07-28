@@ -97,7 +97,11 @@ export function PackingPending({ data }: ViewOrderDialogProps) {
         onSuccess: () => {
             // Invalidate and refetch relevant queries
             // setRefresh(true);
-            queryClient.invalidateQueries({ queryKey: ['order', data] });
+            queryClient.invalidateQueries({
+                predicate: (query) =>
+                    query.queryKey[0] === 'order'
+            });
+            // queryClient.invalidateQueries({ queryKey: ['order', data] });
             setCode(''); // Clear the input after successful mutation
             sizesPendingQuery.refetch();
         },
@@ -112,7 +116,7 @@ export function PackingPending({ data }: ViewOrderDialogProps) {
             console.log(err);
             queryClient.invalidateQueries({
                 predicate: (query) =>
-                    query.queryKey[0] === 'readyOrders' 
+                    query.queryKey[0] === 'readyOrders'
             });
         },
         onSuccess: () => {
@@ -120,7 +124,7 @@ export function PackingPending({ data }: ViewOrderDialogProps) {
             invalidateQueries();
             queryClient.invalidateQueries({
                 predicate: (query) =>
-                    query.queryKey[0] === 'readyOrders' 
+                    query.queryKey[0] === 'readyOrders' || query.queryKey[0] === 'readyOrders'
             });
 
         },

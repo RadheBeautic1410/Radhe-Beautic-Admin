@@ -134,7 +134,10 @@ const PendingOrders = () => {
 		onSuccess: () => {
 			// Invalidate the queries you want to refetch
 			invalidateQueries();
-			queryClient.invalidateQueries({ queryKey: ['pendingOrders', page, pageSize, dateRange] });
+			queryClient.invalidateQueries({
+                predicate: (query) =>
+                    query.queryKey[0] === 'pendingOrders' || query.queryKey[0] === 'rejectedOrders'
+            });
 		},
 	})
 
@@ -142,12 +145,18 @@ const PendingOrders = () => {
 		mutationFn: (id: string) => readyOrder(id),
 		onError: (err, newTodo, context: any) => {
 			console.log(err);
-			queryClient.invalidateQueries({ queryKey: ['pendingOrders', page, pageSize, dateRange] });
+			queryClient.invalidateQueries({
+                predicate: (query) =>
+                    query.queryKey[0] === 'pendingOrders' || query.queryKey[0] === 'readyOrders'
+            });
 		},
 		onSuccess: () => {
 			// Invalidate the queries you want to refetch
 			invalidateQueries();
-			queryClient.invalidateQueries({ queryKey: ['pendingOrders', page, pageSize, dateRange] });
+			queryClient.invalidateQueries({
+                predicate: (query) =>
+                    query.queryKey[0] === 'pendingOrders' || query.queryKey[0] === 'readyOrders'
+            });
 		},
 	});
 

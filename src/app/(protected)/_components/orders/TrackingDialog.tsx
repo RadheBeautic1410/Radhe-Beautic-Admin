@@ -19,9 +19,9 @@ const TrackingDialog = ({ data }: TrackingDialogProps) => {
     const [trackingId, setTrackingId] = useState('');
     const invalidateQueries = useInvalidateQueries();
     const queryClient = useQueryClient();
-
+    const [shipChrage, setShipChrage] = useState(0);
     const moveMutation = useMutation({
-        mutationFn: (data: any) => shippedOrder(data.orderId, data.trackingId),
+        mutationFn: (data: any) => shippedOrder(data.orderId, data.trackingId, data.shippingCharge),
         onError: (err, newTodo, context: any) => {
             console.log(err);
             queryClient.invalidateQueries({
@@ -34,19 +34,19 @@ const TrackingDialog = ({ data }: TrackingDialogProps) => {
             invalidateQueries();
             queryClient.invalidateQueries({
                 predicate: (query) =>
-                    query.queryKey[0] === 'packedOrder'
+                    query.queryKey[0] === 'packedOrder' || query.queryKey[0] === 'shippedOrders'
             });
 
         },
     })
 
     const handleSell = async (orderId: any) => {
-        if (trackingId.trim().length === 0) {
-            toast.error('Enter valid tracking id');
+        if (trackingId.trim().length === 0 || shipChrage <= 0) {
+            toast.error('Enter valid tracking id or shipping charge');
         }
         else {
             console.log('orderIdMove:', orderId);
-            moveMutation.mutate({ orderId: orderId, trackingId: trackingId });
+            moveMutation.mutate({ orderId: orderId, trackingId: trackingId, shippingCharge: shipChrage });
         }
     }
     if (!data) {
@@ -75,15 +75,16 @@ const TrackingDialog = ({ data }: TrackingDialogProps) => {
                             className='w-[80%]'
                             placeholder='Enter code'
                             value={trackingId}
-                            onKeyUp={
-                                (e) => {
-                                    e.preventDefault();
-                                    if (e.key === 'Enter') {
-                                        handleSell(data);
-                                    }
-                                }
-                            }
                             onChange={(e) => { setTrackingId(e.target.value); }}
+                        // disabled
+                        ></Input>
+                        <h3>Shipping Charge</h3>
+                        <Input
+                            type="number"
+                            className='w-[80%]'
+                            placeholder='Enter shipping charge'
+                            value={shipChrage}
+                            onChange={(e) => { setShipChrage(parseInt(e.target.value || "0")); }}
                         // disabled
                         ></Input>
                         <Button type='button'

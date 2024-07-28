@@ -386,7 +386,7 @@ export const packedOrder = async (orderId: any) => {
     return {success: `Order ${newOrder.orderId} marked ready.`}
 }
 
-export const shippedOrder = async (orderId: any, trackingId: any) => {
+export const shippedOrder = async (orderId: any, trackingId: any, shipCharge: number) => {
     console.log('orderId:', orderId);
     const newOrder = await db.orders.update({
         where: {
@@ -396,6 +396,7 @@ export const shippedOrder = async (orderId: any, trackingId: any) => {
         data: {
             status: 'SHIPPED',
             trackingId: trackingId,
+            shippingCharge: shipCharge,
         }
     })
     if(!newOrder || newOrder.status !== 'SHIPPED') {
