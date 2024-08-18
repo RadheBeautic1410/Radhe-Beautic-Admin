@@ -245,7 +245,7 @@ const ListPage = () => {
                     }
                 }
                 console.log(allCategoryName);
-                const sortedCategory = allCategoryName.sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
+                const sortedCategory = allCategoryName.sort((a: category, b: category) => b.sellingPrice - a.sellingPrice);
                 setTotalItems(sum1);
                 setTotalPiece(sum2);
                 setTotalStockPrice(sum3)
@@ -316,7 +316,7 @@ const ListPage = () => {
                                 }
                             }
                             console.log(allCategoryName);
-                            const sortedCategory = allCategoryName.sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
+                            const sortedCategory = allCategoryName.sort((a: category, b: category) => b.sellingPrice - a.sellingPrice);
                             setTotalItems(sum1);
                             setTotalPiece(sum2);
                             setTotalStockPrice(sum3)
