@@ -388,7 +388,7 @@ const ListPage = () => {
                                     <Select
                                         onValueChange={(val) => {
                                             setSortId(val);
-                                            if (val === "0") {
+                                            if (val === "2") {
                                                 let data = category;
                                                 data = (data || []).sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
                                                 setCategory(data);
@@ -404,7 +404,7 @@ const ListPage = () => {
                                                 data = (data || []).sort((a: category, b: category) => a.name.localeCompare(b.name));
                                                 setDisplayCategoryData(data);
                                             }
-                                            else if (val === "2") {
+                                            else if (val === "0") {
                                                 let data = category;
                                                 data = (data || []).sort((a: category, b: category) => b.sellingPrice - a.sellingPrice);
                                                 setCategory(data);
@@ -427,17 +427,17 @@ const ListPage = () => {
                                             <SelectValue placeholder="Select Sort Type" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem key={'sort-count-select'} value="0">
-                                                {'Sort By Piece Count'}
-                                            </SelectItem>
-                                            <SelectItem key={'search-category-select'} value="1">
-                                                {'Sort By Name'}
-                                            </SelectItem>
-                                            <SelectItem key={'price-desc-category-select'} value="2">
+                                            <SelectItem key={'price-desc-category-select'} value="0">
                                                 {'Sort By Price High to Low'}
                                             </SelectItem>
                                             <SelectItem key={'price-asc-category-select'} value="3">
                                                 {'Sort By Price Low to High'}
+                                            </SelectItem>
+                                            <SelectItem key={'sort-count-select'} value="2">
+                                                {'Sort By Piece Count'}
+                                            </SelectItem>
+                                            <SelectItem key={'search-category-select'} value="1">
+                                                {'Sort By Name'}
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
