@@ -31,6 +31,7 @@ const getCurrTime = () => {
 interface category {
     name: string;
     count: number;
+    type: string;
     countOfPiece: number;
     sellingPrice: number;
     actualPrice: number;
@@ -209,7 +210,7 @@ const ListPage = () => {
             try {
                 const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
                 const result = await response.json();
-                console.log(result);
+                console.log("fetched category:",result);
                 const allKurtiData: any[] = await fetchUpdatedData();
                 const allCategoryName = result.data || []
                 console.log(allCategoryName);
@@ -598,6 +599,12 @@ const ListPage = () => {
                                             >
                                                 Category
                                             </TableHead>
+                                            <TableHead
+                                                key={'Type'}
+                                                className="text-center font-bold text-base"
+                                            >
+                                                Type
+                                            </TableHead>
                                             <RoleGateForComponent
                                                 allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
                                             >
@@ -652,6 +659,12 @@ const ListPage = () => {
                                                     <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
                                                         {cat.name}
                                                     </Link>
+                                                </TableCell>
+                                                <TableCell
+                                                    key={cat.type}
+                                                    className="text-center font-bold cursor-pointer"
+                                                >
+                                                        {cat.type}
                                                 </TableCell>
                                                 <RoleGateForComponent
                                                     allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}

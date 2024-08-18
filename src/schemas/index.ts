@@ -21,6 +21,9 @@ export const categoryAddSchema = z.object({
     name: z.string().min(1, {
         message: "Category is required"
     }),
+    type: z.string().min(1, {
+        message: "Type is required"
+    }),
 })
 
 export const stockUpdateSchema = z.object({

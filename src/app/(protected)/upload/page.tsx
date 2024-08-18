@@ -50,7 +50,8 @@ interface party {
 
 interface category {
     id: string;
-    name: string
+    name: string;
+    type: string;
     normalizedLowerCase: string;
 }
 
@@ -279,6 +280,7 @@ const UploadPage = () => {
     const formCategory = useForm({
         defaultValues: {
             name: "",
+            type: "",
         }
     });
 
@@ -338,7 +340,7 @@ const UploadPage = () => {
                                                     dialogTitle="New Category Addition"
                                                     dialogDescription="give Category name and click add Category"
                                                     bgColor="destructive"
-                                                > 
+                                                >
 
                                                     <Form {...formCategory}>
                                                         <form
@@ -363,7 +365,23 @@ const UploadPage = () => {
                                                                     </FormItem>
                                                                 )}
                                                             />
+                                                            <FormField
+                                                                control={formCategory.control}
+                                                                name="type"
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                {...field}
+                                                                                disabled={isPending}
+                                                                                placeholder="enter category type"
 
+                                                                            />
+                                                                        </FormControl>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
 
                                                             <Button
                                                                 type="button"

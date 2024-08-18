@@ -124,6 +124,7 @@ model Category {
   normalizedLowerCase String  @unique
   code                String? @unique
   name                String
+  type                String?
   countTotal          Int     @default(0)
 }
 

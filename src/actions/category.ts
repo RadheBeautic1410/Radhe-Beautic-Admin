@@ -11,13 +11,18 @@ interface partyAddtionProps {
     name: string
 }
 
+interface categoryAddtionProps {
+    name: string;
+    type: string;
+}
+
 export const categoryAddition = async (
-    data: partyAddtionProps
+    data: categoryAddtionProps
 ) => {
     const user = await currentUser();
     const role = await currentRole();
 
-    const { name } = data;
+    const { name, type } = data;
     if(name.length === 0) {
         return { error: "Category Can't be empty" }
     }
@@ -46,7 +51,8 @@ export const categoryAddition = async (
         data: {
             normalizedLowerCase: lowercaseName,
             name,
-            code
+            code,
+            type: type.toUpperCase(),
         },
     });
 
