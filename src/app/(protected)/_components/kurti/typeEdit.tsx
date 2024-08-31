@@ -42,7 +42,7 @@ const TypeEdit: React.FC<TypeEditProps> = ({ categoryName, onUpdateType }) => {
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[425px]">
                         <DialogHeader>
-                            <DialogTitle className="text-xl font-bold">Update type of category -  </DialogTitle>
+                            <DialogTitle className="text-xl font-bold">Update type of category -  {categoryName}</DialogTitle>
                         </DialogHeader>
                         <h2 className='pt-2'>Enter the new type</h2>
                         <Input
