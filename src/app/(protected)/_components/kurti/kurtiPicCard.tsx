@@ -195,6 +195,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
             toast.error('Image not loaded yet');
         }
     }
+
     return (
         <div id='container' className='p-3 bg-slate-300'>
             <div className='w-[2200px] h-[2200px]' hidden>

@@ -20,6 +20,7 @@ import { Label } from "@/src/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select";
 // import { getCurrTime } from "../sell/page";
 import axios from "axios";
+import TypeEdit from "../_components/kurti/typeEdit";
 
 const getCurrTime = () => {
     const currentTime = new Date();
@@ -156,9 +157,9 @@ const ListPage = () => {
         let storedDelTime2 = JSON.parse(storedDelTime);
         console.log(new Date(storedDelTime2).getTime(), new Date(tempRes.data.time).getTime(), (new Date(storedDelTime2).getTime === new Date(tempRes.data.time).getTime));
         if (
-            storedDelTime && 
-            storedTime !== null && 
-            storedData !== null && 
+            storedDelTime &&
+            storedTime !== null &&
+            storedData !== null &&
             (new Date(storedDelTime2).getTime() === new Date(tempRes.data.time).getTime())
         ) {
             storedTime = JSON.parse(storedTime) || currTime.toISOString();
@@ -210,7 +211,7 @@ const ListPage = () => {
             try {
                 const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
                 const result = await response.json();
-                console.log("fetched category:",result);
+                console.log("fetched category:", result);
                 const allKurtiData: any[] = await fetchUpdatedData();
                 const allCategoryName = result.data || []
                 console.log(allCategoryName);
@@ -343,6 +344,20 @@ const ListPage = () => {
         console.log('data', [...data]);
         await setKurtiData([...data]);
         setLoading(true);
+    }
+
+    const onUpdateType = async (categoryName: string, newType: string) => {
+        setCategoryLoader(true);
+        console.log("okkk");
+        let arr: category[] = category;
+        for(let i = 0; i < arr.length || 0; i++) {
+            if(arr[i].name.toLocaleLowerCase() === categoryName) {
+                console.log(i);
+                arr[i].type = newType;
+            }
+        }
+        setCategory([...arr]);
+        setCategoryLoader(false);
     }
 
     return (
@@ -664,7 +679,9 @@ const ListPage = () => {
                                                     key={cat.type}
                                                     className="text-center font-bold cursor-pointer"
                                                 >
-                                                        {cat.type}
+                                                    
+                                                    {cat.type}
+                                                    <TypeEdit categoryName={cat.name} onUpdateType={onUpdateType}/>
                                                 </TableCell>
                                                 <RoleGateForComponent
                                                     allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
