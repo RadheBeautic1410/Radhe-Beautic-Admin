@@ -307,8 +307,11 @@ export const sellKurti2 = async (data: any) => {
                         },
                         data: {
                             sizes: newArr,
-                            lastUpdatedTime: currTime
+                            lastUpdatedTime: currTime,
                         },
+                        include: {
+                            prices: true,
+                        }
                     })
                     console.log('code2', search.toUpperCase().substring(0, 3));
                     const sell = await db.sell.create({
@@ -317,6 +320,8 @@ export const sellKurti2 = async (data: any) => {
                             code: search.toUpperCase(),
                             sellerName: currentUser.name,
                             kurti: [updateUser],
+                            kurtiId: updateUser.id,
+                            pricesId: updateUser.pricesId,
                             kurtiSize: cmp
                         }
                     });

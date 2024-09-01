@@ -41,6 +41,7 @@ import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import PageLoader from "@/src/components/loader";
 import { AddSizeForm } from "../_components/dynamicFields/sizes";
 import { Sriracha } from "next/font/google";
+import ImageUpload2 from "../_components/upload/imageUpload2";
 
 interface party {
     id: string;
@@ -296,7 +297,7 @@ const UploadPage = () => {
                         </p>
                     </CardHeader>
                     <CardContent className="text-center">
-                        <ImageUpload onImageChange={handleImageChange} images={images} ref={imageUploadRef} />
+                        <ImageUpload2 onImageChange={handleImageChange} images={images} ref={imageUploadRef} />
                         <div className="text-left w-[100%]">
                             <Form {...form}>
                                 {/* Add Category Component */}

@@ -9,13 +9,80 @@ export const migrate3 = async () => {
                 lastUpdatedTime: currTime
             }
         });
-        return {success: "updated all kurti"}
+        return { success: "updated all kurti" }
 
     } catch (e: any) {
         console.log(e);
         return e.message;
     }
 }
+
+export const migrate10 = async () => {
+    const BATCH_SIZE = 10; // Set your batch size here
+    let offset = 0;
+
+    try {
+        let sellData: any;
+        do {
+            // Fetch a batch of records
+            sellData = await db.sell.findMany({
+                skip: offset,
+                take: BATCH_SIZE,
+            });
+            console.log(`Processing batch starting at offset ${offset} with ${sellData.length} records.`);
+
+            for (let i = 0; i < sellData.length; i++) {
+                let kurti = await db.kurti.findFirst({
+                    where: {
+                        id: sellData[i].kurti[0]?.id, // Safeguard against empty kurti array
+                    }
+                });
+
+                if (kurti !== null) {
+                    await db.sell.update({
+                        where: {
+                            id: sellData[i].id,
+                        },
+                        data: {
+                            pricesId: kurti.pricesId,
+                        }
+                    });
+                } else {
+                    let sellPrice = parseInt(sellData[i].kurti[0]?.sellingPrice || "0");
+                    let actualPrice = parseInt(sellData[i].kurti[0]?.actualPrice || "0");
+                    let prices = await db.prices.create({
+                        data: {
+                            sellingPrice1: sellPrice,
+                            sellingPrice2: sellPrice,
+                            sellingPrice3: sellPrice,
+                            actualPrice1: actualPrice,
+                            actualPrice2: actualPrice,
+                            actualPrice3: actualPrice,
+                        }
+                    });
+                    await db.sell.update({
+                        where: {
+                            id: sellData[i].id,
+                        },
+                        data: {
+                            pricesId: prices.id,
+                        }
+                    });
+                }
+            }
+
+            // Move to the next batch
+            offset += BATCH_SIZE;
+            console.log(offset);
+        } while (sellData.length === BATCH_SIZE); // Continue until fewer than BATCH_SIZE records are returned
+
+        return { ok: "ok" };
+    } catch (e: any) {
+        console.log(e);
+        return e.message;
+    }
+};
+
 
 export const migrate6 = async () => {
     try {
@@ -31,7 +98,7 @@ export const migrate6 = async () => {
                 time: currTime,
             }
         });
-        return {success: "updated all kurti"}
+        return { success: "updated all kurti" }
 
     } catch (e: any) {
         console.log(e);
@@ -102,7 +169,7 @@ export const migrate5 = async () => {
             arrFun.push(fun);
         }
         // await Promise.all(arrFun);
-        return {success: 'ok'}
+        return { success: 'ok' }
     } catch (e: any) {
         console.log(e);
         return e.message;

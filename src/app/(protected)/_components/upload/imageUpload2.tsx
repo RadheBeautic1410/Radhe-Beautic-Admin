@@ -15,16 +15,16 @@ import {
 import React, { Dispatch, SetStateAction, forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { ScrollArea } from "@/src/components/ui/scroll-area";
 import ProgressBar from "@/src/components/ui/progress";
-import { db } from "@/src/lib/db";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-
+import { getStorage, ref as ImgRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from "@/src/lib/firebase/firebase";
+import 'firebase/compat/firestore';
 import { toast } from "sonner";
+import { v4 as uuidv4 } from 'uuid';
 interface ChildProps {
     onImageChange: (data: any) => void;
     images: any[];
 }
-import { v4 as uuidv4 } from 'uuid';
+
 interface FileUploadProgress {
     progress: number;
     File: File;
@@ -68,8 +68,7 @@ export interface ImageUploadRef {
     reset: () => void;
 }
 
-
-const ImageUpload = React.forwardRef(({ onImageChange, images }: ChildProps, ref: React.Ref<ImageUploadRef>) => {
+const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, ref: React.Ref<ImageUploadRef>) => {
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
     const [imgs, setImgs] = useState<any[]>([]);
     const [progress, setProgress] = useState<number>(0);
@@ -92,15 +91,12 @@ const ImageUpload = React.forwardRef(({ onImageChange, images }: ChildProps, ref
                 color: ImageColor.bgColor,
             };
         }
-
         return {
             icon: <FolderArchive size={40} className={OtherColor.fillColor} />,
             color: OtherColor.bgColor,
         };
     };
 
-    // feel free to mode all these functions to separate utils
-    // here is just for simplicity
     const onUploadProgress = (
         progressEvent: AxiosProgressEvent,
         file: File,
@@ -156,32 +152,39 @@ const ImageUpload = React.forwardRef(({ onImageChange, images }: ChildProps, ref
         });
     };
 
-    const uploadImagetoBB = async (
-        formData: FormData,
-        onUploadProgress: (progressEvent: AxiosProgressEvent) => void,
-        cancelSource: CancelTokenSource
-    ) => {
-        function getRandomInt(max: number) {
-            return Math.floor(Math.random() * (max + 1));
-        }
-        let apiKeys = [
-            'ea969f533a6a89234ee370a812f55fdb',
-            'd6a35aefd3aeb6cdb7e9b8f21eb55076',
-            '667f5bbe7fb48119d2bd520dbeef5c57',
-            '21241fd340a0ce1b864ddfee7f4b880c',
-            'ac1aaf39fb0d237b44c2a5a49ea84d65',
-            'b5cb435b770e8088ce8ba18747830e1f'
-        ]
-        let idx = getRandomInt(apiKeys.length - 1);
-        return axios.post(
-            `https://api.imgbb.com/1/upload?&key=${apiKeys[idx]}`,
-            formData,
-            {
-                onUploadProgress,
-                cancelToken: cancelSource.token,
-            }
-        );
+    const uploadImage = async (file: File, path: string) => {
+        const storageRef = ImgRef(storage, path);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        return new Promise<string>((resolve, reject) => {
+            uploadTask.on(
+                'state_changed',
+                (snapshot) => {
+                    const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                    setFilesToUpload((prevUploadProgress) => {
+                        return prevUploadProgress.map((item) => {
+                            if (item.File.name === file.name) {
+                                return {
+                                    ...item,
+                                    progress,
+                                };
+                            }
+                            return item;
+                        });
+                    });
+                },
+                (error) => {
+                    reject(error);
+                },
+                async () => {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    console.log(downloadURL);
+                    resolve(downloadURL);
+                }
+            );
+        });
     };
+
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         setFilesToUpload((prevUploadProgress) => {
             return [
@@ -196,32 +199,16 @@ const ImageUpload = React.forwardRef(({ onImageChange, images }: ChildProps, ref
             ];
         });
 
-
         const fileUploadBatch = acceptedFiles.map(async (file) => {
-            const formData = new FormData();
-            formData.append("image", file);
-            const cancelSource = axios.CancelToken.source();
-            let imageDownloadUrl = null;
             try {
-                // const storageRef = ref(storage, file);
-                // const uploadTask = uploadBytesResumable(storageRef, file);
-                // const url = await uploadImage(file, `images/${file.name}`, setProgress);
-                // setDownloadURL(url);
-                // setError(null);
+                const downloadURL = await uploadImage(file, `images/${uuidv4()}`);
+                let prevImages = [...imgs, { url: downloadURL }];
+                setImgs(prevImages);
+                onImageChange(prevImages);
             } catch (error) {
-                // setError("Failed to upload image.");
-                // setDownloadURL(null);
+                console.error("Error uploading file: ", error);
+                toast.error("Failed to upload image.");
             }
-            const res = await uploadImagetoBB(
-                formData,
-                (progressEvent) => onUploadProgress(progressEvent, file, cancelSource),
-                cancelSource
-            );
-            console.log('xxx', imgs);
-            let prevImages = imgs;
-            prevImages.push({ url: res.data.data.url });
-            setImgs(prevImages);
-            onImageChange(prevImages);
         });
 
         try {
@@ -233,6 +220,7 @@ const ImageUpload = React.forwardRef(({ onImageChange, images }: ChildProps, ref
     }, [imgs]);
 
     const { getRootProps, getInputProps } = useDropzone({ onDrop });
+
     return (
         <>
             <div>
@@ -274,86 +262,31 @@ const ImageUpload = React.forwardRef(({ onImageChange, images }: ChildProps, ref
                                         key={`${fileUploadProgress.File.lastModified} - ${Math.floor(Math.random() * 10000)}`}
                                         className="flex justify-between gap-2 rounded-lg overflow-hidden border border-slate-100 group hover:pr-0 pr-2"
                                     >
-                                        <div className="flex items-center flex-1 p-2">
-                                            <div className="text-white">
+                                        <div className="flex items-center flex-1 p-2 space-x-2">
+                                            <div className={`flex-shrink-0 w-8 h-8 rounded-full ${getFileIconAndColor(fileUploadProgress.File).color}`}>
                                                 {getFileIconAndColor(fileUploadProgress.File).icon}
                                             </div>
-
-                                            <div className="w-full ml-2 space-y-1">
-                                                <div className="text-sm flex justify-between">
-                                                    <p className="text-muted-foreground ">
-                                                        {fileUploadProgress.File.name.slice(0, 25)}
-                                                    </p>
-                                                    <span className="text-xs">
-                                                        {fileUploadProgress.progress}%
-                                                    </span>
-                                                </div>
-
-                                                <ProgressBar
-                                                    progress={fileUploadProgress.progress}
-                                                    className={
-                                                        getFileIconAndColor(fileUploadProgress.File).color
-                                                    }
-                                                />
+                                            <div className="flex-1 truncate">
+                                                <p className="text-sm font-medium truncate">{fileUploadProgress.File.name}</p>
+                                                <p className="text-xs text-muted-foreground truncate">{Math.round(fileUploadProgress.progress)} %</p>
                                             </div>
                                         </div>
                                         <button
-                                            onClick={() => {
-                                                if (fileUploadProgress.source)
-                                                    fileUploadProgress.source.cancel("Upload cancelled");
-                                                removeFile(fileUploadProgress.File);
-                                            }}
-                                            className="bg-red-500 text-white transition-all items-center justify-center cursor-pointer px-2 hidden group-hover:flex"
+                                            className="flex items-center justify-center p-2 rounded-full hover:bg-gray-200"
+                                            onClick={() => removeFile(fileUploadProgress.File)}
                                         >
-                                            <X size={20} />
+                                            <X className="w-4 h-4 text-red-600" />
                                         </button>
                                     </div>
                                 );
                             })}
                         </div>
                     </ScrollArea>
-
-                </div>
-            )}
-
-            {uploadedFiles.length > 0 && (
-                <div>
-                    <p className="font-medium my-2 mt-6 text-muted-foreground text-sm">
-                        Uploaded Files
-                    </p>
-                    <div className="space-y-2 pr-3">
-                        {uploadedFiles.map((file) => {
-                            return (
-                                <div
-                                    key={file.lastModified}
-                                    className="flex justify-between gap-2 rounded-lg overflow-hidden border border-slate-100 group hover:pr-0 pr-2 hover:border-slate-300 transition-all"
-                                >
-                                    <div className="flex items-center flex-1 p-2">
-                                        <div className="text-white">
-                                            {getFileIconAndColor(file).icon}
-                                        </div>
-                                        <div className="w-full ml-2 space-y-1">
-                                            <div className="text-sm flex justify-between">
-                                                <p className="text-muted-foreground ">
-                                                    {file.name.slice(0, 25)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => removeFile(file)}
-                                        className="bg-red-500 text-white transition-all items-center justify-center px-2 hidden group-hover:flex"
-                                    >
-                                        <X size={20} />
-                                    </button>
-                                </div>
-                            );
-                        })}
-                    </div>
                 </div>
             )}
         </>
     );
-})
+});
 
-export default ImageUpload;
+
+export default ImageUpload2;

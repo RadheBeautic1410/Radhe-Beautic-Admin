@@ -17,6 +17,7 @@ import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AddSizeForm } from '../dynamicFields/sizes';
 import ImageUpload, { ImageUploadRef } from '../upload/imageUpload';
+import ImageUpload2 from '../upload/imageUpload2';
 
 interface category {
     id: string;
@@ -329,7 +330,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                         >
                             <div className='h-72 overflow-y-scroll p-1'>
                                 <h2>Images</h2>
-                                <ImageUpload onImageChange={handleImageChange} images={images} ref={imageUploadRef} />
+                                <ImageUpload2 onImageChange={handleImageChange} images={images} ref={imageUploadRef} />
                             </div>
                             <Button
                                 type="button"

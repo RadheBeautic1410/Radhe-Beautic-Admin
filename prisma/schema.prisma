@@ -137,6 +137,7 @@ model Prices {
   actualPrice2  Int     @default(0)
   actualPrice3  Int     @default(0)
   Kurti         Kurti[]
+  Sell          Sell[]
 }
 
 model Kurti {
@@ -156,6 +157,7 @@ model Kurti {
 
   prices      Prices?       @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   CartProduct CartProduct[]
+  Sell        Sell[]
 }
 
 model Sell {
@@ -165,6 +167,10 @@ model Sell {
   kurtiSize  String
   sellerName String
   kurti      Json[]
+  kurtiId    String?  @db.ObjectId
+  pricesId   String?  @db.ObjectId
+  prices     Prices?  @relation(fields: [pricesId], references: [id], onDelete: NoAction)
+  kurti2     Kurti?   @relation(fields: [kurtiId], references: [id], onDelete: NoAction)
 }
 
 model Deletetime {
@@ -208,7 +214,7 @@ model Orders {
   shippingAddress  Address     @relation(fields: [addressId], references: [id])
   shippingCharge   Int         @default(0)
   addressId        String      @db.ObjectId
-  trackingId       String? 
+  trackingId       String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 }

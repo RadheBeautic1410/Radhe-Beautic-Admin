@@ -53,14 +53,29 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
     useEffect(() => {
+        if (!data?.images?.[0]?.url) {
+            console.error('Image URL is not available');
+            return;
+        }
+
         const img = new Image();
-        // img.loading = "lazy";
-        img.src = `${data.images[0].url}`;
+        img.src = data.images[0].url;
+
         img.onload = () => {
-            console.log(img.width, img.height);
+            console.log('Image loaded:', img.width, img.height);
             setDimensions({ width: img.width, height: img.height });
         };
-    }, []);
+
+        img.onerror = (error) => {
+            console.error('Error loading image:', error);
+        };
+
+        // Optional: Add cleanup function if necessary
+        return () => {
+            img.onload = null;
+            img.onerror = null;
+        };
+    }, [data.images]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -98,7 +113,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         ctx?.drawImage(image, 0, 0, canvas.width, canvas.height);
 
         // Convert canvas to compressed image format (JPEG)
-        var compressedImage = canvas.toDataURL('image/jpeg', 0.75);
+        var compressedImage = canvas.toDataURL('image/jpeg', 0.8);
         var downloadLink = document.createElement('a');
         // console.log(image.src)
         downloadLink.href = compressedImage;
@@ -184,8 +199,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     const handleClick = async () => {
         const imgDom = document.querySelector(`#download${data.code}`) as HTMLImageElement;
         // const imgDom2 = document.querySelector(`#download${data.code}`) as HTMLImageElement;
-        console.log(imgDom.complete);
-        if (imgDom.complete) {
+        console.log(imgDom.complete, dimensions);
+        if (imgDom.complete && (dimensions.width !== 0 && dimensions.height !== 0)) {
             setDownloading(true);
             await findBlocks();
             await downloadImage(`download${data.code}`);
@@ -216,13 +231,13 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                     height={dimensions.height}
                 ></img>
             </div>
-            <NextImage
+            <img
                 src={data.images[0].url}
                 id={`${data.code}-visible`}
                 alt=''
                 crossOrigin="anonymous"
                 loading='lazy'
-                blurDataURL={data.images[0].url}
+                // blurDataURL={data.images[0].url}
                 className='object-contain w-[250px] h-[250px]'
                 width={dimensions.width}
                 height={dimensions.height}
