@@ -88,7 +88,7 @@ export const stockAddition = async (data: any) => {
         }
     });
 
-    const currTime = getCurrTime();
+    const currTime = await getCurrTime();
     await db.kurti.update({
         where: { code },
         data: {
@@ -126,7 +126,7 @@ export const priceChange = async (data: any) => {
 
     const { code } = data;
 
-    const currTime = getCurrTime();
+    const currTime = await getCurrTime();
     const updatedKurti = await db.kurti.update({
         where: { code },
         data: {
@@ -156,7 +156,7 @@ export const priceChange = async (data: any) => {
 export const categoryChange = async (data: any) => {
 
     const { code, newCode, category } = data;
-    const currTime = getCurrTime();
+    const currTime = await getCurrTime();
     console.log(code, newCode);
     const ret = await db.$transaction(async (transaction) => {
         const oldKurti = await transaction.kurti.findUnique({

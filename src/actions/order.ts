@@ -145,7 +145,7 @@ export const addAddressesOfUser = async (data: any) => {
 }
 
 async function generateOrderId() {
-    const now = getCurrTime();
+    const now = await getCurrTime();
     const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
 
     let orderId: string | null = null;
@@ -221,6 +221,7 @@ export const placeTheOrder = async (
         try {
             order = await db.$transaction(async (transaction) => {
                 // Fetch the current counter and update it in one operation
+                const okDate = await getCurrTime();
                 const newOrder = await transaction.orders.create({
                     data: {
                         orderId: orderId,
@@ -241,8 +242,8 @@ export const placeTheOrder = async (
                         },
                         total: total,
                         trackingIdImages: [],
-                        createdAt: getCurrTime(),
-                        updatedAt: getCurrTime()
+                        createdAt: okDate,
+                        updatedAt: okDate
                     }
                 });
 
