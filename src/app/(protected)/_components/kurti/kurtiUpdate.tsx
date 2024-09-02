@@ -286,6 +286,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                             <Button
                                 type="button"
                                 onClick={handleStockUpdate}
+                                disabled={isPending}
                             >
                                 Save
                             </Button>
@@ -315,6 +316,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                             <Button
                                 type="button"
                                 onClick={handlePriceChange}
+                                disabled={isPending}
                             // onClick={formCategory.handleSubmit(handleSubmitCategory)}
                             >
                                 Save
@@ -335,7 +337,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                             <Button
                                 type="button"
                                 onClick={handleUpload}
-                                disabled={uploading}
+                                disabled={uploading || isPending}
                             // onClick={formCategory.handleSubmit(handleSubmitCategory)}
                             >
                                 {uploading ?
