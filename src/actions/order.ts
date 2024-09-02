@@ -64,13 +64,14 @@ export const removeCartProduct = async (code: string, cartProductId: string) => 
     }
     const ret = await db.$transaction(async (transaction) => {
         try {
+            const okDate = await getCurrTime();
             const newKurti = await transaction.kurti.update({
                 where: {
                     code: code
                 },
                 data: {
                     reservedSizes: finalArray,
-                    lastUpdatedTime: getCurrTime(),
+                    lastUpdatedTime: okDate,
                 }
             });
             const dlt = await transaction.cartProduct.update({
@@ -95,7 +96,7 @@ export const removeCartProduct = async (code: string, cartProductId: string) => 
     
 }
 
-const getCurrTime = () => {
+const getCurrTime = async () => {
     const currentTime = new Date();
     const ISTOffset = 5.5 * 60 * 60 * 1000;
     const ISTTime = new Date(currentTime.getTime() + ISTOffset);

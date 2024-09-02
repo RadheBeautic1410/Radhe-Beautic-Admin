@@ -243,7 +243,7 @@ export const deleteCategory = async (data: any) => {
 export const addNewImages = async (data: any) => {
     const { images, code } = data;
 
-    const currTime = getCurrTime();
+    const currTime = await getCurrTime();
     const kurti = await db.kurti.update({
         where: {
             code: code.toUpperCase(),
