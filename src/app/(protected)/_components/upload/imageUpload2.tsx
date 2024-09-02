@@ -20,6 +20,7 @@ import { storage } from "@/src/lib/firebase/firebase";
 import 'firebase/compat/firestore';
 import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
+import imageCompression from 'browser-image-compression'; // Add this import
 interface ChildProps {
     onImageChange: (data: any) => void;
     images: any[];
@@ -185,6 +186,21 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
         });
     };
 
+    const compressImage = async (file: File) => {
+        try {
+            const compressedFile = await imageCompression(file, {
+                maxSizeMB: 5, // Adjust the max size in MB
+                maxWidthOrHeight: 1920, // Adjust the max width or height
+                useWebWorker: true,
+            });
+            return compressedFile;
+        } catch (error) {
+            console.error("Error compressing file: ", error);
+            toast.error("Failed to compress image.");
+            return file; // Return the original file if compression fails
+        }
+    };
+
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         setFilesToUpload((prevUploadProgress) => {
             return [
@@ -201,7 +217,8 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
 
         const fileUploadBatch = acceptedFiles.map(async (file) => {
             try {
-                const downloadURL = await uploadImage(file, `images/${uuidv4()}`);
+                const compressedFile = await compressImage(file);
+                const downloadURL = await uploadImage(compressedFile, `images/${uuidv4()}`);
                 let prevImages = [...imgs, { url: downloadURL }];
                 setImgs(prevImages);
                 onImageChange(prevImages);

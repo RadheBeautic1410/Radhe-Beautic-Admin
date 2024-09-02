@@ -113,7 +113,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         ctx?.drawImage(image, 0, 0, canvas.width, canvas.height);
 
         // Convert canvas to compressed image format (JPEG)
-        var compressedImage = canvas.toDataURL('image/jpeg', 0.8);
+        var compressedImage = canvas.toDataURL('image/jpeg', 0.9);
         var downloadLink = document.createElement('a');
         // console.log(image.src)
         downloadLink.href = compressedImage;
