@@ -45,7 +45,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     // console.log(data);
     const [downloading, setDownloading] = useState(false);
     const [stockString, setStockString] = useState(``);
-    let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+    let selectSizes: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
     const pathname = usePathname();
     // console.log(pathname.split('/'));
     let sizes = data.sizes.length;

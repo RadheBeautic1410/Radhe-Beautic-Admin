@@ -13,7 +13,7 @@ interface SingleSizeProps {
 }
 
 const SingleSize: React.FC<SingleSizeProps> = ({ onSetSize, quantity, size }) => {
-    const selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+    const selectSizes: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
     const [selectedSize, setSelectedSize] = useState<string>(size);
     const [selectedQuantity, setQuantity] = useState(quantity);
     console.log(quantity, size, selectedSize);

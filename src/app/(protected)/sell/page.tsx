@@ -78,7 +78,7 @@ function SellPage() {
     // const handleCheck = ()=>{
     //     console.log(code);
     //     if (code.length > 7) {
-    //         let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+    //         let selectSizes: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
     //         let temp = code.substring(7).toUpperCase();
     //         if(selectSizes.includes(temp)){
     //             handleSell();

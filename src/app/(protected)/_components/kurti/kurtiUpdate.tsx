@@ -53,7 +53,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
 
     const [sizesDownload, setSizesDownload] = useState<Size[]>([]);
     const [componentsDownload, setComponentsDownload] = useState<any[]>([]);
-    let selectSizes: string[] = ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+    let selectSizes: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
     const imageUploadRef = useRef<ImageUploadRef>(null);
 
     const [images, setImages] = useState<any[]>([]);
