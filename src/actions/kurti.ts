@@ -222,12 +222,15 @@ export const deleteCategory = async (data: any) => {
                     normalizedLowerCase: category.toLowerCase(),
                 }
             });
-            await transaction.kurti.deleteMany({
+            await transaction.kurti.updateMany({
                 where: {
                     category: {
                         mode: 'insensitive',
                         equals: category.toLowerCase(),
                     },
+                },
+                data: {
+                    isDeleted: true,
                 },
             });
             await transaction.deletetime.update({
