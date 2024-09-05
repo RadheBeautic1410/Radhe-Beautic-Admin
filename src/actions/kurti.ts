@@ -212,33 +212,41 @@ export const categoryChange = async (data: any) => {
 export const deleteCategory = async (data: any) => {
     const { category } = data;
 
-    // const categories = await db.category.findMany({});
-    await db.category.delete({
-        where: {
-            normalizedLowerCase: category.toLowerCase(),
-        }
-    });
-    await db.kurti.deleteMany({
-        where: {
-            category: {
-                mode: 'insensitive',
-                endsWith: category.toLowerCase(),
-                startsWith: category.toLowerCase()
-            },
-        },
-    });
-    let currTime = await getCurrTime();
-    await db.deletetime.update({
-        where: {
-            owner: 'DK@123'
-        },
-        data: {
-            time: currTime,
-        }
-    })
+    const currTime = await getCurrTime();
 
-    return { success: `Category ${category} Deleted` };
+    try {
+        // Start a transaction
+        await db.$transaction(async (transaction) => {
+            await transaction.category.delete({
+                where: {
+                    normalizedLowerCase: category.toLowerCase(),
+                }
+            });
+            await transaction.kurti.deleteMany({
+                where: {
+                    category: {
+                        mode: 'insensitive',
+                        equals: category.toLowerCase(),
+                    },
+                },
+            });
+            await transaction.deletetime.update({
+                where: {
+                    owner: 'DK@123',
+                },
+                data: {
+                    time: currTime,
+                },
+            });
+        });
+
+        return { success: `Category ${category} Deleted` };
+    } catch (error) {
+        console.error('Transaction failed: ', error);
+        throw new Error(`Failed to delete category ${category}`);
+    }
 }
+
 
 export const addNewImages = async (data: any) => {
     const { images, code } = data;
