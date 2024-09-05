@@ -514,7 +514,7 @@ const ListPage = () => {
                                                 >
                                                     Price
                                                 </TableHead>
-                                                <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+                                                <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
 
                                                     <TableHead
                                                         className="text-center font-bold text-base"
@@ -563,7 +563,7 @@ const ListPage = () => {
                                                     >
                                                         {cat.sellingPrice}
                                                     </TableCell>
-                                                    <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+                                                    <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
 
                                                         <TableCell className="text-center"
                                                             key={`${cat.name}-delete`}
