@@ -564,11 +564,9 @@ const ListPage = () => {
                                                         {cat.sellingPrice}
                                                     </TableCell>
                                                     <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-
                                                         <TableCell className="text-center"
                                                             key={`${cat.name}-delete`}
                                                         >
-
                                                             <DialogDemo
                                                                 dialogTrigger="Delete Category"
                                                                 dialogTitle="Delete Category"
