@@ -2,7 +2,7 @@
 
 import { db } from "@/src/lib/db";
 import { addDays, endOfMonth, endOfYear, lastDayOfMonth, startOfMonth, startOfYear } from "date-fns";
-import { datetimeRegex } from "zod";
+// import { datetimeRegex } from "zod";
 
 type filter = "DATE" | "MONTH" | "YEAR";
 type month = {
@@ -63,7 +63,7 @@ const selectBasedOnFilter = (date: any, filter: filter) => {
 export const getFilteredSales = async (date: any, filter: filter) => {
     const ISTTime = selectBasedOnFilter(date, filter);
 
-    const sellData = await db.sell.findMany({
+    const sellData: any = await db.sell.findMany({
         where: {
             sellTime: {
                 gte: new Date(`${ISTTime?.start}T00:00:00.000Z`),
