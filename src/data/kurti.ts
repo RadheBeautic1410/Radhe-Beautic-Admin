@@ -243,7 +243,7 @@ export const sellKurti2 = async (data: any) => {
         code = code.toUpperCase();
         let search = code.substring(0, 7).toUpperCase();
         let cmp = code.substring(7);
-        if (code.toUpperCase().substring(0, 2) === 'CK' && code[2]==="0" && isSize(code.substring(6))) {
+        if (code.toUpperCase().substring(0, 2) === 'CK' && code[2] === "0" && isSize(code.substring(6))) {
             search = code.substring(0, 6).toUpperCase();
             cmp = code.substring(6);
         }
@@ -314,25 +314,55 @@ export const sellKurti2 = async (data: any) => {
                         }
                     })
                     console.log('code2', search.toUpperCase().substring(0, 3));
-                    const sell = await db.sell.create({
-                        data: {
-                            sellTime: currentTime,
-                            code: search.toUpperCase(),
-                            sellerName: currentUser.name,
-                            kurti: [updateUser],
-                            kurtiId: updateUser.id,
-                            pricesId: updateUser.pricesId,
-                            kurtiSize: cmp
+                    if (updateUser.pricesId) {
+                        let prices = await db.prices.findUnique({
+                            where: {
+                                id: updateUser.pricesId,
+                            }
+                        });
+                        if(!prices || !prices.actualPrice1 || !prices.sellingPrice1) {
+
+                            const sellPrice = parseInt(updateUser.sellingPrice || "0");
+                            const actualP = parseInt(updateUser.actualPrice || "0");
+
+                            prices = await db.prices.create({
+                                data: {
+                                    sellingPrice1: sellPrice,
+                                    sellingPrice2: sellPrice,
+                                    sellingPrice3: sellPrice,
+                                    actualPrice1: actualP,
+                                    actualPrice2: actualP,
+                                    actualPrice3: actualP,
+                                }
+                            });
+                            await db.kurti.update({
+                                where: {
+                                    code: updateUser.code,
+                                },
+                                data: {
+                                    pricesId: prices.id
+                                }
+                            })
                         }
-                    });
-                    console.log(sell);
+                        const sell = await db.sell.create({
+                            data: {
+                                sellTime: currentTime,
+                                code: search.toUpperCase(),
+                                sellerName: currentUser.name,
+                                kurti: [updateUser],
+                                kurtiId: updateUser.id,
+                                pricesId: prices.id,
+                                kurtiSize: cmp
+                            }
+                        });
+                        console.log(sell);
+                    }
                     return { success: 'Sold', kurti: updateUser };
                 }
                 catch (e) {
                     console.log(e);
                     return { error: 'Something went wrong!!!' };
                 }
-
             }
 
         }
@@ -455,7 +485,7 @@ export const addStock = async (code: string) => {
         console.log(code);
         let search = code.substring(0, 7).toUpperCase();
         let cmp = code.substring(7);
-        if (code.toUpperCase().substring(0, 2) === 'CK' && code[2]==="0" && isSize(code.substring(6))) {
+        if (code.toUpperCase().substring(0, 2) === 'CK' && code[2] === "0" && isSize(code.substring(6))) {
             search = code.substring(0, 6).toUpperCase();
             cmp = code.substring(6);
         }

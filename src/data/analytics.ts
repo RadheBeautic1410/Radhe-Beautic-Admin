@@ -22,7 +22,7 @@ export const getCurrDate = (date: Date) => {
 }
 
 export const getCurrMonth = (date: month) => {
-    const customDate = new Date(date.year, date.month ,1);
+    const customDate = new Date(date.year, date.month, 1);
     const ISTTimeStart = new Date(startOfMonth(addDays(customDate, -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
     const ISTTimeEnd = new Date(endOfMonth(addDays(customDate, -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
     console.log('ISTTimeStartM', ISTTimeStart);
@@ -34,10 +34,10 @@ export const getCurrMonth = (date: month) => {
     };
 }
 
-export const getCurrYear = ({year} : {year: number}) => {
-    const ISTTimeStart = new Date(startOfMonth(addDays(new Date(year, 1 ,1), -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
-    const ISTTimeEnd = new Date(startOfMonth(addDays(new Date(year+1, 1 ,1), -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
-    
+export const getCurrYear = ({ year }: { year: number }) => {
+    const ISTTimeStart = new Date(startOfMonth(addDays(new Date(year, 1, 1), -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
+    const ISTTimeEnd = new Date(startOfMonth(addDays(new Date(year + 1, 1, 1), -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
+
     console.log('ISTTimeStartY', ISTTimeStart);
     console.log('ISTTimeEndY', ISTTimeEnd);
 
@@ -48,15 +48,15 @@ export const getCurrYear = ({year} : {year: number}) => {
 }
 
 const selectBasedOnFilter = (date: any, filter: filter) => {
-    switch(filter) {
+    switch (filter) {
         case "DATE":
             return getCurrDate(date);
         case "MONTH":
             return getCurrMonth(date);
         case "YEAR":
-            return getCurrYear(date);     
+            return getCurrYear(date);
         default:
-            console.log('Invalid filter');        
+            console.log('Invalid filter');
     }
 }
 
@@ -83,29 +83,66 @@ export const getFilteredSales = async (date: any, filter: filter) => {
     });
 
     // console.log(sellData);
-    
+
     let totalSales = 0, totalProfit = 0;
 
-    if(date?.year) {
+    if (date?.year) {
         console.log(sellData.length, 'yearly');
-        
+
     }
     let count = 0;
-    for(let i = 0; i < sellData.length; i++) {
-        if(sellData[i].code.includes('TES')){
+    for (let i = 0; i < sellData.length; i++) {
+        if (sellData[i].code.includes('TES')) {
             console.log(sellData[i].code);
             continue;
         }
         const sellingPrice = Number(sellData[i].prices?.sellingPrice1);
         const actualPrice = Number(sellData[i].prices?.actualPrice1);
-        
-        if(!sellingPrice || !actualPrice) {
+        console.log(sellingPrice, actualPrice, count, totalProfit);
+        if (!sellingPrice || !actualPrice) {
+            console.log(sellData[i].code);
+            let sell: any = await db.sell.findUnique({
+                where: {
+                    id: sellData[i].id,
+                }
+            });
+            let sellPrice = parseInt(sell.kurti[0].sellingPrice || "0");
+            let actualP = parseInt(sell.kurti[0].actualPrice || "0");
+            let sellPriceId = await db.prices.create({
+                data: {
+                    sellingPrice1: sellPrice,
+                    sellingPrice2: sellPrice,
+                    sellingPrice3: sellPrice,
+                    actualPrice1: actualP,
+                    actualPrice2: actualP,
+                    actualPrice3: actualP,
+                }
+            });
+            await db.sell.update({
+                where: {
+                    id: sellData[i].id,
+                },
+                data: {
+                    pricesId: sellPriceId.id,
+                }
+            });
+            await db.kurti.update({
+                where: {
+                    id: sellData[i].code,
+                },
+                data: {
+                    pricesId: sellPriceId.id,
+                }
+            });
+            count++;
+            totalSales += sellPrice;
+            totalProfit += (sellPrice - actualP);
             continue;
         }
         count++;
         totalSales += sellingPrice;
         totalProfit += (sellingPrice - actualPrice);
     }
-    
-    return { totalSales, totalProfit, count};
+
+    return { totalSales, totalProfit, count };
 }

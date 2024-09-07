@@ -47,6 +47,7 @@ const DayAnalytics = () => {
 
     return (
         <div className="w-full max-w-lg mx-auto p-4">
+            <h2 className="pb-6 font-semibold">Select day</h2>
             <Popover>
                 <PopoverTrigger asChild>
                     <Button

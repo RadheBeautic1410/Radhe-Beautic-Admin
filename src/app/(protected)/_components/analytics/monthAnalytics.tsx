@@ -56,6 +56,7 @@ const DayAnalytics = () => {
   return (
     <div className="w-full max-w-lg mx-auto p-4">
       <div className="grid grid-cols-2 gap-4 mb-4">
+        <h2 className="font-semibold">Select Month</h2>
         <Select
           onValueChange={(val) => setMonth(Number(val))}
           defaultValue={month.toString()}
@@ -71,7 +72,7 @@ const DayAnalytics = () => {
             ))}
           </SelectContent>
         </Select>
-
+        <h2 className="font-semibold">Select Year</h2>
         <Select
           onValueChange={(val) => setYear(Number(val))}
           defaultValue={year.toString()}
