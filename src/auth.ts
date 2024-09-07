@@ -9,7 +9,7 @@ import { getTwoFactorConfirmationByUserId } from "./data/two-factor-confirmation
 
 
 export const { handlers: { GET, POST }, auth,
-    signIn, signOut
+    signIn, signOut, update
 } = NextAuth({
 
     pages: {
