@@ -18,7 +18,6 @@ import { useCallback, useEffect, useReducer, useRef, useState, useTransition } f
 import { ScrollArea } from "@/src/components/ui/scroll-area";
 import ProgressBar from "@/src/components/ui/progress";
 import { db } from "@/src/lib/db";
-import ImageUpload, { ImageUploadRef } from "../_components/upload/imageUpload";
 import { Button } from "@/src/components/ui/button";
 import {
     Form, FormItem, FormLabel, FormControl, FormMessage, FormField,
@@ -41,7 +40,7 @@ import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import PageLoader from "@/src/components/loader";
 import { AddSizeForm } from "../_components/dynamicFields/sizes";
 import { Sriracha } from "next/font/google";
-import ImageUpload2 from "../_components/upload/imageUpload2";
+import ImageUpload2, { ImageUploadRef } from '../_components/upload/imageUpload2';
 
 interface party {
     id: string;
@@ -115,7 +114,7 @@ const UploadPage = () => {
     }
 
     const handleImageChange = (data: any) => {
-        setImages(data)
+        setImages([...data])
         console.log(data);
     }
 

@@ -16,8 +16,8 @@ import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AddSizeForm } from '../dynamicFields/sizes';
-import ImageUpload, { ImageUploadRef } from '../upload/imageUpload';
-import ImageUpload2 from '../upload/imageUpload2';
+// import ImageUpload,  from '../upload/imageUpload';
+import ImageUpload2, { ImageUploadRef } from '../upload/imageUpload2';
 
 interface category {
     id: string;

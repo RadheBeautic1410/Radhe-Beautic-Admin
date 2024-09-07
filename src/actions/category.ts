@@ -47,6 +47,25 @@ export const categoryAddition = async (
         return { error: "Category Already Exist" }
     }
 
+    // const existingCategory = await db.category.findUnique({
+    //     where: {
+    //         normalizedLowerCase: category.toLowerCase(),
+    //     },
+    //     include: {
+    //         deleted: true,
+    //     },
+    // });
+
+    // if (existingCategory) {
+    //     if (existingCategory.deleted) {
+    //         // Prompt user to restore the category or choose a new name
+    //         throw new Error(`A category with the name "${category}" is soft-deleted. Do you want to restore it?`);
+    //     } else {
+    //         // Handle case where an active category with the same name exists
+    //         throw new Error(`A category with the name "${category}" already exists.`);
+    //     }
+    // }
+
     await db.category.create({
         data: {
             normalizedLowerCase: lowercaseName,

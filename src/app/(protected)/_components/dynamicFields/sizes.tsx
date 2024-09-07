@@ -71,7 +71,7 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes, s
     // console.log(sizes);
 
     const handleAddSize = () => {
-        let obj = { size: 'S', quantity: 0 };
+        let obj = { size: 'XS', quantity: 0 };
         for (let i = 0; i < sizes.length; i++) {
             for (let j = 0; j < sizes.length; j++) {
                 if (i !== j && sizes[i].size === sizes[j].size) {
@@ -80,7 +80,7 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes, s
                 }
             }
         }
-        const newSizes = [...sizes, obj]; // Default size 'S' added
+        const newSizes = [...sizes, obj]; // Default size 'XS' added
         // setSizes(newSizes);
         onAddSize(newSizes);
     };

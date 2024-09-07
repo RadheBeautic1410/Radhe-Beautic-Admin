@@ -15,7 +15,7 @@ import {
 import React, { Dispatch, SetStateAction, forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { ScrollArea } from "@/src/components/ui/scroll-area";
 import ProgressBar from "@/src/components/ui/progress";
-import { getStorage, ref as ImgRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage'; // Updated import
+import { getStorage, ref as ImgRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage'; 
 import { storage } from "@/src/lib/firebase/firebase";
 import 'firebase/compat/firestore';
 import { toast } from "sonner";
@@ -76,8 +76,9 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
     const [imgs, setImgs] = useState<any[]>([]);
     const [progress, setProgress] = useState<number>(0);
     const [filesToUpload, setFilesToUpload] = useState<FileUploadProgress[]>([]);
-    const [deletingImage, setDeletingImage] = useState<string | null>(null); // Track the image being deleted
-
+    const [deletingImage, setDeletingImage] = useState<string | null>(null); 
+    const [compressionInProgress, setCompressionInProgress] = useState(false); // Track compression state
+    const [isUploading, setIsUploading] = useState(false);
     const reset = () => {
         setUploadedFiles([]);
         setImgs([]);
@@ -101,6 +102,24 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
         };
     };
 
+    const compressImage = async (file: File) => {
+        try {
+            setCompressionInProgress(true); // Start loading indicator
+            const compressedFile = await imageCompression(file, {
+                maxSizeMB: 1, 
+                maxWidthOrHeight: 1920, 
+                useWebWorker: true, 
+            });
+            return compressedFile;
+        } catch (error) {
+            console.error("Error compressing file: ", error);
+            toast.error("Failed to compress image.");
+            return file; // Return original file if compression fails
+        } finally {
+            setCompressionInProgress(false); // Stop loading indicator
+        }
+    };
+
     const onUploadProgress = (
         progressEvent: AxiosProgressEvent,
         file: File,
@@ -117,7 +136,6 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
             setFilesToUpload((prevUploadProgress) => {
                 return prevUploadProgress.filter((item) => item.File !== file);
             });
-
             return;
         }
 
@@ -137,16 +155,14 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
     };
 
     const removeFile = async (file: File) => {
-        setDeletingImage(file.name); // Set the current deleting image
+        setDeletingImage(file.name); 
+
         let temp = [];
-        console.log('uploaded', uploadedFiles);
         for (let i = 0; i < uploadedFiles.length; i++) {
             if (uploadedFiles[i] !== file) {
-                console.log(i);
                 temp.push(images[i]);
             }
         }
-        console.log(temp, temp.length);
         onImageChange(temp);
         setImgs(temp);
 
@@ -154,20 +170,24 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
         if (fileToDelete) {
             const fileRef = ImgRef(storage, fileToDelete.storagePath);
             try {
-                await deleteObject(fileRef); // Delete the file from Firebase Storage
+                await deleteObject(fileRef); 
                 console.log("File deleted from Firebase Storage:", fileToDelete.storagePath);
+                toast.success("File deleted successfully.");
             } catch (error) {
                 console.error("Error deleting file from Firebase Storage:", error);
+                toast.error("Failed to delete file. Please try again.");
             }
+        } else {
+            toast.error("File not found.");
         }
 
         setFilesToUpload((prevUploadProgress) => {
             return prevUploadProgress.filter((item) => item.File !== file);
         });
-        setUploadedFiles((prevUploadProgress) => {
-            return prevUploadProgress.filter((item) => item !== file);
+        setUploadedFiles((prevUploadedFiles) => {
+            return prevUploadedFiles.filter((item) => item !== file);
         });
-        setDeletingImage(null); // Clear the deleting state
+        setDeletingImage(null); 
     };
 
     const uploadImage = async (file: File, path: string) => {
@@ -203,70 +223,55 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
         });
     };
 
-    const compressImage = async (file: File) => {
-        try {
-            const compressedFile = await imageCompression(file, {
-                maxSizeMB: 1, // Adjust the max size in MB
-                maxWidthOrHeight: 1920, // Adjust the max width or height
-                useWebWorker: true,
-            });
-            return compressedFile;
-        } catch (error) {
-            console.error("Error compressing file: ", error);
-            toast.error("Failed to compress image.");
-            return file; // Return the original file if compression fails
-        }
-    };
-
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
-        setFilesToUpload((prevUploadProgress) => {
-            return [
-                ...prevUploadProgress,
-                ...acceptedFiles.map((file) => {
-                    return {
-                        progress: 0,
-                        File: file,
-                        source: null,
-                        storagePath: '', // Initialize storagePath to empty string
-                    };
-                }),
-            ];
-        });
-
-        const fileUploadBatch = acceptedFiles.map(async (file) => {
-            try {
+        setFilesToUpload((prevUploadProgress) => [
+            ...prevUploadProgress,
+            ...acceptedFiles.map((file) => ({
+                progress: 0,
+                File: file,
+                source: null,
+                storagePath: '',
+            })),
+        ]);
+        setIsUploading(true);
+    
+        try {
+            setCompressionInProgress(true);
+            const fileUploadBatch = acceptedFiles.map(async (file) => {
                 const compressedFile = await compressImage(file);
                 const storagePath = `images/${uuidv4()}`;
                 const downloadURL = await uploadImage(compressedFile, storagePath);
-
-                setFilesToUpload((prevUploadProgress) => {
-                    return prevUploadProgress.map((item) => {
-                        if (item.File.name === file.name) {
-                            return {
-                                ...item,
-                                storagePath, // Save the storage path for deletion later
-                            };
-                        }
-                        return item;
-                    });
+    
+                // Update filesToUpload with storagePath
+                setFilesToUpload((prevUploadProgress) =>
+                    prevUploadProgress.map((item) =>
+                        item.File.name === file.name ? { ...item, storagePath } : item
+                    )
+                );
+    
+                // Correctly append the new image without overwriting previous images
+                setImgs((prevImgs) => {
+                    const updatedImgs = [...prevImgs, { url: downloadURL }];
+                    // Pass the updated images list to the parent component
+                    onImageChange(updatedImgs);
+                    return updatedImgs;
                 });
-
-                let prevImages = [...imgs, { url: downloadURL }];
-                setImgs(prevImages);
-                onImageChange(prevImages);
-            } catch (error) {
-                console.error("Error uploading file: ", error);
-                toast.error("Failed to upload image.");
-            }
-        });
-
-        try {
+    
+                // Update the uploadedFiles state
+                setUploadedFiles((prevUploadedFiles) => [...prevUploadedFiles, file]);
+            });
+    
             await Promise.all(fileUploadBatch);
             console.log("All files uploaded successfully");
         } catch (error) {
             console.error("Error uploading files: ", error);
+        } finally {
+            setCompressionInProgress(false);
+            setIsUploading(false);
         }
-    }, [imgs]);
+    }, [onImageChange]);
+    
+    
 
     const { getRootProps, getInputProps } = useDropzone({ onDrop });
 
@@ -298,6 +303,7 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
                     className="hidden"
                 />
             </div>
+            {compressionInProgress && <p>Compressing images...</p>}
             {filesToUpload.length > 0 && (
                 <div>
                     <ScrollArea className="h-40">
@@ -323,7 +329,7 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
                                         <button
                                             className="flex items-center justify-center p-2 rounded-full hover:bg-gray-200"
                                             onClick={() => removeFile(fileUploadProgress.File)}
-                                            disabled={deletingImage === fileUploadProgress.File.name} // Disable the button during deletion
+                                            disabled={deletingImage === fileUploadProgress.File.name} 
                                         >
                                             {deletingImage === fileUploadProgress.File.name ? "Deleting..." : <X className="w-4 h-4 text-red-600" />}
                                         </button>

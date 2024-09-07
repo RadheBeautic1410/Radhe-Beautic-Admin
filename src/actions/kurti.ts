@@ -217,11 +217,18 @@ export const deleteCategory = async (data: any) => {
     try {
         // Start a transaction
         await db.$transaction(async (transaction) => {
-            await transaction.category.delete({
+            const deletedCategoryName = `${category}-deleted-${Date.now()}`;
+
+            // Soft delete the category by setting the deleted flag and modifying the name
+            await transaction.category.update({
                 where: {
                     normalizedLowerCase: category.toLowerCase(),
-                }
+                },
+                data: {
+                    name: deletedCategoryName,
+                },
             });
+
             await transaction.kurti.updateMany({
                 where: {
                     category: {
