@@ -100,26 +100,6 @@ export const getFilteredSales = async (date: any, filter: filter) => {
         const actualPrice = Number(sellData[i].prices?.actualPrice1);
         
         if(!sellingPrice || !actualPrice) {
-            console.log(sellingPrice, actualPrice, sellData[i].id);
-            const obj = {
-                sellingPrice1: parseInt(sellData[i].kurti[0]?.sellingPrice || "0"),
-                sellingPrice2: parseInt(sellData[i].kurti[0]?.sellingPrice || "0"),
-                sellingPrice3: parseInt(sellData[i].kurti[0]?.sellingPrice || "0"),
-                actualPrice1: parseInt(sellData[i].kurti[0]?.actualPrice || "0"),
-                actualPrice2: parseInt(sellData[i].kurti[0]?.actualPrice || "0"),
-                actualPrice3: parseInt(sellData[i].kurti[0]?.actualPrice || "0"),
-            }
-            const prices = await db.prices.create({
-                data: obj
-            });
-            await db.sell.update({
-                where: {
-                    id: sellData[i].id,
-                },
-                data: {
-                    pricesId: prices.id
-                }
-            })
             continue;
         }
         count++;
