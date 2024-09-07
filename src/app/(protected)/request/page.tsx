@@ -164,7 +164,7 @@ const ModeratorPage = () => {
                                     <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
                                         <TableHead className="text-center">Verified By</TableHead>
                                     </RoleGateForComponent>
-                                    <TableHead className="text-center">Action</TableHead>
+                                    {/* <TableHead className="text-center">Action</TableHead> */}
                                     <TableHead className="text-center">Action</TableHead>
 
                                 </TableRow>
