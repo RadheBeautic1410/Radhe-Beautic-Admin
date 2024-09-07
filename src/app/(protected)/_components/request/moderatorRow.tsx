@@ -41,11 +41,11 @@ interface userProps {
 interface moderatorRowProps {
     userData: userProps;
     onUpdateUserData: (updateUserData: userProps) => void;
-    onDeleteUserData: (deleteUserData: userProps) => void;
+    // onDeleteUserData: (deleteUserData: userProps) => void;
 }
 
 
-export const ModeratorRow = ({ userData, onUpdateUserData, onDeleteUserData }: moderatorRowProps) => {
+export const ModeratorRow = ({ userData, onUpdateUserData }: moderatorRowProps) => {
 
     const { id } = userData;
     const form = useForm({
@@ -77,23 +77,23 @@ export const ModeratorRow = ({ userData, onUpdateUserData, onDeleteUserData }: m
         });
     }
 
-    const onSubmitDelete = () => {
-        startTransition(() => {
-            userDelete(id)
-                .then((data) => {
-                    if (data.error) {
-                        toast.error(data.error);
-                    }
+    // const onSubmitDelete = () => {
+    //     startTransition(() => {
+    //         userDelete(id)
+    //             .then((data) => {
+    //                 if (data.error) {
+    //                     toast.error(data.error);
+    //                 }
 
-                    if (data.success) {
-                        toast.success(data.success);
-                        onDeleteUserData(data.deletedUser)
+    //                 if (data.success) {
+    //                     toast.success(data.success);
+    //                     onDeleteUserData(data.deletedUser)
 
-                    }
-                })
-                .catch(() => toast.error("Something went wrong!"));
-        });
-    }
+    //                 }
+    //             })
+    //             .catch(() => toast.error("Something went wrong!"));
+    //     });
+    // }
 
     return (
 
@@ -116,7 +116,7 @@ export const ModeratorRow = ({ userData, onUpdateUserData, onDeleteUserData }: m
 
             </RoleGateForComponent>
 
-            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+            {/* <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
                 <TableCell className="text-center">
                     <DialogDemo
                         dialogTrigger="Delete"
@@ -130,7 +130,7 @@ export const ModeratorRow = ({ userData, onUpdateUserData, onDeleteUserData }: m
                     </DialogDemo>
 
                 </TableCell>
-            </RoleGateForComponent>
+            </RoleGateForComponent> */}
 
             <TableCell className="text-center">
                 <DialogDemo

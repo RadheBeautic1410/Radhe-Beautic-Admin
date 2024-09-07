@@ -1,8 +1,8 @@
 "use client";
 
-import { useTransition, useState, use } from "react";
-import { format, parseISO, addDays } from 'date-fns';
-import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { format } from 'date-fns';
+import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from '@/src/components/ui/calendar';
 import {
     Popover,
@@ -17,8 +17,10 @@ import { Button } from "@/src/components/ui/button";
 import { HashLoader } from "react-spinners";
 
 const todayDate = new Date();
+
 const DayAnalytics = () => {
     const [date, setDate] = useState<Date | undefined>(todayDate);
+    
     const fetchFilteredSales = async (date: Date | undefined) => {
         const res = await fetch(
             "/api/analytics/getFilteredSales", {
@@ -36,30 +38,29 @@ const DayAnalytics = () => {
         return res.json();
     }
 
-    const { isPending, isError, error, data, isFetching, isPlaceholderData } =
+    const { isPending, isError, data, isFetching } =
         useQuery({
             queryKey: ['filteredDaySales', date],
             queryFn: () => fetchFilteredSales(date),
             placeholderData: keepPreviousData,
-            // staleTime: 5 * 60 * 1000,
         });
 
     return (
-        <div className="w-[30%] border-0">
+        <div className="w-full max-w-lg mx-auto p-4">
             <Popover>
                 <PopoverTrigger asChild>
                     <Button
-                        variant={"outline"}
+                        variant="outline"
                         className={cn(
-                            "w-[280px] justify-start text-left font-normal mb-2 ",
+                            "w-full justify-start text-left font-normal mb-4 p-3 border rounded-lg shadow-md",
                             !date && "text-muted-foreground"
                         )}
                     >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
                         {date ? format(date, "PPP") : "Pick a Date"}
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0 rounded-lg shadow-lg">
                     <Calendar
                         mode="single"
                         selected={date}
@@ -68,40 +69,35 @@ const DayAnalytics = () => {
                     />
                 </PopoverContent>
             </Popover>
-            <Card>
-                <CardContent className="p-2 grid grid-flow-col">
-                    {isPending || isFetching ? 
-                        <div className="flex justify-center">
+
+            <Card className="bg-white rounded-xl shadow-lg">
+                <CardContent className="p-6 grid grid-cols-3 gap-4 text-center">
+                    {isPending || isFetching ? (
+                        <div className="flex justify-center col-span-3 py-6">
                             <HashLoader color="#36D7B7" loading={isPending || isFetching} size={30} /> 
                         </div>
-                        :
+                    ) : (
                         <>
-                            <div className="pb-2 pl-4 col-span-4">
-                                <div className="font-bold font-serif text-lg tracking-wide">
-                                    Sales
-                                </div>
-                                <div className="text-muted-foreground font-mono">
+                            <div>
+                                <h3 className="font-bold text-lg text-gray-900">Sales</h3>
+                                <p className="text-xl font-semibold text-gray-800">
                                     {new Intl.NumberFormat('en-IN').format(data?.data?.totalSales || 0)}
-                                </div>
+                                </p>
                             </div>
-                            <div className="col-span-4">
-                                <div className="font-bold font-serif text-lg tracking-wide">
-                                    Profit
-                                </div>
-                                <div className="text-muted-foreground font-mono">
+                            <div>
+                                <h3 className="font-bold text-lg text-gray-900">Profit</h3>
+                                <p className="text-xl font-semibold text-gray-800">
                                     {new Intl.NumberFormat('en-IN').format(data?.data?.totalProfit || 0)}
-                                </div>
+                                </p>
                             </div>
-                            <div className="col-span-4">
-                                <div className="font-bold font-serif text-lg tracking-wide">
-                                    Total Pieces
-                                </div>
-                                <div className="text-muted-foreground font-mono">
+                            <div>
+                                <h3 className="font-bold text-lg text-gray-900">Total Pieces</h3>
+                                <p className="text-xl font-semibold text-gray-800">
                                     {new Intl.NumberFormat('en-IN').format(data?.data?.count || 0)}
-                                </div>
+                                </p>
                             </div>
                         </>
-                    }
+                    )}
                 </CardContent>
             </Card>
         </div>

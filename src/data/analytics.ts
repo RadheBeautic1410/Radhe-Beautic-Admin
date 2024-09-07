@@ -61,8 +61,8 @@ const selectBasedOnFilter = (date: any, filter: filter) => {
 }
 
 export const getFilteredSales = async (date: any, filter: filter) => {
-    const ISTTime = selectBasedOnFilter(date, filter);
-
+    const ISTTime = await selectBasedOnFilter(date, filter);
+    console.log(ISTTime);
     const sellData: any = await db.sell.findMany({
         where: {
             sellTime: {

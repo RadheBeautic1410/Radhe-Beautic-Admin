@@ -47,6 +47,7 @@ interface Order {
 	shippingAddress: any;
 	user: any;
 	trackingId: string;
+	shippingCharge: number;
 }
 
 const getCurrTime = () => {
@@ -220,16 +221,22 @@ const ShippedOrders = () => {
 			cell: ({ row }) => {
 				console.log(row);
 				const amount = row.original.total;
+				const shiipped = row.original.shippingCharge || 0;
 				const formatted = new Intl.NumberFormat("en-IN", {
 					style: "currency",
 					currency: "INR",
 				}).format(amount)
+
+				const formatted2 = new Intl.NumberFormat("en-IN", {
+					style: "currency",
+					currency: "INR",
+				}).format(shiipped)
 				return (
 					<>
 						<>
 							<div className="text-gray-600">Amount:</div>
 							<div className="font-semibold text-gray-800">
-								{`${formatted} + shipping`}
+								{`${formatted} + ${formatted2} (shipping)`}
 							</div>
 						</>
 					</>

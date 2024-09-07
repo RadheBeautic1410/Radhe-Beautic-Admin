@@ -92,17 +92,17 @@ const ModeratorPage = () => {
         );
     }
 
-    const deleteUserData = (deletedUser: user) => {
-        setUsers((prevUsers) => {
-            // Filter out the deleted user based on its id
-            const updatedUsers = prevUsers.filter((user) => user.id !== deletedUser.id);
-            return updatedUsers;
-        });
-        setCustomers((prevUsers) => {
-            const updatedUsers = prevUsers.filter((user) => user.id !== deletedUser.id);
-            return updatedUsers;
-        });
-    };
+    // const deleteUserData = (deletedUser: user) => {
+    //     setUsers((prevUsers) => {
+    //         // Filter out the deleted user based on its id
+    //         const updatedUsers = prevUsers.filter((user) => user.id !== deletedUser.id);
+    //         return updatedUsers;
+    //     });
+    //     setCustomers((prevUsers) => {
+    //         const updatedUsers = prevUsers.filter((user) => user.id !== deletedUser.id);
+    //         return updatedUsers;
+    //     });
+    // };
 
 
     return (
@@ -174,14 +174,14 @@ const ModeratorPage = () => {
                                     <>
                                         {users.map((user) => (
                                             user.role !== UserRole.MOD &&
-                                            (<ModeratorRow key={user.id} userData={user} onUpdateUserData={updateUserData} onDeleteUserData={deleteUserData} />)
+                                            (<ModeratorRow key={user.id} userData={user} onUpdateUserData={updateUserData} />)
                                         ))}
                                     </>
                                     :
                                     <>
                                         {customers.map((user) => (
                                             user.role !== UserRole.MOD &&
-                                            (<CustomerRow key={user.id} userData={user} onUpdateUserData={updateUserData} onDeleteUserData={deleteUserData} />)
+                                            (<CustomerRow key={user.id} userData={user} onUpdateUserData={updateUserData} />)
                                         ))}
                                     </>
                                 }
