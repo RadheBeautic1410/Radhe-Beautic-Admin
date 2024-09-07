@@ -65,6 +65,7 @@ const PendingOrders = () => {
 	const invalidateQueries = useInvalidateQueries();
 	const [search, setSearch] = useState('');
 	const [downloading, setDownloading] = useState(false);
+	const [firstTime, setFirstTime] = useState(true);
 	const [dateRange, setDateRange] = useState<DateRange | undefined>({
 		from: addDays(todatDate, -20),
 		to: todatDate,
@@ -80,14 +81,22 @@ const PendingOrders = () => {
 				status: "PENDING",
 				pageNum: pageParam,
 				pageSize: pageSizeParam,
-				dateRange: dateRange
+				dateRange: dateRange,
+				firstTime: firstTime,
 			}),
 			headers: {
 				"Content-type": "application/json; charset=UTF-8"
 			},
 			next: { revalidate: 300 }
 		})
-		return res.json()
+		const data = await res.json();
+		setDateRange((prev) => ({
+			from: data?.data?.date,
+			to: prev?.to,
+		}));
+		setFirstTime(false);
+		
+		return data;
 	}
 
 	const { isPending, isError, error, data, isFetching, isPlaceholderData } =
@@ -95,7 +104,7 @@ const PendingOrders = () => {
 			queryKey: ['pendingOrders', page, pageSize, dateRange],
 			queryFn: () => fetchPendingOrders(page, pageSize, dateRange),
 			placeholderData: keepPreviousData,
-			staleTime: 5 * 60 * 1000,
+			// staleTime: 5 * 60 * 1000,
 		})
 
 	const fetchAdresses = async () => {
@@ -392,7 +401,7 @@ const PendingOrders = () => {
 		)
 	}
 
-	if (!data.data.pendingOrders || data.data.pendingOrders.length === 0) {
+	if (!data.data?.pendingOrders || data.data?.pendingOrders.length === 0) {
 		return (
 			<>
 				<div className="flex flex-row gap-2 items-center m-3">
