@@ -28,8 +28,19 @@ export const getCountFromStatus: any = async (status: any) => {
     return count;
 }
 
-export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number, pageSize: number, dateRange: DateRange) => {
-
+export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number, pageSize: number, dateRange: DateRange, firstTime: Boolean) => {
+    
+    let [lastOrder] = !firstTime? [] : await db.orders.findMany({
+        where: {
+            status: status,
+        },
+        orderBy: {
+          createdAt: 'desc', // Sort by createdAt field in descending order
+        },
+        take: 1, // Limit the result to 1 entry
+      });
+      
+      
     const currUser: any = await currentUser();
     console.log(currUser);
     if (!currUser) {
@@ -42,7 +53,7 @@ export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number,
                 // userId: currUser.id, 
                 status: status,
                 createdAt: {
-                    gte: dateRange.from ? dateRange.from : addDays(new Date(), -20),
+                    gte: lastOrder ? addDays(lastOrder.date, -20): dateRange.from ? dateRange.from : addDays(new Date(), -20),
                     lte: dateRange.to ? dateRange.to : new Date(),
                 }
             },
@@ -59,7 +70,7 @@ export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number,
             // userId: currUser.id, 
             status: status,
             createdAt: {
-                gte: dateRange.from ? dateRange.from : addDays(new Date(), -20),
+                gte: lastOrder ? addDays(lastOrder.date, -20): dateRange.from ? dateRange.from : addDays(new Date(), -20),
                 lte: dateRange.to ? dateRange.to : currTIme,
             }
         },
@@ -92,6 +103,7 @@ export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number,
     return {
         success: 'Pending orders fetched.',
         pendingOrders: ordersOfUser,
+        date: lastOrder ? addDays(lastOrder.date, -20) : dateRange.from,
         pages: Math.ceil(pages / pageSize)
     }
 }

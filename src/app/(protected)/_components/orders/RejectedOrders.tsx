@@ -60,6 +60,7 @@ const RejectedOrderd = () => {
 	// const [isError, setIsError] = useState(false);
 	const queryClient = useQueryClient();
 	const [search, setSearch] = useState('');
+	const [firstTime, setFirstTime] = useState(true);
 	const [dateRange, setDateRange] = useState<DateRange | undefined>({
 		from: addDays(todayDate, -20),
 		to: todayDate,
@@ -75,14 +76,22 @@ const RejectedOrderd = () => {
 				status: "CANCELLED",
 				pageNum: pageParam,
 				pageSize: pageSizeParam,
-				dateRange: dateRange
+				dateRange: dateRange,
+				firstTime: firstTime,
 			}),
 			headers: {
 				"Content-type": "application/json; charset=UTF-8"
 			},
 			next: { revalidate: 300 }
 		})
-		return res.json()
+		const data = await res.json();
+		setDateRange((prev) => ({
+			from: data?.data?.date,
+			to: prev?.to,
+		}));
+		setFirstTime(false);
+
+		return data;
 	}
 
 	const { isPending, isError, error, data, isFetching, isPlaceholderData } =
@@ -266,7 +275,7 @@ const RejectedOrderd = () => {
 							<Calendar
 								initialFocus
 								mode="range"
-								defaultMonth={dateRange?.from}
+								defaultMonth={addDays(todayDate, -20)}
 								selected={dateRange}
 								onSelect={setDateRange}
 								numberOfMonths={2}

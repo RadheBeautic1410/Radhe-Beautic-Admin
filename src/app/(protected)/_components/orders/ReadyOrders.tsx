@@ -63,11 +63,11 @@ const ReadyOrders = () => {
 	// const [isError, setIsError] = useState(false);
 	const queryClient = useQueryClient();
 	const [search, setSearch] = useState('');
-
+	const [firstTime, setFirstTime] = useState(true);
 	const [dateRange, setDateRange] = useState<DateRange | undefined>({
 		from: addDays(todayDate, -20),
 		to: todayDate,
-	});
+	}); 	
 	const [page, setPage] = React.useState(0)
 	const [pageSize, setPageSize] = useState(10);
 	const fetchReadyOrders = async (pageParam: number, pageSizeParam: number, dateRange: DateRange | undefined) => {
@@ -79,14 +79,22 @@ const ReadyOrders = () => {
 				status: "PROCESSING",
 				pageNum: pageParam,
 				pageSize: pageSizeParam,
-				dateRange: dateRange
+				dateRange: dateRange,
+				firstTime: firstTime,
 			}),
 			headers: {
 				"Content-type": "application/json; charset=UTF-8"
 			},
 			next: { revalidate: 300 }
 		})
-		return res.json()
+		const data = await res.json();
+		setDateRange((prev) => ({
+			from: data?.data?.date,
+			to: prev?.to,
+		}));
+		setFirstTime(false);
+		
+		return data;
 	}
 
 	const { isPending, isError, error, data, isFetching, isPlaceholderData } =
@@ -94,7 +102,7 @@ const ReadyOrders = () => {
 			queryKey: ['readyOrders', page, pageSize, dateRange],
 			queryFn: () => fetchReadyOrders(page, pageSize, dateRange),
 			placeholderData: keepPreviousData,
-			staleTime: 5 * 60 * 1000,
+			// staleTime: 5 * 60 * 1000,
 		})
 
 	console.log('query-data', data);
@@ -249,7 +257,7 @@ const ReadyOrders = () => {
 		)
 	}
 
-	if (!data.data.pendingOrders || data.data.pendingOrders.length === 0) {
+	if (!data.data?.pendingOrders || data.data?.pendingOrders.length === 0) {
 		return (
 			<>
 				<div className="flex flex-row gap-2 items-center m-3">
