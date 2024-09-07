@@ -51,7 +51,7 @@ const AnalyticsPage = () => {
         <Card className="w-[90%] flex p-3 gap-2 justify-evenly">
             <DayAnalytics />
             <MonthAnalytics />
-            <YearAnalytics />
+            {/* <YearAnalytics /> */}
         </Card>
     );
 }
