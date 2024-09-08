@@ -43,6 +43,8 @@ const DayAnalytics = () => {
             queryKey: ['filteredDaySales', date],
             queryFn: () => fetchFilteredSales(date),
             placeholderData: keepPreviousData,
+            staleTime: 30,
+            refetchOnWindowFocus: false,
         });
 
     return (
@@ -81,19 +83,19 @@ const DayAnalytics = () => {
                         <>
                             <div>
                                 <h3 className="font-bold text-lg text-gray-900">Sales</h3>
-                                <p className="text-xl font-semibold text-gray-800">
+                                <p className="text-xl text-gray-500">
                                     {new Intl.NumberFormat('en-IN').format(data?.data?.totalSales || 0)}
                                 </p>
                             </div>
                             <div>
                                 <h3 className="font-bold text-lg text-gray-900">Profit</h3>
-                                <p className="text-xl font-semibold text-gray-800">
+                                <p className="text-xl text-gray-500">
                                     {new Intl.NumberFormat('en-IN').format(data?.data?.totalProfit || 0)}
                                 </p>
                             </div>
                             <div>
                                 <h3 className="font-bold text-lg text-gray-900">Total Pieces</h3>
-                                <p className="text-xl font-semibold text-gray-800">
+                                <p className="text-xl text-gray-500">
                                     {new Intl.NumberFormat('en-IN').format(data?.data?.count || 0)}
                                 </p>
                             </div>

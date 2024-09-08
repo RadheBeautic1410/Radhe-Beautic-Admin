@@ -20,6 +20,8 @@ import { FaRegEye, FaRegEyeSlash } from "react-icons/fa6";
 import DayAnalytics from "@/src/app/(protected)/_components/analytics/dayAnalytics";
 import MonthAnalytics from "@/src/app/(protected)/_components/analytics/monthAnalytics";
 import YearAnalytics from "@/src/app/(protected)/_components/analytics/yearAnalytics";
+import TopMonthlySellingKurti from "@/src/app/(protected)/_components/analytics/topMonthlySellingKurti";
+import AvailableKurtiSizes from "@/src/app/(protected)/_components/analytics/awailableKurtiSizes";
 
 const AnalyticsPage = () => {
 
@@ -48,11 +50,19 @@ const AnalyticsPage = () => {
     // }
     // const [passwordType, setPasswordType] = useState('password');
     return (
-        <Card className="w-[90%] flex p-3 gap-2 justify-evenly">
-            <DayAnalytics />
-            <MonthAnalytics />
-            {/* <YearAnalytics /> */}
-        </Card>
+        <>
+            <Card className="w-[90%] flex flex-col p-3 gap-2 justify-evenly">
+                <div className="flex flex-row w-[100%]">
+                    <DayAnalytics />
+                    <MonthAnalytics />
+                    {/* <YearAnalytics /> */}
+                </div>
+                <div className="w-[100%] flex flex-row">
+                    <TopMonthlySellingKurti />  
+                    <AvailableKurtiSizes />
+                </div>
+            </Card>
+        </>
     );
 }
 

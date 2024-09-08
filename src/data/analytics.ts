@@ -25,8 +25,6 @@ export const getCurrMonth = (date: month) => {
     const customDate = new Date(date.year, date.month, 1);
     const ISTTimeStart = new Date(startOfMonth(addDays(customDate, -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
     const ISTTimeEnd = new Date(endOfMonth(addDays(customDate, -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
-    console.log('ISTTimeStartM', ISTTimeStart);
-    console.log('ISTTimeEndM', ISTTimeEnd);
 
     return {
         start: ISTTimeStart,
@@ -34,12 +32,9 @@ export const getCurrMonth = (date: month) => {
     };
 }
 
-export const getCurrYear = ({ year }: { year: number }) => {
-    const ISTTimeStart = new Date(startOfMonth(addDays(new Date(year, 1, 1), -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
-    const ISTTimeEnd = new Date(startOfMonth(addDays(new Date(year + 1, 1, 1), -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
-
-    console.log('ISTTimeStartY', ISTTimeStart);
-    console.log('ISTTimeEndY', ISTTimeEnd);
+export const getCurrYear = ({year} : {year: number}) => {
+    const ISTTimeStart = new Date(startOfMonth(addDays(new Date(year, 1 ,1), -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
+    const ISTTimeEnd = new Date(startOfMonth(addDays(new Date(year+1, 1 ,1), -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
 
     return {
         start: ISTTimeStart,
@@ -62,12 +57,16 @@ const selectBasedOnFilter = (date: any, filter: filter) => {
 
 export const getFilteredSales = async (date: any, filter: filter) => {
     const ISTTime = await selectBasedOnFilter(date, filter);
-    console.log(ISTTime);
     const sellData: any = await db.sell.findMany({
         where: {
             sellTime: {
                 gte: new Date(`${ISTTime?.start}T00:00:00.000Z`),
                 lt: new Date(`${ISTTime?.end}T23:59:59.999Z`),
+            },
+            code: {
+                not: {
+                    startsWith: 'TES',
+                },
             },
         },
         select: {
@@ -81,21 +80,14 @@ export const getFilteredSales = async (date: any, filter: filter) => {
             },
         }
     });
-
-    // console.log(sellData);
-
+    
     let totalSales = 0, totalProfit = 0;
 
-    if (date?.year) {
-        console.log(sellData.length, 'yearly');
-
-    }
     let count = 0;
-    for (let i = 0; i < sellData.length; i++) {
-        if (sellData[i].code.includes('TES')) {
-            console.log(sellData[i].code);
-            continue;
-        }
+    for(let i = 0; i < sellData.length; i++) {
+        // if(sellData[i].code.includes('TES')){
+        //     continue;
+        // }
         const sellingPrice = Number(sellData[i].prices?.sellingPrice1);
         const actualPrice = Number(sellData[i].prices?.actualPrice1);
         console.log(sellingPrice, actualPrice, count, totalProfit);
@@ -143,6 +135,74 @@ export const getFilteredSales = async (date: any, filter: filter) => {
         totalSales += sellingPrice;
         totalProfit += (sellingPrice - actualPrice);
     }
+    
+    return { totalSales, totalProfit, count};
+};
 
-    return { totalSales, totalProfit, count };
-}
+export const getMonthlyTopTenKurties = async (date: month) => {
+    const ISTTime = await getCurrMonth(date);
+    console.log(ISTTime);
+    
+    const sellData: any = await db.sell.groupBy({
+        by: ['code'],
+        _count: {
+            code: true,
+        },
+        where: {
+            sellTime: {
+                gte: new Date(`${ISTTime?.start}T00:00:00.000Z`),
+                lt: new Date(`${ISTTime?.end}T23:59:59.999Z`),
+            },
+            code: {
+                not: {
+                    startsWith: 'TES',
+                },
+            },
+        },
+        orderBy: {
+            _count: {
+                code: 'desc',
+            },
+        },
+        take: 10,
+    });
+    
+    return sellData;
+};
+
+export const getAvailableKurtiSizes = async () => {
+    const sellData: any = await db.kurti.findMany({
+        where: {
+            code: {
+                not: {
+                    startsWith: 'TES',
+                },
+            },
+            isDeleted: false,
+        },
+        select: {
+            sizes: true,
+            reservedSizes: true,
+        }
+    });
+
+    const availablePieceSizes: any = {};
+    const reservedSizes: any = {};
+    let arr: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+    for(let i=0;i<arr.length;i++){
+        availablePieceSizes[arr[i]] = 0;
+        reservedSizes[arr[i]] = 0;
+    }
+    for(let i = 0; i < sellData.length; i++) {
+        for(let j=0;j<sellData[i].sizes.length;j++){
+            availablePieceSizes[sellData[i].sizes[j].size] += sellData[i].sizes[j].quantity;
+        }
+        for(let j=0;j<sellData[i].reservedSizes.length;j++){
+            availablePieceSizes[sellData[i].reservedSizes[j].size] += sellData[i].reservedSizes[j].quantity;
+        }
+    }
+
+    console.log(availablePieceSizes, reservedSizes);
+    
+    return {availablePieceSizes, reservedSizes};
+};
