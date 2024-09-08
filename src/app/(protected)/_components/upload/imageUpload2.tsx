@@ -15,7 +15,7 @@ import {
 import React, { Dispatch, SetStateAction, forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { ScrollArea } from "@/src/components/ui/scroll-area";
 import ProgressBar from "@/src/components/ui/progress";
-import { getStorage, ref as ImgRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage'; 
+import { getStorage, ref as ImgRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from "@/src/lib/firebase/firebase";
 import 'firebase/compat/firestore';
 import { toast } from "sonner";
@@ -76,7 +76,7 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
     const [imgs, setImgs] = useState<any[]>([]);
     const [progress, setProgress] = useState<number>(0);
     const [filesToUpload, setFilesToUpload] = useState<FileUploadProgress[]>([]);
-    const [deletingImage, setDeletingImage] = useState<string | null>(null); 
+    const [deletingImage, setDeletingImage] = useState<string | null>(null);
     const [compressionInProgress, setCompressionInProgress] = useState(false); // Track compression state
     const [isUploading, setIsUploading] = useState(false);
     const reset = () => {
@@ -106,9 +106,9 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
         try {
             setCompressionInProgress(true); // Start loading indicator
             const compressedFile = await imageCompression(file, {
-                maxSizeMB: 1, 
-                maxWidthOrHeight: 1920, 
-                useWebWorker: true, 
+                maxSizeMB: 1,
+                maxWidthOrHeight: 1920,
+                useWebWorker: true,
             });
             return compressedFile;
         } catch (error) {
@@ -155,7 +155,7 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
     };
 
     const removeFile = async (file: File) => {
-        setDeletingImage(file.name); 
+        setDeletingImage(file.name);
 
         let temp = [];
         for (let i = 0; i < uploadedFiles.length; i++) {
@@ -170,7 +170,7 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
         if (fileToDelete) {
             const fileRef = ImgRef(storage, fileToDelete.storagePath);
             try {
-                await deleteObject(fileRef); 
+                await deleteObject(fileRef);
                 console.log("File deleted from Firebase Storage:", fileToDelete.storagePath);
                 toast.success("File deleted successfully.");
             } catch (error) {
@@ -187,12 +187,15 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
         setUploadedFiles((prevUploadedFiles) => {
             return prevUploadedFiles.filter((item) => item !== file);
         });
-        setDeletingImage(null); 
+        setDeletingImage(null);
     };
 
     const uploadImage = async (file: File, path: string) => {
         const storageRef = ImgRef(storage, path);
-        const uploadTask = uploadBytesResumable(storageRef, file);
+        const metadata = {
+            cacheControl: 'public, max-age=5184000', // Cache for 1 year
+        };
+        const uploadTask = uploadBytesResumable(storageRef, file, metadata);
 
         return new Promise<string>((resolve, reject) => {
             uploadTask.on(
@@ -216,6 +219,7 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
                 },
                 async () => {
                     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
                     console.log(downloadURL);
                     resolve(downloadURL);
                 }
@@ -234,21 +238,21 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
             })),
         ]);
         setIsUploading(true);
-    
+
         try {
             setCompressionInProgress(true);
             const fileUploadBatch = acceptedFiles.map(async (file) => {
                 const compressedFile = await compressImage(file);
                 const storagePath = `images/${uuidv4()}`;
                 const downloadURL = await uploadImage(compressedFile, storagePath);
-    
+
                 // Update filesToUpload with storagePath
                 setFilesToUpload((prevUploadProgress) =>
                     prevUploadProgress.map((item) =>
                         item.File.name === file.name ? { ...item, storagePath } : item
                     )
                 );
-    
+
                 // Correctly append the new image without overwriting previous images
                 setImgs((prevImgs) => {
                     const updatedImgs = [...prevImgs, { url: downloadURL }];
@@ -256,11 +260,11 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
                     onImageChange(updatedImgs);
                     return updatedImgs;
                 });
-    
+
                 // Update the uploadedFiles state
                 setUploadedFiles((prevUploadedFiles) => [...prevUploadedFiles, file]);
             });
-    
+
             await Promise.all(fileUploadBatch);
             console.log("All files uploaded successfully");
         } catch (error) {
@@ -270,8 +274,8 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
             setIsUploading(false);
         }
     }, [onImageChange]);
-    
-    
+
+
 
     const { getRootProps, getInputProps } = useDropzone({ onDrop });
 
@@ -329,7 +333,7 @@ const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, re
                                         <button
                                             className="flex items-center justify-center p-2 rounded-full hover:bg-gray-200"
                                             onClick={() => removeFile(fileUploadProgress.File)}
-                                            disabled={deletingImage === fileUploadProgress.File.name} 
+                                            disabled={deletingImage === fileUploadProgress.File.name}
                                         >
                                             {deletingImage === fileUploadProgress.File.name ? "Deleting..." : <X className="w-4 h-4 text-red-600" />}
                                         </button>
