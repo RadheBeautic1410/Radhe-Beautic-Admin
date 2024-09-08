@@ -13,6 +13,23 @@ import {
 import { Card, CardContent } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow, } from "@/src/components/ui/table";
+
+const headerCells = [
+    {
+        name: 'Sr.',
+        key: 'sr'
+    },
+    {
+        name: 'Kurti Code',
+        key: 'kurti_code',
+    },
+    
+    {
+      name: 'Sold Count',
+      key: 'sold_count',
+  },
+];
 
 const MONTHS: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const YEARS: number[] = [];
@@ -28,15 +45,14 @@ const DayAnalytics = () => {
   const [month, setMonth] = useState<number>(currentMonth);
   const [year, setYear] = useState<number>(currentYear);
 
-  const fetchFilteredSales = async (month: number, year: number) => {
-    const res = await fetch("/api/analytics/getFilteredSales", {
+  const fetchTopTenMonthlyKurties = async (month: number, year: number) => {
+    const res = await fetch("/api/analytics/getMonthlyTopTenKurties", {
       method: "POST",
       body: JSON.stringify({
         date: {
           year,
           month,
         },
-        filter: "MONTH",
       }),
       headers: {
         "Content-type": "application/json; charset=UTF-8",
@@ -48,11 +64,11 @@ const DayAnalytics = () => {
   };
 
   const { isPending, isFetching, data } = useQuery({
-    queryKey: ["filteredDaySales", month, year],
-    queryFn: () => fetchFilteredSales(month, year),
+    queryKey: ["topTenMonthlyKurties", month, year],
+    queryFn: () => fetchTopTenMonthlyKurties(month, year),
     placeholderData: keepPreviousData,
   });
-
+  
   return (
     <div className="w-full max-w-lg mx-auto p-4">
       <div className="grid grid-cols-2 gap-4 mb-4">
@@ -90,37 +106,41 @@ const DayAnalytics = () => {
       </div>
 
       <Card className="bg-white rounded-xl shadow-lg">
-        <CardContent className="p-6 grid grid-cols-3 gap-4 text-center">
-          {isPending || isFetching ? (
-            <div className="flex justify-center col-span-3 py-6">
-              <HashLoader color="#36D7B7" loading={isPending || isFetching} size={30} />
-            </div>
-          ) : (
-            <>
-              <div>
-                <h3 className="font-bold text-lg text-gray-900">Sales</h3>
-                <p className="text-xl text-gray-500">
-                  {new Intl.NumberFormat("en-IN").format(
-                    data?.data?.totalSales || 0
-                  )}
-                </p>
-              </div>
-              <div>
-                <h3 className="font-bold text-lg text-gray-900">Profit</h3>
-                <p className="text-xl text-gray-500">
-                  {new Intl.NumberFormat("en-IN").format(
-                    data?.data?.totalProfit || 0
-                  )}
-                </p>
-              </div>
-              <div>
-                <h3 className="font-bold text-lg text-gray-900">Total Pieces</h3>
-                <p className="text-xl text-gray-500">
-                  {new Intl.NumberFormat("en-IN").format(data?.data?.count || 0)}
-                </p>
-              </div>
-            </>
-          )}
+        <CardContent className="p-6 grid grid-col-2 gap-4 text-center">
+            <Table>
+                <TableHeader>
+                    <TableRow className='text-black'>
+                        {headerCells.map((obj) => {
+                            return (
+                                <TableHead
+                                    key={obj.key}
+                                    className="text-center font-bold text-base"
+                                >
+                                    {obj.name}
+                                </TableHead>
+                            )
+                        })}
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {data?.data && data?.data.map((obj: any, idx: any) => {
+                        return (
+                            <TableRow key={idx+1}>
+                                <TableCell className="text-center">
+                                    {idx+1}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    {obj.code}
+                                </TableCell>
+                                
+                                <TableCell className="text-center">
+                                    {obj._count.code}
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })}
+                </TableBody>
+            </Table>
         </CardContent>
       </Card>
     </div>
