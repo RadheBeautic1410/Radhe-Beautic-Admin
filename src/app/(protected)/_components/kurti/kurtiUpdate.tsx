@@ -36,6 +36,7 @@ interface Size {
 }
 
 const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
+    console.log("🚀 ~ data:", data)
     const [sizes, setSizes] = useState<Size[]>(data?.sizes || []);
     const [components, setComponents] = useState<any[]>([]);
     const [isPending, startTransition] = useTransition();
@@ -239,7 +240,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
             const response = await fetch(`/api/kurti/generateCode?cat=${categorySelected}`); // Adjust the API endpoint based on your actual setup
             const result = await response.json();
             setGeneratedCode(result.code);
-
+            return result;
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
@@ -248,11 +249,14 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
     }
 
     const handleCategoryChange = async () => {
-        await CodeGenerator();
+        const generatedCode = await CodeGenerator();
+        if (!generatedCode.code) {
+            return;
+        }
         startTransition(() => {
-            categoryChange({ code: data?.code, category: changedCategory, newCode: generatedCode })
+            categoryChange({ code: data?.code, category: changedCategory, newCode: generatedCode.code })
                 .then((data: any) => {
-                    console.log(data);
+                    console.log("🚀 ~ .then ~ data:", data)
                     if (data.error) {
                         // formCategory.reset();
                         toast.error(data.error);

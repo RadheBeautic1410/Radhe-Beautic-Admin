@@ -86,6 +86,7 @@ const ListPage = () => {
                 const filteredRows = kurtiData.filter((row) => {
                     return row.code.toUpperCase().includes(newVal.toUpperCase());
                 }).slice(0, 20);
+                console.log("filyte",filteredRows)
                 setDisplayKurtiData(filteredRows);
                 setDisplayCategoryData([]);
             }
@@ -145,66 +146,82 @@ const ListPage = () => {
         setSearching(false);
     };
 
+    // const fetchUpdatedData = async () => {
+    //     let storedTime: any = localStorage.getItem('radhe-time-1');
+    //     let storedDelTime: any = localStorage.getItem('radhe-del-time');
+    //     let storedData: any = localStorage.getItem('radhe-data');
+    //     // console.log(storedTime, storedData);
+    //     const currTime = await getCurrTime();
+    //     let tempRes: any = await fetch(`/api/kurti/deletetime`);
+    //     tempRes = await tempRes.json();
+    //     console.log('tempRes:', tempRes.data.time, storedDelTime);
+    //     let storedDelTime2 = JSON.parse(storedDelTime);
+    //     console.log(new Date(storedDelTime2).getTime(), new Date(tempRes.data.time).getTime(), (new Date(storedDelTime2).getTime === new Date(tempRes.data.time).getTime));
+    //     if (
+    //         storedDelTime &&
+    //         storedTime !== null &&
+    //         storedData !== null &&
+    //         (new Date(storedDelTime2).getTime() === new Date(tempRes.data.time).getTime())
+    //     ) {
+    //         storedTime = JSON.parse(storedTime) || currTime.toISOString();
+    //         storedData = JSON.parse(storedData) || [];
+    //         const res = await axios.post(`/api/kurti/getall`, {
+    //             currentTime: storedTime,
+    //         })
+    //         let fetchedData = res.data.data || [];
+    //         console.log(fetchedData);
+    //         // Create a map from newArray for quick lookup by code
+    //         const newMap = new Map(fetchedData.map((obj: any) => [obj.code, obj]));
+    //         console.log("🚀 ~ fetchUpdatedData ~ newMap:", newMap)
+
+    //         // Update oldArray objects or add new ones
+    //         const updatedArray = storedData.map((obj: any) => {
+    //             return newMap.has(obj.code) ? newMap.get(obj.code) : obj;
+    //         });
+
+    //         // Optionally, add new entries that are only in fetchedData
+    //         fetchedData.forEach((obj: any) => {
+    //             if (!storedData.some((oldObj: any) => oldObj.code === obj.code)) {
+    //                 updatedArray.push(obj);
+    //             }
+    //         });
+    //         setKurtiData(updatedArray);
+    //         localStorage.setItem('radhe-time-1', JSON.stringify(currTime.toISOString()));
+    //         let store = await JSON.stringify(updatedArray);
+    //         localStorage.setItem('radhe-data', store);
+    //         store = await JSON.stringify(tempRes.data.time);
+    //         localStorage.setItem('radhe-del-time', store);
+    //         return updatedArray;
+    //     }
+    //     else {
+    //         let res2 = await fetch(`/api/kurti/getall`);
+    //         const res = await res2.json();
+    //         console.log(res.data);
+    //         setKurtiData(res.data);
+    //         localStorage.setItem('radhe-time-1', JSON.stringify(currTime.toISOString()));
+    //         let store = await JSON.stringify(res.data);
+    //         localStorage.setItem('radhe-data', store);
+    //         store = await JSON.stringify(tempRes.data.time);
+    //         localStorage.setItem('radhe-del-time', store);
+    //         console.log('fetched again');
+    //         return res.data;
+    //     }
+    // }
+
     const fetchUpdatedData = async () => {
-        let storedTime: any = localStorage.getItem('radhe-time-1');
-        let storedDelTime: any = localStorage.getItem('radhe-del-time');
-        let storedData: any = localStorage.getItem('radhe-data');
-        // console.log(storedTime, storedData);
-        const currTime = await getCurrTime();
-        let tempRes: any = await fetch(`/api/kurti/deletetime`);
-        tempRes = await tempRes.json();
-        console.log('tempRes:', tempRes.data.time, storedDelTime);
-        let storedDelTime2 = JSON.parse(storedDelTime);
-        console.log(new Date(storedDelTime2).getTime(), new Date(tempRes.data.time).getTime(), (new Date(storedDelTime2).getTime === new Date(tempRes.data.time).getTime));
-        if (
-            storedDelTime &&
-            storedTime !== null &&
-            storedData !== null &&
-            (new Date(storedDelTime2).getTime() === new Date(tempRes.data.time).getTime())
-        ) {
-            storedTime = JSON.parse(storedTime) || currTime.toISOString();
-            storedData = JSON.parse(storedData) || [];
-            const res = await axios.post(`/api/kurti/getall`, {
-                currentTime: storedTime,
-            })
-            let fetchedData = res.data.data || [];
-            console.log(fetchedData);
-            // Create a map from newArray for quick lookup by code
-            const newMap = new Map(fetchedData.map((obj: any) => [obj.code, obj]));
+      const currTime = await getCurrTime();
+      let tempRes: any = await fetch(`/api/kurti/deletetime`);
+      tempRes = await tempRes.json();
 
-            // Update oldArray objects or add new ones
-            const updatedArray = storedData.map((obj: any) => {
-                return newMap.has(obj.code) ? newMap.get(obj.code) : obj;
-            });
+      const res2 = await fetch(`/api/kurti/getall`);
+      const res = await res2.json();
 
-            // Optionally, add new entries that are only in fetchedData
-            fetchedData.forEach((obj: any) => {
-                if (!storedData.some((oldObj: any) => oldObj.code === obj.code)) {
-                    updatedArray.push(obj);
-                }
-            });
-            setKurtiData(updatedArray);
-            localStorage.setItem('radhe-time-1', JSON.stringify(currTime.toISOString()));
-            let store = await JSON.stringify(updatedArray);
-            localStorage.setItem('radhe-data', store);
-            store = await JSON.stringify(tempRes.data.time);
-            localStorage.setItem('radhe-del-time', store);
-            return updatedArray;
-        }
-        else {
-            let res2 = await fetch(`/api/kurti/getall`);
-            const res = await res2.json();
-            console.log(res.data);
-            setKurtiData(res.data);
-            localStorage.setItem('radhe-time-1', JSON.stringify(currTime.toISOString()));
-            let store = await JSON.stringify(res.data);
-            localStorage.setItem('radhe-data', store);
-            store = await JSON.stringify(tempRes.data.time);
-            localStorage.setItem('radhe-del-time', store);
-            console.log('fetched again');
-            return res.data;
-        }
-    }
+      console.log(res.data);
+      setKurtiData(res.data);
+
+      return res.data;
+    };
+    
 
     useEffect(() => {
         const fetchData = async () => {
