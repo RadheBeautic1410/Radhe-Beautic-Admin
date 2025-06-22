@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  UploadCloud,
-  FileImage,
-  FolderArchive,
-  X,
-} from "lucide-react";
+import { UploadCloud, FileImage, FolderArchive, X } from "lucide-react";
 import {
   Dispatch,
   SetStateAction,
@@ -36,6 +31,13 @@ interface ChildProps {
 
 export interface ImageUploadRef {
   reset: () => void;
+}
+async function getImageDimensions(file: File | Blob): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(`${img.width} x ${img.height}`);
+    img.src = URL.createObjectURL(file);
+  });
 }
 
 const ImageUpload2 = forwardRef<ImageUploadRef, ChildProps>(
@@ -70,12 +72,20 @@ const ImageUpload2 = forwardRef<ImageUploadRef, ChildProps>(
     const compressImage = async (file: File) => {
       try {
         setCompressionInProgress(true);
+        if (file.size / 1024 / 1024 <= 2) return file;
         const compressed = await imageCompression(file, {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1920,
+          maxSizeMB: 2.5, // Try to keep final size under 2.5 MB
           useWebWorker: true,
+          maxWidthOrHeight: 1920,
+          initialQuality: 0.92,
         });
-        return compressed;
+
+        // Only use compressed version if it's smaller
+        if (compressed.size < file.size) {
+          return compressed;
+        } else {
+          return file;
+        }
       } catch (error) {
         toast.error("Image compression failed.");
         return file;
@@ -202,7 +212,11 @@ const ImageUpload2 = forwardRef<ImageUploadRef, ChildProps>(
                   disabled={deletingImage === img.path}
                   className="absolute top-2 right-2 bg-white rounded-full p-1 shadow hover:bg-red-50"
                 >
-                  {deletingImage === img.path ? "..." : <X className="w-4 h-4 text-red-500" />}
+                  {deletingImage === img.path ? (
+                    "..."
+                  ) : (
+                    <X className="w-4 h-4 text-red-500" />
+                  )}
                 </button>
               </div>
             ))}
