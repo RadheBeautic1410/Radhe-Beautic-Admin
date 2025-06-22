@@ -1,351 +1,217 @@
 "use client";
-import axios, { AxiosProgressEvent, CancelTokenSource } from "axios";
-import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
-import { useDropzone } from "react-dropzone";
-import { Input } from "@/src/components/ui/input";
+
 import {
-    AudioWaveform,
-    File,
-    FileImage,
-    FolderArchive,
-    UploadCloud,
-    Video,
-    X,
+  UploadCloud,
+  FileImage,
+  FolderArchive,
+  X,
 } from "lucide-react";
-import React, { Dispatch, SetStateAction, forwardRef, useCallback, useImperativeHandle, useState } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useState,
+} from "react";
+import { useDropzone } from "react-dropzone";
 import { ScrollArea } from "@/src/components/ui/scroll-area";
-import ProgressBar from "@/src/components/ui/progress";
-import { getStorage, ref as ImgRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from "@/src/lib/firebase/firebase";
-import 'firebase/compat/firestore';
+import { Input } from "@/src/components/ui/input";
 import { toast } from "sonner";
-import { v4 as uuidv4 } from 'uuid';
-import imageCompression from 'browser-image-compression';
+import {
+  getStorage,
+  ref as ImgRef,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
+import { storage } from "@/src/lib/firebase/firebase";
+import imageCompression from "browser-image-compression";
+import { v4 as uuidv4 } from "uuid";
 
 interface ChildProps {
-    onImageChange: (data: any) => void;
-    images: any[];
+  onImageChange: (data: any[]) => void;
+  images: any[];
 }
-
-interface FileUploadProgress {
-    progress: number;
-    File: File;
-    source: CancelTokenSource | null;
-    storagePath: string; // Added storagePath to track the file location in Firebase Storage
-}
-
-enum FileTypes {
-    Image = "image",
-    Pdf = "pdf",
-    Audio = "audio",
-    Video = "video",
-    Other = "other",
-}
-
-const ImageColor = {
-    bgColor: "bg-purple-600",
-    fillColor: "fill-purple-600",
-};
-
-const PdfColor = {
-    bgColor: "bg-blue-400",
-    fillColor: "fill-blue-400",
-};
-
-const AudioColor = {
-    bgColor: "bg-yellow-400",
-    fillColor: "fill-yellow-400",
-};
-
-const VideoColor = {
-    bgColor: "bg-green-400",
-    fillColor: "fill-green-400",
-};
-
-const OtherColor = {
-    bgColor: "bg-gray-400",
-    fillColor: "fill-gray-400",
-};
 
 export interface ImageUploadRef {
-    reset: () => void;
+  reset: () => void;
 }
 
-const ImageUpload2 = React.forwardRef(({ onImageChange, images }: ChildProps, ref: React.Ref<ImageUploadRef>) => {
-    const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-    const [imgs, setImgs] = useState<any[]>([]);
-    const [progress, setProgress] = useState<number>(0);
-    const [filesToUpload, setFilesToUpload] = useState<FileUploadProgress[]>([]);
-    const [deletingImage, setDeletingImage] = useState<string | null>(null);
-    const [compressionInProgress, setCompressionInProgress] = useState(false); // Track compression state
+const ImageUpload2 = forwardRef<ImageUploadRef, ChildProps>(
+  ({ onImageChange, images }, ref) => {
+    const [uploadQueue, setUploadQueue] = useState<any[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [compressionInProgress, setCompressionInProgress] = useState(false);
+    const [deletingImage, setDeletingImage] = useState<string | null>(null);
+
     const reset = () => {
-        setUploadedFiles([]);
-        setImgs([]);
-        setFilesToUpload([]);
+      onImageChange([]);
+      setUploadQueue([]);
     };
 
     useImperativeHandle(ref, () => ({
-        reset
+      reset,
     }));
 
     const getFileIconAndColor = (file: File) => {
-        if (file.type.includes(FileTypes.Image)) {
-            return {
-                icon: <FileImage size={40} className={ImageColor.fillColor} />,
-                color: ImageColor.bgColor,
-            };
-        }
+      if (file.type.includes("image")) {
         return {
-            icon: <FolderArchive size={40} className={OtherColor.fillColor} />,
-            color: OtherColor.bgColor,
+          icon: <FileImage size={40} className="fill-purple-600" />,
+          color: "bg-purple-600",
         };
+      }
+      return {
+        icon: <FolderArchive size={40} className="fill-gray-400" />,
+        color: "bg-gray-400",
+      };
     };
 
     const compressImage = async (file: File) => {
-        try {
-            setCompressionInProgress(true); // Start loading indicator
-            const compressedFile = await imageCompression(file, {
-                maxSizeMB: 1,
-                maxWidthOrHeight: 1920,
-                useWebWorker: true,
-            });
-            return compressedFile;
-        } catch (error) {
-            console.error("Error compressing file: ", error);
-            toast.error("Failed to compress image.");
-            return file; // Return original file if compression fails
-        } finally {
-            setCompressionInProgress(false); // Stop loading indicator
-        }
+      try {
+        setCompressionInProgress(true);
+        const compressed = await imageCompression(file, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        });
+        return compressed;
+      } catch (error) {
+        toast.error("Image compression failed.");
+        return file;
+      } finally {
+        setCompressionInProgress(false);
+      }
     };
 
-    const onUploadProgress = (
-        progressEvent: AxiosProgressEvent,
-        file: File,
-        cancelSource: CancelTokenSource
-    ) => {
-        const progress = Math.round(
-            (progressEvent.loaded / (progressEvent.total ?? 0)) * 100
+    const uploadImage = (file: File, path: string): Promise<string> => {
+      const storageRef = ImgRef(storage, path);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      return new Promise((resolve, reject) => {
+        uploadTask.on(
+          "state_changed",
+          null,
+          (error) => reject(error),
+          async () => {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(url);
+          }
         );
-
-        if (progress === 100) {
-            setUploadedFiles((prevUploadedFiles) => {
-                return [...prevUploadedFiles, file];
-            });
-            setFilesToUpload((prevUploadProgress) => {
-                return prevUploadProgress.filter((item) => item.File !== file);
-            });
-            return;
-        }
-
-        setFilesToUpload((prevUploadProgress) => {
-            return prevUploadProgress.map((item) => {
-                if (item.File.name === file.name) {
-                    return {
-                        ...item,
-                        progress,
-                        source: cancelSource,
-                    };
-                } else {
-                    return item;
-                }
-            });
-        });
+      });
     };
 
-    const removeFile = async (file: File) => {
-        setDeletingImage(file.name);
-
-        let temp = [];
-        for (let i = 0; i < uploadedFiles.length; i++) {
-            if (uploadedFiles[i] !== file) {
-                temp.push(images[i]);
-            }
-        }
-        onImageChange(temp);
-        setImgs(temp);
-
-        const fileToDelete = filesToUpload.find((item) => item.File === file);
-        if (fileToDelete) {
-            const fileRef = ImgRef(storage, fileToDelete.storagePath);
-            try {
-                await deleteObject(fileRef);
-                console.log("File deleted from Firebase Storage:", fileToDelete.storagePath);
-                toast.success("File deleted successfully.");
-            } catch (error) {
-                console.error("Error deleting file from Firebase Storage:", error);
-                toast.error("Failed to delete file. Please try again.");
-            }
-        } else {
-            toast.error("File not found.");
-        }
-
-        setFilesToUpload((prevUploadProgress) => {
-            return prevUploadProgress.filter((item) => item.File !== file);
-        });
-        setUploadedFiles((prevUploadedFiles) => {
-            return prevUploadedFiles.filter((item) => item !== file);
-        });
-        setDeletingImage(null);
-    };
-
-    const uploadImage = async (file: File, path: string) => {
-        const storageRef = ImgRef(storage, path);
-        const metadata = {
-            cacheControl: 'public, max-age=5184000', // Cache for 1 year
-        };
-        const uploadTask = uploadBytesResumable(storageRef, file, metadata);
-
-        return new Promise<string>((resolve, reject) => {
-            uploadTask.on(
-                'state_changed',
-                (snapshot) => {
-                    const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                    setFilesToUpload((prevUploadProgress) => {
-                        return prevUploadProgress.map((item) => {
-                            if (item.File.name === file.name) {
-                                return {
-                                    ...item,
-                                    progress,
-                                };
-                            }
-                            return item;
-                        });
-                    });
-                },
-                (error) => {
-                    reject(error);
-                },
-                async () => {
-                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-
-                    console.log(downloadURL);
-                    resolve(downloadURL);
-                }
-            );
-        });
-    };
-
-    const onDrop = useCallback(async (acceptedFiles: File[]) => {
-        setFilesToUpload((prevUploadProgress) => [
-            ...prevUploadProgress,
-            ...acceptedFiles.map((file) => ({
-                progress: 0,
-                File: file,
-                source: null,
-                storagePath: '',
-            })),
-        ]);
+    const onDrop = useCallback(
+      async (acceptedFiles: File[]) => {
         setIsUploading(true);
 
+        const allImgs: any[] = [];
+
+        const uploadBatch = acceptedFiles.map(async (file) => {
+          const compressed = await compressImage(file);
+          const path = `images/${uuidv4()}-${file.name}`;
+          const url = await uploadImage(compressed, path);
+
+          allImgs.push({ url, path });
+        });
+
         try {
-            setCompressionInProgress(true);
-            const fileUploadBatch = acceptedFiles.map(async (file) => {
-                const compressedFile = await compressImage(file);
-                const storagePath = `images/${uuidv4()}`;
-                const downloadURL = await uploadImage(compressedFile, storagePath);
-
-                // Update filesToUpload with storagePath
-                setFilesToUpload((prevUploadProgress) =>
-                    prevUploadProgress.map((item) =>
-                        item.File.name === file.name ? { ...item, storagePath } : item
-                    )
-                );
-
-                // Correctly append the new image without overwriting previous images
-                setImgs((prevImgs) => {
-                    const updatedImgs = [...prevImgs, { url: downloadURL }];
-                    // Pass the updated images list to the parent component
-                    onImageChange(updatedImgs);
-                    return updatedImgs;
-                });
-
-                // Update the uploadedFiles state
-                setUploadedFiles((prevUploadedFiles) => [...prevUploadedFiles, file]);
-            });
-
-            await Promise.all(fileUploadBatch);
-            console.log("All files uploaded successfully");
-        } catch (error) {
-            console.error("Error uploading files: ", error);
+          await Promise.all(uploadBatch);
+          const updated = [...images, ...allImgs];
+          onImageChange(updated);
+        } catch (err) {
+          toast.error("Upload failed.");
         } finally {
-            setCompressionInProgress(false);
-            setIsUploading(false);
+          setIsUploading(false);
         }
-    }, [onImageChange]);
+      },
+      [images, onImageChange]
+    );
 
+    const removeImage = async (img: any) => {
+      setDeletingImage(img.path);
 
+      try {
+        const fileRef = ImgRef(storage, img.path);
+        await deleteObject(fileRef);
 
-    const { getRootProps, getInputProps } = useDropzone({ onDrop });
+        const updated = images.filter((i) => i.path !== img.path);
+        onImageChange(updated);
+        toast.success("Image deleted.");
+      } catch (err) {
+        toast.error("Failed to delete image.");
+      } finally {
+        setDeletingImage(null);
+      }
+    };
+
+    const { getRootProps, getInputProps } = useDropzone({
+      onDrop,
+      multiple: true,
+      accept: {
+        "image/*": [],
+      },
+    });
 
     return (
-        <>
-            <div>
-                <label
-                    {...getRootProps()}
-                    className="relative flex flex-col items-center justify-center w-full py-6 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 "
-                >
-                    <div className=" text-center">
-                        <div className=" border p-2 rounded-md max-w-min mx-auto">
-                            <UploadCloud size={20} />
-                        </div>
-
-                        <p className="mt-2 text-sm text-gray-600">
-                            <span className="font-semibold">Drag files</span>
-                        </p>
-                        <p className="text-xs text-gray-500">
-                            Click to upload files &#40;files should be under 25 MB &#41;
-                        </p>
-                    </div>
-                </label>
-                <Input
-                    {...getInputProps()}
-                    id="dropzone-file"
-                    accept="image/png, image/jpeg"
-                    type="file"
-                    className="hidden"
-                />
+      <div className="space-y-4">
+        {/* Upload Box */}
+        <label
+          {...getRootProps()}
+          className="relative flex flex-col items-center justify-center w-full py-6 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+        >
+          <div className="text-center">
+            <div className="border p-2 rounded-md max-w-min mx-auto">
+              <UploadCloud size={20} />
             </div>
-            {compressionInProgress && <p>Compressing images...</p>}
-            {filesToUpload.length > 0 && (
-                <div>
-                    <ScrollArea className="h-40">
-                        <p className="font-medium my-2 mt-6 text-muted-foreground text-sm">
-                            Files to upload
-                        </p>
-                        <div className="space-y-2 pr-3">
-                            {filesToUpload.map((fileUploadProgress, i) => {
-                                return (
-                                    <div
-                                        key={`${fileUploadProgress.File.lastModified} - ${Math.floor(Math.random() * 10000)}`}
-                                        className="flex justify-between gap-2 rounded-lg overflow-hidden border border-slate-100 group hover:pr-0 pr-2"
-                                    >
-                                        <div className="flex items-center flex-1 p-2 space-x-2">
-                                            <div className={`flex-shrink-0 w-8 h-8 rounded-full ${getFileIconAndColor(fileUploadProgress.File).color}`}>
-                                                {getFileIconAndColor(fileUploadProgress.File).icon}
-                                            </div>
-                                            <div className="flex-1 truncate">
-                                                <p className="text-sm font-medium truncate">{fileUploadProgress.File.name}</p>
-                                                <p className="text-xs text-muted-foreground truncate">{Math.round(fileUploadProgress.progress)} %</p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            className="flex items-center justify-center p-2 rounded-full hover:bg-gray-200"
-                                            onClick={() => removeFile(fileUploadProgress.File)}
-                                            disabled={deletingImage === fileUploadProgress.File.name}
-                                        >
-                                            {deletingImage === fileUploadProgress.File.name ? "Deleting..." : <X className="w-4 h-4 text-red-600" />}
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </ScrollArea>
-                </div>
-            )}
-        </>
-    );
-});
+            <p className="mt-2 text-sm text-gray-600 font-semibold">
+              Drag files
+            </p>
+            <p className="text-xs text-gray-500">
+              Click to upload files (under 25MB)
+            </p>
+          </div>
+        </label>
+        <Input
+          {...getInputProps()}
+          id="dropzone-file"
+          type="file"
+          className="hidden"
+        />
 
+        {compressionInProgress && (
+          <p className="text-sm text-muted-foreground">Compressing images…</p>
+        )}
+        {isUploading && (
+          <p className="text-sm text-muted-foreground">Uploading images…</p>
+        )}
+
+        {/* Preview Grid */}
+        {images.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {images.map((img, i) => (
+              <div key={i} className="relative group rounded overflow-hidden">
+                <img
+                  src={img.url}
+                  alt={`upload-${i}`}
+                  className="w-full h-40 object-cover rounded"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeImage(img)}
+                  disabled={deletingImage === img.path}
+                  className="absolute top-2 right-2 bg-white rounded-full p-1 shadow hover:bg-red-50"
+                >
+                  {deletingImage === img.path ? "..." : <X className="w-4 h-4 text-red-500" />}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+
+ImageUpload2.displayName = "ImageUpload2";
 export default ImageUpload2;

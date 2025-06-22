@@ -16,6 +16,11 @@ const routes = [
         href: '/upload',
         role: [UserRole.ADMIN, UserRole.UPLOADER]
     },
+        {
+        name: 'New Upload',
+        href: '/newupload',
+        role: [UserRole.ADMIN, UserRole.UPLOADER]
+    },
     {
         name: 'Catalogue',
         href: '/catalogue',
