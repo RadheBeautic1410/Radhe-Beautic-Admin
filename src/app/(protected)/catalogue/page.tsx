@@ -131,6 +131,26 @@ const ListPage = () => {
                 setDisplayCategoryData(filteredRows);
             }
         }
+        if (searchId === "3") {
+
+            if (newVal === "") {
+              setTextFieldValue("");
+              setSearching(false);
+              // handleSearch(textFieldValue);
+              setDisplayKurtiData([]);
+              setDisplayCategoryData(category);
+            } else {
+              if (!isSearching) {
+                setSearching(true);
+              }
+              const filteredRows = category.filter((row) => {
+                return row.type?.toUpperCase().includes(newVal.toUpperCase());
+              });
+              console.log(filteredRows);
+              setDisplayKurtiData([]);
+              setDisplayCategoryData(filteredRows);
+            }
+        }
     }
     const cancelSearch = () => {
         setTextFieldValue("");
@@ -411,6 +431,9 @@ const ListPage = () => {
                                             <SelectItem key={'search-price-select'} value="2">
                                                 {'Search Price'}
                                             </SelectItem>
+                                            <SelectItem key={'search-type-select'} value="3">
+                                                {'Search Type'}
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -514,6 +537,12 @@ const ListPage = () => {
                                                     Category
                                                 </TableHead>
                                                 <TableHead
+                                                key={'Type'}
+                                                className="text-center font-bold text-base"
+                                            >
+                                                Type
+                                            </TableHead>
+                                                <TableHead
                                                     className="text-center font-bold text-base"
                                                     key={'Total Items'}
                                                 >
@@ -562,6 +591,14 @@ const ListPage = () => {
                                                             {cat.name}
                                                         </Link>
                                                     </TableCell>
+                                                    <TableCell
+                                                    key={cat.type}
+                                                    className="text-center font-bold cursor-pointer"
+                                                >
+                                                    
+                                                    {cat.type}
+                                                    <TypeEdit categoryName={cat.name} onUpdateType={onUpdateType}/>
+                                                </TableCell>
                                                     <TableCell
                                                         className="text-center"
                                                         key={`${cat.name}-${cat.count}-count`}
