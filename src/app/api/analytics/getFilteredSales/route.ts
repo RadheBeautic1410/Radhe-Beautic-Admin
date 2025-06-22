@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     try {
         let { date, filter } = await request.json();
         const data = await getFilteredSales(date, filter);
-        // console.log('data', data?.length);
+        console.log('data', data);
         return new NextResponse(JSON.stringify({ data }),
             {
                 status: 200,

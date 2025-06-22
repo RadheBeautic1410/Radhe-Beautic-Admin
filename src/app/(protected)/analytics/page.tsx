@@ -49,18 +49,15 @@ const AnalyticsPage = () => {
     //     });
     // }
     // const [passwordType, setPasswordType] = useState('password');
+
     return (
         <>
-            <Card className="w-[90%] flex flex-col p-3 gap-2 justify-evenly">
-                <div className="flex flex-row w-[100%]">
-                    <DayAnalytics />
-                    <MonthAnalytics />
-                    {/* <YearAnalytics /> */}
-                </div>
-                <div className="w-[100%] flex flex-row">
-                    <TopMonthlySellingKurti />  
-                    <AvailableKurtiSizes />
-                </div>
+            <Card className="w-[100%] ">
+                <DayAnalytics />
+                <MonthAnalytics />
+                {/* <YearAnalytics /> */}
+                <TopMonthlySellingKurti />
+                <AvailableKurtiSizes />
             </Card>
         </>
     );

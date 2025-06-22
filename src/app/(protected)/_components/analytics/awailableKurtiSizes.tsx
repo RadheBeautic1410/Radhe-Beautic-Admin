@@ -2,50 +2,32 @@
 
 import { useState } from "react";
 import { HashLoader } from "react-spinners";
-import { CalendarIcon } from "lucide-react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/src/components/ui/select";
-import { Card, CardContent } from "@/src/components/ui/card";
-import { Button } from "@/src/components/ui/button";
+  Card,
+  CardContent,
+} from "@/src/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/src/components/ui/table";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow, } from "@/src/components/ui/table";
 
 const headerCells = [
-    {
-        name: 'Kurti Size',
-        key: 'kurti_size'
-    },
-    {
-        name: 'Available Pieces',
-        key: 'available_pieces',
-    },
-    {
-      name: 'Reserved Pieces',
-      key: 'reserved_pieces',
-  },
+  { name: "Kurti Size", key: "kurti_size" },
+  { name: "Available Pieces", key: "available_pieces" },
+  { name: "Reserved Pieces", key: "reserved_pieces" },
 ];
-let arr: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
 
-
-// const MONTHS: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-// const YEARS: number[] = [];
-// const lastYear = new Date().getFullYear() + 50;
-// const currentYear = new Date().getFullYear();
-// const currentMonth = new Date().getMonth() + 1;
-
-// for (let i = 2024; i <= lastYear; i++) {
-//   YEARS.push(i);
-// }
+const sizes = [
+  "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"
+];
 
 const DayAnalytics = () => {
-  // const [month, setMonth] = useState<number>(currentMonth);
-  // const [year, setYear] = useState<number>(currentYear);
-
   const fetchAvailableKurtiSizes = async () => {
     const res = await fetch("/api/analytics/getAvailableKurtiSizes", {
       method: "GET",
@@ -54,88 +36,68 @@ const DayAnalytics = () => {
       },
       next: { revalidate: 300 },
     });
-
     return res.json();
   };
 
   const { isPending, isFetching, data } = useQuery({
     queryKey: ["availableKurtiSizes"],
-    queryFn: () => fetchAvailableKurtiSizes(),
+    queryFn: fetchAvailableKurtiSizes,
     placeholderData: keepPreviousData,
   });
-  
+
   return (
-    <div className="w-full max-w-lg mx-auto p-4">
-      {/* <div className="grid grid-cols-2 gap-4 mb-4">
-        <Select
-          onValueChange={(val) => setMonth(Number(val))}
-          defaultValue={month.toString()}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Month" />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTHS.map((item, index) => (
-              <SelectItem key={index} value={`${item}`}>
-                {item}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
+      <h2 className="text-2xl font-semibold text-gray-800">
+        Kurti Size Availability
+      </h2>
 
-        <Select
-          onValueChange={(val) => setYear(Number(val))}
-          defaultValue={year.toString()}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            {YEARS.map((item, index) => (
-              <SelectItem key={index} value={`${item}`}>
-                {item}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div> */}
-
-      <Card className="bg-white rounded-xl shadow-lg">
-        <CardContent className="p-6 grid grid-col-2 gap-4 text-center">
-            <Table>
-                <TableHeader>
-                    <TableRow className='text-black'>
-                        {headerCells.map((obj) => {
-                            return (
-                                <TableHead
-                                    key={obj.key}
-                                    className="text-center font-bold text-base"
-                                >
-                                    {obj.name}
-                                </TableHead>
-                            )
-                        })}
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {data?.data && arr.map((item: any, idx: any) => {
-                        return (
-                            <TableRow key={idx+1}>
-                                <TableCell className="text-center">
-                                    {item}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    {data?.data?.availablePieceSizes[item] }
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    {data?.data?.reservedSizes[item]}
-                                </TableCell>
-                            </TableRow>
-                        )
-
-                    })}
-                </TableBody>
+      <Card className="rounded-xl border border-gray-200 shadow-lg hover:shadow-xl transition">
+        <CardContent className="p-6">
+          {isPending || isFetching ? (
+            <div className="flex justify-center py-10">
+              <HashLoader color="#36D7B7" size={35} />
+            </div>
+          ) : data?.data ? (
+            <Table className="text-sm">
+              <TableCaption className="text-gray-500 pb-4">
+                Overview of Available & Reserved Kurti Sizes
+              </TableCaption>
+              <TableHeader>
+                <TableRow className="bg-gray-100">
+                  {headerCells.map((header) => (
+                    <TableHead
+                      key={header.key}
+                      className="text-center font-semibold text-gray-700"
+                    >
+                      {header.name}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sizes.map((size) => (
+                  <TableRow
+                    key={size}
+                    className="hover:bg-gray-50 border-b transition"
+                  >
+                    <TableCell className="text-center font-medium text-gray-800">
+                      {size}
+                    </TableCell>
+                    <TableCell className="text-center text-blue-600 font-semibold">
+                      {data?.data?.availablePieceSizes?.[size] ?? 0}
+                    </TableCell>
+                    <TableCell className="text-center text-red-600 font-semibold">
+                      {data?.data?.reservedSizes?.[size] ?? 0}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
             </Table>
+          ) : (
+            <div className="text-center text-gray-500 py-10">
+              No data available to display.
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
