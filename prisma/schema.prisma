@@ -125,6 +125,7 @@ model Category {
   code                String? @unique
   name                String
   type                String?
+  image               String?
   countTotal          Int     @default(0)
 }
 

@@ -42,7 +42,8 @@ export const getAllCategoryWithCount = async () => {
         for(let i = 0; i < category.length; i++) {
             arr.push({
                 name: category[i].name, 
-                type: category[i].type
+                type: category[i].type,
+                image: category[i].image,
                 // count: category[i].countOfDesign, 
                 // countOfPiece: category[i].countOfPiece, 
                 // sellingPrice: category[i].sellingPrice,

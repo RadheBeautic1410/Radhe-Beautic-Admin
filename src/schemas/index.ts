@@ -24,6 +24,9 @@ export const categoryAddSchema = z.object({
     type: z.string().min(1, {
         message: "Type is required"
     }),
+    image: z.optional(z.string().url({
+        message: "Image must be a valid URL"
+    })),
 })
 
 export const stockUpdateSchema = z.object({
