@@ -9,7 +9,7 @@ import { size } from "pdfkit/js/page";
 import { v4 as uuidv4 } from 'uuid';
 import { error } from "console";
 
-export const getCurrTime = () => {
+export const getCurrTime = async () => {
     const currentTime = new Date();
     const ISTOffset = 5.5 * 60 * 60 * 1000;
     const ISTTime = new Date(currentTime.getTime() + ISTOffset);
