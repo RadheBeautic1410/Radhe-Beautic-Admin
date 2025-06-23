@@ -22,6 +22,7 @@ import MonthAnalytics from "@/src/app/(protected)/_components/analytics/monthAna
 import YearAnalytics from "@/src/app/(protected)/_components/analytics/yearAnalytics";
 import TopMonthlySellingKurti from "@/src/app/(protected)/_components/analytics/topMonthlySellingKurti";
 import AvailableKurtiSizes from "@/src/app/(protected)/_components/analytics/awailableKurtiSizes";
+import PartyWiseSales from "../_components/analytics/partyWiseCount";
 
 const AnalyticsPage = () => {
 
@@ -56,6 +57,7 @@ const AnalyticsPage = () => {
                 <DayAnalytics />
                 <MonthAnalytics />
                 {/* <YearAnalytics /> */}
+                <PartyWiseSales />
                 <TopMonthlySellingKurti />
                 <AvailableKurtiSizes />
             </Card>
