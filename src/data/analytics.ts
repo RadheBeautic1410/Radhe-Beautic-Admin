@@ -212,46 +212,83 @@ export const getAvailableKurtiSizes = async () => {
       isDeleted: false,
     },
     select: {
-      code: true, // ADD THIS LINE
+      code: true,
       sizes: true,
-      reservedSizes: true, // Optional: if you still want to keep it
     },
   });
 
-  const availablePieceSizes: any = {};
-  const kurtiCodesBySize: Record<string, string[]> = {};
+  const sizeDataByKurtiCode: Record<string, { size: string; pieces: number }[]> = {};
 
-  const allSizes = [
-    "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL",
-    "6XL", "7XL", "8XL", "9XL", "10XL"
-  ];
-
-  // Initialize maps
-  allSizes.forEach((size) => {
-    availablePieceSizes[size] = 0;
-    kurtiCodesBySize[size] = [];
-  });
-
-  // Loop through data
   for (const kurti of sellData) {
-    for (const s of kurti.sizes) {
-      availablePieceSizes[s.size] += s.quantity;
+    const sizeMap: Record<string, number> = {};
 
-      // Avoid duplicate codes
-      if (!kurtiCodesBySize[s.size].includes(kurti.code)) {
-        kurtiCodesBySize[s.size].push(kurti.code);
-      }
+    for (const s of kurti.sizes) {
+      if (!sizeMap[s.size]) sizeMap[s.size] = 0;
+      sizeMap[s.size] += s.quantity;
     }
 
-    // If you still need reserved sizes count
-    // for (const r of kurti.reservedSizes) {
-    //   availablePieceSizes[r.size] += r.quantity;
-    // }
+    sizeDataByKurtiCode[kurti.code] = Object.entries(sizeMap)
+      .filter(([_, pieces]) => pieces > 0) // ✅ Only include valid positive sizes
+      .map(([size, pieces]) => ({
+        size,
+        pieces,
+      }));
   }
 
+  // Optional debug log
+  // Object.entries(sizeDataByKurtiCode).forEach(([code, sizes]) => {
+  //   console.log(`Kurti Code: ${code}`);
+  //   sizes.forEach(({ size, pieces }) => {
+  //     console.log(`  Size: ${size} => Available Pieces: ${pieces}`);
+  //   });
+  // });
+
   return {
-    availablePieceSizes,
-    kurtiCodesBySize
+    sizeDataByKurtiCode,
   };
 };
 
+
+// export const getAvailableKurtiSizes = async () => {
+//   const sellData: any = await db.kurti.findMany({
+//     where: {
+//       code: {
+//         not: {
+//           startsWith: "TES",
+//         },
+//       },
+//       isDeleted: false,
+//     },
+//     select: {
+//       code: true,
+//       sizes: true,
+//     },
+//   });
+
+//   const result: {
+//     [code: string]: {
+//       size: string;
+//       pieces: number;
+//     }[];
+//   } = {};
+
+//   for (const kurti of sellData) {
+//     for (const s of kurti.sizes) {
+//       if (!result[kurti.code]) result[kurti.code] = [];
+//       result[kurti.code].push({
+//         size: s.size,
+//         pieces: s.quantity,
+//       });
+//     }
+//   }
+
+//   // ✅ Console.log kurti code-wise and size-wise available pieces
+//   // Object.entries(result).forEach(([code, sizes]) => {
+//   //   console.log(`Kurti Code: ${code}`);
+//   //   sizes.forEach((entry) => {
+//   //     console.log(`  Size: ${entry.size}, Available Pieces: ${entry.pieces}`);
+//   //   });
+//   // });
+
+//   return { data: result };
+// };

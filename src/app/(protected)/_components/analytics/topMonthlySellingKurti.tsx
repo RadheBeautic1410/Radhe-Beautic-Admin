@@ -58,7 +58,7 @@ const DayAnalytics = () => {
   });
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
+    <div className="w-full max-w-5xl mx-auto p-6 space-y-6">
       <h2 className="text-2xl font-semibold text-gray-800">Top Month Analytics</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
