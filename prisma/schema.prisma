@@ -171,6 +171,11 @@ model Sell {
   pricesId   String?  @db.ObjectId
   prices     Prices?  @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   kurti2     Kurti?   @relation(fields: [kurtiId], references: [id], onDelete: NoAction)
+
+  customerName  String?  // Customer name
+  customerPhone String?  // Customer phone (optional)
+  selledPrice   Int?     // Actual selling price (can be different from MRP)
+  invoiceNumber String?  // Invoice number for tracking
 }
 
 model Deletetime {

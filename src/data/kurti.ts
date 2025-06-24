@@ -227,80 +227,86 @@ function isDigit(character: any) {
     return !isNaN(parseInt(character)) && isFinite(character);
 }
 
-function isSize(size: string) {
-    let arr: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
-    return arr.includes(size);
+// function isSize(size: string) {
+//     let arr: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+//     return arr.includes(size);
+// }
+// const getCurrTime = () => {
+//     const currentTime = new Date();
+//     const ISTOffset = 5.5 * 60 * 60 * 1000;
+//     const ISTTime = new Date(currentTime.getTime() + ISTOffset);
+//     return ISTTime;
+// }
+
+const isSize = (str: string): boolean => {
+    const selectSizes: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+    return selectSizes.includes(str.toUpperCase());
 }
+
 
 
 export const sellKurti2 = async (data: any) => {
     try {
-        interface Size {
-            size: string;
-            quantity: number;
-        }
-        let { code, currentUser, currentTime } = data;
+        let { 
+            code, 
+            currentUser, 
+            currentTime, 
+            customerName, 
+            customerPhone, 
+            selledPrice, 
+            selectedSize 
+        } = data;
+        
         code = code.toUpperCase();
         let search = code.substring(0, 7).toUpperCase();
-        let cmp = code.substring(7);
+        let cmp = selectedSize.toUpperCase(); // Use the selected size instead of extracting from code
+        
+        // Handle special case for CK codes
         if (code.toUpperCase().substring(0, 2) === 'CK' && code[2] === "0" && isSize(code.substring(6))) {
             search = code.substring(0, 6).toUpperCase();
-            cmp = code.substring(6);
         }
-        console.log('search: ', search);
+        
+        console.log('Selling - search:', search, 'size:', cmp);
+        
         const kurti = await db.kurti.findUnique({
-            where: { code: search.toUpperCase(), isDeleted: false }
+            where: { code: search.toUpperCase(), isDeleted: false },
+            include: {
+                prices: true
+            }
         });
-        console.log(kurti);
+        
         if (!kurti) {
             return { error: 'No Kurti found!!!' };
         }
+        
         if (kurti?.sizes !== undefined) {
             let arr: any[] = kurti?.sizes;
             let newArr: any[] = [];
             let flag = 0;
+            
             for (let i = 0; i < arr?.length; i++) {
                 let obj = arr[i];
-                console.log(obj);
-                if (!obj) {
-                    break;
-                }
+                if (!obj) break;
+                
                 if (obj.size === cmp) {
                     if (obj.quantity == 0) {
                         return { error: 'Stock is equal to 0, add stock first' };
-                    }
-                    else {
+                    } else {
                         flag = 1;
                         obj.quantity -= 1;
                         if (obj.quantity > 0) {
                             newArr.push(obj);
                         }
                     }
-                }
-                else {
+                } else {
                     newArr.push(arr[i]);
                 }
             }
-            console.log(flag, newArr);
+            
             if (flag === 1) {
-
-                // await db.category.update({
-                //     where: {
-                //         normalizedLowerCase: updateUser.category.toLowerCase(),
-                //     },
-                //     data: {
-                //         countOfPiece: {
-                //             increment: -1
-                //         },
-                //         actualPrice: {
-                //             decrement: (parseInt(updateUser.actualPrice || "0")),
-                //         }
-                //     },
-                // });
                 try {
-                    console.log('search2', search);
                     const currTime = await getCurrTime();
-                    console.log(currTime);
+                    
                     const updateUser = await db.kurti.update({
                         where: {
                             code: search,
@@ -312,64 +318,74 @@ export const sellKurti2 = async (data: any) => {
                         include: {
                             prices: true,
                         }
-                    })
-                    console.log('code2', search.toUpperCase().substring(0, 3));
-                    if (updateUser.pricesId) {
-                        let prices = await db.prices.findUnique({
-                            where: {
-                                id: updateUser.pricesId,
-                            }
-                        });
-                        if(!prices || !prices.actualPrice1 || !prices.sellingPrice1) {
+                    });
+                    
+                    // Handle prices
+                    let prices = updateUser.prices;
+                    if (!prices || !prices.actualPrice1 || !prices.sellingPrice1) {
+                        const sellPrice = parseInt(updateUser.sellingPrice || "0");
+                        const actualP = parseInt(updateUser.actualPrice || "0");
 
-                            const sellPrice = parseInt(updateUser.sellingPrice || "0");
-                            const actualP = parseInt(updateUser.actualPrice || "0");
-
-                            prices = await db.prices.create({
-                                data: {
-                                    sellingPrice1: sellPrice,
-                                    sellingPrice2: sellPrice,
-                                    sellingPrice3: sellPrice,
-                                    actualPrice1: actualP,
-                                    actualPrice2: actualP,
-                                    actualPrice3: actualP,
-                                }
-                            });
-                            await db.kurti.update({
-                                where: {
-                                    code: updateUser.code,
-                                },
-                                data: {
-                                    pricesId: prices.id
-                                }
-                            })
-                        }
-                        const sell = await db.sell.create({
+                        prices = await db.prices.create({
                             data: {
-                                sellTime: currentTime,
-                                code: search.toUpperCase(),
-                                sellerName: currentUser.name,
-                                kurti: [updateUser],
-                                kurtiId: updateUser.id,
-                                pricesId: prices.id,
-                                kurtiSize: cmp
+                                sellingPrice1: sellPrice,
+                                sellingPrice2: sellPrice,
+                                sellingPrice3: sellPrice,
+                                actualPrice1: actualP,
+                                actualPrice2: actualP,
+                                actualPrice3: actualP,
                             }
                         });
-                        console.log(sell);
+                        
+                        await db.kurti.update({
+                            where: {
+                                code: updateUser.code,
+                            },
+                            data: {
+                                pricesId: prices.id
+                            }
+                        });
                     }
-                    return { success: 'Sold', kurti: updateUser };
-                }
-                catch (e) {
-                    console.log(e);
-                    return { error: 'Something went wrong!!!' };
+                    
+                    // Create sell record with enhanced data
+                    const sell = await db.sell.create({
+                        data: {
+                            sellTime: currentTime,
+                            code: search.toUpperCase(),
+                            sellerName: currentUser.name,
+                            kurti: [updateUser],
+                            kurtiId: updateUser.id,
+                            pricesId: prices.id,
+                            kurtiSize: cmp,
+                            customerName, // Add customer name
+                            customerPhone, // Add customer phone
+                            selledPrice, // Add actual selling price
+                        }
+                    });
+                    
+                    console.log('Sale completed:', sell);
+                    
+                    return { 
+                        success: 'Sold', 
+                        kurti: updateUser, 
+                        sale: sell,
+                        customer: {
+                            name: customerName,
+                            phone: customerPhone,
+                            price: selledPrice
+                        }
+                    };
+                } catch (e) {
+                    console.log('Error during sale:', e);
+                    return { error: 'Something went wrong during sale!' };
                 }
             }
-
         }
-
+        
         return { error: 'Not in stock, update the stock!!!' };
-    } catch {
-        return null;
+    } catch (error) {
+        console.error('Sell error:', error);
+        return { error: 'Something went wrong!' };
     }
 }
 
