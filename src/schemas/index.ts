@@ -126,3 +126,10 @@ export const KurtiSchema = z.object({
     category: z.string().min(1, { message: "Please select the category." }),
     code: z.string(),
 });
+
+export const categoryEditSchema = z.object({
+  id: z.string().min(1, "Category ID is required"),
+  name: z.string().min(1, "Category name is required"),
+  type: z.string().optional(),
+  image: z.string().optional(),
+});

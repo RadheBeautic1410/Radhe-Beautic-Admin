@@ -353,8 +353,8 @@ const ImageUpload2 = React.forwardRef(
               </p>
               <p className="text-xs text-gray-500">
                 {singleFile
-                  ? "Click to upload a file &#40;file should be under 25 MB &#41;"
-                  : "Click to upload files &#40;files should be under 25 MB &#41;"}
+                  ? "Click to upload a file; file should be under 25 MB;"
+                  : "Click to upload files;files should be under 25 MB;"}
               </p>
             </div>
           </label>

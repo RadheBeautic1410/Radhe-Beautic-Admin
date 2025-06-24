@@ -49,6 +49,7 @@ import { categoryAddSchema } from "@/src/schemas";
 import { categoryAddition } from "@/src/actions/category";
 import { z } from "zod";
 import ImageUpload2 from "../_components/upload/imageUpload2";
+import EditCategoryModal from "../_components/category/EditCategoryModel";
 
 // Types
 interface Category {
@@ -344,7 +345,6 @@ const ListPage = () => {
             if (data.success) {
               form.reset();
               toast.success(data.success);
-              // Fix 3: Ensure data.data matches Category interface
               if (data.data) {
                 const newCategory: Category = {
                   name: data.data.name,
@@ -411,6 +411,19 @@ const ListPage = () => {
   if (isLoading) {
     return <PageLoader loading={true} />;
   }
+
+  const handleCategoryUpdate = (
+    updatedCategory: Category,
+    originalName: string
+  ) => {
+    setCategories((prev) =>
+      prev.map((cat) =>
+        cat.name.toLowerCase() === originalName.toLowerCase()
+          ? updatedCategory
+          : cat
+      )
+    );
+  };
 
   return (
     <Card className="w-[90%]">
@@ -641,27 +654,41 @@ const ListPage = () => {
                     </TableCell>
                     <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                       <TableCell className="text-center">
-                        <DialogDemo
-                          dialogTrigger="Delete"
-                          dialogTitle="Delete Category"
-                          dialogDescription="Delete the category"
-                          bgColor="destructive"
-                        >
-                          <div>
-                            <h1>Delete Category</h1>
-                            <h3>
-                              Are you sure you want to delete category "
-                              {cat.name}"?
-                            </h3>
-                          </div>
-                          <Button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() => handleDeleteCategory(cat.name)}
+                        <div className="flex justify-center gap-2">
+                          <EditCategoryModal
+                            category={cat}
+                            onCategoryUpdate={(updatedCat) => {
+                              handleCategoryUpdate(updatedCat, cat.name);
+                            }}
+                            trigger={
+                              <Button variant="outline" size="sm">
+                                Edit
+                              </Button>
+                            }
+                          />
+
+                          <DialogDemo
+                            dialogTrigger="Delete"
+                            dialogTitle="Delete Category"
+                            dialogDescription="Delete the category"
+                            bgColor="destructive"
                           >
-                            Delete
-                          </Button>
-                        </DialogDemo>
+                            <div>
+                              <h1>Delete Category</h1>
+                              <h3>
+                                Are you sure you want to delete category "
+                                {cat.name}"?
+                              </h3>
+                            </div>
+                            <Button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() => handleDeleteCategory(cat.name)}
+                            >
+                              Delete
+                            </Button>
+                          </DialogDemo>
+                        </div>
                       </TableCell>
                     </RoleGateForComponent>
                   </TableRow>
