@@ -34,6 +34,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/src/components/ui/select";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/src/components/ui/pagination";
 import TypeEdit from "../_components/kurti/typeEdit";
 import { useForm } from "react-hook-form";
 import {
@@ -89,7 +98,10 @@ const SORT_TYPES = {
   PRICE_LOW_TO_HIGH: "3",
 } as const;
 
-// Fix 1: Create a proper type for searchType
+// Pagination constants
+const ITEMS_PER_PAGE = 20;
+const KURTI_ITEMS_PER_PAGE = 12;
+
 type SearchTypeValue = (typeof SEARCH_TYPES)[keyof typeof SEARCH_TYPES];
 
 // Utility functions
@@ -166,13 +178,26 @@ const sortCategories = (
   }
 };
 
+// Pagination utility functions
+const paginate = <T,>(
+  array: T[],
+  pageNumber: number,
+  pageSize: number
+): T[] => {
+  const startIndex = (pageNumber - 1) * pageSize;
+  return array.slice(startIndex, startIndex + pageSize);
+};
+
+const getTotalPages = (totalItems: number, itemsPerPage: number): number => {
+  return Math.ceil(totalItems / itemsPerPage);
+};
+
 const ListPage = () => {
   // State
   const [isLoading, setIsLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [kurtiData, setKurtiData] = useState<Kurti[]>([]);
   const [searchValue, setSearchValue] = useState("");
-  // Fix 2: Use the proper type for searchType
   const [searchType, setSearchType] = useState<SearchTypeValue>(
     SEARCH_TYPES.DESIGN
   );
@@ -184,6 +209,10 @@ const ListPage = () => {
     totalPieces: 0,
     totalStockPrice: 0,
   });
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [kurtiCurrentPage, setKurtiCurrentPage] = useState(1);
 
   const [isPending, startTransition] = useTransition();
 
@@ -245,9 +274,9 @@ const ListPage = () => {
     switch (searchType) {
       case SEARCH_TYPES.DESIGN:
         return {
-          filteredKurti: kurtiData
-            .filter((kurti) => kurti.code.toLowerCase().includes(searchTerm))
-            .slice(0, 20),
+          filteredKurti: kurtiData.filter((kurti) =>
+            kurti.code.toLowerCase().includes(searchTerm)
+          ),
           filteredCategories: [],
         };
 
@@ -281,17 +310,43 @@ const ListPage = () => {
     }
   }, [searchValue, searchType, kurtiData, processedCategories]);
 
+  // Pagination calculations
+  const displayCategories = useMemo(() => {
+    const categories =
+      searchValue.trim().length > 0 ? filteredCategories : processedCategories;
+    return paginate(categories, currentPage, ITEMS_PER_PAGE);
+  }, [filteredCategories, processedCategories, currentPage, searchValue]);
+
+  const displayKurti = useMemo(() => {
+    return paginate(filteredKurti, kurtiCurrentPage, KURTI_ITEMS_PER_PAGE);
+  }, [filteredKurti, kurtiCurrentPage]);
+
+  const totalCategoryPages = useMemo(() => {
+    const categories =
+      searchValue.trim().length > 0 ? filteredCategories : processedCategories;
+    return getTotalPages(categories.length, ITEMS_PER_PAGE);
+  }, [filteredCategories, processedCategories, searchValue]);
+
+  const totalKurtiPages = useMemo(() => {
+    return getTotalPages(filteredKurti.length, KURTI_ITEMS_PER_PAGE);
+  }, [filteredKurti]);
+
   // Event handlers
   const handleSearch = useCallback((newValue: string) => {
     setSearchValue(newValue);
+    setCurrentPage(1);
+    setKurtiCurrentPage(1);
   }, []);
 
   const handleSearchCancel = useCallback(() => {
     setSearchValue("");
+    setCurrentPage(1);
+    setKurtiCurrentPage(1);
   }, []);
 
   const handleSortChange = useCallback((newSortType: string) => {
     setSortType(newSortType);
+    setCurrentPage(1);
   }, []);
 
   const handleDeleteCategory = useCallback(async (categoryName: string) => {
@@ -304,7 +359,6 @@ const ListPage = () => {
           }
           if (data.success) {
             toast.success(data.success);
-            // Trigger data refresh
             setIsLoading(true);
           }
         })
@@ -365,12 +419,21 @@ const ListPage = () => {
     [form]
   );
 
-  // Fix 4: Create a type-safe handler for search type change
   const handleSearchTypeChange = useCallback((value: string) => {
-    // Type guard to ensure the value is valid
     if (Object.values(SEARCH_TYPES).includes(value as SearchTypeValue)) {
       setSearchType(value as SearchTypeValue);
+      setCurrentPage(1);
+      setKurtiCurrentPage(1);
     }
+  }, []);
+
+  // Pagination handlers
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  const handleKurtiPageChange = useCallback((page: number) => {
+    setKurtiCurrentPage(page);
   }, []);
 
   // Effects
@@ -404,9 +467,6 @@ const ListPage = () => {
   // Render
   const isSearching = searchValue.trim().length > 0;
   const showKurtiResults = searchType === SEARCH_TYPES.DESIGN && isSearching;
-  const displayCategories = isSearching
-    ? filteredCategories
-    : processedCategories;
 
   if (isLoading) {
     return <PageLoader loading={true} />;
@@ -422,6 +482,97 @@ const ListPage = () => {
           ? updatedCategory
           : cat
       )
+    );
+  };
+
+  // Pagination component
+  const PaginationComponent = ({
+    currentPage,
+    totalPages,
+    onPageChange,
+  }: {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+  }) => {
+    if (totalPages <= 1) return null;
+
+    const getVisiblePages = () => {
+      const delta = 2;
+      const range = [];
+      const rangeWithDots = [];
+
+      for (
+        let i = Math.max(2, currentPage - delta);
+        i <= Math.min(totalPages - 1, currentPage + delta);
+        i++
+      ) {
+        range.push(i);
+      }
+
+      if (currentPage - delta > 2) {
+        rangeWithDots.push(1, "...");
+      } else {
+        rangeWithDots.push(1);
+      }
+
+      rangeWithDots.push(...range);
+
+      if (currentPage + delta < totalPages - 1) {
+        rangeWithDots.push("...", totalPages);
+      } else {
+        rangeWithDots.push(totalPages);
+      }
+
+      return rangeWithDots;
+    };
+
+    const visiblePages = getVisiblePages();
+
+    return (
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+              className={
+                currentPage === 1
+                  ? "pointer-events-none opacity-50"
+                  : "cursor-pointer"
+              }
+            />
+          </PaginationItem>
+
+          {visiblePages.map((page, index) => (
+            <PaginationItem key={index}>
+              {page === "..." ? (
+                <PaginationEllipsis />
+              ) : (
+                <PaginationLink
+                  onClick={() => onPageChange(page as number)}
+                  isActive={currentPage === page}
+                  className="cursor-pointer"
+                >
+                  {page}
+                </PaginationLink>
+              )}
+            </PaginationItem>
+          ))}
+
+          <PaginationItem>
+            <PaginationNext
+              onClick={() =>
+                onPageChange(Math.min(totalPages, currentPage + 1))
+              }
+              className={
+                currentPage === totalPages
+                  ? "pointer-events-none opacity-50"
+                  : "cursor-pointer"
+              }
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
     );
   };
 
@@ -565,137 +716,203 @@ const ListPage = () => {
             style={{
               backgroundColor: "#fff",
               border: "1px solid #ccc",
+              maxWidth: "400px",
             }}
           />
         </div>
 
+        <div className="bg-gray-50 p-4 rounded-lg mb-4">
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-sm text-gray-600">Total Items</p>
+              <p className="text-xl font-bold text-blue-600">
+                {totals.totalItems}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Total Pieces</p>
+              <p className="text-xl font-bold text-green-600">
+                {totals.totalPieces}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Total Stock Value</p>
+              <p className="text-xl font-bold text-purple-600">
+                ₹{totals.totalStockPrice.toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Results */}
         {showKurtiResults ? (
-          <CardContent className="w-full flex flex-row justify-center flex-wrap gap-3">
-            {filteredKurti.map((data, i) => (
-              <KurtiPicCard
-                data={data}
-                key={`${data.id}-${i}`}
-                onKurtiDelete={handleKurtiDelete}
-              />
-            ))}
-          </CardContent>
+          <>
+            <div className="mb-4 text-center">
+              <p className="text-sm text-gray-600">
+                Showing {displayKurti.length} of {filteredKurti.length} designs
+                {searchValue && ` for "${searchValue}"`}
+              </p>
+            </div>
+            <CardContent className="w-full flex flex-row justify-center flex-wrap gap-3">
+              {displayKurti.map((data, i) => (
+                <KurtiPicCard
+                  data={data}
+                  key={`${data.id}-${i}`}
+                  onKurtiDelete={handleKurtiDelete}
+                />
+              ))}
+            </CardContent>
+            {totalKurtiPages > 1 && (
+              <div className="flex justify-center mt-4">
+                <PaginationComponent
+                  currentPage={kurtiCurrentPage}
+                  totalPages={totalKurtiPages}
+                  onPageChange={handleKurtiPageChange}
+                />
+              </div>
+            )}
+          </>
         ) : (
-          <div className="flex flex-col gap-2">
-            <Table>
-              <TableCaption>List of all categories</TableCaption>
-              <TableHeader>
-                <TableRow className="text-black">
-                  <TableHead className="text-center font-bold text-base">
-                    Sr.
-                  </TableHead>
-                  <TableHead className="text-center font-bold text-base">
-                    Category
-                  </TableHead>
-                  <TableHead className="text-center font-bold text-base">
-                    Image
-                  </TableHead>
-                  <TableHead className="text-center font-bold text-base">
-                    Type
-                  </TableHead>
-                  <RoleGateForComponent
-                    allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
-                  >
+          <>
+            <div className="mb-4 text-center">
+              <p className="text-sm text-gray-600">
+                Showing {displayCategories.length} of{" "}
+                {searchValue.trim().length > 0
+                  ? filteredCategories.length
+                  : processedCategories.length}{" "}
+                categories
+                {searchValue && ` for "${searchValue}"`}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Table>
+                <TableCaption>List of all categories</TableCaption>
+                <TableHeader>
+                  <TableRow className="text-black">
                     <TableHead className="text-center font-bold text-base">
-                      Total Items
+                      Sr.
                     </TableHead>
                     <TableHead className="text-center font-bold text-base">
-                      Total Pieces
+                      Category
                     </TableHead>
-                  </RoleGateForComponent>
-                  <TableHead className="text-center font-bold text-base">
-                    Price
-                  </TableHead>
-                  <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                     <TableHead className="text-center font-bold text-base">
-                      Actions
+                      Image
                     </TableHead>
-                  </RoleGateForComponent>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {displayCategories.map((cat, idx) => (
-                  <TableRow key={`category-${cat.name}-${idx}`}>
-                    <TableCell className="text-center">{idx + 1}</TableCell>
-                    <TableCell className="text-center text-blue-800 font-bold cursor-pointer">
-                      <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
-                        {cat.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <img
-                        src={cat.image || "/images/no-image.png"}
-                        alt={cat.name}
-                        className="w-16 h-16 object-cover mx-auto"
-                      />
-                    </TableCell>
-                    <TableCell className="text-center font-bold">
-                      {cat.type}
-                      <TypeEdit
-                        categoryName={cat.name}
-                        onUpdateType={handleTypeUpdate}
-                      />
-                    </TableCell>
+                    <TableHead className="text-center font-bold text-base">
+                      Type
+                    </TableHead>
                     <RoleGateForComponent
                       allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
                     >
-                      <TableCell className="text-center">{cat.count}</TableCell>
-                      <TableCell className="text-center">
-                        {cat.countOfPiece}
-                      </TableCell>
+                      <TableHead className="text-center font-bold text-base">
+                        Total Items
+                      </TableHead>
+                      <TableHead className="text-center font-bold text-base">
+                        Total Pieces
+                      </TableHead>
                     </RoleGateForComponent>
-                    <TableCell className="text-center">
-                      {cat.sellingPrice}
-                    </TableCell>
+                    <TableHead className="text-center font-bold text-base">
+                      Price
+                    </TableHead>
                     <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-                      <TableCell className="text-center">
-                        <div className="flex justify-center gap-2">
-                          <EditCategoryModal
-                            category={cat}
-                            onCategoryUpdate={(updatedCat) => {
-                              handleCategoryUpdate(updatedCat, cat.name);
-                            }}
-                            trigger={
-                              <Button variant="outline" size="sm">
-                                Edit
-                              </Button>
-                            }
-                          />
-
-                          <DialogDemo
-                            dialogTrigger="Delete"
-                            dialogTitle="Delete Category"
-                            dialogDescription="Delete the category"
-                            bgColor="destructive"
-                          >
-                            <div>
-                              <h1>Delete Category</h1>
-                              <h3>
-                                Are you sure you want to delete category "
-                                {cat.name}"?
-                              </h3>
-                            </div>
-                            <Button
-                              type="button"
-                              disabled={isPending}
-                              onClick={() => handleDeleteCategory(cat.name)}
-                            >
-                              Delete
-                            </Button>
-                          </DialogDemo>
-                        </div>
-                      </TableCell>
+                      <TableHead className="text-center font-bold text-base">
+                        Actions
+                      </TableHead>
                     </RoleGateForComponent>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {displayCategories.map((cat, idx) => (
+                    <TableRow key={`category-${cat.name}-${idx}`}>
+                      <TableCell className="text-center">
+                        {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                      </TableCell>
+                      <TableCell className="text-center text-blue-800 font-bold cursor-pointer">
+                        <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
+                          {cat.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <img
+                          src={cat.image || "/images/no-image.png"}
+                          alt={cat.name}
+                          className="w-16 h-16 object-cover mx-auto"
+                        />
+                      </TableCell>
+                      <TableCell className="text-center font-bold">
+                        {cat.type}
+                        <TypeEdit
+                          categoryName={cat.name}
+                          onUpdateType={handleTypeUpdate}
+                        />
+                      </TableCell>
+                      <RoleGateForComponent
+                        allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
+                      >
+                        <TableCell className="text-center">
+                          {cat.count}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {cat.countOfPiece}
+                        </TableCell>
+                      </RoleGateForComponent>
+                      <TableCell className="text-center">
+                        {cat.sellingPrice}
+                      </TableCell>
+                      <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center gap-2">
+                            <EditCategoryModal
+                              category={cat}
+                              onCategoryUpdate={(updatedCat) => {
+                                handleCategoryUpdate(updatedCat, cat.name);
+                              }}
+                              trigger={
+                                <Button variant="outline" size="sm">
+                                  Edit
+                                </Button>
+                              }
+                            />
+
+                            <DialogDemo
+                              dialogTrigger="Delete"
+                              dialogTitle="Delete Category"
+                              dialogDescription="Delete the category"
+                              bgColor="destructive"
+                            >
+                              <div>
+                                <h1>Delete Category</h1>
+                                <h3>
+                                  Are you sure you want to delete category "
+                                  {cat.name}"?
+                                </h3>
+                              </div>
+                              <Button
+                                type="button"
+                                disabled={isPending}
+                                onClick={() => handleDeleteCategory(cat.name)}
+                              >
+                                Delete
+                              </Button>
+                            </DialogDemo>
+                          </div>
+                        </TableCell>
+                      </RoleGateForComponent>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {totalCategoryPages > 1 && (
+              <div className="flex justify-center mt-4">
+                <PaginationComponent
+                  currentPage={currentPage}
+                  totalPages={totalCategoryPages}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
