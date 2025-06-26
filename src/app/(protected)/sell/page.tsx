@@ -15,7 +15,7 @@ import {
 } from "@/src/components/ui/table";
 import { UserRole } from "@prisma/client";
 import axios from "axios";
-import { Loader2, Search, ShoppingCart, FileText } from "lucide-react";
+import { Loader2, Search, ShoppingCart, FileText, Trash2, Plus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
@@ -28,22 +28,33 @@ const getCurrTime = () => {
   return ISTTime;
 };
 
+interface CartItem {
+  id: string;
+  kurti: any;
+  selectedSize: string;
+  quantity: number;
+  sellingPrice: number;
+  availableStock: number;
+}
+
 function SellPage() {
   const [code, setCode] = useState("");
   const [kurti, setKurti] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [selling, setSelling] = useState(false);
-  const [sizes, setSellSize] = useState(0);
-  const [showSellForm, setShowSellForm] = useState(false);
-  const [shopName, setShopName] = useState("");
-
+  const [cart, setCart] = useState<CartItem[]>([]);
+  
   // Sale details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [selledPrice, setSelledPrice] = useState("");
-  const [selectedSize, setSelectedSize] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const [billCreatedBy, setBillCreatedBy] = useState("");
+  const [shopName, setShopName] = useState("");
+
+  // Current product selection
+  const [selectedSize, setSelectedSize] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [quantity, setQuantity] = useState(1);
 
   const currentUser = useCurrentUser();
 
@@ -61,12 +72,11 @@ function SellPage() {
       if (data.error) {
         toast.error(data.error);
         setKurti(null);
-        setShowSellForm(false);
       } else {
         setKurti(data.kurti);
-        setSellSize(data.kurti.sizes.length);
-        setSelledPrice(data.kurti.sellingPrice);
-        setShowSellForm(true);
+        setSellingPrice(data.kurti.sellingPrice);
+        setSelectedSize("");
+        setQuantity(1);
         toast.success("Product found!");
       }
     } catch (error) {
@@ -77,39 +87,171 @@ function SellPage() {
     }
   };
 
+  const addToCart = () => {
+    if (!kurti) {
+      toast.error("Please find a product first");
+      return;
+    }
+
+    if (!selectedSize) {
+      toast.error("Please select size");
+      return;
+    }
+
+    if (!sellingPrice || parseInt(sellingPrice) <= 0) {
+      toast.error("Please enter valid selling price");
+      return;
+    }
+
+    if (quantity <= 0) {
+      toast.error("Please enter valid quantity");
+      return;
+    }
+
+    const sizeInfo = kurti.sizes.find((sz: any) => sz.size === selectedSize);
+    if (!sizeInfo || sizeInfo.quantity < quantity) {
+      toast.error("Insufficient stock for selected quantity");
+      return;
+    }
+
+    // Check if same product+size already exists in cart
+    const existingItemIndex = cart.findIndex(
+      item => item.kurti.code === kurti.code && item.selectedSize === selectedSize
+    );
+
+    const newItem: CartItem = {
+      id: `${kurti.code}-${selectedSize}-${Date.now()}`,
+      kurti,
+      selectedSize,
+      quantity,
+      sellingPrice: parseInt(sellingPrice),
+      availableStock: sizeInfo.quantity
+    };
+
+    if (existingItemIndex >= 0) {
+      // Update existing item
+      const updatedCart = [...cart];
+      const existingItem = updatedCart[existingItemIndex];
+      const totalQuantity = existingItem.quantity + quantity;
+      
+      if (totalQuantity > sizeInfo.quantity) {
+        toast.error("Total quantity exceeds available stock");
+        return;
+      }
+      
+      updatedCart[existingItemIndex] = {
+        ...existingItem,
+        quantity: totalQuantity,
+        sellingPrice: parseInt(sellingPrice) // Update price if changed
+      };
+      setCart(updatedCart);
+    } else {
+      // Add new item
+      setCart([...cart, newItem]);
+    }
+
+    // Reset current product selection
+    setCode("");
+    setKurti(null);
+    setSelectedSize("");
+    setSellingPrice("");
+    setQuantity(1);
+    
+    toast.success("Product added to cart!");
+  };
+
+  const removeFromCart = (itemId: string) => {
+    setCart(cart.filter(item => item.id !== itemId));
+    toast.success("Item removed from cart");
+  };
+
+  const updateCartItemQuantity = (itemId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeFromCart(itemId);
+      return;
+    }
+
+    const updatedCart = cart.map(item => {
+      if (item.id === itemId) {
+        if (newQuantity > item.availableStock) {
+          toast.error("Quantity exceeds available stock");
+          return item;
+        }
+        return { ...item, quantity: newQuantity };
+      }
+      return item;
+    });
+    setCart(updatedCart);
+  };
+
+  const updateCartItemPrice = (itemId: string, newPrice: number) => {
+    if (newPrice <= 0) {
+      toast.error("Please enter valid price");
+      return;
+    }
+
+    const updatedCart = cart.map(item => {
+      if (item.id === itemId) {
+        return { ...item, sellingPrice: newPrice };
+      }
+      return item;
+    });
+    setCart(updatedCart);
+  };
+
+  const getTotalAmount = () => {
+    return cart.reduce((total, item) => total + (item.sellingPrice * item.quantity), 0);
+  };
+
   const handleSell = async () => {
     try {
       setSelling(true);
+
+      if (cart.length === 0) {
+        toast.error("Please add products to cart");
+        return;
+      }
 
       if (!customerName.trim()) {
         toast.error("Please enter customer name");
         return;
       }
 
-      if (!selectedSize) {
-        toast.error("Please select size");
+      if (!selectedLocation.trim()) {
+        toast.error("Please select location");
         return;
       }
 
-      if (!selledPrice || parseInt(selledPrice) <= 0) {
-        toast.error("Please enter valid selling price");
+      if (!billCreatedBy.trim()) {
+        toast.error("Please enter bill created by");
+        return;
+      }
+
+      if (!shopName.trim()) {
+        toast.error("Please enter shop name");
         return;
       }
 
       const currentTime = getCurrTime();
-      const fullCode = code.toUpperCase() + selectedSize.toUpperCase();
+
+      // Prepare products data for API
+      const products = cart.map(item => ({
+        code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
+        kurti: item.kurti,
+        selectedSize: item.selectedSize,
+        quantity: item.quantity,
+        sellingPrice: item.sellingPrice
+      }));
 
       const res = await axios.post(`/api/sell`, {
-        code: fullCode,
+        products,
         currentUser,
         currentTime: currentTime,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
-        selledPrice: parseInt(selledPrice),
-        selectedSize: selectedSize,
-        selectedLocation: selectedLocation.trim(), // ✅ Add this
-        billCreatedBy: billCreatedBy.trim(), // ✅ Add this
-        shopName: shopName.trim(), // ✅ Add this
+        selectedLocation: selectedLocation.trim(),
+        billCreatedBy: billCreatedBy.trim(),
+        shopName: shopName.trim(),
       });
 
       const data = res.data.data;
@@ -117,13 +259,13 @@ function SellPage() {
       if (data.error) {
         toast.error(data.error);
       } else {
-        toast.success("Sold Successfully!");
+        toast.success("Sale completed successfully!");
         // Generate invoice
         generateInvoice(data);
         resetForm();
       }
     } catch (error) {
-      console.error("Error selling product:", error);
+      console.error("Error selling products:", error);
       toast.error("Error processing sale");
     } finally {
       setSelling(false);
@@ -148,6 +290,7 @@ function SellPage() {
     const currentDate = new Date().toLocaleDateString("en-IN");
     const currentTime = new Date().toLocaleTimeString("en-IN");
     const invoiceNumber = `INV-${Date.now()}`;
+    const totalAmount = getTotalAmount();
 
     return `
         <!DOCTYPE html>
@@ -270,7 +413,7 @@ function SellPage() {
         <body>
             <div class="invoice-container">
                 <div class="header">
-                    <h1 class="shop-name">Radhe Beautic</h1>
+                    <h1 class="shop-name">${shopName || 'Radhe Beautic'}</h1>
                     <p class="shop-tagline">Premium Fashion Collection</p>
                 </div>
                 
@@ -293,6 +436,14 @@ function SellPage() {
                             <span class="info-label">Seller:</span>
                             <span>${currentUser?.name || "N/A"}</span>
                         </div>
+                        <div class="info-row">
+                            <span class="info-label">Location:</span>
+                            <span>${selectedLocation}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Bill By:</span>
+                            <span>${billCreatedBy}</span>
+                        </div>
                     </div>
                     
                     <div class="customer-info">
@@ -301,16 +452,12 @@ function SellPage() {
                             <span class="info-label">Name:</span>
                             <span>${customerName}</span>
                         </div>
-                        ${
-                          customerPhone
-                            ? `
+                        ${customerPhone ? `
                         <div class="info-row">
                             <span class="info-label">Phone:</span>
                             <span>${customerPhone}</span>
                         </div>
-                        `
-                            : ""
-                        }
+                        ` : ""}
                     </div>
                 </div>
                 
@@ -326,26 +473,28 @@ function SellPage() {
                         </tr>
                     </thead>
                     <tbody>
+                        ${cart.map(item => `
                         <tr>
-                            <td>${kurti.code.toUpperCase()}</td>
-                            <td>${kurti.category}</td>
-                            <td>${selectedSize.toUpperCase()}</td>
-                            <td>1</td>
-                            <td>₹${selledPrice}</td>
-                            <td>₹${selledPrice}</td>
+                            <td>${item.kurti.code.toUpperCase()}</td>
+                            <td>${item.kurti.category}</td>
+                            <td>${item.selectedSize.toUpperCase()}</td>
+                            <td>${item.quantity}</td>
+                            <td>₹${item.sellingPrice}</td>
+                            <td>₹${item.sellingPrice * item.quantity}</td>
                         </tr>
+                        `).join('')}
                     </tbody>
                 </table>
                 
                 <div class="total-section">
                     <div style="font-size: 16px; margin-bottom: 5px;">
-                        <strong>Subtotal: ₹${selledPrice}</strong>
+                        <strong>Subtotal: ₹${totalAmount}</strong>
                     </div>
                     <div style="font-size: 16px; margin-bottom: 10px;">
                         <strong>Tax: ₹0</strong>
                     </div>
                     <div class="total-amount">
-                        Total Amount: ₹${selledPrice}
+                        Total Amount: ₹${totalAmount}
                     </div>
                 </div>
                 
@@ -365,13 +514,15 @@ function SellPage() {
   const resetForm = () => {
     setCode("");
     setKurti(null);
-    setShowSellForm(false);
+    setCart([]);
     setCustomerName("");
     setCustomerPhone("");
-    setSelledPrice("");
-    setSelectedSize("");
     setSelectedLocation("");
     setBillCreatedBy("");
+    setShopName("");
+    setSelectedSize("");
+    setSellingPrice("");
+    setQuantity(1);
   };
 
   const getAvailableSizes = () => {
@@ -380,13 +531,71 @@ function SellPage() {
   };
 
   return (
-    <Card className="w-[95%] max-w-4xl">
+    <Card className="w-[95%] max-w-6xl">
       <CardHeader>
         <p className="text-2xl font-semibold text-center">
-          🛒 Product Sale System
+          🛒 Multi-Product Sale System
         </p>
       </CardHeader>
       <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
+        
+        {/* Customer Details Section */}
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="customer-name">Customer Name *</Label>
+              <Input
+                id="customer-name"
+                placeholder="Enter customer name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="customer-phone">Customer Phone (Optional)</Label>
+              <Input
+                id="customer-phone"
+                placeholder="Enter customer phone"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="shop-name">Shop Name *</Label>
+              <Input
+                id="shop-name"
+                placeholder="Enter shop name"
+                value={shopName}
+                onChange={(e) => setShopName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="shop-location">Shop Location *</Label>
+              <select
+                id="shop-location"
+                className="w-full p-2 border rounded-md"
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+              >
+                <option value="">Select Location</option>
+                <option value="Katargam">Katargam</option>
+                <option value="Amroli">Amroli</option>
+                <option value="Mota Varachha">Mota Varachha</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="bill-by">Bill Created By *</Label>
+              <Input
+                id="bill-by"
+                placeholder="Enter person name"
+                value={billCreatedBy}
+                onChange={(e) => setBillCreatedBy(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Search Section */}
         <div className="bg-slate-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-3">Find Product</h3>
@@ -485,121 +694,166 @@ function SellPage() {
                     </Table>
                   </div>
                 </div>
+
+                {/* Add to Cart Form */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                  <h4 className="font-semibold mb-3 text-yellow-800">Add to Cart</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div>
+                      <Label htmlFor="size-select">Select Size *</Label>
+                      <select
+                        id="size-select"
+                        className="w-full p-2 border rounded-md"
+                        value={selectedSize}
+                        onChange={(e) => setSelectedSize(e.target.value)}
+                      >
+                        <option value="">Select Size</option>
+                        {getAvailableSizes().map((sz: any, i: number) => (
+                          <option key={i} value={sz.size}>
+                            {sz.size.toUpperCase()} (Stock: {sz.quantity})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="quantity">Quantity *</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        min="1"
+                        placeholder="Enter quantity"
+                        value={quantity}
+                        onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="selling-price">Selling Price *</Label>
+                      <Input
+                        id="selling-price"
+                        type="number"
+                        placeholder="Enter selling price"
+                        value={sellingPrice}
+                        onChange={(e) => setSellingPrice(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        onClick={addToCart}
+                        className="w-full bg-yellow-600 hover:bg-yellow-700"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add to Cart
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Sale Form */}
-        {showSellForm && (
+        {/* Shopping Cart */}
+        {cart.length > 0 && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <h3 className="text-lg font-semibold mb-4 text-green-800">
-              Sale Details
+              Shopping Cart ({cart.length} items)
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="customer-name">Customer Name *</Label>
-                <Input
-                  id="customer-name"
-                  placeholder="Enter customer name"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="customer-phone">
-                  Customer Phone (Optional)
-                </Label>
-                <Input
-                  id="customer-phone"
-                  placeholder="Enter customer phone"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="shop-name">Shop Name *</Label>
-                <Input
-                  id="shop-name"
-                  placeholder="Enter shop name"
-                  value={shopName}
-                  onChange={(e) => setShopName(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="size-select">Select Size *</Label>
-                <select
-                  id="size-select"
-                  className="w-full p-2 border rounded-md"
-                  value={selectedSize}
-                  onChange={(e) => setSelectedSize(e.target.value)}
-                >
-                  <option value="">Select Size</option>
-                  {getAvailableSizes().map((sz: any, i: number) => (
-                    <option key={i} value={sz.size}>
-                      {sz.size.toUpperCase()} (Stock: {sz.quantity})
-                    </option>
+            
+            <div className="overflow-x-auto">
+              <Table className="border border-collapse">
+                <TableHeader>
+                  <TableRow className="bg-green-800">
+                    <TableHead className="font-bold border text-white">Product</TableHead>
+                    <TableHead className="font-bold border text-white">Size</TableHead>
+                    <TableHead className="font-bold border text-white">Quantity</TableHead>
+                    <TableHead className="font-bold border text-white">Unit Price</TableHead>
+                    <TableHead className="font-bold border text-white">Total</TableHead>
+                    <TableHead className="font-bold border text-white">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cart.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="border">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={item.kurti.images[0]?.url}
+                            alt={item.kurti.code}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                          <div>
+                            <div className="font-semibold">{item.kurti.code.toUpperCase()}</div>
+                            <div className="text-sm text-gray-600">{item.kurti.category}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="border">{item.selectedSize.toUpperCase()}</TableCell>
+                      <TableCell className="border">
+                        <Input
+                          type="number"
+                          min="1"
+                          max={item.availableStock}
+                          value={item.quantity}
+                          onChange={(e) => updateCartItemQuantity(item.id, parseInt(e.target.value) || 1)}
+                          className="w-20"
+                        />
+                      </TableCell>
+                      <TableCell className="border">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.sellingPrice}
+                          onChange={(e) => updateCartItemPrice(item.id, parseInt(e.target.value) || 1)}
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell className="border font-semibold">
+                        ₹{item.sellingPrice * item.quantity}
+                      </TableCell>
+                      <TableCell className="border">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="selling-price">Selling Price *</Label>
-                <Input
-                  id="selling-price"
-                  type="number"
-                  placeholder="Enter selling price"
-                  value={selledPrice}
-                  onChange={(e) => setSelledPrice(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="shop-location">Shop Location*</Label>
-                <select
-                  id="shop-location"
-                  className="w-full p-2 border rounded-md"
-                  value={selectedLocation}
-                  onChange={(e) => setSelectedLocation(e.target.value)}
-                >
-                  <option value="">Select Location</option>
-                  <option value="Katargam">Katargam</option>
-                  <option value="Amroli">Amroli</option>
-                  <option value="Mota Varachha">Mota Varachha</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="bill-by">Bill Created By *</Label>
-                <Input
-                  id="bill-by"
-                  placeholder="Enter person name"
-                  value={billCreatedBy}
-                  onChange={(e) => setBillCreatedBy(e.target.value)}
-                />
-              </div>
+                </TableBody>
+              </Table>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <Button
-                type="button"
-                onClick={handleSell}
-                disabled={selling}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                {selling ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                )}
-                Complete Sale & Generate Invoice
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={resetForm}
-                disabled={selling}
-              >
-                Cancel
-              </Button>
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-green-300">
+              <div className="text-xl font-bold text-green-800">
+                Total Amount: ₹{getTotalAmount()}
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  onClick={handleSell}
+                  disabled={selling || cart.length === 0}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {selling ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                  )}
+                  Complete Sale & Generate Invoice
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetForm}
+                  disabled={selling}
+                >
+                  Clear All
+                </Button>
+              </div>
             </div>
           </div>
         )}

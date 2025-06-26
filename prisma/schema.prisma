@@ -176,7 +176,35 @@ model Sell {
   customerPhone String? // Customer phone (optional)
   selledPrice   Int? // Actual selling price (can be different from MRP)
   invoiceNumber String? // Invoice number for tracking
+  quantity      Int 
+  shopName      String
   billCreatedBy  String?
+   batchId       String?   // Reference to SaleBatch
+   batch         SaleBatch? @relation("BatchSales", fields: [batchId], references: [id])
+   @@map("sells")
+}
+// If you need to create a separate table for batch sales (optional)
+model SaleBatch {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  batchNumber   String    @unique // Unique batch identifier
+  customerName  String
+  customerPhone String?
+  shopLocation  String
+  shopName      String
+  billCreatedBy String
+  totalAmount   Int       // Total amount for the entire batch
+  totalItems    Int       // Total number of items in batch
+  saleTime      DateTime
+  sellerName    String
+  sellerId      String?
+  
+  // Relations
+   sales         Sell[]    @relation("BatchSales")
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("sale_batches")
 }
 
 model Deletetime {

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { sellKurti2 } from "@/src/data/kurti";
+import { sellKurti2, sellMultipleKurtis } from "@/src/data/kurti";
 import { NextRequest, NextResponse } from "next/server";
 
 
@@ -46,15 +46,72 @@ const isSize = (str: string): boolean => {
     return selectSizes.includes(str.toUpperCase());
 }
 
+// export async function POST(request: NextRequest) {
+//     try {
+//         const data = await request.json();
+//         console.log('Sell request data:', data);
+//         const result = await sellKurti2(data);
+//         return new NextResponse(JSON.stringify({ data: result }), { status: 200 });
+//     } catch (error: any) {
+//         return new NextResponse(JSON.stringify({ error: error.message }), {
+//             status: 500
+//         });
+//     }
+// }
+// API Route Handler
 export async function POST(request: NextRequest) {
-    try {
-        const data = await request.json();
-        console.log('Sell request data:', data);
-        const result = await sellKurti2(data);
-        return new NextResponse(JSON.stringify({ data: result }), { status: 200 });
-    } catch (error: any) {
-        return new NextResponse(JSON.stringify({ error: error.message }), {
-            status: 500
-        });
+  try {
+    const data = await request.json();
+    console.log('Multiple sell request data:', data);
+    
+    // Validate required fields
+    if (!data.products || !Array.isArray(data.products) || data.products.length === 0) {
+      return new NextResponse(
+        JSON.stringify({ error: "Products array is required and cannot be empty" }), 
+        { status: 400 }
+      );
     }
+
+    if (!data.customerName?.trim()) {
+      return new NextResponse(
+        JSON.stringify({ error: "Customer name is required" }), 
+        { status: 400 }
+      );
+    }
+
+    if (!data.selectedLocation?.trim()) {
+      return new NextResponse(
+        JSON.stringify({ error: "Shop location is required" }), 
+        { status: 400 }
+      );
+    }
+
+    if (!data.billCreatedBy?.trim()) {
+      return new NextResponse(
+        JSON.stringify({ error: "Bill created by is required" }), 
+        { status: 400 }
+      );
+    }
+
+    const result = await sellMultipleKurtis(data);
+    
+    if (result.error) {
+      return new NextResponse(
+        JSON.stringify({ data: result }), 
+        { status: 400 }
+      );
+    }
+
+    return new NextResponse(
+      JSON.stringify({ data: result }), 
+      { status: 200 }
+    );
+    
+  } catch (error: any) {
+    console.error('API Error:', error);
+    return new NextResponse(
+      JSON.stringify({ error: error.message || "Internal server error" }), 
+      { status: 500 }
+    );
+  }
 }
