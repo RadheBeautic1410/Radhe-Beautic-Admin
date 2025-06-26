@@ -227,11 +227,6 @@ function SellPage() {
         return;
       }
 
-      if (!shopName.trim()) {
-        toast.error("Please enter shop name");
-        return;
-      }
-
       const currentTime = getCurrTime();
 
       // Prepare products data for API
@@ -534,7 +529,7 @@ function SellPage() {
     <Card className="w-[95%] max-w-6xl">
       <CardHeader>
         <p className="text-2xl font-semibold text-center">
-          🛒 Multi-Product Sale System
+          🛒 Sales Entry & Invoice System
         </p>
       </CardHeader>
       <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
@@ -559,15 +554,6 @@ function SellPage() {
                 placeholder="Enter customer phone"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="shop-name">Shop Name *</Label>
-              <Input
-                id="shop-name"
-                placeholder="Enter shop name"
-                value={shopName}
-                onChange={(e) => setShopName(e.target.value)}
               />
             </div>
             <div>
@@ -763,7 +749,7 @@ function SellPage() {
             <div className="overflow-x-auto">
               <Table className="border border-collapse">
                 <TableHeader>
-                  <TableRow className="bg-green-800">
+                  <TableRow className="bg-green-800 hover:bg-green-700">
                     <TableHead className="font-bold border text-white">Product</TableHead>
                     <TableHead className="font-bold border text-white">Size</TableHead>
                     <TableHead className="font-bold border text-white">Quantity</TableHead>

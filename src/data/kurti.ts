@@ -426,7 +426,6 @@ export const sellMultipleKurtis = async (data: any) => {
       customerPhone,
       selectedLocation,
       billCreatedBy,
-      shopName,
     } = data;
 
     if (!products || products.length === 0) {
@@ -557,7 +556,6 @@ export const sellMultipleKurtis = async (data: any) => {
                   quantity: quantity, // Add quantity field to track multiple items
                   shopLocation: selectedLocation,
                   billCreatedBy: billCreatedBy,
-                  shopName: shopName,
                 },
               });
 
@@ -607,7 +605,6 @@ export const sellMultipleKurtis = async (data: any) => {
           phone: customerPhone,
           location: selectedLocation,
           billCreatedBy,
-          shopName,
         },
         partialSale: true,
       };
@@ -623,7 +620,6 @@ export const sellMultipleKurtis = async (data: any) => {
         phone: customerPhone,
         location: selectedLocation,
         billCreatedBy,
-        shopName,
       },
     };
 
@@ -699,7 +695,6 @@ const processSingleSale = async (
   customerPhone: string,
   selectedLocation: string,
   billCreatedBy: string,
-  shopName: string
 ) => {
   try {
     const { kurti, sizeInfo, search, cmp } = validation;
@@ -775,7 +770,6 @@ const processSingleSale = async (
         selledPrice: sellingPrice,
         shopLocation: selectedLocation,
         billCreatedBy: billCreatedBy,
-        shopName: shopName,
       },
     });
 
