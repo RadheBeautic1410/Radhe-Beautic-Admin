@@ -495,6 +495,8 @@ const ListPage = () => {
     totalPages: number;
     onPageChange: (page: number) => void;
   }) => {
+    const [goToPage, setGoToPage] = useState("");
+
     if (totalPages <= 1) return null;
 
     const getVisiblePages = () => {
@@ -529,50 +531,94 @@ const ListPage = () => {
 
     const visiblePages = getVisiblePages();
 
+    const handleGoToPage = () => {
+      const pageNumber = parseInt(goToPage);
+      if (pageNumber >= 1 && pageNumber <= totalPages) {
+        onPageChange(pageNumber);
+        setGoToPage("");
+      }
+    };
+
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        handleGoToPage();
+      }
+    };
+
     return (
-      <Pagination>
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious
-              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-              className={
-                currentPage === 1
-                  ? "pointer-events-none opacity-50"
-                  : "cursor-pointer"
-              }
-            />
-          </PaginationItem>
-
-          {visiblePages.map((page, index) => (
-            <PaginationItem key={index}>
-              {page === "..." ? (
-                <PaginationEllipsis />
-              ) : (
-                <PaginationLink
-                  onClick={() => onPageChange(page as number)}
-                  isActive={currentPage === page}
-                  className="cursor-pointer"
-                >
-                  {page}
-                </PaginationLink>
-              )}
+      <div className="flex flex-col items-center gap-4">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                className={
+                  currentPage === 1
+                    ? "pointer-events-none opacity-50"
+                    : "cursor-pointer"
+                }
+              />
             </PaginationItem>
-          ))}
 
-          <PaginationItem>
-            <PaginationNext
-              onClick={() =>
-                onPageChange(Math.min(totalPages, currentPage + 1))
-              }
-              className={
-                currentPage === totalPages
-                  ? "pointer-events-none opacity-50"
-                  : "cursor-pointer"
-              }
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
+            {visiblePages.map((page, index) => (
+              <PaginationItem key={index}>
+                {page === "..." ? (
+                  <PaginationEllipsis />
+                ) : (
+                  <PaginationLink
+                    onClick={() => onPageChange(page as number)}
+                    isActive={currentPage === page}
+                    className="cursor-pointer"
+                  >
+                    {page}
+                  </PaginationLink>
+                )}
+              </PaginationItem>
+            ))}
+
+            <PaginationItem>
+              <PaginationNext
+                onClick={() =>
+                  onPageChange(Math.min(totalPages, currentPage + 1))
+                }
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : "cursor-pointer"
+                }
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+
+        {/* Go to Page Feature */}
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-gray-600">Go to page:</span>
+          <Input
+            type="number"
+            min="1"
+            max={totalPages}
+            value={goToPage}
+            onChange={(e) => setGoToPage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Page #"
+            className="w-20 h-8 text-center"
+          />
+          <Button
+            onClick={handleGoToPage}
+            disabled={
+              !goToPage ||
+              parseInt(goToPage) < 1 ||
+              parseInt(goToPage) > totalPages
+            }
+            size="sm"
+            variant="outline"
+          >
+            Go
+          </Button>
+          <span className="text-gray-500">of {totalPages}</span>
+        </div>
+      </div>
     );
   };
 
@@ -706,19 +752,21 @@ const ListPage = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="w-[30%] mt-auto">
+              <SearchBar
+                value={searchValue}
+                onChange={handleSearch}
+                onCancelResearch={handleSearchCancel}
+                width="100%"
+                style={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #ccc",
+                  maxWidth: "400px",
+                  marginTopL: "auto",
+                }}
+              />
+            </div>
           </div>
-
-          <SearchBar
-            value={searchValue}
-            onChange={handleSearch}
-            onCancelResearch={handleSearchCancel}
-            width="100%"
-            style={{
-              backgroundColor: "#fff",
-              border: "1px solid #ccc",
-              maxWidth: "400px",
-            }}
-          />
         </div>
 
         <div className="bg-gray-50 p-4 rounded-lg mb-4">
