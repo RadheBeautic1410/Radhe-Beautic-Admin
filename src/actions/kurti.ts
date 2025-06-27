@@ -273,3 +273,94 @@ export const addNewImages = async (data: any) => {
     })
     return { success: `New Images added`, kurti: kurti };
 }
+
+export async function toggleKurtiImageVisibility(
+  kurtiId: string,
+  imageId: string,
+  isHidden: boolean
+) {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      return {
+        success: false,
+        error: "Unauthorized - Please login",
+      };
+    }
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.UPLOADER) {
+      return {
+        success: false,
+        error: "Insufficient permissions",
+      };
+    }
+
+    if (!kurtiId || !imageId) {
+      return {
+        success: false,
+        error: "Missing required parameters",
+      };
+    }
+
+    const existingKurti = await db.kurti.findUnique({
+      where: {
+        id: kurtiId,
+        isDeleted: false,
+      },
+    });
+
+    if (!existingKurti) {
+      return {
+        success: false,
+        error: "Kurti not found",
+      };
+    }
+
+    const currentImages = existingKurti.images as any[];
+
+    if (!Array.isArray(currentImages)) {
+      return {
+        success: false,
+        error: "Invalid images data",
+      };
+    }
+
+    const imageIndex = currentImages.findIndex(
+      (img: any) => img.id === imageId
+    );
+
+    if (imageIndex === -1) {
+      return {
+        success: false,
+        error: "Image not found",
+      };
+    }
+
+    const updatedImages = [...currentImages];
+    updatedImages[imageIndex] = {
+      ...updatedImages[imageIndex],
+      is_hidden: isHidden,
+    };
+
+    const updatedKurti = await db.kurti.update({
+      where: {
+        id: kurtiId,
+      },
+      data: {
+        images: updatedImages,
+        lastUpdatedTime: new Date(),
+      },
+    });
+
+    return {
+      success: true,
+      message: `Image ${isHidden ? "hidden" : "made visible"} successfully`,
+      data: updatedKurti,
+    };
+  } catch (error) {
+    console.error("Error toggling image visibility:", error);
+    return {
+      success: false,
+      error: "Internal server error",
+    };
+  }
+}
