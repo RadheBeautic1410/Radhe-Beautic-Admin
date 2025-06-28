@@ -223,6 +223,35 @@ export const deletePicture = async (code: string, idx: number) => {
         return null;
     }
 }
+
+export const deleteVideo = async (code: string, idx: number) => {
+  try {
+    const kurti = await db.kurti.findUnique({
+      where: {
+        code: code.toUpperCase(),
+      },
+    });
+    const currTime = await getCurrTime();
+    let videos = kurti?.videos || [];
+    if (videos?.length < idx || videos.length <= 1) {
+      return kurti;
+    }
+    let newVideos = removeAtIndex(videos, idx) || [];
+    const updatedKurti = await db.kurti.update({
+      where: {
+        code: code.toUpperCase(),
+      },
+      data: {
+        videos: newVideos,
+        lastUpdatedTime: currTime,
+      },
+    });
+    return updatedKurti;
+  } catch {
+    return null;
+  }
+};
+
 function isDigit(character: any) {
     return !isNaN(parseInt(character)) && isFinite(character);
 }
