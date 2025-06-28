@@ -92,8 +92,8 @@ const UploadPage = () => {
   const [generatedCode, setGeneratedCode] = useState("");
   const [category, setCategory] = useState<category[]>([]);
   const [images, setImages] = useState<any[]>([]);
+  const [videos, setVideos] = useState<any[]>([]); // New state for videos
   const [generatorLoader, setGeneratorLoader] = useState(false);
-  // const [components, setComponents] = useState<any[]>([]);
   const [sizes, setSizes] = useState<Size[]>([]);
   const router = useRouter();
   const [barcodeDownloading, setBarcodeDownloading] = useState(false);
@@ -106,7 +106,7 @@ const UploadPage = () => {
     if (
       sizes.length === 0 ||
       generatedCode.length === 0 ||
-      images.length === 0
+      (images.length === 0 && videos.length === 0) // Allow either images or videos
     ) {
       toast.error("Fill out the form first!!!");
     } else {
@@ -138,9 +138,16 @@ const UploadPage = () => {
     }
   };
 
+  // Handle image changes
   const handleImageChange = (data: any) => {
     setImages([...data]);
-    console.log(data);
+    console.log("Images:", data);
+  };
+
+  // Handle video changes
+  const handleVideoChange = (data: any) => {
+    setVideos([...data]);
+    console.log("Videos:", data);
   };
 
   const handleSubmitParty = (values: z.infer<typeof partyAddSchema>) => {
@@ -193,24 +200,24 @@ const UploadPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("/api/party"); // Adjust the API endpoint based on your actual setup
+        const response = await fetch("/api/party");
         const result = await response.json();
         const sortedParties = (result.data || []).sort((a: party, b: party) =>
           a.name.localeCompare(b.name)
         );
-        setParty(sortedParties); // Use an empty array as a default value if result.data is undefined or null
+        setParty(sortedParties);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
         setPartyLoader(false);
       }
       try {
-        const response = await fetch("/api/category"); // Adjust the API endpoint based on your actual setup
+        const response = await fetch("/api/category");
         const result = await response.json();
         const sortedCategory = (result.data || []).sort((a: party, b: party) =>
           a.name.localeCompare(b.name)
         );
-        setCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
+        setCategory(sortedCategory);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -219,8 +226,10 @@ const UploadPage = () => {
     };
     fetchData();
   }, []);
+
   const defaultValues = {
     images: images,
+    videos: videos, // Add videos to default values
     sizes: [],
     party: "",
     sellingPrice: "0",
@@ -233,7 +242,12 @@ const UploadPage = () => {
   const form = useForm<z.infer<typeof KurtiSchema>>({
     resolver: zodResolver(KurtiSchema),
     defaultValues: {
-      images: images,
+      images: images.map((image) => ({
+        url: image.url,
+        id: uuidv4(),
+        is_hidden: false,
+      })),
+      videos: videos?.map((video) => ({ url: video.url, id: uuidv4(), is_hidden: false })), // Add videos to form default values
       sizes: [],
       party: "",
       sellingPrice: "0",
@@ -246,6 +260,8 @@ const UploadPage = () => {
 
   const handleFormSubmit = async () => {
     await CodeGenerator();
+
+    // Set images with proper structure
     form.setValue(
       "images",
       images?.map((image) => ({
@@ -254,31 +270,44 @@ const UploadPage = () => {
         is_hidden: false,
       }))
     );
+
+    // Set videos with proper structure
+    form.setValue(
+      "videos",
+      videos?.map((video) => ({
+        url: video.url,
+        id: uuidv4(),
+        is_hidden: false,
+      }))
+    );
+
     form.setValue("code", generatedCode);
     form.setValue("sizes", sizes);
-    if (images.length === 0) {
-      toast.error("Upload Images");
+
+    if (images.length === 0 && videos.length === 0) {
+      toast.error("Upload at least one image or video");
     } else if (sizes.length === 0) {
       toast.error("Add Stock");
     } else {
-      // console.log(sizes);
       let cnt = 0;
       for (let i = 0; i < sizes.length; i++) {
         cnt += sizes[i].quantity;
       }
       form.setValue("countOfPiece", cnt);
       const values = form.getValues();
+
+      console.log("Form values with videos:", values); // Debug log
+
       startTransition(() => {
         kurtiAddition(values)
           .then(async (data) => {
             if (data.success) {
               await handleBarcodeDownload();
               form.reset(defaultValues);
-              // form.setValue('category', 'Set Category');
               setSizes([]);
               setGeneratedCode("");
-              // setComponents([]);
               setImages([]);
+              setVideos([]); // Reset videos
               if (imageUploadRef.current) {
                 imageUploadRef.current.reset();
               }
@@ -299,11 +328,11 @@ const UploadPage = () => {
       setGeneratorLoader(true);
       const categorySelected = form.getValues().category;
       if (categorySelected === "") {
-        toast.error("Please select the cateory first");
+        toast.error("Please select the category first");
       }
       const response = await fetch(
         `/api/kurti/generateCode?cat=${categorySelected}`
-      ); // Adjust the API endpoint based on your actual setup
+      );
       const result = await response.json();
       setGeneratedCode(result.code);
     } catch (error) {
@@ -337,14 +366,26 @@ const UploadPage = () => {
             <p className="text-2xl font-semibold text-center">⬆️ UPLOAD</p>
           </CardHeader>
           <CardContent className="text-center">
+            {/* Updated ImageUpload2 component with video support */}
             <ImageUpload2
               onImageChange={handleImageChange}
+              onVideoChange={handleVideoChange}
               images={images}
+              videos={videos}
+              allowVideos={true} // Enable video uploads
               ref={imageUploadRef}
             />
+
+            {/* Display media count */}
+            <div className="mt-4 text-sm text-gray-600">
+              {images.length > 0 && (
+                <span className="mr-4">Images: {images.length}</span>
+              )}
+              {videos.length > 0 && <span>Videos: {videos.length}</span>}
+            </div>
+
             <div className="text-left w-[100%]">
               <Form {...form}>
-                {/* Add Category Component */}
                 <form className="space-y-6 w-auto" onSubmit={handleFormSubmit}>
                   <div className="flex flex-row justify-normal">
                     <FormField
@@ -434,7 +475,7 @@ const UploadPage = () => {
                       </Button>
                     </div>
                   </div>
-                  {/* Add Party Component */}
+
                   <div className="flex flex-row justify-normal">
                     <FormField
                       control={form.control}
@@ -507,6 +548,7 @@ const UploadPage = () => {
                       </Button>
                     </div>
                   </div>
+
                   <FormField
                     control={form.control}
                     name="actualPrice"

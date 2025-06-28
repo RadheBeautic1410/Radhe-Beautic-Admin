@@ -12,6 +12,7 @@ import { UserRole } from "@prisma/client";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { toast } from "sonner";
+import KurtiVideoCardSingle from "../../../_components/kurti/KurtiVideoSingle";
 
 interface kurti {
   id: string;
@@ -22,6 +23,7 @@ interface kurti {
   party: string;
   sellingPrice: string;
   actualPrice: string;
+  videos?: any[];
 }
 
 function OneKurtiPage() {
@@ -87,9 +89,7 @@ function OneKurtiPage() {
             {kurtiData?.images.map((img, idx) => {
               return (
                 <div key={img.id || idx} className="relative group">
-                  <div
-                    className={`relative`}
-                  >
+                  <div className={`relative`}>
                     <KurtiPicCardSingle
                       data={kurtiData}
                       idx={idx}
@@ -97,6 +97,18 @@ function OneKurtiPage() {
                       onImageToggle={handleKurtiUpdate}
                     />
                   </div>
+                </div>
+              );
+            })}
+            {kurtiData?.videos?.map((video, idx) => {
+              return (
+                <div key={video.id || idx} className="relative group">
+                  <KurtiVideoCardSingle
+                    data={kurtiData}
+                    idx={idx}
+                    onVideoDelete={handleKurtiUpdate}
+                    onVideoToggle={handleKurtiUpdate}
+                  />
                 </div>
               );
             })}

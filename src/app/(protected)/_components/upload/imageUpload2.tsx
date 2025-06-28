@@ -37,15 +37,19 @@ import imageCompression from "browser-image-compression";
 
 interface ChildProps {
   onImageChange: (data: any) => void;
+  onVideoChange?: (data: any) => void; // New prop for video changes
   images: any[];
-  singleFile?: boolean; // New prop to control single/multiple file mode
+  videos?: any[]; // New prop for videos
+  singleFile?: boolean;
+  allowVideos?: boolean; // New flag to enable video uploads
 }
 
 interface FileUploadProgress {
   progress: number;
   File: File;
   source: CancelTokenSource | null;
-  storagePath: string; // Added storagePath to track the file location in Firebase Storage
+  storagePath: string;
+  fileType: "image" | "video"; // Track file type
 }
 
 enum FileTypes {
@@ -87,22 +91,31 @@ export interface ImageUploadRef {
 
 const ImageUpload2 = React.forwardRef(
   (
-    { onImageChange, images, singleFile = false }: ChildProps,
+    {
+      onImageChange,
+      onVideoChange,
+      images,
+      videos = [],
+      singleFile = false,
+      allowVideos = false,
+    }: ChildProps,
     ref: React.Ref<ImageUploadRef>
   ) => {
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
     const [imgs, setImgs] = useState<any[]>([]);
+    const [vids, setVids] = useState<any[]>(videos); // New state for videos
     const [progress, setProgress] = useState<number>(0);
     const [filesToUpload, setFilesToUpload] = useState<FileUploadProgress[]>(
       []
     );
     const [deletingImage, setDeletingImage] = useState<string | null>(null);
-    const [compressionInProgress, setCompressionInProgress] = useState(false); // Track compression state
+    const [compressionInProgress, setCompressionInProgress] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
     const reset = () => {
       setUploadedFiles([]);
       setImgs([]);
+      setVids([]);
       setFilesToUpload([]);
     };
 
@@ -117,6 +130,12 @@ const ImageUpload2 = React.forwardRef(
           color: ImageColor.bgColor,
         };
       }
+      if (file.type.includes(FileTypes.Video)) {
+        return {
+          icon: <Video size={40} className={VideoColor.fillColor} />,
+          color: VideoColor.bgColor,
+        };
+      }
       return {
         icon: <FolderArchive size={40} className={OtherColor.fillColor} />,
         color: OtherColor.bgColor,
@@ -125,7 +144,7 @@ const ImageUpload2 = React.forwardRef(
 
     const compressImage = async (file: File) => {
       try {
-        setCompressionInProgress(true); // Start loading indicator
+        setCompressionInProgress(true);
         const compressedFile = await imageCompression(file, {
           maxSizeMB: 1,
           maxWidthOrHeight: 1920,
@@ -135,9 +154,9 @@ const ImageUpload2 = React.forwardRef(
       } catch (error) {
         console.error("Error compressing file: ", error);
         toast.error("Failed to compress image.");
-        return file; // Return original file if compression fails
+        return file;
       } finally {
-        setCompressionInProgress(false); // Stop loading indicator
+        setCompressionInProgress(false);
       }
     };
 
@@ -178,16 +197,40 @@ const ImageUpload2 = React.forwardRef(
     const removeFile = async (file: File) => {
       setDeletingImage(file.name);
 
-      let temp = [];
-      for (let i = 0; i < uploadedFiles.length; i++) {
-        if (uploadedFiles[i] !== file) {
-          temp.push(images[i]);
-        }
-      }
-      onImageChange(temp);
-      setImgs(temp);
-
       const fileToDelete = filesToUpload.find((item) => item.File === file);
+      const isVideo = file.type.includes(FileTypes.Video);
+
+      // Update the appropriate state based on file type
+      if (isVideo) {
+        let temp = [];
+        for (let i = 0; i < uploadedFiles.length; i++) {
+          if (uploadedFiles[i] !== file) {
+            const videoIndex = uploadedFiles
+              .slice(0, i)
+              .filter((f) => f.type.includes(FileTypes.Video)).length;
+            if (videoIndex < vids.length) {
+              temp.push(vids[videoIndex]);
+            }
+          }
+        }
+        onVideoChange?.(temp);
+        setVids(temp);
+      } else {
+        let temp = [];
+        for (let i = 0; i < uploadedFiles.length; i++) {
+          if (uploadedFiles[i] !== file) {
+            const imageIndex = uploadedFiles
+              .slice(0, i)
+              .filter((f) => f.type.includes(FileTypes.Image)).length;
+            if (imageIndex < imgs.length) {
+              temp.push(imgs[imageIndex]);
+            }
+          }
+        }
+        onImageChange(temp);
+        setImgs(temp);
+      }
+
       if (fileToDelete) {
         const fileRef = ImgRef(storage, fileToDelete.storagePath);
         try {
@@ -214,10 +257,10 @@ const ImageUpload2 = React.forwardRef(
       setDeletingImage(null);
     };
 
-    const uploadImage = async (file: File, path: string) => {
+    const uploadFile = async (file: File, path: string) => {
       const storageRef = ImgRef(storage, path);
       const metadata = {
-        cacheControl: "public, max-age=5184000", // Cache for 1 year
+        cacheControl: "public, max-age=5184000",
       };
       const uploadTask = uploadBytesResumable(storageRef, file, metadata);
 
@@ -254,17 +297,15 @@ const ImageUpload2 = React.forwardRef(
 
     const onDrop = useCallback(
       async (acceptedFiles: File[]) => {
-        // Handle single file mode - only take the first file and clear existing ones
         const filesToProcess = singleFile ? [acceptedFiles[0]] : acceptedFiles;
 
         if (singleFile && filesToProcess.length > 0) {
-          // Clear existing files in single file mode
           setFilesToUpload([]);
           setUploadedFiles([]);
           setImgs([]);
+          setVids([]);
         }
 
-        // Show warning for single file mode if multiple files were dropped
         if (singleFile && acceptedFiles.length > 1) {
           toast.warning(
             "Only one file is allowed. The first file will be uploaded."
@@ -272,12 +313,15 @@ const ImageUpload2 = React.forwardRef(
         }
 
         setFilesToUpload((prevUploadProgress) => [
-          ...(singleFile ? [] : prevUploadProgress), // Clear previous files in single mode
+          ...(singleFile ? [] : prevUploadProgress),
           ...filesToProcess.map((file) => ({
             progress: 0,
             File: file,
             source: null,
             storagePath: "",
+            fileType: file.type.includes(FileTypes.Video)
+              ? ("video" as const)
+              : ("image" as const),
           })),
         ]);
         setIsUploading(true);
@@ -285,29 +329,42 @@ const ImageUpload2 = React.forwardRef(
         try {
           setCompressionInProgress(true);
           const fileUploadBatch = filesToProcess.map(async (file) => {
-            const compressedFile = await compressImage(file);
-            const storagePath = `images/${uuidv4()}`;
-            const downloadURL = await uploadImage(compressedFile, storagePath);
+            const isVideo = file.type.includes(FileTypes.Video);
 
-            // Update filesToUpload with storagePath
+            // Only compress images, not videos
+            const processedFile = isVideo ? file : await compressImage(file);
+
+            const storagePath = `${isVideo ? "videos" : "images"}/${uuidv4()}`;
+            const downloadURL = await uploadFile(processedFile, storagePath);
+
             setFilesToUpload((prevUploadProgress) =>
               prevUploadProgress.map((item) =>
                 item.File.name === file.name ? { ...item, storagePath } : item
               )
             );
 
-            // Handle image state updates based on single/multiple mode
-            setImgs((prevImgs) => {
-              const newImage = { url: downloadURL };
-              const updatedImgs = singleFile
-                ? [newImage]
-                : [...prevImgs, newImage];
-              // Pass the updated images list to the parent component
-              onImageChange(updatedImgs);
-              return updatedImgs;
-            });
+            const newFileData = { url: downloadURL };
 
-            // Update the uploadedFiles state
+            if (isVideo) {
+              // Update videos state
+              setVids((prevVids) => {
+                const updatedVids = singleFile
+                  ? [newFileData]
+                  : [...prevVids, newFileData];
+                onVideoChange?.(updatedVids);
+                return updatedVids;
+              });
+            } else {
+              // Update images state
+              setImgs((prevImgs) => {
+                const updatedImgs = singleFile
+                  ? [newFileData]
+                  : [...prevImgs, newFileData];
+                onImageChange(updatedImgs);
+                return updatedImgs;
+              });
+            }
+
             setUploadedFiles((prevUploadedFiles) =>
               singleFile ? [file] : [...prevUploadedFiles, file]
             );
@@ -325,13 +382,26 @@ const ImageUpload2 = React.forwardRef(
           setIsUploading(false);
         }
       },
-      [onImageChange, singleFile]
+      [onImageChange, onVideoChange, singleFile]
     );
+
+    // Define accepted file types based on allowVideos flag
+    const acceptedFileTypes = allowVideos
+      ? "image/png, image/jpeg, video/mp4, video/webm, video/ogg"
+      : "image/png, image/jpeg";
 
     const { getRootProps, getInputProps } = useDropzone({
       onDrop,
-      multiple: !singleFile, // Disable multiple selection in single file mode
-      maxFiles: singleFile ? 1 : undefined, // Limit to 1 file in single mode
+      multiple: !singleFile,
+      maxFiles: singleFile ? 1 : undefined,
+      accept: allowVideos
+        ? {
+            "image/*": [".png", ".jpg", ".jpeg"],
+            "video/*": [".mp4", ".webm", ".ogg"],
+          }
+        : {
+            "image/*": [".png", ".jpg", ".jpeg"],
+          },
     });
 
     return (
@@ -353,15 +423,19 @@ const ImageUpload2 = React.forwardRef(
               </p>
               <p className="text-xs text-gray-500">
                 {singleFile
-                  ? "Click to upload a file; file should be under 25 MB;"
-                  : "Click to upload files;files should be under 25 MB;"}
+                  ? `Click to upload a ${
+                      allowVideos ? "file (image/video)" : "file"
+                    }; file should be under 25 MB;`
+                  : `Click to upload ${
+                      allowVideos ? "files (images/videos)" : "files"
+                    };files should be under 25 MB;`}
               </p>
             </div>
           </label>
           <Input
             {...getInputProps()}
             id="dropzone-file"
-            accept="image/png, image/jpeg"
+            accept={acceptedFileTypes}
             type="file"
             className="hidden"
             multiple={!singleFile}
@@ -369,7 +443,7 @@ const ImageUpload2 = React.forwardRef(
         </div>
         {compressionInProgress && (
           <p className="text-sm text-blue-600 mt-2">
-            Compressing {singleFile ? "image" : "images"}...
+            Processing {singleFile ? "file" : "files"}...
           </p>
         )}
         {filesToUpload.length > 0 && (
@@ -401,6 +475,8 @@ const ImageUpload2 = React.forwardRef(
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
                             {Math.round(fileUploadProgress.progress)} %
+                            {fileUploadProgress.fileType === "video" &&
+                              " (Video)"}
                           </p>
                         </div>
                       </div>

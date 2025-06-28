@@ -210,13 +210,11 @@ const ListPage = () => {
     totalStockPrice: 0,
   });
 
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [kurtiCurrentPage, setKurtiCurrentPage] = useState(1);
 
   const [isPending, startTransition] = useTransition();
 
-  // Form
   const form = useForm({
     defaultValues: {
       name: "",
@@ -225,7 +223,6 @@ const ListPage = () => {
     },
   });
 
-  // API calls
   const fetchKurtiData = useCallback(async (): Promise<Kurti[]> => {
     try {
       const response = await fetch("/api/kurti/getall");
@@ -248,7 +245,6 @@ const ListPage = () => {
     }
   }, []);
 
-  // Data processing
   const processedCategories = useMemo(() => {
     if (!categories.length || !kurtiData.length) return categories;
 
@@ -259,7 +255,6 @@ const ListPage = () => {
     return sortCategories(updatedCategories, sortType);
   }, [categories, kurtiData, sortType]);
 
-  // Filtered data based on search
   const { filteredKurti, filteredCategories } = useMemo(() => {
     if (!searchValue.trim()) {
       return {
@@ -310,7 +305,6 @@ const ListPage = () => {
     }
   }, [searchValue, searchType, kurtiData, processedCategories]);
 
-  // Pagination calculations
   const displayCategories = useMemo(() => {
     const categories =
       searchValue.trim().length > 0 ? filteredCategories : processedCategories;
@@ -331,7 +325,6 @@ const ListPage = () => {
     return getTotalPages(filteredKurti.length, KURTI_ITEMS_PER_PAGE);
   }, [filteredKurti]);
 
-  // Event handlers
   const handleSearch = useCallback((newValue: string) => {
     setSearchValue(newValue);
     setCurrentPage(1);
@@ -427,7 +420,6 @@ const ListPage = () => {
     }
   }, []);
 
-  // Pagination handlers
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
@@ -436,7 +428,6 @@ const ListPage = () => {
     setKurtiCurrentPage(page);
   }, []);
 
-  // Effects
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -464,7 +455,6 @@ const ListPage = () => {
     }
   }, [isLoading, fetchKurtiData, fetchCategories]);
 
-  // Render
   const isSearching = searchValue.trim().length > 0;
   const showKurtiResults = searchType === SEARCH_TYPES.DESIGN && isSearching;
 
@@ -485,7 +475,6 @@ const ListPage = () => {
     );
   };
 
-  // Pagination component
   const PaginationComponent = ({
     currentPage,
     totalPages,
@@ -591,7 +580,6 @@ const ListPage = () => {
           </PaginationContent>
         </Pagination>
 
-        {/* Go to Page Feature */}
         <div className="flex items-center gap-2 text-sm">
           <span className="text-gray-600">Go to page:</span>
           <Input
@@ -600,7 +588,7 @@ const ListPage = () => {
             max={totalPages}
             value={goToPage}
             onChange={(e) => setGoToPage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyPress}
             placeholder="Page #"
             className="w-20 h-8 text-center"
           />
@@ -621,6 +609,42 @@ const ListPage = () => {
       </div>
     );
   };
+
+  function downloadCSV(data: Category[]) {
+    if (!data.length) return;
+
+    const headers: (keyof Category)[] = [
+      "name",
+      "count",
+      "type",
+      "countOfPiece",
+      "sellingPrice",
+      "actualPrice",
+      "image",
+    ];
+
+    const csv = [
+      headers.join(","), // header row
+      ...data.map((row) =>
+        headers
+          .map((field) =>
+            row[field] === null || row[field] === undefined
+              ? ""
+              : `"${String(row[field]).replace(/"/g, '""')}"`
+          )
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "items.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  
 
   return (
     <Card className="w-[90%]">
@@ -700,11 +724,17 @@ const ListPage = () => {
               </Form>
             </DialogDemo>
           </Button>
+          <Button
+            type="button"
+            className="ml-2"
+            disabled={isPending}
+            onClick={() => downloadCSV(categories)}
+          >
+            Download CSV
+          </Button>
         </div>
       </CardHeader>
-
       <CardContent>
-        {/* Controls */}
         <div className="pb-2">
           <div className="flex flex-row justify-center mb-2 gap-4">
             <div className="w-[30%]">

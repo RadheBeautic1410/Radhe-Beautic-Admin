@@ -364,3 +364,94 @@ export async function toggleKurtiImageVisibility(
     };
   }
 }
+
+export async function toggleKurtiVideoVisibility(
+  kurtiId: string,
+  videoId: string,
+  isHidden: boolean
+) {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      return {
+        success: false,
+        error: "Unauthorized - Please login",
+      };
+    }
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.UPLOADER) {
+      return {
+        success: false,
+        error: "Insufficient permissions",
+      };
+    }
+
+    if (!kurtiId || !videoId) {
+      return {
+        success: false,
+        error: "Missing required parameters",
+      };
+    }
+
+    const existingKurti = await db.kurti.findUnique({
+      where: {
+        id: kurtiId,
+        isDeleted: false,
+      },
+    });
+
+    if (!existingKurti) {
+      return {
+        success: false,
+        error: "Kurti not found",
+      };
+    }
+
+    const currentVideos = existingKurti.videos as any[];
+
+    if (!Array.isArray(currentVideos)) {
+      return {
+        success: false,
+        error: "Invalid videos data",
+      };
+    }
+
+    const videoIndex = currentVideos.findIndex(
+      (video: any) => video.id === videoId
+    );
+
+    if (videoIndex === -1) {
+      return {
+        success: false,
+        error: "Video not found",
+      };
+    }
+
+    const updatedVideos = [...currentVideos];
+    updatedVideos[videoIndex] = {
+      ...updatedVideos[videoIndex],
+      is_hidden: isHidden,
+    };
+
+    const updatedKurti = await db.kurti.update({
+      where: {
+        id: kurtiId,
+      },
+      data: {
+        videos: updatedVideos,
+        lastUpdatedTime: new Date(),
+      },
+    });
+
+    return {
+      success: true,
+      message: `Video ${isHidden ? "hidden" : "made visible"} successfully`,
+      data: updatedKurti,
+    };
+  } catch (error) {
+    console.error("Error toggling video visibility:", error);
+    return {
+      success: false,
+      error: "Internal server error",
+    };
+  }
+}

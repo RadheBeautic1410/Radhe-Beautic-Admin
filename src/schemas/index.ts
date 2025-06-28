@@ -103,7 +103,8 @@ export const NewPasswordSchema = z.object({
 
 export const KurtiSchema = z.object({
 
-    images: z.array(z.object({ url: z.string() })),
+    images: z.array(z.object({ url: z.string(), id: z.string(), is_hidden: z.boolean() })),
+    videos: z.array(z.object({ url: z.string(), id: z.string(), is_hidden: z.boolean() })).optional(),
     sizes: z.array(z.object({
         size: z.string(),
         quantity: z.number(),

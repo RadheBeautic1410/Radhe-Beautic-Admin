@@ -19,7 +19,7 @@ import {
 } from "@/src/components/ui/table";
 import axios from "axios";
 import { log } from "console";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Download, Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -295,8 +295,11 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({
           key={"download"}
           disabled={downloading}
         >
-          {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : ""}
-          ⬇️
+          {downloading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
         </Button>
         <Button
           type="button"
@@ -317,11 +320,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({
             )
           }
           disabled={updatingVisibility === data.images[idx].id}
-          title={
-            data.images[idx].is_hidden
-              ? "Show image"
-              : "Hide image"
-          }
+          title={data.images[idx].is_hidden ? "Show image" : "Hide image"}
         >
           {updatingVisibility === data.images[idx].id ? (
             <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
