@@ -1,6 +1,5 @@
 "use client"
 import * as z from "zod";
-
 import { UserButton } from '@/src/components/ui/user-button'
 import { Button } from '@/src/components/ui/button'
 import { UserRole } from '@prisma/client'
@@ -10,188 +9,205 @@ import React, { useEffect, useState } from 'react'
 import Image from "next/image";
 import { RoleGateForComponent } from '@/src/components/auth/role-gate-component'
 import { useForm } from "react-hook-form";
+import { cn } from "@/src/lib/utils";
+
 const routes = [
     {
         name: 'Upload',
         href: '/upload',
-        role: [UserRole.ADMIN, UserRole.UPLOADER]
+        role: [UserRole.ADMIN, UserRole.UPLOADER],
+        icon: '📤'
     },
     {
         name: 'Catalogue',
         href: '/catalogue',
-        role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.RESELLER]
+        role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.RESELLER],
+        icon: '📋'
     },
     {
-        name: 'sell',
+        name: 'Sell',
         href: '/sell',
         role: [UserRole.ADMIN, UserRole.SELLER],
+        icon: '💰'
     },
     {
         name: 'Add Stock',
         href: '/addstock',
-        role: [UserRole.ADMIN]
+        role: [UserRole.ADMIN],
+        icon: '📦'
     },
     {
         name: 'Request',
         href: '/request',
         role: [UserRole.ADMIN],
+        icon: '📝'
     },
     {
         name: 'Selling History',
         href: '/sellinghistory',
         role: [UserRole.ADMIN],
+        icon: '📊'
     },
     {
         name: 'Orders',
         href: '/orders',
         role: [UserRole.ADMIN],
+        icon: '🛒'
     },
     {
         name: 'Analytics',
         href: '/analytics',
         role: [UserRole.ADMIN],
+        icon: '📈'
     },
     {
         name: 'Settings',
         href: '/settings',
-        role: [UserRole.ADMIN, UserRole.RESELLER, UserRole.SELLER, UserRole.UPLOADER]
+        role: [UserRole.ADMIN, UserRole.RESELLER, UserRole.SELLER, UserRole.UPLOADER],
+        icon: '⚙️'
     }
 ]
-const Navbar = () => {
-    const [navbar, setNavbar] = useState(false);
+
+const Sidebar = () => {
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const pathname = usePathname();
+
     const form = useForm({
         defaultValues: {
             name: "",
         }
     });
 
-
-    const pathname = usePathname();
     return (
         <>
-            <nav className='bg-secondary p-4 rounded-xl w-[90%] shadow-sm'>
-                <div className="flex justify-between items-center ">
-                    <div className='flex gap-x-2 max-md:hidden'>
+            {/* Mobile Overlay */}
+            {isMobileOpen && (
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+                    onClick={() => setIsMobileOpen(false)}
+                />
+            )}
 
-                        <div className='mt-[-1px]'>
-                            <a href="/">
-                                <Image
-                                    src="/images/TextLogo.png"
-                                    height="80"
-                                    width="80"
-                                    alt="Logo"
-                                />
-                            </a>
-                        </div>
+            {/* Mobile Toggle Button */}
+            <button
+                className="fixed top-4 left-4 z-50 lg:hidden bg-white/10 backdrop-blur-sm p-2 rounded-lg"
+                onClick={() => setIsMobileOpen(!isMobileOpen)}
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-6 h-6 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4 6h16M4 12h16M4 18h16"
+                    />
+                </svg>
+            </button>
 
-                        {routes.map((route) => {
-                            return (
-                                <RoleGateForComponent allowedRole={route.role} key={route.name}>
-                                    {
-                                        route.href === '/sell' || route.href === '/sellHistory' ?
-                                            <Button
-                                                asChild
-                                                variant={pathname === route.href ? "default" : "outline"}
-                                            >
-                                                <Link href={route.href}>{route.name}</Link>
-                                            </Button>
-                                            :
-                                            <Button
-                                                asChild
-                                                variant={pathname.includes(route.href) ? "default" : "outline"}
-                                            >
-                                                <Link href={route.href}>{route.name}</Link>
-                                            </Button>
-                                    }
-
-                                </RoleGateForComponent>
-                            )
-                        })}
-
-                    </div>
-                    <div className="flex gap-x-2 md:hidden">
-                        <button
-                            className="p-2 text-gray-700 rounded-md outline-none focus:border-gray-400 focus:border"
-                            onClick={() => setNavbar(!navbar)}
-                        >
-                            {navbar ? (
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="w-6 h-6 text-black"
-                                    viewBox="0 0 20 20"
-                                    fill="black"
-                                >
-                                    <path
-                                        fillRule="evenodd"
-                                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                        clipRule="evenodd"
+            {/* Sidebar */}
+            <aside className={cn(
+                "fixed lg:relative top-0 left-0 z-50 h-screen bg-white/10 backdrop-blur-lg border-r border-white/20 shadow-xl transition-all duration-300",
+                isCollapsed ? "w-16" : "w-64",
+                isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+            )}>
+                <div className="flex flex-col h-full">
+                    {/* Header */}
+                    <div className="p-4 border-b border-white/20">
+                        <div className="flex items-center justify-between">
+                            {!isCollapsed && (
+                                <Link href="/" className="flex items-center gap-2">
+                                    <Image
+                                        src="/images/TextLogo.png"
+                                        height="40"
+                                        width="40"
+                                        alt="Logo"
+                                        className="rounded-lg"
                                     />
-                                </svg>
-                            ) : (
+                                    <span className="text-white font-semibold text-lg">Dashboard</span>
+                                </Link>
+                            )}
+                            {isCollapsed && (
+                                <Link href="/" className="flex justify-center w-full">
+                                    <Image
+                                        src="/images/TextLogo.png"
+                                        height="32"
+                                        width="32"
+                                        alt="Logo"
+                                        className="rounded-lg"
+                                    />
+                                </Link>
+                            )}
+                            <button
+                                onClick={() => setIsCollapsed(!isCollapsed)}
+                                className="hidden lg:block text-white/70 hover:text-white transition-colors"
+                            >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
-                                    className="w-6 h-6 text-black"
+                                    className={cn("w-5 h-5 transition-transform", isCollapsed && "rotate-180")}
                                     fill="none"
                                     viewBox="0 0 24 24"
-                                    stroke="black"
-                                    strokeWidth={2}
+                                    stroke="currentColor"
                                 >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        d="M4 6h16M4 12h16M4 18h16"
-                                    />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                 </svg>
-                            )}
-                        </button>
-                    </div>
-                    <div className='flex gap-x-2 md:hidden'>
-                        <div className='mt-[-1px]'>
-                            <a href="/">
-                                <Image
-                                    src="/images/TextLogo.png"
-                                    height="80"
-                                    width="80"
-                                    alt="Logo"
-                                />
-                            </a>
+                            </button>
                         </div>
                     </div>
 
-                    <div className="flex justify-between gap-x-2">
-                        <UserButton />
-                    </div>
-                </div>
-                <div className="md:hidden">
-                    <div
-                        className={`flex-1 justify-self-center pb-3 mt-8 md:block md:pb-0 md:mt-0 ${navbar ? 'block' : 'hidden'
-                            }`}
-                    >
-                        <ul className="items-center justify-center space-y-8 md:flex md:space-x-6 md:space-y-0">
-                            <li className="text-black">
-                                <Link href="/" onClick={() => setNavbar(false)}>
-                                    Home
-                                </Link>
-                            </li>
-                            {routes.map((route) => {
-                                return (
-                                    <RoleGateForComponent allowedRole={route.role} key={route.name}>
-
-                                        <li className="text-black">
-                                            <Link href={route.href} onClick={() => setNavbar(false)}>
+                    {/* Navigation */}
+                    <nav className="flex-1 p-4 overflow-y-auto">
+                        <div className="space-y-2">
+                            {routes.map((route) => (
+                                <RoleGateForComponent allowedRole={route.role} key={route.name}>
+                                    <Link
+                                        href={route.href}
+                                        onClick={() => setIsMobileOpen(false)}
+                                        className={cn(
+                                            "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group",
+                                            (route.href === '/sell' || route.href === '/sellHistory' 
+                                                ? pathname === route.href 
+                                                : pathname.includes(route.href)
+                                            )
+                                                ? "bg-white/20 text-white shadow-lg"
+                                                : "text-white/70 hover:bg-white/10 hover:text-white"
+                                        )}
+                                    >
+                                        <span className="text-xl flex-shrink-0">{route.icon}</span>
+                                        {!isCollapsed && (
+                                            <span className="font-medium">{route.name}</span>
+                                        )}
+                                        {isCollapsed && (
+                                            <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                                                 {route.name}
-                                            </Link>
-                                        </li>
-                                    </RoleGateForComponent>
-                                )
-                            })}
-                        </ul>
+                                            </div>
+                                        )}
+                                    </Link>
+                                </RoleGateForComponent>
+                            ))}
+                        </div>
+                    </nav>
+
+                    {/* User Section */}
+                    <div className="p-4 border-t border-white/20">
+                        <div className="flex items-center gap-3">
+                            <UserButton />
+                            {!isCollapsed && (
+                                <div className="flex-1">
+                                    <div className="text-white/70 text-sm">Welcome back!</div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </nav >
+            </aside>
         </>
     )
 }
 
-export default Navbar
-
+export default Sidebar
