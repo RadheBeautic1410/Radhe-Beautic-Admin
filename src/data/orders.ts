@@ -7,7 +7,7 @@ import { UserRole } from "@prisma/client";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
 
-export const getCurrTime = () => {
+export const getCurrTime = async() => {
     const currentTime = new Date();
     const ISTOffset = 5.5 * 60 * 60 * 1000;
     const ISTTime = new Date(currentTime.getTime() + ISTOffset);

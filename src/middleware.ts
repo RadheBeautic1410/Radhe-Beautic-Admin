@@ -21,7 +21,7 @@ export default auth(async (req) => {
     const isAuthRoute = authRoutes.includes(nextUrl.pathname);
 
     if (isApiAuthRoute) {
-        return null;
+        return;
     }
 
     if (isAuthRoute) {
@@ -36,14 +36,14 @@ export default auth(async (req) => {
             console.log("url:", url);
             return Response.redirect(new URL(url, nextUrl))
         }
-        return null
+        return;
     }
 
     if (!isLoggedIn && !isPublicRoute) {
         return Response.redirect(new URL("/auth/login", nextUrl));
     }
 
-    return null;
+    return;
 
 })
 

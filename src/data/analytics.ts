@@ -11,7 +11,7 @@ type month = {
 }
 const ISTOffset = 5.5 * 60 * 60 * 1000;
 
-export const getCurrDate = (date: Date) => {
+export const getCurrDate = async(date: Date) => {
     const customDate = new Date(date);
     const ISTTime = new Date(customDate.getTime() + ISTOffset).toISOString().slice(0, 10);
 
@@ -21,7 +21,7 @@ export const getCurrDate = (date: Date) => {
     };
 }
 
-export const getCurrMonth = (date: month) => {
+export const getCurrMonth = async(date: month) => {
     const customDate = new Date(date.year, date.month, 1);
     const ISTTimeStart = new Date(startOfMonth(addDays(customDate, -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
     const ISTTimeEnd = new Date(endOfMonth(addDays(customDate, -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
@@ -32,7 +32,7 @@ export const getCurrMonth = (date: month) => {
     };
 }
 
-export const getCurrYear = ({year} : {year: number}) => {
+export const getCurrYear = async({year} : {year: number}) => {
     const ISTTimeStart = new Date(startOfMonth(addDays(new Date(year, 1 ,1), -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
     const ISTTimeEnd = new Date(startOfMonth(addDays(new Date(year+1, 1 ,1), -1)).getTime() + ISTOffset).toISOString().slice(0, 10);
 
