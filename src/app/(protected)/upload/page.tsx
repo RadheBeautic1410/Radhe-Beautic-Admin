@@ -3,8 +3,13 @@ import * as z from "zod";
 import axios from "axios";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
-import { CheckIcon, ChevronsUpDownIcon, Loader2 } from "lucide-react";
-import { useRef, useState, useTransition, useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import {
+  useRef,
+  useState,
+  useTransition,
+  useEffect,
+} from "react";
 import { Button } from "@/src/components/ui/button";
 import {
   Form,
@@ -34,51 +39,22 @@ import { UserRole } from "@prisma/client";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import PageLoader from "@/src/components/loader";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/src/components/ui/command";
 import { AddSizeForm } from "../_components/dynamicFields/sizes";
 import ImageUpload2, {
   ImageUploadRef,
 } from "../_components/upload/imageUpload2";
-import React from "react";
-import { Party } from "@prisma/client";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/src/components/ui/popover";
-type Category = {
-  id: string;
-  name: string;
-  normalizedLowerCase: string;
-  type: string;
-};
 
 // Extended schema for bulk upload
 const BulkKurtiSchema = z.object({
-  designs: z
-    .array(
-      z.object({
-        images: z.array(z.any()).min(1, "At least one image required"),
-        code: z.string().min(1, "Code is required"),
-        sizes: z
-          .array(
-            z.object({
-              size: z.string(),
-              quantity: z.number().min(1),
-            })
-          )
-          .min(1, "At least one size required"),
-        countOfPiece: z.number().min(1),
-      })
-    )
-    .min(1, "At least one design required"),
+  designs: z.array(z.object({
+    images: z.array(z.any()).min(1, "At least one image required"),
+    code: z.string().min(1, "Code is required"),
+    sizes: z.array(z.object({
+      size: z.string(),
+      quantity: z.number().min(1)
+    })).min(1, "At least one size required"),
+    countOfPiece: z.number().min(1)
+  })).min(1, "At least one design required"),
   party: z.string().min(1, "Party is required"),
   sellingPrice: z.string().min(1, "Selling price is required"),
   actualPrice: z.string().min(1, "Actual price is required"),
@@ -119,69 +95,12 @@ const BulkUploadPage = () => {
   const [categoryLoader, setCategoryLoader] = useState(true);
   const [category, setCategory] = useState<category[]>([]);
   const [images, setImages] = useState<any[]>([]);
-  const [isPendings, setIsPending] = React.useState(false); // Added to fix error
-
   const [designs, setDesigns] = useState<Design[]>([]);
   const [generatorLoader, setGeneratorLoader] = useState(false);
   const [sizes, setSizes] = useState<Size[]>([]);
   const [barcodeDownloading, setBarcodeDownloading] = useState(false);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const router = useRouter();
-  const [open, setOpen] = React.useState(false);
-  const [value, setValue] = React.useState("");
-  const [categories, setCategories] = React.useState<Category[]>([]);
-  // Removed duplicate isPending declaration
-  const [parties, setParties] = React.useState<Party[]>([]);
-  const [selectedParty, setSelectedParty] = React.useState("");
-  const [openParty, setOpenParty] = React.useState(false);
-  React.useEffect(() => {
-    const fetchParties = async () => {
-      try {
-        const res = await fetch("/api/party");
-        const json = await res.json();
-
-        if (Array.isArray(json.data)) {
-          const normalizedParties = json.data.map((p: any) => ({
-            ...p,
-            normalizedLowerCase: p.name?.toLowerCase().replace(/\s+/g, ""),
-          }));
-          setParties(normalizedParties);
-        } else {
-          setParties([]);
-        }
-      } catch (err) {
-        console.error("Failed to fetch parties", err);
-        setParties([]);
-      }
-    };
-
-    fetchParties();
-  }, []);
-
-  React.useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch("/api/category");
-        const json = await res.json();
-
-        if (Array.isArray(json.data)) {
-          const normalizedData = json.data.map((cat: Category) => ({
-            ...cat,
-            normalizedLowerCase: cat.name?.toLowerCase().replace(/\s+/g, ""),
-          }));
-          setCategories(normalizedData);
-        } else {
-          console.error("Invalid categories format:", json);
-          setCategories([]);
-        }
-      } catch (err) {
-        console.error("Failed to load categories", err);
-        setCategories([]);
-      }
-    };
-
-    fetchCategories();
-  }, []);
 
   const onAddSize = (sizes: Size[]) => {
     setSizes(sizes);
@@ -211,37 +130,35 @@ const BulkUploadPage = () => {
     try {
       const newDesigns: Design[] = [];
       const response = await fetch(
-        `/api/kurti/generateCode?cat=${categorySelected}`
-      );
-      const result = await response.json();
+          `/api/kurti/generateCode?cat=${categorySelected}`
+        );
+        const result = await response.json();
       // Process each image as a separate design
       // Extract prefix and number from result.code
-      const match = result.code.match(/^([A-Z]+)(\d+)$/);
-      if (!match) {
-        throw new Error("Invalid code format from API");
-      }
-      const prefix = match[1]; // e.g., 'CR'
-      let codeNumber = parseInt(match[2]); // e.g., 70011
+const match = result.code.match(/^([A-Z]+)(\d+)$/);
+if (!match) {
+  throw new Error("Invalid code format from API");
+}
+const prefix = match[1];           // e.g., 'CR'
+let codeNumber = parseInt(match[2]); // e.g., 70011
 
-      for (let i = 0; i < images.length; i++) {
-        // Calculate total pieces for this design
-        let totalPieces = 0;
-        sizes.forEach((size) => {
-          totalPieces += size.quantity;
-        });
+for (let i = 0; i < images.length; i++) {
+  // Calculate total pieces for this design
+  let totalPieces = 0;
+  sizes.forEach(size => {
+    totalPieces += size.quantity;
+  });
 
-        // Generate new code with increment
-        const newCode = `${prefix}${(codeNumber + i)
-          .toString()
-          .padStart(5, "0")}`;
+  // Generate new code with increment
+  const newCode = `${prefix}${(codeNumber + i).toString().padStart(5, '0')}`;
 
-        newDesigns.push({
-          images: [images[i]], // Each design gets one image
-          code: newCode,
-          sizes: [...sizes], // Copy of sizes for each design
-          countOfPiece: totalPieces,
-        });
-      }
+  newDesigns.push({
+    images: [images[i]], // Each design gets one image
+    code: newCode,
+    sizes: [...sizes], // Copy of sizes for each design
+    countOfPiece: totalPieces
+  });
+}
 
       setDesigns(newDesigns);
       toast.success(`Generated ${newDesigns.length} designs successfully!`);
@@ -254,93 +171,134 @@ const BulkUploadPage = () => {
     }
   };
 
-  const handleBulkBarcodeDownload = async () => {
-    if (designs.length === 0) {
-      toast.error("No designs to generate barcodes!");
-      return;
-    }
 
-    try {
-      setBarcodeDownloading(true);
 
-      for (const design of designs) {
-        if (!design.sizes || design.sizes.length === 0 || !design.code) {
-          console.warn("Skipping invalid design", design);
-          continue;
-        }
 
-        const obj = JSON.stringify(design.sizes);
-        const res = await axios.get(
-          `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${design.code}`,
-          {
-            responseType: "blob",
-          }
-        );
 
-        const blob = res.data;
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${design.code}.pdf`; // unique filename per design
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
+
+const handleBulkBarcodeDownload = async () => {
+  if (designs.length === 0) {
+    toast.error("No designs to generate barcodes!");
+    return;
+  }
+
+  try {
+    setBarcodeDownloading(true);
+
+    for (const design of designs) {
+      if (!design.sizes || design.sizes.length === 0 || !design.code) {
+        console.warn("Skipping invalid design", design);
+        continue;
       }
 
-      toast.success("All barcode PDFs downloaded!");
-    } catch (e: any) {
-      console.error("Error downloading barcodes:", e.message);
-      toast.error("Something went wrong while downloading barcodes.");
-    } finally {
-      setBarcodeDownloading(false);
+      const obj = JSON.stringify(design.sizes);
+      const res = await axios.get(
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${design.code}`,
+        {
+          responseType: "blob",
+        }
+      );
+
+      const blob = res.data;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${design.code}.pdf`; // unique filename per design
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
     }
-  };
+
+    toast.success("All barcode PDFs downloaded!");
+  } catch (e: any) {
+    console.error("Error downloading barcodes:", e.message);
+    toast.error("Something went wrong while downloading barcodes.");
+  } finally {
+    setBarcodeDownloading(false);
+  }
+};
+
+
+
+
+
 
   // Handle bulk barcode download
-  //   const handleBulkBarcodeDownload = async () => {
-  //     if (designs.length === 0) {
-  //       toast.error("No designs to download barcodes for");
-  //       return;
-  //     }
+//   const handleBulkBarcodeDownload = async () => {
+//     if (designs.length === 0) {
+//       toast.error("No designs to download barcodes for");
+//       return;
+//     }
 
-  //     setBarcodeDownloading(true);
-  //     try {
-  //       // Create bulk barcode data
-  //       const barcodeData = designs.map(design => ({
-  //         id: design.code,
-  //         sizes: design.sizes
-  //       }));
+//     setBarcodeDownloading(true);
+//     try {
+//       // Create bulk barcode data
+//       const barcodeData = designs.map(design => ({
+//         id: design.code,
+//         sizes: design.sizes
+//       }));
 
-  //       const res = await axios.get(
-  //         `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-bulk-pdf?data=${JSON.stringify(barcodeData)}`,
-  //         {
-  //           responseType: "blob",
-  //         }
-  //       );
+//       const res = await axios.get(
+//         `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-bulk-pdf?data=${JSON.stringify(barcodeData)}`,
+//         {
+//           responseType: "blob",
+//         }
+//       );
 
-  //       const blob = res.data;
-  //       const url = window.URL.createObjectURL(blob);
-  //       const a = document.createElement("a");
-  //       a.href = url;
-  //       a.download = `bulk-barcodes-${new Date().getTime()}.pdf`;
-  //       document.body.appendChild(a);
-  //       a.click();
-  //       a.remove();
-  //       window.URL.revokeObjectURL(url);
-  //     } catch (e: any) {
-  //       console.log(e.message);
-  //       toast.error("Failed to download barcodes");
-  //     } finally {
-  //       setBarcodeDownloading(false);
-  //     }
-  //   };
+//       const blob = res.data;
+//       const url = window.URL.createObjectURL(blob);
+//       const a = document.createElement("a");
+//       a.href = url;
+//       a.download = `bulk-barcodes-${new Date().getTime()}.pdf`;
+//       document.body.appendChild(a);
+//       a.click();
+//       a.remove();
+//       window.URL.revokeObjectURL(url);
+//     } catch (e: any) {
+//       console.log(e.message);
+//       toast.error("Failed to download barcodes");
+//     } finally {
+//       setBarcodeDownloading(false);
+//     }
+//   };
 
   const handleImageChange = (data: any) => {
     setImages([...data]);
     // Reset designs when images change
     setDesigns([]);
   };
+
+  const handleSubmitParty = (values: z.infer<typeof partyAddSchema>) => {
+    startTransition(() => {
+      partyAddition(values)
+        .then((data) => {
+          if (data.error) {
+            formParty.reset();
+            toast.error(data.error);
+          }
+          if (data.success) {
+            formParty.reset();
+            toast.success(data.success);
+            let result = party;
+            // result.push(data.data);
+            // const sortedParty = (result || []).sort((a: party, b: party) =>
+            //   a.name.localeCompare(b.name)
+            // );
+            
+                      if (data.data) {
+            let result = [...party, data.data]; // create a new array
+            const sortedParty = result.sort((a: party, b: party) =>
+              a.name.localeCompare(b.name)
+            );
+            setParty(sortedParty);
+          }
+          }
+        })
+        .catch(() => toast.error("Something went wrong!"));
+    });
+  };
+
   // Handle bulk form submission
   const handleBulkFormSubmit = async () => {
     if (designs.length === 0) {
@@ -353,7 +311,7 @@ const BulkUploadPage = () => {
 
     try {
       // Submit each design individually
-      const promises = designs.map((design) => {
+      const promises = designs.map(design => {
         const designData = {
           images: design.images,
           sizes: design.sizes,
@@ -368,9 +326,9 @@ const BulkUploadPage = () => {
       });
 
       const results = await Promise.all(promises);
-
+      
       // Check if all submissions were successful
-      const successful = results.filter((result) => result.success).length;
+      const successful = results.filter(result => result.success).length;
       const failed = results.length - successful;
 
       if (successful > 0) {
@@ -378,10 +336,10 @@ const BulkUploadPage = () => {
         if (failed > 0) {
           toast.error(`${failed} designs failed to upload`);
         }
-
+        
         // Download barcodes for successful uploads
         await handleBulkBarcodeDownload();
-
+        
         // Reset form
         form.reset();
         setSizes([]);
@@ -420,8 +378,8 @@ const BulkUploadPage = () => {
       try {
         const response = await fetch("/api/category");
         const result = await response.json();
-        const sortedCategory = (result.data || []).sort(
-          (a: category, b: category) => a.name.localeCompare(b.name)
+        const sortedCategory = (result.data || []).sort((a: category, b: category) =>
+          a.name.localeCompare(b.name)
         );
         setCategory(sortedCategory);
       } catch (error) {
@@ -459,10 +417,10 @@ const BulkUploadPage = () => {
       {partyLoader || categoryLoader ? (
         ""
       ) : (
-        <Card className="w-[90%] grid justify-center mx-auto my-10">
+        <Card className="w-[90%]">
           <CardHeader>
             <p className="text-2xl font-semibold text-center">
-              ⬆️ UPLOAD ({images.length} Images)
+              ⬆️ BULK UPLOAD ({images.length} Images)
             </p>
           </CardHeader>
           <CardContent className="text-center">
@@ -474,312 +432,150 @@ const BulkUploadPage = () => {
 
             <div className="text-left w-[100%] mt-6">
               <Form {...form}>
-                <form className="space-y-8 w-full">
+                <form className="space-y-6 w-auto">
                   {/* Category Selection */}
-                  
                   <FormField
                     control={form.control}
                     name="category"
                     render={({ field }) => (
-                      <FormItem className="w-full">
+                      <FormItem className="w-[30%]">
                         <FormLabel>Category</FormLabel>
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          <Popover open={open} onOpenChange={setOpen}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                className="w-full justify-between"
-                              >
-                                {field.value
-                                  ? categories.find(
-                                      (c) =>
-                                        c.normalizedLowerCase === field.value
-                                    )?.name || "Select category"
-                                  : "Select category"}
-                                <ChevronsUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-60 overflow-y-auto">
-                              <Command>
-                                <CommandInput placeholder="Search category..." />
-                                <CommandEmpty>No category found.</CommandEmpty>
-                                <CommandGroup>
-                                  <CommandList>
-                                    {categories.map((category, idx) => (
-                                      <CommandItem
-                                        key={idx}
-                                        value={category.name}
-                                        onSelect={(currentValue) => {
-                                          const selected = categories.find(
-                                            (c) => c.name === currentValue
-                                          );
-                                          if (selected)
-                                            field.onChange(
-                                              selected.normalizedLowerCase
-                                            );
-                                          setOpen(false);
-                                        }}
-                                      >
-                                        <CheckIcon
-                                          className={`mr-2 h-4 w-4 ${
-                                            field.value ===
-                                            category.normalizedLowerCase
-                                              ? "opacity-100"
-                                              : "opacity-0"
-                                          }`}
-                                        />
-                                        <span className="truncate">
-                                          {category.name}
-                                        </span>
-                                      </CommandItem>
-                                    ))}
-                                  </CommandList>
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                          <DialogDemo
-                            dialogTrigger="Add Category"
-                            dialogTitle="Add New Category"
-                            dialogDescription="Fill out the form to add a new category."
-                          >
-                            {(closeDialog) => (
-                              <form
-                                onSubmit={async (e) => {
-                                  e.preventDefault();
-                                  const formData = new FormData(
-                                    e.currentTarget
-                                  );
-                                  const name = formData
-                                    .get("name")
-                                    ?.toString()
-                                    .trim();
-                                  const type = formData
-                                    .get("type")
-                                    ?.toString()
-                                    .trim();
-                                  if (!name)
-                                    return alert("Category name is required");
-                                  try {
-                                    setIsPending(true);
-                                    const res = await fetch(
-                                      "/api/category/add",
-                                      {
-                                        method: "POST",
-                                        headers: {
-                                          "Content-Type": "application/json",
-                                        },
-                                        body: JSON.stringify({ name, type }),
-                                      }
-                                    );
-                                    const json = await res.json();
-                                    if (!res.ok)
-                                      throw new Error(
-                                        json.error || "Failed to add category"
-                                      );
-                                    alert("Category added!");
-                                    const updated = await fetch(
-                                      "/api/category"
-                                    );
-                                    const { data } = await updated.json();
-                                    setCategories(data || []);
-                                    closeDialog();
-                                  } catch (err) {
-                                    // alert(err.message);
-                                  } finally {
-                                    setIsPending(false);
-                                  }
-                                }}
-                                className="space-y-4"
-                              >
-                                <Input
-                                  name="name"
-                                  placeholder="e.g. Chocolate"
-                                />
-                                <Input name="type" placeholder="e.g. Food" />
-                                <Button type="submit" disabled={isPending}>
-                                  {isPending ? "Adding..." : "Add Category"}
-                                </Button>
-                              </form>
-                            )}
-                          </DialogDemo>
-                        </div>
+                        <Select
+                          disabled={isPending}
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {category.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.name}>
+                                {cat.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* Party Field */}
-                  <FormField
-                    control={form.control}
-                    name="party"
-                    render={({ field }) => (
-                      <FormItem className="w-full">
-                        <FormLabel>Party</FormLabel>
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          <Popover open={openParty} onOpenChange={setOpenParty}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="w-full justify-between"
-                              >
-                                {parties.find(
-                                  (p) => p.normalizedLowerCase === field.value
-                                )?.name || "Select party"}
-                                <ChevronsUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-60 overflow-y-auto">
-                              <Command>
-                                <CommandInput placeholder="Search party..." />
-                                <CommandEmpty>No party found.</CommandEmpty>
-                                <CommandGroup>
-                                  <CommandList>
-                                    {parties.map((party) => (
-                                      <CommandItem
-                                        key={party.id}
-                                        value={party.name}
-                                        onSelect={() => {
-                                          field.onChange(
-                                            party.normalizedLowerCase
-                                          );
-                                          setOpenParty(false);
-                                        }}
-                                      >
-                                        <CheckIcon
-                                          className={`mr-2 h-4 w-4 ${
-                                            field.value ===
-                                            party.normalizedLowerCase
-                                              ? "opacity-100"
-                                              : "opacity-0"
-                                          }`}
-                                        />
-                                        <span className="truncate">
-                                          {party.name}
-                                        </span>
-                                      </CommandItem>
-                                    ))}
-                                  </CommandList>
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                          <DialogDemo
-                            dialogTrigger="Add Party"
-                            dialogTitle="Add New Party"
-                            dialogDescription="Fill out the form to add a new party."
+                  {/* Party Selection */}
+                  <div className="flex flex-row justify-normal">
+                    <FormField
+                      control={form.control}
+                      name="party"
+                      render={({ field }) => (
+                        <FormItem className="w-[30%]">
+                          <FormLabel>Party</FormLabel>
+                          <Select
+                            disabled={isPending}
+                            onValueChange={field.onChange}
+                            value={field.value}
                           >
-                            {(closeDialog) => (
-                              <form
-                                onSubmit={async (e) => {
-                                  e.preventDefault();
-                                  const formData = new FormData(
-                                    e.currentTarget
-                                  );
-                                  const name = formData
-                                    .get("name")
-                                    ?.toString()
-                                    .trim();
-                                  const type = formData
-                                    .get("type")
-                                    ?.toString()
-                                    .trim();
-                                  if (!name)
-                                    return alert("Party name is required");
-                                  try {
-                                    setIsPending(true);
-                                    const res = await fetch("/api/party/add", {
-                                      method: "POST",
-                                      headers: {
-                                        "Content-Type": "application/json",
-                                      },
-                                      body: JSON.stringify({ name, type }),
-                                    });
-                                    const json = await res.json();
-                                    if (!res.ok)
-                                      throw new Error(
-                                        json.error || "Failed to add party"
-                                      );
-                                    alert("Party added!");
-                                    const updated = await fetch("/api/party");
-                                    const { data } = await updated.json();
-                                    setParties(data || []);
-                                    closeDialog();
-                                  } catch (err) {
-                                    // alert(err.message);
-                                  } finally {
-                                    setIsPending(false);
-                                  }
-                                }}
-                                className="space-y-4"
-                              >
-                                <Input
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Party" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {party.map((p) => (
+                                <SelectItem key={p.id} value={p.name}>
+                                  {p.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="ml-3 mt-7">
+                      <Button asChild>
+                        <DialogDemo
+                          dialogTrigger="Add Party"
+                          dialogTitle="New Party Addition"
+                          dialogDescription="Give party name and click add party"
+                        >
+                          {(closeDialog) => (
+                            <Form {...formParty}>
+                              <form className="space-y-6">
+                                <FormField
+                                  control={formParty.control}
                                   name="name"
-                                  placeholder="e.g. Distributor A"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Party</FormLabel>
+                                      <FormControl>
+                                        <Input
+                                          {...field}
+                                          disabled={isPending}
+                                          placeholder="Enter party name"
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
                                 />
-                                <Input name="type" placeholder="e.g. Retail" />
-                                <Button type="submit" disabled={isPending}>
-                                  {isPending ? "Adding..." : "Add Party"}
+                                <Button
+                                  type="button"
+                                  disabled={isPending}
+                                  onClick={formParty.handleSubmit((data) => {
+                                    handleSubmitParty(data);
+                                    closeDialog();
+                                  })}
+                                >
+                                  Add Party
                                 </Button>
                               </form>
-                            )}
-                          </DialogDemo>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Prices */}
-                  <div className="flex flex-col sm:flex-row gap-6">
-                    <FormField
-                      control={form.control}
-                      name="actualPrice"
-                      render={({ field }) => (
-                        <FormItem className="w-full">
-                          <FormLabel>Actual Price</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type="number"
-                              disabled={isPending}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Enter price per piece.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="sellingPrice"
-                      render={({ field }) => (
-                        <FormItem className="w-full">
-                          <FormLabel>Selling Price</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type="number"
-                              disabled={isPending}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Enter selling price per piece.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            </Form>
+                          )}
+                        </DialogDemo>
+                      </Button>
+                    </div>
                   </div>
 
+                  {/* Pricing */}
+                  <FormField
+                    control={form.control}
+                    name="actualPrice"
+                    render={({ field }) => (
+                      <FormItem className="w-[30%]">
+                        <FormLabel>Actual Price</FormLabel>
+                        <FormControl>
+                          <Input {...field} disabled={isPending} type="number" />
+                        </FormControl>
+                        <FormDescription>
+                          Enter Actual Price per Piece.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="sellingPrice"
+                    render={({ field }) => (
+                      <FormItem className="w-[30%]">
+                        <FormLabel>Sell Price</FormLabel>
+                        <FormControl>
+                          <Input {...field} disabled={isPending} type="number" />
+                        </FormControl>
+                        <FormDescription>
+                          Enter Selling Price per Piece.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   {/* Sizes */}
-                  <div className="w-full">
-                    <h3 className="text-md font-semibold mb-2">
-                      Sizes (All Designs)
-                    </h3>
+                  <div className="w-[40%]">
+                    <h2>Sizes (Applied to All Designs)</h2>
                     <AddSizeForm
                       preSizes={[]}
                       onAddSize={onAddSize}
@@ -787,7 +583,7 @@ const BulkUploadPage = () => {
                     />
                   </div>
 
-                  {/* Design Generator */}
+                  {/* Generate Designs Button */}
                   <Button
                     onClick={generateDesignsFromImages}
                     disabled={generatorLoader || bulkProcessing}
@@ -796,17 +592,19 @@ const BulkUploadPage = () => {
                   >
                     {generatorLoader ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
+                    ) : (
+                      ""
+                    )}
                     Generate {images.length} Designs
                   </Button>
 
-                  {/* Show Designs */}
+                  {/* Show Generated Designs */}
                   {designs.length > 0 && (
                     <div className="mt-6">
                       <h3 className="text-lg font-semibold mb-4">
                         Generated Designs ({designs.length})
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
                         {designs.map((design, index) => (
                           <Card key={index} className="p-4">
                             <div className="flex items-center space-x-3">
@@ -823,10 +621,7 @@ const BulkUploadPage = () => {
                                   Pieces: {design.countOfPiece}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  Sizes:{" "}
-                                  {design.sizes
-                                    .map((s) => `${s.size}(${s.quantity})`)
-                                    .join(", ")}
+                                  Sizes: {design.sizes.map(s => `${s.size}(${s.quantity})`).join(', ')}
                                 </p>
                               </div>
                             </div>
@@ -836,7 +631,7 @@ const BulkUploadPage = () => {
                     </div>
                   )}
 
-                  {/* Final Submit */}
+                  {/* Submit Button */}
                   <Button
                     type="button"
                     disabled={isPending || barcodeDownloading || bulkProcessing}
@@ -845,13 +640,14 @@ const BulkUploadPage = () => {
                   >
                     {isPending || barcodeDownloading || bulkProcessing ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
+                    ) : (
+                      ""
+                    )}
                     Upload {designs.length} Designs & Download Barcodes
                   </Button>
                 </form>
               </Form>
             </div>
-            
           </CardContent>
         </Card>
       )}

@@ -277,7 +277,7 @@ function KurtiListPage() {
                         </CardHeader>
                         <CardContent>
 
-                            <div>
+                            {/* <div>
                                 <SearchBar
                                     value={textFieldValue}
                                     onChange={newValue => handleSearch(newValue)}
@@ -288,7 +288,7 @@ function KurtiListPage() {
                                         border: '1px solid #ccc',
                                     }}
                                 />
-                            </div>
+                            </div> */}
                             {/* :
                         <div>
                             <p className="text-2xl font-semibold text-center">
