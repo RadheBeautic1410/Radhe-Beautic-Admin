@@ -304,11 +304,17 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
 
       const zip = new JSZip();
 
-      for (let i = 0; i < data.images.length; i++) {
-        const imageUrl = data.images[i].url;
+      const filteredData = data.images?.filter(
+        (image: { url: string; is_hidden: boolean; id: string }) =>
+          image.is_hidden === false
+      );
+      console.log("🚀 ~ downloadAllImagesAsZip ~ filteredData:", filteredData);
+
+      for (let i = 0; i < filteredData.length; i++) {
+        const imageUrl = filteredData[i].url;
         const filename = `${data.code.toLowerCase()}_image_${i + 1}.jpg`;
 
-        toast.loading(`Processing image ${i + 1}/${data.images.length}...`, {
+        toast.loading(`Processing image ${i + 1}/${filteredData.length}...`, {
           id: processingToastId,
         });
 
