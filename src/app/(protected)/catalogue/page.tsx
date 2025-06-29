@@ -25,7 +25,7 @@ import { Button } from "@/src/components/ui/button";
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { deleteCategory } from "@/src/actions/kurti";
 import { toast } from "sonner";
-import SearchBar from "@mkyy/mui-search-bar";
+// import SearchBar from "@mkyy/mui-search-bar";
 import KurtiPicCard from "../_components/kurti/kurtiPicCard";
 import { RadioGroup, RadioGroupItem } from "@/src/components/ui/radio-group";
 import { Label } from "@/src/components/ui/label";
@@ -63,6 +63,7 @@ import { categoryAddition } from "@/src/actions/category";
 import { z } from "zod";
 import ImageUpload2 from "../_components/upload/imageUpload2";
 import EditCategoryModal from "../_components/category/EditCategoryModel";
+import { SearchBar } from "@/src/components/Searchbar";
 
 // Types
 interface Category {
@@ -787,7 +788,7 @@ const ListPage = () => {
               </Select>
             </div>
             <div className="w-[30%] mt-auto">
-              <SearchBar
+              {/* <SearchBar
                 value={searchValue}
                 onChange={handleSearch}
                 onCancelResearch={handleSearchCancel}
@@ -798,7 +799,7 @@ const ListPage = () => {
                   maxWidth: "400px",
                   marginTopL: "auto",
                 }}
-              />
+              /> */}
             </div>
           </div>
         </div>
