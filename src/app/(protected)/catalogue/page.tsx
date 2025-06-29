@@ -27,10 +27,6 @@ import { deleteCategory } from "@/src/actions/kurti";
 import { toast } from "sonner";
 // import SearchBar from "@mkyy/mui-search-bar";
 import KurtiPicCard from "../_components/kurti/kurtiPicCard";
-import { RadioGroup, RadioGroupItem } from "@/src/components/ui/radio-group";
-import { Label } from "@/src/components/ui/label";
-// import { getCurrTime } from "../sell/page";
-import axios from "axios";
 import {
   Select,
   SelectContent,
@@ -649,16 +645,15 @@ const ListPage = () => {
     a.click();
     URL.revokeObjectURL(url);
   }
-  
 
   return (
     <Card className="w-[90%]">
       <CardHeader className="flex items-center">
         <p className="text-2xl font-semibold text-center">👜 Catalogue</p>
-        <div className="ml-3 mt-7">
+        <div className="ml-auto mt-7">
           <Button asChild>
             <DialogDemo
-              dialogTrigger="Add Category"
+              dialogTrigger="+ Category"
               dialogTitle="New Category Addition"
               dialogDescription="Give category name and click add category"
               bgColor="destructive"
@@ -788,7 +783,7 @@ const ListPage = () => {
               </Select>
             </div>
             <div className="w-[30%] mt-auto">
-              {/* <SearchBar
+              <SearchBar
                 value={searchValue}
                 onChange={handleSearch}
                 onCancelResearch={handleSearchCancel}
@@ -799,7 +794,7 @@ const ListPage = () => {
                   maxWidth: "400px",
                   marginTopL: "auto",
                 }}
-              /> */}
+              />
             </div>
           </div>
         </div>

@@ -35,9 +35,14 @@ export const getAllCategory = async () => {
     }
 };
 
+
 export const getAllCategoryWithCount = async () => {
     try {
-        const category = await db.category.findMany({});
+        const category = await db.category.findMany({
+            where: {
+                isDeleted: false
+            }
+        });
         let arr = [];
         for(let i = 0; i < category.length; i++) {
             arr.push({

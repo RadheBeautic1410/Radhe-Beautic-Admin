@@ -127,6 +127,7 @@ model Category {
   type                String?
   image               String?
   countTotal          Int     @default(0)
+  isDeleted           Boolean @default(false)
 }
 
 model Prices {
