@@ -179,8 +179,8 @@ model Sell {
   customerPhone String? // Customer phone (optional)
   selledPrice   Int? // Actual selling price (can be different from MRP)
   invoiceNumber String? // Invoice number for tracking
-  quantity      Int 
-  shopName      String
+  quantity      Int? 
+  shopName      String?
   billCreatedBy  String?
    batchId       String?   // Reference to SaleBatch
    batch         SaleBatch? @relation("BatchSales", fields: [batchId], references: [id])
