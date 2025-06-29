@@ -73,7 +73,7 @@
     "vaul": "^0.8.0",
     "watermark-js-plus": "^1.4.17",
     "watermarkjs": "^2.1.1",
-    "zod": "^3.22.4",
+    "zod": "^3.25.67",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
@@ -94,3 +94,4 @@
     "typescript": "^5"
   }
 }
+

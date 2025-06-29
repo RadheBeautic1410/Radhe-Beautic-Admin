@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import * as z from "zod";
 import { UserButton } from '@/src/components/ui/user-button'
 import { Button } from '@/src/components/ui/button'
@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import Image from "next/image";
-import { RoleGateForComponent } from '@/src/components/auth/role-gate-component'
+import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { useForm } from "react-hook-form";
 import { cn } from "@/src/lib/utils";
 
