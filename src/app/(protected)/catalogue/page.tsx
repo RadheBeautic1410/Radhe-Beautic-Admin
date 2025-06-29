@@ -786,7 +786,7 @@ const ListPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            {/* <div className="w-[30%] mt-auto">
+            <div className="w-[30%] mt-auto">
               <SearchBar
                 value={searchValue}
                 onChange={handleSearch}
@@ -799,7 +799,7 @@ const ListPage = () => {
                   marginTopL: "auto",
                 }}
               />
-            </div> */}
+            </div>
           </div>
         </div>
 
