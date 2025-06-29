@@ -922,6 +922,7 @@ const ListPage = () => {
                         <TypeEdit
                           categoryName={cat.name}
                           onUpdateType={handleTypeUpdate}
+                          initialType={cat.type}
                         />
                       </TableCell>
                       <RoleGateForComponent

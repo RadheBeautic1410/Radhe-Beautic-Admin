@@ -8,11 +8,12 @@ import { toast } from 'sonner';
 interface TypeEditProps {
     categoryName: string;
     onUpdateType: (categoryName: string, newType: string) => void;
+    initialType?: string;
 }
 
-const TypeEdit: React.FC<TypeEditProps> = ({ categoryName, onUpdateType }) => {
+const TypeEdit: React.FC<TypeEditProps> = ({ categoryName, onUpdateType,initialType="" }) => {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [newType, setNewType] = useState("");
+    const [newType, setNewType] = useState(initialType || "");
     const [loading, setLoading] = useState(false);
     const handleTypeUpdate = async () => {
         setLoading(true);
