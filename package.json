@@ -50,6 +50,7 @@
     "font-awesome": "^4.7.0",
     "fortawesome": "^0.0.1-security",
     "fs": "^0.0.1-security",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.303.0",
     "next": "^15.3.4",
     "next-auth": "^5.0.0-beta.4",

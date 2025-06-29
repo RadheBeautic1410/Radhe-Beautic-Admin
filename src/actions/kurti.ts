@@ -3,8 +3,12 @@
 import { db } from "@/src/lib/db";
 import { currentRole, currentUser } from "@/src/lib/auth";
 import { getKurtiByCode } from "../data/kurti";
+import { size } from "pdfkit/js/page";
+import { v4 as uuidv4 } from "uuid";
+import { error } from "console";
+import { UserRole } from "@prisma/client";
 
-export const getCurrTime = () => {
+export const getCurrTime = async() => {
   const currentTime = new Date();
   const ISTOffset = 5.5 * 60 * 60 * 1000;
   const ISTTime = new Date(currentTime.getTime() + ISTOffset);
@@ -264,7 +268,9 @@ export const deleteCategory = async (data: any) => {
 };
 
 export const addNewImages = async (data: any) => {
-  const { images, code } = data;
+  const { images, videos, code } = data;
+  console.log("🚀 ~ addNewImages ~ images:", images)
+  console.log("🚀 ~ addNewImages ~ videos:", videos)
 
   const currTime = await getCurrTime();
   const kurti = await db.kurti.update({
@@ -274,7 +280,190 @@ export const addNewImages = async (data: any) => {
     data: {
       images: images,
       lastUpdatedTime: currTime,
+      videos: videos,
     },
   });
-  return { success: `New Images added`, kurti: kurti };
+  return { success: `New Images/Videos added`, kurti: kurti };
 };
+
+export async function toggleKurtiImageVisibility(
+  kurtiId: string,
+  imageId: string,
+  isHidden: boolean
+) {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      return {
+        success: false,
+        error: "Unauthorized - Please login",
+      };
+    }
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.UPLOADER) {
+      return {
+        success: false,
+        error: "Insufficient permissions",
+      };
+    }
+
+    if (!kurtiId || !imageId) {
+      return {
+        success: false,
+        error: "Missing required parameters",
+      };
+    }
+
+    const existingKurti = await db.kurti.findUnique({
+      where: {
+        id: kurtiId,
+        isDeleted: false,
+      },
+    });
+
+    if (!existingKurti) {
+      return {
+        success: false,
+        error: "Kurti not found",
+      };
+    }
+
+    const currentImages = existingKurti.images as any[];
+
+    if (!Array.isArray(currentImages)) {
+      return {
+        success: false,
+        error: "Invalid images data",
+      };
+    }
+
+    const imageIndex = currentImages.findIndex(
+      (img: any) => img.id === imageId
+    );
+
+    if (imageIndex === -1) {
+      return {
+        success: false,
+        error: "Image not found",
+      };
+    }
+
+    const updatedImages = [...currentImages];
+    updatedImages[imageIndex] = {
+      ...updatedImages[imageIndex],
+      is_hidden: isHidden,
+    };
+
+    const updatedKurti = await db.kurti.update({
+      where: {
+        id: kurtiId,
+      },
+      data: {
+        images: updatedImages,
+        lastUpdatedTime: new Date(),
+      },
+    });
+
+    return {
+      success: true,
+      message: `Image ${isHidden ? "hidden" : "made visible"} successfully`,
+      data: updatedKurti,
+    };
+  } catch (error) {
+    console.error("Error toggling image visibility:", error);
+    return {
+      success: false,
+      error: "Internal server error",
+    };
+  }
+}
+
+export async function toggleKurtiVideoVisibility(
+  kurtiId: string,
+  videoId: string,
+  isHidden: boolean
+) {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      return {
+        success: false,
+        error: "Unauthorized - Please login",
+      };
+    }
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.UPLOADER) {
+      return {
+        success: false,
+        error: "Insufficient permissions",
+      };
+    }
+
+    if (!kurtiId || !videoId) {
+      return {
+        success: false,
+        error: "Missing required parameters",
+      };
+    }
+
+    const existingKurti = await db.kurti.findUnique({
+      where: {
+        id: kurtiId,
+        isDeleted: false,
+      },
+    });
+
+    if (!existingKurti) {
+      return {
+        success: false,
+        error: "Kurti not found",
+      };
+    }
+
+    const currentVideos = existingKurti.videos as any[];
+
+    if (!Array.isArray(currentVideos)) {
+      return {
+        success: false,
+        error: "Invalid videos data",
+      };
+    }
+
+    const videoIndex = currentVideos.findIndex(
+      (video: any) => video.id === videoId
+    );
+
+    if (videoIndex === -1) {
+      return {
+        success: false,
+        error: "Video not found",
+      };
+    }
+
+    const updatedVideos = [...currentVideos];
+    updatedVideos[videoIndex] = {
+      ...updatedVideos[videoIndex],
+      is_hidden: isHidden,
+    };
+
+    const updatedKurti = await db.kurti.update({
+      where: {
+        id: kurtiId,
+      },
+      data: {
+        videos: updatedVideos,
+        lastUpdatedTime: new Date(),
+      },
+    });
+
+    return {
+      success: true,
+      message: `Video ${isHidden ? "hidden" : "made visible"} successfully`,
+      data: updatedKurti,
+    };
+  } catch (error) {
+    console.error("Error toggling video visibility:", error);
+    return {
+      success: false,
+      error: "Internal server error",
+    };
+  }
+}

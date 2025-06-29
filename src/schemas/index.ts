@@ -24,6 +24,9 @@ export const categoryAddSchema = z.object({
     type: z.string().min(1, {
         message: "Type is required"
     }),
+    image: z.optional(z.string().url({
+        message: "Image must be a valid URL"
+    })),
 })
 
 export const stockUpdateSchema = z.object({
@@ -100,7 +103,8 @@ export const NewPasswordSchema = z.object({
 
 export const KurtiSchema = z.object({
 
-    images: z.array(z.object({ url: z.string() })),
+    images: z.array(z.object({ url: z.string(), id: z.string(), is_hidden: z.boolean() })),
+    videos: z.array(z.object({ url: z.string(), id: z.string(), is_hidden: z.boolean() })).optional(),
     sizes: z.array(z.object({
         size: z.string(),
         quantity: z.number(),
@@ -122,4 +126,11 @@ export const KurtiSchema = z.object({
     countOfPiece: z.number(),
     category: z.string().min(1, { message: "Please select the category." }),
     code: z.string(),
+});
+
+export const categoryEditSchema = z.object({
+  id: z.string().min(1, "Category ID is required"),
+  name: z.string().min(1, "Category name is required"),
+  type: z.string().optional(),
+  image: z.string().optional(),
 });

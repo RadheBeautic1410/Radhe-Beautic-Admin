@@ -7,7 +7,10 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import Link from "next/link";
 // import KurtiPicCard from "../../_components/kurti/kurtiPicCard";
 import PageLoader from "@/src/components/loader";
-import SearchBar from '@mkyy/mui-search-bar'
+import dynamic from 'next/dynamic';
+const SearchBar = dynamic(() => import('@mkyy/mui-search-bar'), {
+  ssr: false,
+});
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 // import NotAllowedPage from "../../_components/errorPages/NotAllowedPage";
 import { UserRole } from "@prisma/client";
