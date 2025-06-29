@@ -3,13 +3,20 @@ import { UserRole } from "@prisma/client";
 
 export const getUserByPhoneNumber = async (phoneNumber: string) => {
     try {
+        await db.$connect();
+        console.log(" Database connection successful");
+        console.log("Login Mobile No",phoneNumber)
         const user = await db.user.findUnique({
             where: { phoneNumber }
         })
-
+        console.log("DB User",user);
         return user;
-    } catch {
+    } catch (error){
+        console.error("DB Error:", error);
         return null;
+    }
+    finally {
+        await db.$disconnect(); // Avoid memory leaks
     }
 }
 
