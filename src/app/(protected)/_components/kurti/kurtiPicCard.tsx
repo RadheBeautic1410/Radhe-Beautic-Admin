@@ -308,7 +308,6 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         (image: { url: string; is_hidden: boolean; id: string }) =>
           image.is_hidden === false
       );
-      console.log("🚀 ~ downloadAllImagesAsZip ~ filteredData:", filteredData);
 
       for (let i = 0; i < filteredData.length; i++) {
         const imageUrl = filteredData[i].url;
