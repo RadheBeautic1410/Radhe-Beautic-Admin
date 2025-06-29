@@ -15,10 +15,11 @@ const PageLoader: React.FC<{ loading: boolean }> = ({ loading }) => {
                 display: loading ? "flex" : "none",
                 alignItems: "center",
                 justifyContent: "center",
-                background: "rgba(255, 255, 255, 0.8)", // Optional: Add a semi-transparent background
+                background: "rgba(255, 255, 255, 0.167)", // Optional: Add a semi-transparent background
             }}
+            className="bg-opacity-10"
         >
-            <HashLoader color="#36D7B7" loading={loading} size={50} />
+            <HashLoader color="black" loading={loading} size={50} />
         </div>
     );
 };

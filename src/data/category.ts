@@ -35,14 +35,20 @@ export const getAllCategory = async () => {
     }
 };
 
+
 export const getAllCategoryWithCount = async () => {
     try {
-        const category = await db.category.findMany({});
+        const category = await db.category.findMany({
+            where: {
+                isDeleted: false
+            }
+        });
         let arr = [];
         for(let i = 0; i < category.length; i++) {
             arr.push({
                 name: category[i].name, 
-                type: category[i].type
+                type: category[i].type,
+                image: category[i].image,
                 // count: category[i].countOfDesign, 
                 // countOfPiece: category[i].countOfPiece, 
                 // sellingPrice: category[i].sellingPrice,

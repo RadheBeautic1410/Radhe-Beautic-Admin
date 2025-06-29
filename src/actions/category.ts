@@ -14,6 +14,7 @@ interface partyAddtionProps {
 interface categoryAddtionProps {
     name: string;
     type: string;
+    image?: string;
 }
 
 export const categoryAddition = async (
@@ -22,7 +23,7 @@ export const categoryAddition = async (
     const user = await currentUser();
     const role = await currentRole();
 
-    const { name, type } = data;
+    const { name, type,image } = data;
     if (name.length === 0) {
         return { error: "Category Can't be empty" }
     }
@@ -72,6 +73,7 @@ export const categoryAddition = async (
             name,
             code,
             type: type.toUpperCase(),
+            image:image || "",
         },
     });
 
@@ -111,4 +113,40 @@ export const categoryTypeUpdate = async (lowercaseName: string, newType: string)
     });
 
     return { success: "Update Done!", newCategory };
+}
+
+export const categoryUpdate = async (
+    id: string,
+    data: categoryAddtionProps
+) => {
+    const user = await currentUser();
+    const role = await currentRole();
+
+    const { name, type, image } = data;
+    if (name.length === 0) {
+        return { error: "Category Can't be empty" }
+    }
+    const lowercaseName = name.toLowerCase();
+
+    const dbCategory = await getCategorybyName(lowercaseName);
+    if (dbCategory && dbCategory.id !== id) {
+        return { error: "Category Already Exist" }
+    }
+
+    const existingCategory = await getCategoryByID(id);
+    if (!existingCategory) {
+        return { error: "Category does not exist" }
+    }
+
+    const updatedCategory = await db.category.update({
+        where: { id: id },
+        data: {
+            normalizedLowerCase: lowercaseName,
+            name,
+            type: type.toUpperCase(),
+            image: image ?? existingCategory.image,
+        },
+    });
+
+    return { success: "category Updated!", data: updatedCategory }
 }

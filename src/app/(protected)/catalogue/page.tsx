@@ -1,836 +1,1016 @@
-"use client"
+"use client";
 
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import PageLoader from "@/src/components/loader";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { UserRole } from "@prisma/client";
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
-import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/src/components/ui/table";
-import { useRouter } from "next/navigation";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/src/components/ui/table";
 import { Button } from "@/src/components/ui/button";
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { deleteCategory } from "@/src/actions/kurti";
 import { toast } from "sonner";
-import SearchBar from "@mkyy/mui-search-bar";
+// import SearchBar from "@mkyy/mui-search-bar";
 import KurtiPicCard from "../_components/kurti/kurtiPicCard";
-import { RadioGroup, RadioGroupItem } from "@/src/components/ui/radio-group";
-import { Label } from "@/src/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select";
-// import { getCurrTime } from "../sell/page";
-import axios from "axios";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/src/components/ui/select";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/src/components/ui/pagination";
 import TypeEdit from "../_components/kurti/typeEdit";
+import { useForm } from "react-hook-form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/src/components/ui/form";
+import { Input } from "@/src/components/ui/input";
+import { categoryAddSchema } from "@/src/schemas";
+import { categoryAddition } from "@/src/actions/category";
+import { z } from "zod";
+import ImageUpload2 from "../_components/upload/imageUpload2";
+import EditCategoryModal from "../_components/category/EditCategoryModel";
+import { SearchBar } from "@/src/components/Searchbar";
 
+// Types
+interface Category {
+  name: string;
+  count: number;
+  type: string;
+  countOfPiece: number;
+  sellingPrice: number;
+  actualPrice: number;
+  image?: string;
+}
+
+interface Kurti {
+  id: string;
+  category: string;
+  code: string;
+  images: any[];
+  sizes: any[];
+  party: string;
+  sellingPrice: string;
+  actualPrice: string;
+  isDeleted: boolean;
+}
+
+// Constants
+const SEARCH_TYPES = {
+  DESIGN: "0",
+  CATEGORY: "1",
+  PRICE: "2",
+  TYPE: "3",
+} as const;
+
+const SORT_TYPES = {
+  PRICE_HIGH_TO_LOW: "0",
+  NAME: "1",
+  PIECE_COUNT: "2",
+  PRICE_LOW_TO_HIGH: "3",
+} as const;
+
+// Pagination constants
+const ITEMS_PER_PAGE = 20;
+const KURTI_ITEMS_PER_PAGE = 12;
+
+type SearchTypeValue = (typeof SEARCH_TYPES)[keyof typeof SEARCH_TYPES];
+
+// Utility functions
 const getCurrTime = () => {
-    const currentTime = new Date();
-    const ISTOffset = 5.5 * 60 * 60 * 1000;
-    const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-    return ISTTime;
-}
+  const currentTime = new Date();
+  const ISTOffset = 5.5 * 60 * 60 * 1000;
+  return new Date(currentTime.getTime() + ISTOffset);
+};
 
-interface category {
-    name: string;
-    count: number;
-    type: string;
-    countOfPiece: number;
-    sellingPrice: number;
-    actualPrice: number;
-}
+const calculateCategoryStats = (kurtiData: Kurti[], categories: Category[]) => {
+  const categoryMap = new Map(
+    categories.map((cat) => [
+      cat.name.toLowerCase(),
+      {
+        ...cat,
+        count: 0,
+        countOfPiece: 0,
+        sellingPrice: 0,
+        actualPrice: 0,
+      },
+    ])
+  );
 
-interface kurti {
-    id: string;
-    category: string;
-    code: string;
-    images: any[],
-    sizes: any[],
-    party: string,
-    sellingPrice: string,
-    actualPrice: string,
-}
+  let totalItems = 0;
+  let totalPieces = 0;
+  let totalStockPrice = 0;
 
+  kurtiData.forEach((kurti) => {
+    if (kurti.isDeleted) return;
+
+    const category = categoryMap.get(kurti.category.toLowerCase());
+    if (!category) return;
+
+    category.count += 1;
+    totalItems += 1;
+
+    const pieceCount = kurti.sizes.reduce(
+      (sum, size) => sum + (size.quantity || 0),
+      0
+    );
+    category.countOfPiece += pieceCount;
+    totalPieces += pieceCount;
+
+    if (category.sellingPrice === 0) {
+      category.sellingPrice = parseInt(kurti.sellingPrice || "0");
+    }
+
+    const itemStockValue = pieceCount * parseInt(kurti.actualPrice || "0");
+    category.actualPrice += itemStockValue;
+    totalStockPrice += itemStockValue;
+  });
+
+  return {
+    categories: Array.from(categoryMap.values()),
+    totals: { totalItems, totalPieces, totalStockPrice },
+  };
+};
+
+const sortCategories = (
+  categories: Category[],
+  sortType: string
+): Category[] => {
+  switch (sortType) {
+    case SORT_TYPES.PRICE_HIGH_TO_LOW:
+      return [...categories].sort((a, b) => b.sellingPrice - a.sellingPrice);
+    case SORT_TYPES.PRICE_LOW_TO_HIGH:
+      return [...categories].sort((a, b) => a.sellingPrice - b.sellingPrice);
+    case SORT_TYPES.PIECE_COUNT:
+      return [...categories].sort((a, b) => b.countOfPiece - a.countOfPiece);
+    case SORT_TYPES.NAME:
+      return [...categories].sort((a, b) => a.name.localeCompare(b.name));
+    default:
+      return categories;
+  }
+};
+
+// Pagination utility functions
+const paginate = <T,>(
+  array: T[],
+  pageNumber: number,
+  pageSize: number
+): T[] => {
+  const startIndex = (pageNumber - 1) * pageSize;
+  return array.slice(startIndex, startIndex + pageSize);
+};
+
+const getTotalPages = (totalItems: number, itemsPerPage: number): number => {
+  return Math.ceil(totalItems / itemsPerPage);
+};
 
 const ListPage = () => {
-    const [categoryLoader, setCategoryLoader] = useState(true);
-    const [category, setCategory] = useState<category[]>([]);
+  // State
+  const [isLoading, setIsLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [kurtiData, setKurtiData] = useState<Kurti[]>([]);
+  const [searchValue, setSearchValue] = useState("");
+  const [searchType, setSearchType] = useState<SearchTypeValue>(
+    SEARCH_TYPES.DESIGN
+  );
+  const [sortType, setSortType] = useState<string>(
+    SORT_TYPES.PRICE_HIGH_TO_LOW
+  );
+  const [totals, setTotals] = useState({
+    totalItems: 0,
+    totalPieces: 0,
+    totalStockPrice: 0,
+  });
 
-    const [totalPiece, setTotalPiece] = useState(0);
-    const [totalItems, setTotalItems] = useState(0);
-    const [totalStockPrice, setTotalStockPrice] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [kurtiCurrentPage, setKurtiCurrentPage] = useState(1);
 
-    const [isPending, startTransition] = useTransition();
-    const [textFieldValue, setTextFieldValue] = useState('');
-    const router = useRouter();
-    const [kurtiData, setKurtiData] = useState<kurti[]>([]);
-    const [displayKurtiData, setDisplayKurtiData] = useState<kurti[]>([]);
-    const [displayCategoryData, setDisplayCategoryData] = useState<category[]>([]);
-    const [isSearching, setSearching] = useState(false);
-    const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
 
-    const [searchId, setSearchId] = useState("0");
-    const [sortId, setSortId] = useState("0");
+  const form = useForm({
+    defaultValues: {
+      name: "",
+      type: "",
+      image: "",
+    },
+  });
 
-    const handleSearch = (newVal: string) => {
-        if (searchId === "0") {
-            if (newVal === "") {
-                setTextFieldValue("");
-                setSearching(false);
-                // handleSearch(textFieldValue);
-                setDisplayKurtiData(kurtiData);
-                setDisplayCategoryData([]);
-            }
-            else {
-                if (!isSearching) {
-                    setSearching(true);
-                }
-                const filteredRows = kurtiData.filter((row) => {
-                    return row.code.toUpperCase().includes(newVal.toUpperCase());
-                }).slice(0, 20);
-                console.log("filyte",filteredRows)
-                setDisplayKurtiData(filteredRows);
-                setDisplayCategoryData([]);
-            }
-        }
-        else if (searchId === "1") {
-            if (newVal === "") {
-                setTextFieldValue("");
-                setSearching(false);
-                // handleSearch(textFieldValue);
-                setDisplayKurtiData([]);
-                setDisplayCategoryData(category);
-            }
-            else {
-                if (!isSearching) {
-                    setSearching(true);
-                }
-                const filteredRows = category.filter((row) => {
-                    return row.name.toUpperCase().includes(newVal.toUpperCase());
-                });
-                console.log(filteredRows);
-                setDisplayKurtiData([]);
-                setDisplayCategoryData(filteredRows);
-            }
-        }
-        if (searchId === "2") {
-            if (newVal === "") {
-                setTextFieldValue("");
-                setSearching(false);
-                // handleSearch(textFieldValue);
-                setDisplayKurtiData([]);
-                setDisplayCategoryData(category);
-            }
-            else {
-                if (!isSearching) {
-                    setSearching(true);
-                }
-                const filteredRows = category.filter((row) => {
-                    return row.sellingPrice === (parseInt(newVal) || 0);
-                });
-                console.log(filteredRows);
-                setDisplayKurtiData([]);
-                setDisplayCategoryData(filteredRows);
-            }
-        }
-        if (searchId === "3") {
-
-            if (newVal === "") {
-              setTextFieldValue("");
-              setSearching(false);
-              // handleSearch(textFieldValue);
-              setDisplayKurtiData([]);
-              setDisplayCategoryData(category);
-            } else {
-              if (!isSearching) {
-                setSearching(true);
-              }
-              const filteredRows = category.filter((row) => {
-                return row.type?.toUpperCase().includes(newVal.toUpperCase());
-              });
-              console.log(filteredRows);
-              setDisplayKurtiData([]);
-              setDisplayCategoryData(filteredRows);
-            }
-        }
+  const fetchKurtiData = useCallback(async (): Promise<Kurti[]> => {
+    try {
+      const response = await fetch("/api/kurti/getall");
+      const result = await response.json();
+      return result.data || [];
+    } catch (error) {
+      console.error("Error fetching kurti data:", error);
+      return [];
     }
-    const cancelSearch = () => {
-        setTextFieldValue("");
-        handleSearch(textFieldValue);
-        if (searchId === "0") {
-            setDisplayKurtiData(kurtiData);
-            setDisplayCategoryData([]);
-        }
-        else {
-            setDisplayCategoryData(category);
-            setDisplayKurtiData([]);
-        }
-        setSearching(false);
-    };
+  }, []);
 
-    // const fetchUpdatedData = async () => {
-    //     let storedTime: any = localStorage.getItem('radhe-time-1');
-    //     let storedDelTime: any = localStorage.getItem('radhe-del-time');
-    //     let storedData: any = localStorage.getItem('radhe-data');
-    //     // console.log(storedTime, storedData);
-    //     const currTime = await getCurrTime();
-    //     let tempRes: any = await fetch(`/api/kurti/deletetime`);
-    //     tempRes = await tempRes.json();
-    //     console.log('tempRes:', tempRes.data.time, storedDelTime);
-    //     let storedDelTime2 = JSON.parse(storedDelTime);
-    //     console.log(new Date(storedDelTime2).getTime(), new Date(tempRes.data.time).getTime(), (new Date(storedDelTime2).getTime === new Date(tempRes.data.time).getTime));
-    //     if (
-    //         storedDelTime &&
-    //         storedTime !== null &&
-    //         storedData !== null &&
-    //         (new Date(storedDelTime2).getTime() === new Date(tempRes.data.time).getTime())
-    //     ) {
-    //         storedTime = JSON.parse(storedTime) || currTime.toISOString();
-    //         storedData = JSON.parse(storedData) || [];
-    //         const res = await axios.post(`/api/kurti/getall`, {
-    //             currentTime: storedTime,
-    //         })
-    //         let fetchedData = res.data.data || [];
-    //         console.log(fetchedData);
-    //         // Create a map from newArray for quick lookup by code
-    //         const newMap = new Map(fetchedData.map((obj: any) => [obj.code, obj]));
-    //         console.log("🚀 ~ fetchUpdatedData ~ newMap:", newMap)
+  const fetchCategories = useCallback(async (): Promise<Category[]> => {
+    try {
+      const response = await fetch("/api/category");
+      const result = await response.json();
+      return result.data || [];
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      return [];
+    }
+  }, []);
 
-    //         // Update oldArray objects or add new ones
-    //         const updatedArray = storedData.map((obj: any) => {
-    //             return newMap.has(obj.code) ? newMap.get(obj.code) : obj;
-    //         });
+  const processedCategories = useMemo(() => {
+    if (!categories.length || !kurtiData.length) return categories;
 
-    //         // Optionally, add new entries that are only in fetchedData
-    //         fetchedData.forEach((obj: any) => {
-    //             if (!storedData.some((oldObj: any) => oldObj.code === obj.code)) {
-    //                 updatedArray.push(obj);
-    //             }
-    //         });
-    //         setKurtiData(updatedArray);
-    //         localStorage.setItem('radhe-time-1', JSON.stringify(currTime.toISOString()));
-    //         let store = await JSON.stringify(updatedArray);
-    //         localStorage.setItem('radhe-data', store);
-    //         store = await JSON.stringify(tempRes.data.time);
-    //         localStorage.setItem('radhe-del-time', store);
-    //         return updatedArray;
-    //     }
-    //     else {
-    //         let res2 = await fetch(`/api/kurti/getall`);
-    //         const res = await res2.json();
-    //         console.log(res.data);
-    //         setKurtiData(res.data);
-    //         localStorage.setItem('radhe-time-1', JSON.stringify(currTime.toISOString()));
-    //         let store = await JSON.stringify(res.data);
-    //         localStorage.setItem('radhe-data', store);
-    //         store = await JSON.stringify(tempRes.data.time);
-    //         localStorage.setItem('radhe-del-time', store);
-    //         console.log('fetched again');
-    //         return res.data;
-    //     }
-    // }
+    const { categories: updatedCategories } = calculateCategoryStats(
+      kurtiData,
+      categories
+    );
+    return sortCategories(updatedCategories, sortType);
+  }, [categories, kurtiData, sortType]);
 
-    const fetchUpdatedData = async () => {
-      const currTime = await getCurrTime();
-      let tempRes: any = await fetch(`/api/kurti/deletetime`);
-      tempRes = await tempRes.json();
+  const { filteredKurti, filteredCategories } = useMemo(() => {
+    if (!searchValue.trim()) {
+      return {
+        filteredKurti: searchType === SEARCH_TYPES.DESIGN ? kurtiData : [],
+        filteredCategories:
+          searchType !== SEARCH_TYPES.DESIGN ? processedCategories : [],
+      };
+    }
 
-      const res2 = await fetch(`/api/kurti/getall`);
-      const res = await res2.json();
+    const searchTerm = searchValue.toLowerCase();
 
-      console.log(res.data);
-      setKurtiData(res.data);
-
-      return res.data;
-    };
-    
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
-                const result = await response.json();
-                console.log("fetched category:", result);
-                const allKurtiData: any[] = await fetchUpdatedData();
-                const allCategoryName = result.data || []
-                console.log(allCategoryName);
-                let sum1 = 0, sum2 = 0, sum3 = 0;
-                for (let j = 0; j < allCategoryName.length; j++) {
-                    allCategoryName[j].count = 0;
-                    allCategoryName[j].countOfPiece = 0;
-                    allCategoryName[j].sellingPrice = 0;
-                    allCategoryName[j].actualPrice = 0;
-                }
-                for (let i = 0; i < allKurtiData.length; i++) {
-                    for (let j = 0; j < allCategoryName.length; j++) {
-                        if (
-                            allKurtiData[i].category.toLowerCase() === allCategoryName[j].name.toLowerCase() &&
-                            allKurtiData[i].isDeleted === false
-                        ) {
-                            allCategoryName[j].count += 1;
-                            sum1 += 1;
-                            let cnt = 0;
-                            for (let k = 0; k < allKurtiData[i].sizes.length || 0; k++) {
-                                cnt += allKurtiData[i].sizes[k].quantity || 0;
-                            }
-                            allCategoryName[j].countOfPiece += cnt;
-                            if (allCategoryName[j].sellingPrice === 0) {
-                                allCategoryName[j].sellingPrice = parseInt(allKurtiData[i].sellingPrice || "0")
-                            }
-                            // allCategoryName[j].sellingPrice = Math.max(parseInt(allKurtiData[i].sellingPrice || "0"), allCategoryName[j].sellingPrice);
-                            allCategoryName[j].actualPrice += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
-                            sum2 += cnt;
-                            sum3 += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
-                            break;
-                        }
-                    }
-                }
-                console.log(allCategoryName);
-                const sortedCategory = allCategoryName.sort((a: category, b: category) => b.sellingPrice - a.sellingPrice);
-                setTotalItems(sum1);
-                setTotalPiece(sum2);
-                setTotalStockPrice(sum3)
-                setCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            } finally {
-                setLoading(false);
-                setCategoryLoader(false);
-            }
+    switch (searchType) {
+      case SEARCH_TYPES.DESIGN:
+        return {
+          filteredKurti: kurtiData.filter((kurti) =>
+            kurti.code.toLowerCase().includes(searchTerm)
+          ),
+          filteredCategories: [],
         };
-        // if (categoryLoader) {
-        if (loading) {
-            fetchData();
-        }
-        // }
-    }, [loading]);
 
-    const handleDelete = async (category: string) => {
-        startTransition(() => {
-            deleteCategory({ category: category })
-                .then(async (data: any) => {
-                    console.log(data);
-                    if (data.error) {
-                        // formCategory.reset();
-                        toast.error(data.error);
-                    }
-                    if (data.success) {
-                        // formCategory.reset();
-                        toast.success(data.success);
+      case SEARCH_TYPES.CATEGORY:
+        return {
+          filteredKurti: [],
+          filteredCategories: processedCategories.filter((cat) =>
+            cat.name.toLowerCase().includes(searchTerm)
+          ),
+        };
 
-                        setCategoryLoader(true);
-                        try {
-                            const response = await fetch('/api/category'); // Adjust the API endpoint based on your actual setup
-                            const result = await response.json();
-                            console.log(result);
-                            const allKurtiData: any[] = await fetchUpdatedData();
-                            const allCategoryName = result.data || []
-                            console.log(allCategoryName);
-                            let sum1 = 0, sum2 = 0, sum3 = 0;
-                            for (let j = 0; j < allCategoryName.length; j++) {
-                                allCategoryName[j].count = 0;
-                                allCategoryName[j].countOfPiece = 0;
-                                allCategoryName[j].sellingPrice = 0;
-                                allCategoryName[j].actualPrice = 0;
-                            }
-                            for (let i = 0; i < allKurtiData.length; i++) {
-                                for (let j = 0; j < allCategoryName.length; j++) {
-                                    if (
-                                        allKurtiData[i].category.toLowerCase() === allCategoryName[j].name.toLowerCase() &&
-                                        allKurtiData[i].isDeleted === false
-                                    ) {
-                                        allCategoryName[j].count += 1;
-                                        sum1 += 1;
-                                        let cnt = 0;
-                                        for (let k = 0; k < allKurtiData[i].sizes.length || 0; k++) {
-                                            cnt += allKurtiData[i].sizes[k].quantity || 0;
-                                        }
-                                        allCategoryName[j].countOfPiece += cnt;
-                                        if (allCategoryName[j].sellingPrice === 0) {
-                                            allCategoryName[j].sellingPrice = parseInt(allKurtiData[i].sellingPrice || "0")
-                                        }
-                                        allCategoryName[j].actualPrice += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
-                                        sum2 += cnt;
-                                        sum3 += (cnt * parseInt(allKurtiData[i].actualPrice || "0"));
-                                        break;
-                                    }
-                                }
-                            }
-                            console.log(allCategoryName);
-                            const sortedCategory = allCategoryName.sort((a: category, b: category) => b.sellingPrice - a.sellingPrice);
-                            setTotalItems(sum1);
-                            setTotalPiece(sum2);
-                            setTotalStockPrice(sum3)
-                            setCategory(sortedCategory);  // Use an empty array as a default value if result.data is undefined or null
-                        } catch (error) {
-                            console.error('Error fetching data:', error);
-                        } finally {
-                            setCategoryLoader(false);
-                        }
-                        // router.refresh();
-                        // router.replace(`/catalogue/${data.category}/${data.code.toLowerCase()}`);
-                        // setSizes(data.data);
-                    }
-                }).catch((e) => {
-                    toast.error('Something went wrong!');
-                })
+      case SEARCH_TYPES.PRICE:
+        const priceSearch = parseInt(searchValue) || 0;
+        return {
+          filteredKurti: [],
+          filteredCategories: processedCategories.filter(
+            (cat) => cat.sellingPrice === priceSearch
+          ),
+        };
+
+      case SEARCH_TYPES.TYPE:
+        return {
+          filteredKurti: [],
+          filteredCategories: processedCategories.filter((cat) =>
+            cat.type?.toLowerCase().includes(searchTerm)
+          ),
+        };
+
+      default:
+        return { filteredKurti: [], filteredCategories: processedCategories };
+    }
+  }, [searchValue, searchType, kurtiData, processedCategories]);
+
+  const displayCategories = useMemo(() => {
+    const categories =
+      searchValue.trim().length > 0 ? filteredCategories : processedCategories;
+    return paginate(categories, currentPage, ITEMS_PER_PAGE);
+  }, [filteredCategories, processedCategories, currentPage, searchValue]);
+
+  const displayKurti = useMemo(() => {
+    return paginate(filteredKurti, kurtiCurrentPage, KURTI_ITEMS_PER_PAGE);
+  }, [filteredKurti, kurtiCurrentPage]);
+
+  const totalCategoryPages = useMemo(() => {
+    const categories =
+      searchValue.trim().length > 0 ? filteredCategories : processedCategories;
+    return getTotalPages(categories.length, ITEMS_PER_PAGE);
+  }, [filteredCategories, processedCategories, searchValue]);
+
+  const totalKurtiPages = useMemo(() => {
+    return getTotalPages(filteredKurti.length, KURTI_ITEMS_PER_PAGE);
+  }, [filteredKurti]);
+
+  const handleSearch = useCallback((newValue: string) => {
+    setSearchValue(newValue);
+    setCurrentPage(1);
+    setKurtiCurrentPage(1);
+  }, []);
+
+  const handleSearchCancel = useCallback(() => {
+    setSearchValue("");
+    setCurrentPage(1);
+    setKurtiCurrentPage(1);
+  }, []);
+
+  const handleSortChange = useCallback((newSortType: string) => {
+    setSortType(newSortType);
+    setCurrentPage(1);
+  }, []);
+
+  const handleDeleteCategory = useCallback(async (categoryName: string) => {
+    startTransition(() => {
+      deleteCategory({ category: categoryName })
+        .then((data: any) => {
+          if (data.error) {
+            toast.error(data.error);
+            return;
+          }
+          if (data.success) {
+            toast.success(data.success);
+            setIsLoading(true);
+          }
         })
-        return 0;
-    }
+        .catch(() => {
+          toast.error("Something went wrong!");
+        });
+    });
+  }, []);
 
+  const handleKurtiDelete = useCallback(async (updatedData: Kurti[]) => {
+    setKurtiData(updatedData);
+    setIsLoading(true);
+  }, []);
 
-    const handleKurtiDelete = async (data: kurti[]) => {
-        console.log('data', [...data]);
-        await setKurtiData([...data]);
-        setLoading(true);
-    }
+  const handleTypeUpdate = useCallback(
+    async (categoryName: string, newType: string) => {
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat.name.toLowerCase() === categoryName.toLowerCase()
+            ? { ...cat, type: newType }
+            : cat
+        )
+      );
+    },
+    []
+  );
 
-    const onUpdateType = async (categoryName: string, newType: string) => {
-        setCategoryLoader(true);
-        console.log("okkk");
-        let arr: category[] = category;
-        for(let i = 0; i < arr.length || 0; i++) {
-            if(arr[i].name.toLocaleLowerCase() === categoryName) {
-                console.log(i);
-                arr[i].type = newType;
+  const handleSubmitCategory = useCallback(
+    (values: z.infer<typeof categoryAddSchema>) => {
+      startTransition(() => {
+        categoryAddition(values)
+          .then((data) => {
+            if (data.error) {
+              form.reset();
+              toast.error(data.error);
+              return;
             }
-        }
-        setCategory([...arr]);
-        setCategoryLoader(false);
+            if (data.success) {
+              form.reset();
+              toast.success(data.success);
+              if (data.data) {
+                const newCategory: Category = {
+                  name: data.data.name,
+                  count: 0,
+                  type: data.data.type || "",
+                  countOfPiece: 0,
+                  sellingPrice: 0,
+                  actualPrice: 0,
+                  image: data.data.image || undefined,
+                };
+                setCategories((prev) => [...prev, newCategory]);
+              }
+            }
+          })
+          .catch(() => toast.error("Something went wrong!"));
+      });
+    },
+    [form]
+  );
+
+  const handleSearchTypeChange = useCallback((value: string) => {
+    if (Object.values(SEARCH_TYPES).includes(value as SearchTypeValue)) {
+      setSearchType(value as SearchTypeValue);
+      setCurrentPage(1);
+      setKurtiCurrentPage(1);
     }
+  }, []);
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  const handleKurtiPageChange = useCallback((page: number) => {
+    setKurtiCurrentPage(page);
+  }, []);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [kurtiResponse, categoriesResponse] = await Promise.all([
+          fetchKurtiData(),
+          fetchCategories(),
+        ]);
+
+        const { categories: processedCats, totals: calculatedTotals } =
+          calculateCategoryStats(kurtiResponse, categoriesResponse);
+
+        setKurtiData(kurtiResponse);
+        setCategories(processedCats);
+        setTotals(calculatedTotals);
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast.error("Failed to load data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isLoading) {
+      loadData();
+    }
+  }, [isLoading, fetchKurtiData, fetchCategories]);
+
+  const isSearching = searchValue.trim().length > 0;
+  const showKurtiResults = searchType === SEARCH_TYPES.DESIGN && isSearching;
+
+  if (isLoading) {
+    return <PageLoader loading={true} />;
+  }
+
+  const handleCategoryUpdate = (
+    updatedCategory: Category,
+    originalName: string
+  ) => {
+    setCategories((prev) =>
+      prev.map((cat) =>
+        cat.name.toLowerCase() === originalName.toLowerCase()
+          ? updatedCategory
+          : cat
+      )
+    );
+  };
+
+  const PaginationComponent = ({
+    currentPage,
+    totalPages,
+    onPageChange,
+  }: {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+  }) => {
+    const [goToPage, setGoToPage] = useState("");
+
+    if (totalPages <= 1) return null;
+
+    const getVisiblePages = () => {
+      const delta = 2;
+      const range = [];
+      const rangeWithDots = [];
+
+      for (
+        let i = Math.max(2, currentPage - delta);
+        i <= Math.min(totalPages - 1, currentPage + delta);
+        i++
+      ) {
+        range.push(i);
+      }
+
+      if (currentPage - delta > 2) {
+        rangeWithDots.push(1, "...");
+      } else {
+        rangeWithDots.push(1);
+      }
+
+      rangeWithDots.push(...range);
+
+      if (currentPage + delta < totalPages - 1) {
+        rangeWithDots.push("...", totalPages);
+      } else {
+        rangeWithDots.push(totalPages);
+      }
+
+      return rangeWithDots;
+    };
+
+    const visiblePages = getVisiblePages();
+
+    const handleGoToPage = () => {
+      const pageNumber = parseInt(goToPage);
+      if (pageNumber >= 1 && pageNumber <= totalPages) {
+        onPageChange(pageNumber);
+        setGoToPage("");
+      }
+    };
+
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        handleGoToPage();
+      }
+    };
 
     return (
-        <>
-            <PageLoader loading={categoryLoader} />
-            {categoryLoader ? "" :
-                <Card className="w-[90%]">
-                    <CardHeader>
-                        <p className="text-2xl font-semibold text-center">
-                            👜 Catalogue
-                        </p>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="pb-2">
-                            <div className="flex flex-row justify-center mb-2">
-                                <div className="w-[30%] flex-col">
-                                    <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
-                                        Select search type
-                                    </h2>
-                                    <Select
-                                        onValueChange={(val) => setSearchId(val)}
-                                        value={searchId}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select Search Field Type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem key={'search-design-select'} value="0">
-                                                {'Search Design'}
-                                            </SelectItem>
-                                            <SelectItem key={'search-category-select'} value="1">
-                                                {'Search Category'}
-                                            </SelectItem>
-                                            <SelectItem key={'search-price-select'} value="2">
-                                                {'Search Price'}
-                                            </SelectItem>
-                                            <SelectItem key={'search-type-select'} value="3">
-                                                {'Search Type'}
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="w-[30%] ml-3">
-                                    <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
-                                        Select sort type
-                                    </h2>
-                                    <Select
-                                        onValueChange={(val) => {
-                                            setSortId(val);
-                                            if (val === "2") {
-                                                let data = category;
-                                                data = (data || []).sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
-                                                setCategory(data);
-                                                data = displayCategoryData;
-                                                data = (data || []).sort((a: category, b: category) => b.countOfPiece - a.countOfPiece);
-                                                setDisplayCategoryData(data);
-                                            }
-                                            else if (val === "1") {
-                                                let data = category;
-                                                data = (data || []).sort((a: category, b: category) => a.name.localeCompare(b.name));
-                                                setCategory(data);
-                                                data = displayCategoryData;
-                                                data = (data || []).sort((a: category, b: category) => a.name.localeCompare(b.name));
-                                                setDisplayCategoryData(data);
-                                            }
-                                            else if (val === "0") {
-                                                let data = category;
-                                                data = (data || []).sort((a: category, b: category) => b.sellingPrice - a.sellingPrice);
-                                                setCategory(data);
-                                                data = displayCategoryData;
-                                                data = (data || []).sort((a: category, b: category) => b.sellingPrice - a.sellingPrice);
-                                                setDisplayCategoryData(data);
-                                            }
-                                            else if (val === "3") {
-                                                let data = category;
-                                                data = (data || []).sort((a: category, b: category) => - b.sellingPrice + a.sellingPrice);
-                                                setCategory(data);
-                                                data = displayCategoryData;
-                                                data = (data || []).sort((a: category, b: category) => - b.sellingPrice + a.sellingPrice);
-                                                setDisplayCategoryData(data);
-                                            }
-                                        }}
-                                        value={sortId}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select Sort Type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem key={'price-desc-category-select'} value="0">
-                                                {'Sort By Price High to Low'}
-                                            </SelectItem>
-                                            <SelectItem key={'price-asc-category-select'} value="3">
-                                                {'Sort By Price Low to High'}
-                                            </SelectItem>
-                                            <SelectItem key={'sort-count-select'} value="2">
-                                                {'Sort By Piece Count'}
-                                            </SelectItem>
-                                            <SelectItem key={'search-category-select'} value="1">
-                                                {'Sort By Name'}
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+      <div className="flex flex-col items-center gap-4">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                className={
+                  currentPage === 1
+                    ? "pointer-events-none opacity-50"
+                    : "cursor-pointer"
+                }
+              />
+            </PaginationItem>
 
-                            </div>
+            {visiblePages.map((page, index) => (
+              <PaginationItem key={index}>
+                {page === "..." ? (
+                  <PaginationEllipsis />
+                ) : (
+                  <PaginationLink
+                    onClick={() => onPageChange(page as number)}
+                    isActive={currentPage === page}
+                    className="cursor-pointer"
+                  >
+                    {page}
+                  </PaginationLink>
+                )}
+              </PaginationItem>
+            ))}
 
-                            <SearchBar
-                                value={textFieldValue}
-                                onChange={newValue => handleSearch(newValue)}
-                                onCancelResearch={() => cancelSearch()}
-                                width={'100%'}
-                                style={{
-                                    backgroundColor: '#fff',
-                                    border: '1px solid #ccc',
-                                }}
-                            />
-                        </div>
-                        {isSearching ? <>
-                            {searchId === "0" ?
-                                <CardContent className="w-full flex flex-row space-evenely justify-center flex-wrap gap-3">
-                                    {displayKurtiData.map((data, i) => (
-                                        <KurtiPicCard data={data} key={i} onKurtiDelete={handleKurtiDelete} />
-                                    ))}
-                                </CardContent>
-                                : <div className="flex flex-col gap-2">
-                                    <Table>
-                                        <TableCaption>List of all category</TableCaption>
-                                        <TableHeader>
-                                            <TableRow className="text-black">
-                                                <TableHead
-                                                    key={'sr.'}
-                                                    className="text-center font-bold text-base"
-                                                >
-                                                    Sr.
-                                                </TableHead>
-                                                <TableHead
-                                                    key={'Category'}
-                                                    className="text-center font-bold text-base"
-                                                >
-                                                    Category
-                                                </TableHead>
-                                                <TableHead
-                                                key={'Type'}
-                                                className="text-center font-bold text-base"
-                                            >
-                                                Type
-                                            </TableHead>
-                                                <TableHead
-                                                    className="text-center font-bold text-base"
-                                                    key={'Total Items'}
-                                                >
-                                                    Total Items
-                                                </TableHead>
-                                                <TableHead
-                                                    className="text-center font-bold text-base"
-                                                    key={'Total Pieces'}
-                                                >
-                                                    Total Pieces
-                                                </TableHead>
-                                                <TableHead
-                                                    className="text-center font-bold text-base"
-                                                    key={'Price'}
-                                                >
-                                                    Price
-                                                </TableHead>
-                                                <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+            <PaginationItem>
+              <PaginationNext
+                onClick={() =>
+                  onPageChange(Math.min(totalPages, currentPage + 1))
+                }
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : "cursor-pointer"
+                }
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
 
-                                                    <TableHead
-                                                        className="text-center font-bold text-base"
-                                                        key={'Delete Buttons'}
-                                                    >
-                                                        {'Delete Buttons'}
-                                                    </TableHead>
-                                                </RoleGateForComponent>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {displayCategoryData.map((cat, idx) => (
-                                                <TableRow
-                                                    key={`${idx}-1`}
-                                                >
-                                                    <TableCell
-                                                        key={idx * idx}
-                                                        className="text-center"
-                                                    >
-                                                        {idx + 1}
-                                                    </TableCell>
-                                                    <TableCell
-                                                        key={cat.name}
-                                                        className="text-center text-blue-800 font-bold cursor-pointer"
-                                                        aria-label={`open categry ${cat.name} by clicking`}
-                                                    >
-                                                        <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
-                                                            {cat.name}
-                                                        </Link>
-                                                    </TableCell>
-                                                    <TableCell
-                                                    key={cat.type}
-                                                    className="text-center font-bold cursor-pointer"
-                                                >
-                                                    
-                                                    {cat.type}
-                                                    <TypeEdit categoryName={cat.name} onUpdateType={onUpdateType}/>
-                                                </TableCell>
-                                                    <TableCell
-                                                        className="text-center"
-                                                        key={`${cat.name}-${cat.count}-count`}
-                                                    >
-                                                        {cat.count}
-                                                    </TableCell>
-                                                    <TableCell
-                                                        className="text-center"
-                                                        key={`${cat.name}-${cat.countOfPiece}-total`}
-                                                    >
-                                                        {cat.countOfPiece}
-                                                    </TableCell>
-                                                    <TableCell
-                                                        className="text-center"
-                                                        key={`${cat.name}-${cat.countOfPiece}-price`}
-                                                    >
-                                                        {cat.sellingPrice}
-                                                    </TableCell>
-                                                    <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-                                                        <TableCell className="text-center"
-                                                            key={`${cat.name}-delete`}
-                                                        >
-                                                            <DialogDemo
-                                                                dialogTrigger="Delete Category"
-                                                                dialogTitle="Delete Category"
-                                                                dialogDescription="Delete the category"
-                                                                bgColor="destructive"
-                                                            >
-                                                                <div>
-                                                                    <h1>Delete</h1>
-                                                                    <h3>Are you sure wanted to delete category {`${cat.name}`}?</h3>
-                                                                </div>
-                                                                <Button
-                                                                    type="button"
-                                                                    disabled={isPending}
-                                                                    onClick={() => { handleDelete(cat.name) }}
-                                                                // onClick={formCategory.handleSubmit(handleSubmitCategory)}
-                                                                >
-                                                                    Delete
-                                                                </Button>
-                                                            </DialogDemo>
-                                                        </TableCell>
-                                                    </RoleGateForComponent>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            } </> :
-
-                            <div className="flex flex-col gap-2">
-                                <Table>
-                                    <TableCaption>List of all category</TableCaption>
-                                    <TableHeader>
-                                        <TableRow className="text-black">
-                                            <TableHead
-                                                key={'sr.'}
-                                                className="text-center font-bold text-base"
-                                            >
-                                                Sr.
-                                            </TableHead>
-                                            <TableHead
-                                                key={'Category'}
-                                                className="text-center font-bold text-base"
-                                            >
-                                                Category
-                                            </TableHead>
-                                            <TableHead
-                                                key={'Type'}
-                                                className="text-center font-bold text-base"
-                                            >
-                                                Type
-                                            </TableHead>
-                                            <RoleGateForComponent
-                                                allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
-                                            >
-                                                <TableHead
-                                                    className="text-center font-bold text-base"
-                                                    key={'Total Items'}
-                                                >
-                                                    Total Items
-                                                </TableHead>
-                                                <TableHead
-                                                    className="text-center font-bold text-base"
-                                                    key={'Total Pieces'}
-                                                >
-                                                    Total Pieces
-                                                </TableHead>
-                                            </RoleGateForComponent>
-                                            <TableHead
-                                                className="text-center font-bold text-base"
-                                                key={'Price'}
-                                            >
-                                                Price
-                                            </TableHead>
-                                            <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-
-                                                <TableHead
-                                                    className="text-center font-bold text-base"
-                                                    key={'Delete Buttons'}
-                                                >
-                                                    {'Delete Buttons'}
-                                                </TableHead>
-                                            </RoleGateForComponent>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {category.map((cat, idx) => (
-                                            <TableRow
-                                                key={idx}
-                                            // className="" 
-                                            >
-                                                <TableCell
-                                                    key={idx * idx}
-                                                    className="text-center"
-                                                >
-                                                    {idx + 1}
-                                                </TableCell>
-                                                <TableCell
-                                                    key={cat.name}
-                                                    className="text-center text-blue-800 font-bold cursor-pointer"
-                                                    aria-label={`open categry ${cat.name} by clicking`}
-                                                // onClick={() => router.push(`/catalogue/${cat.name.toLowerCase()}`)}
-                                                >
-                                                    <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
-                                                        {cat.name}
-                                                    </Link>
-                                                </TableCell>
-                                                <TableCell
-                                                    key={cat.type}
-                                                    className="text-center font-bold cursor-pointer"
-                                                >
-                                                    
-                                                    {cat.type}
-                                                    <TypeEdit categoryName={cat.name} onUpdateType={onUpdateType}/>
-                                                </TableCell>
-                                                <RoleGateForComponent
-                                                    allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
-                                                >
-
-                                                    <TableCell
-                                                        className="text-center"
-                                                        key={`${cat.name}-${cat.count}-count`}
-                                                    >
-                                                        {cat.count}
-                                                    </TableCell>
-                                                    <TableCell
-                                                        className="text-center"
-                                                        key={`${cat.name}-${cat.countOfPiece}-total`}
-                                                    >
-                                                        {cat.countOfPiece}
-                                                    </TableCell>
-                                                </RoleGateForComponent>
-                                                <TableCell
-                                                    className="text-center"
-                                                    key={`${cat.name}-${cat.countOfPiece}-price`}
-                                                >
-                                                    {cat.sellingPrice}
-                                                </TableCell>
-
-                                                <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-
-                                                    <TableCell className="text-center"
-                                                        key={`${cat.name}-delete`}
-                                                    >
-
-                                                        <DialogDemo
-                                                            dialogTrigger="Delete Category"
-                                                            dialogTitle="Delete Category"
-                                                            dialogDescription="Delete the category"
-                                                            bgColor="destructive"
-                                                        >
-                                                            <div>
-                                                                <h1>Delete</h1>
-                                                                <h3>Are you sure wanted to delete category {`${cat.name}`}?</h3>
-                                                            </div>
-                                                            <Button
-                                                                type="button"
-                                                                disabled={isPending}
-                                                                onClick={() => { handleDelete(cat.name) }}
-                                                            // onClick={formCategory.handleSubmit(handleSubmitCategory)}
-                                                            >
-                                                                Delete
-                                                            </Button>
-                                                        </DialogDemo>
-                                                    </TableCell>
-                                                </RoleGateForComponent>
-                                            </TableRow>
-                                        ))}
-                                        <RoleGateForComponent
-                                            allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
-                                        >
-                                            <TableRow className="text-red-600 font-bold text-center text-base">
-                                                <TableCell>
-                                                    {'-'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {'Total'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {totalItems.toLocaleString('en-IN')}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {totalPiece.toLocaleString('en-IN')}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {`${totalStockPrice.toLocaleString('en-IN')}/-`}
-                                                </TableCell>
-                                            </TableRow>
-                                        </RoleGateForComponent>
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        }
-                    </CardContent>
-                </Card>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-gray-600">Go to page:</span>
+          <Input
+            type="number"
+            min="1"
+            max={totalPages}
+            value={goToPage}
+            onChange={(e) => setGoToPage(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder="Page #"
+            className="w-20 h-8 text-center"
+          />
+          <Button
+            onClick={handleGoToPage}
+            disabled={
+              !goToPage ||
+              parseInt(goToPage) < 1 ||
+              parseInt(goToPage) > totalPages
             }
-        </>
-    )
-}
+            size="sm"
+            variant="outline"
+          >
+            Go
+          </Button>
+          <span className="text-gray-500">of {totalPages}</span>
+        </div>
+      </div>
+    );
+  };
+
+  function downloadCSV(data: Category[]) {
+    if (!data.length) return;
+
+    const headers: (keyof Category)[] = [
+      "name",
+      "count",
+      "type",
+      "countOfPiece",
+      "sellingPrice",
+      "actualPrice",
+      "image",
+    ];
+
+    const csv = [
+      headers.join(","), // header row
+      ...data.map((row) =>
+        headers
+          .map((field) =>
+            row[field] === null || row[field] === undefined
+              ? ""
+              : `"${String(row[field]).replace(/"/g, '""')}"`
+          )
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "items.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <Card className="w-[90%]">
+      <CardHeader className="flex items-center">
+        <p className="text-2xl font-semibold text-center">👜 Catalogue</p>
+        <div className="ml-auto mt-7">
+          <Button asChild>
+            <DialogDemo
+              dialogTrigger="+ Category"
+              dialogTitle="New Category Addition"
+              dialogDescription="Give category name and click add category"
+              bgColor="destructive"
+            >
+              <Form {...form}>
+                <form className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            disabled={isPending}
+                            placeholder="Enter category name"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Type</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            disabled={isPending}
+                            placeholder="Enter category type"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="image"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Image</FormLabel>
+                        <FormControl>
+                          <ImageUpload2
+                            images={[field.value]}
+                            singleFile
+                            onImageChange={(data) => {
+                              field.onChange(data[0]?.url || "");
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    disabled={isPending}
+                    onClick={form.handleSubmit(handleSubmitCategory)}
+                  >
+                    Add Category
+                  </Button>
+                </form>
+              </Form>
+            </DialogDemo>
+          </Button>
+          <Button
+            type="button"
+            className="ml-2"
+            disabled={isPending}
+            onClick={() => downloadCSV(categories)}
+          >
+            Download CSV
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="pb-2">
+          <div className="flex flex-row justify-center mb-2 gap-4">
+            <div className="w-[30%]">
+              <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
+                Select search type
+              </h2>
+              <Select onValueChange={handleSearchTypeChange} value={searchType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Search Field Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SEARCH_TYPES.DESIGN}>
+                    Search Design
+                  </SelectItem>
+                  <SelectItem value={SEARCH_TYPES.CATEGORY}>
+                    Search Category
+                  </SelectItem>
+                  <SelectItem value={SEARCH_TYPES.PRICE}>
+                    Search Price
+                  </SelectItem>
+                  <SelectItem value={SEARCH_TYPES.TYPE}>Search Type</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-[30%]">
+              <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
+                Select sort type
+              </h2>
+              <Select onValueChange={handleSortChange} value={sortType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Sort Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SORT_TYPES.PRICE_HIGH_TO_LOW}>
+                    Sort By Price High to Low
+                  </SelectItem>
+                  <SelectItem value={SORT_TYPES.PRICE_LOW_TO_HIGH}>
+                    Sort By Price Low to High
+                  </SelectItem>
+                  <SelectItem value={SORT_TYPES.PIECE_COUNT}>
+                    Sort By Piece Count
+                  </SelectItem>
+                  <SelectItem value={SORT_TYPES.NAME}>Sort By Name</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-[30%] mt-auto">
+              <SearchBar
+                value={searchValue}
+                onChange={handleSearch}
+                onCancelResearch={handleSearchCancel}
+                width="100%"
+                style={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #ccc",
+                  maxWidth: "400px",
+                  marginTopL: "auto",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gray-50 p-4 rounded-lg mb-4">
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-sm text-gray-600">Total Items</p>
+              <p className="text-xl font-bold text-blue-600">
+                {totals.totalItems}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Total Pieces</p>
+              <p className="text-xl font-bold text-green-600">
+                {totals.totalPieces}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Total Stock Value</p>
+              <p className="text-xl font-bold text-purple-600">
+                ₹{totals.totalStockPrice.toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Results */}
+        {showKurtiResults ? (
+          <>
+            <div className="mb-4 text-center">
+              <p className="text-sm text-gray-600">
+                Showing {displayKurti.length} of {filteredKurti.length} designs
+                {searchValue && ` for "${searchValue}"`}
+              </p>
+            </div>
+            <CardContent className="w-full flex flex-row justify-center flex-wrap gap-3">
+              {displayKurti.map((data, i) => (
+                <KurtiPicCard
+                  data={data}
+                  key={`${data.id}-${i}`}
+                  onKurtiDelete={handleKurtiDelete}
+                />
+              ))}
+            </CardContent>
+            {totalKurtiPages > 1 && (
+              <div className="flex justify-center mt-4">
+                <PaginationComponent
+                  currentPage={kurtiCurrentPage}
+                  totalPages={totalKurtiPages}
+                  onPageChange={handleKurtiPageChange}
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="mb-4 text-center">
+              <p className="text-sm text-gray-600">
+                Showing {displayCategories.length} of{" "}
+                {searchValue.trim().length > 0
+                  ? filteredCategories.length
+                  : processedCategories.length}{" "}
+                categories
+                {searchValue && ` for "${searchValue}"`}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Table>
+                <TableCaption>List of all categories</TableCaption>
+                <TableHeader>
+                  <TableRow className="text-black">
+                    <TableHead className="text-center font-bold text-base">
+                      Sr.
+                    </TableHead>
+                    <TableHead className="text-center font-bold text-base">
+                      Category
+                    </TableHead>
+                    <TableHead className="text-center font-bold text-base">
+                      Image
+                    </TableHead>
+                    <TableHead className="text-center font-bold text-base">
+                      Type
+                    </TableHead>
+                    <RoleGateForComponent
+                      allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
+                    >
+                      <TableHead className="text-center font-bold text-base">
+                        Total Items
+                      </TableHead>
+                      <TableHead className="text-center font-bold text-base">
+                        Total Pieces
+                      </TableHead>
+                    </RoleGateForComponent>
+                    <TableHead className="text-center font-bold text-base">
+                      Price
+                    </TableHead>
+                    <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+                      <TableHead className="text-center font-bold text-base">
+                        Actions
+                      </TableHead>
+                    </RoleGateForComponent>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {displayCategories.map((cat, idx) => (
+                    <TableRow key={`category-${cat.name}-${idx}`}>
+                      <TableCell className="text-center">
+                        {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                      </TableCell>
+                      <TableCell className="text-center text-blue-800 font-bold cursor-pointer">
+                        <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
+                          {cat.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <img
+                          src={cat.image || "/images/no-image.png"}
+                          alt={cat.name}
+                          className="w-16 h-16 object-cover mx-auto"
+                        />
+                      </TableCell>
+                      <TableCell className="text-center font-bold">
+                        {cat.type}
+                        <TypeEdit
+                          categoryName={cat.name}
+                          onUpdateType={handleTypeUpdate}
+                          initialType={cat.type}
+                        />
+                      </TableCell>
+                      <RoleGateForComponent
+                        allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
+                      >
+                        <TableCell className="text-center">
+                          {cat.count}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {cat.countOfPiece}
+                        </TableCell>
+                      </RoleGateForComponent>
+                      <TableCell className="text-center">
+                        {cat.sellingPrice}
+                      </TableCell>
+                      <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center gap-2">
+                            <EditCategoryModal
+                              category={cat}
+                              onCategoryUpdate={(updatedCat) => {
+                                handleCategoryUpdate(updatedCat, cat.name);
+                              }}
+                              trigger={
+                                <Button variant="outline" size="sm">
+                                  Edit
+                                </Button>
+                              }
+                            />
+
+                            <DialogDemo
+                              dialogTrigger="Delete"
+                              dialogTitle="Delete Category"
+                              dialogDescription="Delete the category"
+                              bgColor="destructive"
+                            >
+                              <div>
+                                <h1>Delete Category</h1>
+                                <h3>
+                                  Are you sure you want to delete category "
+                                  {cat.name}"?
+                                </h3>
+                              </div>
+                              <Button
+                                type="button"
+                                disabled={isPending}
+                                onClick={() => handleDeleteCategory(cat.name)}
+                              >
+                                Delete
+                              </Button>
+                            </DialogDemo>
+                          </div>
+                        </TableCell>
+                      </RoleGateForComponent>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {totalCategoryPages > 1 && (
+              <div className="flex justify-center mt-4">
+                <PaginationComponent
+                  currentPage={currentPage}
+                  totalPages={totalCategoryPages}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 const CatalogueListHelper = () => {
-    return (
-        <>
-            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.RESELLER]}>
-                <ListPage />
-            </RoleGateForComponent>
-            {/* <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
-                <NotAllowedPage />
-            </RoleGateForComponent> */}
-        </>
-    );
-}
+  return (
+    <RoleGateForComponent
+      allowedRole={[
+        UserRole.ADMIN,
+        UserRole.UPLOADER,
+        UserRole.SELLER,
+        UserRole.RESELLER,
+      ]}
+    >
+      <ListPage />
+    </RoleGateForComponent>
+  );
+};
 
 export default CatalogueListHelper;
