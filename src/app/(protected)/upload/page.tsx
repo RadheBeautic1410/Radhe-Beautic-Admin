@@ -40,9 +40,9 @@ import { RoleGateForComponent } from "@/src/components/auth/role-gate-component"
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import PageLoader from "@/src/components/loader";
 import { AddSizeForm } from "../_components/dynamicFields/sizes";
-import ImageUpload2, {
+import DesignUpload, {
   ImageUploadRef,
-} from "../_components/upload/imageUpload2";
+} from "../_components/upload/deisgnUpload";
 
 // Extended schema for bulk upload
 const BulkKurtiSchema = z.object({
@@ -424,7 +424,7 @@ const handleBulkBarcodeDownload = async () => {
             </p>
           </CardHeader>
           <CardContent className="text-center">
-            <ImageUpload2
+            <DesignUpload
               ref={imageUploadRef}
               images={images}
               onImageChange={handleImageChange}
