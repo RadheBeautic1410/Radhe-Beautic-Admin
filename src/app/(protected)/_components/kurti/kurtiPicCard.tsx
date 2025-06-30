@@ -20,7 +20,7 @@ import {
 import { UserRole } from "@prisma/client";
 import axios from "axios";
 import { log } from "console";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -58,6 +58,7 @@ interface KurtiPicCardProps {
 
 const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
   const [downloading, setDownloading] = useState(false);
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [stockString, setStockString] = useState(``);
   let selectSizes: string[] = [
     "XS",
@@ -362,17 +363,92 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       toast.error("Failed to download images");
     } finally {
       setDownloading(false);
+      setDownloadDialogOpen(false);
     }
   };
 
-  const handleClick = async () => {
+  const downloadAllVideosAsZip = async () => {
+    let processingToastId: string | number | undefined;
+
+    try {
+      setDownloading(true);
+
+      processingToastId = toast.loading("Starting video download process...");
+
+      const zip = new JSZip();
+
+      // Filter for video files (assuming there's a videos array or video URLs in your data)
+      // You'll need to adjust this based on your actual data structure
+      const videoData = data.videos || []; // Adjust this based on your data structure
+
+      if (videoData.length === 0) {
+        toast.error("No videos found to download");
+        setDownloading(false);
+        setDownloadDialogOpen(false);
+        return;
+      }
+
+      for (let i = 0; i < videoData.length; i++) {
+        const videoUrl = videoData[i].url;
+        const filename = `${data.code.toLowerCase()}_video_${i + 1}.mp4`;
+
+        toast.loading(`Processing video ${i + 1}/${videoData.length}...`, {
+          id: processingToastId,
+        });
+
+        try {
+          const response = await fetch(videoUrl);
+          const blob = await response.blob();
+          zip.file(filename, blob);
+        } catch (error) {
+          console.error(`Error processing video ${i + 1}:`, error);
+          toast.error(`Failed to process video ${i + 1}`, { duration: 2000 });
+        }
+      }
+
+      toast.loading("Generating zip file...", {
+        id: processingToastId,
+      });
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      toast.loading("Starting download...", {
+        id: processingToastId,
+      });
+
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${data.code.toLowerCase()}_videos.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up
+      URL.revokeObjectURL(url);
+
+      toast.dismiss(processingToastId);
+      toast.success("All videos downloaded successfully!");
+    } catch (error) {
+      console.error("Error downloading videos:", error);
+      if (processingToastId) {
+        toast.dismiss(processingToastId);
+      }
+      toast.error("Failed to download videos");
+    } finally {
+      setDownloading(false);
+      setDownloadDialogOpen(false);
+    }
+  };
+
+  const handleDownloadClick = () => {
     const imgDom = document.querySelector(
       `#download${data.code}`
     ) as HTMLImageElement;
     console.log(imgDom?.complete, dimensions);
 
     if (dimensions.width !== 0 && dimensions.height !== 0) {
-      await downloadAllImagesAsZip();
+      setDownloadDialogOpen(true);
     } else {
       toast.error("Images not loaded yet");
     }
@@ -470,16 +546,79 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         </Table>
       </div>
       <div className="flex flex-row space-evenely gap-3">
-        <Button
-          type="button"
-          onClick={handleClick}
-          variant={"outline"}
-          key={"download"}
-          disabled={downloading}
-        >
-          {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : ""}
-          📦 Download All
-        </Button>
+        {/* Download Options Dialog */}
+        <Dialog open={downloadDialogOpen} onOpenChange={setDownloadDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              onClick={handleDownloadClick}
+              variant={"outline"}
+              key={"download"}
+              disabled={downloading}
+            >
+              {downloading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              Download
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Download Options</DialogTitle>
+              <DialogDescription>
+                Choose what you want to download for{" "}
+                <span className="font-bold">{data.code.toUpperCase()}</span>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-3 py-4">
+              {data.images?.length > 0 && (
+                <Button
+                  type="button"
+                  onClick={downloadAllImagesAsZip}
+                  variant="outline"
+                  disabled={downloading}
+                  className="flex items-center justify-center"
+                >
+                  {downloading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  📸 Download Images as ZIP
+                </Button>
+              )}
+              {data.videos?.length > 0 && (
+                <Button
+                  type="button"
+                  onClick={downloadAllVideosAsZip}
+                  variant="outline"
+                  disabled={downloading}
+                  className="flex items-center justify-center"
+                >
+                  {downloading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  🎥 Download Videos as ZIP
+                </Button>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setDownloadDialogOpen(false)}
+                disabled={downloading}
+              >
+                Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
           <Link
             href={

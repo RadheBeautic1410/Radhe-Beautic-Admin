@@ -12,11 +12,12 @@ import { Button } from "@/src/components/ui/button";
 
 interface DialogDemoProps {
   children: React.ReactNode | ((closeDialog: () => void) => React.ReactNode);
-  dialogTrigger: string;
+  dialogTrigger: string | React.ReactElement; // Allow string or element for trigger
   dialogTitle: string;
   dialogDescription: string;
   ButtonLabel?: string;
   bgColor?: "destructive" | "default" | "outline" | string;
+  isTriggerElement?: boolean; // Optional prop to indicate if trigger is an element
 }
 
 export const DialogDemo = ({
@@ -26,6 +27,7 @@ export const DialogDemo = ({
   dialogDescription,
   ButtonLabel,
   bgColor,
+  isTriggerElement = false, // Default to false if not provided
 }: DialogDemoProps) => {
   const [open, setOpen] = useState(false);
   const closeDialog = () => setOpen(false);
@@ -40,7 +42,13 @@ export const DialogDemo = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant={bgColor ? bgColor : "outline"}>{dialogTrigger}</Button>
+        {!isTriggerElement ? (
+          <Button variant={bgColor ? bgColor : "outline"}>
+            {dialogTrigger}
+          </Button>
+        ) : (
+          dialogTrigger
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

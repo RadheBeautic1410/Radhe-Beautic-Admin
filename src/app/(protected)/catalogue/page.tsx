@@ -60,6 +60,7 @@ import { z } from "zod";
 import ImageUpload2 from "../_components/upload/imageUpload2";
 import EditCategoryModal from "../_components/category/EditCategoryModel";
 import { SearchBar } from "@/src/components/Searchbar";
+import { Edit, Pencil, Trash2 } from "lucide-react";
 
 // Types
 interface Category {
@@ -653,10 +654,10 @@ const ListPage = () => {
         <div className="ml-auto mt-7">
           <Button asChild>
             <DialogDemo
-              dialogTrigger="+ Category"
+              dialogTrigger="+ Add Category"
               dialogTitle="New Category Addition"
               dialogDescription="Give category name and click add category"
-              bgColor="destructive"
+              bgColor=""
             >
               <Form {...form}>
                 <form className="space-y-6">
@@ -946,18 +947,19 @@ const ListPage = () => {
                               onCategoryUpdate={(updatedCat) => {
                                 handleCategoryUpdate(updatedCat, cat.name);
                               }}
-                              trigger={
-                                <Button variant="outline" size="sm">
-                                  Edit
-                                </Button>
-                              }
+                              trigger={<Edit role="button" size={20}/>}
                             />
 
                             <DialogDemo
-                              dialogTrigger="Delete"
+                              isTriggerElement
+                              dialogTrigger={
+                                <span className="flex items-center gap-2 text-red-600">
+                                  <Trash2 size={20} className="cursor-pointer"/>
+                                </span>
+                              }
                               dialogTitle="Delete Category"
                               dialogDescription="Delete the category"
-                              bgColor="destructive"
+                              // bgColor="destructive"
                             >
                               <div>
                                 <h1>Delete Category</h1>
