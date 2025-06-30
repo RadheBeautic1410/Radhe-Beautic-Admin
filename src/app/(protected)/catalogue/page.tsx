@@ -657,7 +657,6 @@ const ListPage = () => {
               dialogTrigger="+ Add Category"
               dialogTitle="New Category Addition"
               dialogDescription="Give category name and click add category"
-              bgColor=""
             >
               <Form {...form}>
                 <form className="space-y-6">
