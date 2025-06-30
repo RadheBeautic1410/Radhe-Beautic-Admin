@@ -13,17 +13,21 @@ export async function POST(request: NextRequest) {
     const end = new Date(dateObj);
     end.setHours(end.getHours() + 1); // 1 hour window, or adjust as needed
 
-    const salesData = await db.sales.findMany({
+    const salesData = await db.sell.findMany({
         where: {
-            createdAt: {
+            sellTime: {
                 gte: start,
                 lt: end,
-            }
-        }
+            },
+            
+        },
+          include: {
+    prices: true,
+  },
     });
 
-    const totalSales = salesData.reduce((sum, sale) => sum + sale.amount, 0);
-    const totalProfit = salesData.reduce((sum, sale) => sum + sale.profit, 0);
+    const totalSales = salesData.reduce((sum, sale) => sum + (sale.selledPrice ?? 0), 0)
+    const totalProfit = salesData.reduce((sum, sale) => sum + (sale.selledPrice || 0) - (sale.prices?.actualPrice1 || 0), 0);
     const count = salesData.length;
 
     return new NextResponse(JSON.stringify({

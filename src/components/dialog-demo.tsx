@@ -40,7 +40,9 @@ export const DialogDemo = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant={bgColor ? bgColor : "outline"}>{dialogTrigger}</Button>
+        {/* <Button variant={bgColor ? bgColor : "outline"}>{dialogTrigger}</Button> */}
+        <Button>{dialogTrigger}</Button>
+
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
