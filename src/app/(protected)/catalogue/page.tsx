@@ -60,7 +60,18 @@ import { z } from "zod";
 import ImageUpload2 from "../_components/upload/imageUpload2";
 import EditCategoryModal from "../_components/category/EditCategoryModel";
 import { SearchBar } from "@/src/components/Searchbar";
-import { Edit, Pencil, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Edit,
+  Package,
+  Pencil,
+  ShoppingBag,
+  Trash2,
+  TrendingUp,
+} from "lucide-react";
+import JSZip from "jszip";
 
 // Types
 interface Category {
@@ -78,6 +89,7 @@ interface Kurti {
   category: string;
   code: string;
   images: any[];
+  videos?: any[];
   sizes: any[];
   party: string;
   sellingPrice: string;
@@ -216,6 +228,7 @@ const ListPage = () => {
   const [kurtiCurrentPage, setKurtiCurrentPage] = useState(1);
 
   const [isPending, startTransition] = useTransition();
+  const [downloadLoading, setDownloadLoading] = useState(false);
 
   const form = useForm({
     defaultValues: {
@@ -490,8 +503,9 @@ const ListPage = () => {
 
     if (totalPages <= 1) return null;
 
-    const getVisiblePages = () => {
-      const delta = 2;
+    const getVisiblePages = (isMobile: boolean = false) => {
+      // Reduce delta for mobile screens
+      const delta = isMobile ? 1 : 2;
       const range = [];
       const rangeWithDots = [];
 
@@ -520,8 +534,6 @@ const ListPage = () => {
       return rangeWithDots;
     };
 
-    const visiblePages = getVisiblePages();
-
     const handleGoToPage = () => {
       const pageNumber = parseInt(goToPage);
       if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -537,76 +549,137 @@ const ListPage = () => {
     };
 
     return (
-      <div className="flex flex-col items-center gap-4">
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-                className={
-                  currentPage === 1
-                    ? "pointer-events-none opacity-50"
-                    : "cursor-pointer"
-                }
-              />
-            </PaginationItem>
-
-            {visiblePages.map((page, index) => (
-              <PaginationItem key={index}>
-                {page === "..." ? (
-                  <PaginationEllipsis />
-                ) : (
-                  <PaginationLink
-                    onClick={() => onPageChange(page as number)}
-                    isActive={currentPage === page}
-                    className="cursor-pointer"
-                  >
-                    {page}
-                  </PaginationLink>
-                )}
+      <div className="flex flex-col items-center gap-3 sm:gap-4 w-full px-2">
+        {/* Main Pagination - Desktop */}
+        <div className="hidden sm:block">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                  className={
+                    currentPage === 1
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
+                />
               </PaginationItem>
-            ))}
 
-            <PaginationItem>
-              <PaginationNext
-                onClick={() =>
-                  onPageChange(Math.min(totalPages, currentPage + 1))
-                }
-                className={
-                  currentPage === totalPages
-                    ? "pointer-events-none opacity-50"
-                    : "cursor-pointer"
-                }
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+              {getVisiblePages(false).map((page, index) => (
+                <PaginationItem key={index}>
+                  {page === "..." ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink
+                      onClick={() => onPageChange(page as number)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
 
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-600">Go to page:</span>
-          <Input
-            type="number"
-            min="1"
-            max={totalPages}
-            value={goToPage}
-            onChange={(e) => setGoToPage(e.target.value)}
-            onKeyDown={handleKeyPress}
-            placeholder="Page #"
-            className="w-20 h-8 text-center"
-          />
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() =>
+                    onPageChange(Math.min(totalPages, currentPage + 1))
+                  }
+                  className={
+                    currentPage === totalPages
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+
+        {/* Mobile Pagination - Simplified */}
+        <div className="sm:hidden flex items-center justify-between w-full max-w-xs">
           <Button
-            onClick={handleGoToPage}
-            disabled={
-              !goToPage ||
-              parseInt(goToPage) < 1 ||
-              parseInt(goToPage) > totalPages
-            }
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
             size="sm"
             variant="outline"
+            className="flex items-center gap-1"
           >
-            Go
+            <ChevronLeft className="h-4 w-4" />
+            <span className="hidden xs:inline">Prev</span>
           </Button>
-          <span className="text-gray-500">of {totalPages}</span>
+
+          <div className="flex items-center gap-1">
+            {getVisiblePages(true).map((page, index) => (
+              <div key={index}>
+                {page === "..." ? (
+                  <span className="px-1 text-gray-400">...</span>
+                ) : (
+                  <Button
+                    onClick={() => onPageChange(page as number)}
+                    size="sm"
+                    variant={currentPage === page ? "default" : "ghost"}
+                    className="w-8 h-8 p-0 text-sm"
+                  >
+                    {page}
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <Button
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            size="sm"
+            variant="outline"
+            className="flex items-center gap-1"
+          >
+            <span className="hidden xs:inline">Next</span>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Page Info - Always visible but responsive */}
+        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-sm w-full max-w-md">
+          {/* Current page indicator - Mobile only */}
+          <div className="sm:hidden text-center text-gray-600 text-xs">
+            Page {currentPage} of {totalPages}
+          </div>
+
+          {/* Go to page input */}
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            <span className="text-gray-600 text-xs sm:text-sm whitespace-nowrap">
+              Go to:
+            </span>
+            <Input
+              type="number"
+              min="1"
+              max={totalPages}
+              value={goToPage}
+              onChange={(e) => setGoToPage(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="Page"
+              className="w-16 sm:w-20 h-7 sm:h-8 text-center text-xs sm:text-sm"
+            />
+            <Button
+              onClick={handleGoToPage}
+              disabled={
+                !goToPage ||
+                parseInt(goToPage) < 1 ||
+                parseInt(goToPage) > totalPages
+              }
+              size="sm"
+              variant="outline"
+              className="h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
+            >
+              Go
+            </Button>
+            <span className="text-gray-500 text-xs sm:text-sm whitespace-nowrap hidden sm:inline">
+              of {totalPages}
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -647,11 +720,285 @@ const ListPage = () => {
     URL.revokeObjectURL(url);
   }
 
+  const CategoryCard = ({
+    cat,
+    index,
+    currentPage,
+    handleDeleteCategory,
+    handleTypeUpdate,
+    handleCategoryUpdate,
+    isPending,
+  }: {
+    cat: Category;
+    index: number;
+    currentPage: number;
+    handleDeleteCategory: (name: string) => void;
+    handleTypeUpdate: (name: string, type: string) => void;
+    handleCategoryUpdate: (category: Category, originalName: string) => void;
+    isPending: boolean;
+  }) => (
+    <Card className="w-full shadow-sm border hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex-shrink-0 flex gap-3 justify-between">
+          <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
+            <img
+              src={cat.image || "/images/no-image.png"}
+              alt={cat.name}
+              className="w-16 h-16 object-cover rounded-lg"
+            />
+          </Link>
+          <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+            <div className="flex gap-1 ml-2">
+              <Download
+                role="button"
+                size={16}
+                className={`text-green-600 cursor-pointer hover:text-green-800 ${
+                  downloadLoading && "pointer-events-none"
+                }`}
+                onClick={() => downloadCategoryImagesAndVideos(cat.name)}
+                // title="Download all images from this category"
+              />
+              <EditCategoryModal
+                category={cat}
+                onCategoryUpdate={(updatedCat) => {
+                  handleCategoryUpdate(updatedCat, cat.name);
+                }}
+                trigger={
+                  <Edit
+                    role="button"
+                    size={16}
+                    className="text-blue-600 cursor-pointer"
+                  />
+                }
+              />
+              <DialogDemo
+                isTriggerElement
+                dialogTrigger={
+                  <Trash2 size={16} className="text-red-600 cursor-pointer" />
+                }
+                dialogTitle="Delete Category"
+                dialogDescription="Delete the category"
+              >
+                <div>
+                  <h1>Delete Category</h1>
+                  <h3>
+                    Are you sure you want to delete category "{cat.name}"?
+                  </h3>
+                </div>
+                <Button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => handleDeleteCategory(cat.name)}
+                >
+                  Delete
+                </Button>
+              </DialogDemo>
+            </div>
+          </RoleGateForComponent>
+        </div>
+        <div className="flex items-start gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <h3 className="font-semibold text-base text-blue-800 truncate">
+                  <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
+                    {cat.name}
+                  </Link>
+                </h3>
+                <p className="text-sm text-gray-600 flex items-center gap-1">
+                  <span className="font-medium">Type:</span> {cat.type}
+                  <TypeEdit
+                    categoryName={cat.name}
+                    onUpdateType={handleTypeUpdate}
+                    initialType={cat.type}
+                  />
+                </p>
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <RoleGateForComponent
+                allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
+              >
+                <div className="flex items-center gap-1">
+                  <ShoppingBag size={14} className="text-blue-500" />
+                  <span className="text-gray-600">Items:</span>
+                  <span className="font-medium">{cat.count}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Package size={14} className="text-green-500" />
+                  <span className="text-gray-600">Pieces:</span>
+                  <span className="font-medium">{cat.countOfPiece}</span>
+                </div>
+              </RoleGateForComponent>
+              <div className="flex items-center gap-1 col-span-2">
+                <TrendingUp size={14} className="text-purple-500" />
+                <span className="text-gray-600">Price:</span>
+                <span className="font-medium">₹{cat.sellingPrice}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const downloadCategoryImagesAndVideos = async (categoryName: string) => {
+    setDownloadLoading(true);
+    try {
+      const categoryKurtis = kurtiData.filter(
+        (kurti) =>
+          kurti.category.toLowerCase() === categoryName.toLowerCase() &&
+          !kurti.isDeleted
+      );
+
+      if (categoryKurtis.length === 0) {
+        toast.error("No items found in this category");
+        return;
+      }
+
+      const mediaUrls: any = [];
+
+      categoryKurtis.forEach((kurti: Kurti) => {
+        // Add images
+        if (kurti.images && Array.isArray(kurti.images)) {
+          kurti.images.forEach((imageObj) => {
+            if (imageObj.url && !imageObj.is_hidden) {
+              mediaUrls.push({
+                url: imageObj.url,
+                filename: `${kurti.code}_image_${imageObj.id}.jpg`,
+                kurtiCode: kurti.code,
+                type: "image",
+              });
+            }
+          });
+        }
+
+        // Add videos
+        if (kurti.videos && Array.isArray(kurti.videos)) {
+          kurti.videos.forEach((videoObj) => {
+            if (videoObj.url && !videoObj.is_hidden) {
+              // Better extension extraction
+              const getVideoExtension = (url: string): string => {
+                try {
+                  // Remove query parameters
+                  const urlWithoutParams = url.split("?")[0];
+                  const parts = urlWithoutParams.split(".");
+
+                  if (parts.length > 1) {
+                    const ext = parts.pop()?.toLowerCase();
+                    // Validate common video extensions
+                    const validExtensions = [
+                      "mp4",
+                      "avi",
+                      "mov",
+                      "mkv",
+                      "wmv",
+                      "flv",
+                      "webm",
+                      "m4v",
+                    ];
+                    if (ext && validExtensions.includes(ext)) {
+                      return ext;
+                    }
+                  }
+
+                  // Default to mp4 if no valid extension found
+                  return "mp4";
+                } catch (error) {
+                  return "mp4";
+                }
+              };
+
+              const extension = getVideoExtension(videoObj.url);
+
+              mediaUrls.push({
+                url: videoObj.url,
+                filename: `${kurti.code}_video_${videoObj.id}.${extension}`,
+                kurtiCode: kurti.code,
+                type: "video",
+              });
+            }
+          });
+        }
+      });
+
+      if (mediaUrls.length === 0) {
+        toast.error("No media files found in this category");
+        return;
+      }
+
+      const loadingToast = toast.loading(
+        `Downloading ${mediaUrls.length} files...`
+      );
+
+      const zip = new JSZip();
+      const categoryFolder = zip.folder(categoryName);
+
+      const downloadPromises = mediaUrls.map(
+        async (mediaInfo: any, index: number) => {
+          try {
+            const response = await fetch(mediaInfo.url);
+            if (!response.ok) {
+              console.warn(`Failed to download file: ${mediaInfo.url}`);
+              return null;
+            }
+
+            const blob = await response.blob();
+            const filename = mediaInfo.filename || `file_${index + 1}`;
+
+            const kurtiFolder = categoryFolder?.folder(mediaInfo.kurtiCode);
+            const typeFolder = kurtiFolder?.folder(
+              mediaInfo.type === "image" ? "Images" : "Videos"
+            );
+            typeFolder?.file(filename, blob);
+
+            return true;
+          } catch (error) {
+            console.error(`Error downloading file ${mediaInfo.url}:`, error);
+            return null;
+          }
+        }
+      );
+
+      const results = await Promise.all(downloadPromises);
+      const successCount = results.filter((result) => result !== null).length;
+
+      if (successCount === 0) {
+        toast.dismiss(loadingToast);
+        toast.error("Failed to download any files");
+        return;
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${categoryName}_media_${
+        new Date().toISOString().split("T")[0]
+      }.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.dismiss(loadingToast);
+      toast.success(`Downloaded ${successCount} files successfully!`);
+    } catch (error) {
+      console.error("Error creating zip file:", error);
+      toast.error("Failed to create zip file");
+    } finally {
+      setDownloadLoading(false);
+    }
+  };
+
   return (
-    <Card className="w-[90%]">
+    <Card className="sm:w-[90%]">
       <CardHeader className="flex items-center">
         <p className="text-2xl font-semibold text-center">👜 Catalogue</p>
-        <div className="ml-auto mt-7">
+        <div className="ml-auto mt-7 flex items-center gap-2">
           <Button asChild>
             <DialogDemo
               dialogTrigger="+ Add Category"
@@ -736,8 +1083,8 @@ const ListPage = () => {
       </CardHeader>
       <CardContent>
         <div className="pb-2">
-          <div className="flex flex-row justify-center mb-2 gap-4">
-            <div className="w-[30%]">
+          <div className="flex flex-col sm:flex-row justify-center mb-2 gap-4">
+            <div className="sm:w-[30%]">
               <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
                 Select search type
               </h2>
@@ -760,7 +1107,7 @@ const ListPage = () => {
               </Select>
             </div>
 
-            <div className="w-[30%]">
+            <div className="sm:w-[30%]">
               <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
                 Select sort type
               </h2>
@@ -782,7 +1129,7 @@ const ListPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-[30%] mt-auto">
+            <div className="sm:w-[30%] mt-auto">
               <SearchBar
                 value={searchValue}
                 onChange={handleSearch}
@@ -800,7 +1147,7 @@ const ListPage = () => {
         </div>
 
         <div className="bg-gray-50 p-4 rounded-lg mb-4">
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-sm text-gray-600">Total Items</p>
               <p className="text-xl font-bold text-blue-600">
@@ -862,7 +1209,7 @@ const ListPage = () => {
                 {searchValue && ` for "${searchValue}"`}
               </p>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex-col gap-2 hidden sm:flex">
               <Table>
                 <TableCaption>List of all categories</TableCaption>
                 <TableHeader>
@@ -911,11 +1258,16 @@ const ListPage = () => {
                         </Link>
                       </TableCell>
                       <TableCell className="text-center">
-                        <img
-                          src={cat.image || "/images/no-image.png"}
-                          alt={cat.name}
+                        <Link
+                          href={`/catalogue/${cat.name.toLowerCase()}`}
                           className="w-16 h-16 object-cover mx-auto"
-                        />
+                        >
+                          <img
+                            src={cat.image || "/images/no-image.png"}
+                            alt={cat.name}
+                            className="w-16 h-16 object-cover mx-auto"
+                          />
+                        </Link>
                       </TableCell>
                       <TableCell className="text-center font-bold">
                         {cat.type}
@@ -941,19 +1293,33 @@ const ListPage = () => {
                       <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                         <TableCell className="text-center">
                           <div className="flex justify-center gap-2">
+                            <Download
+                              role="button"
+                              size={20}
+                              className={`text-green-600 cursor-pointer hover:text-green-800 ${
+                                downloadLoading && "pointer-events-none"
+                              }`}
+                              onClick={() =>
+                                downloadCategoryImagesAndVideos(cat.name)
+                              }
+                              // title="Download all images from this category"
+                            />
                             <EditCategoryModal
                               category={cat}
                               onCategoryUpdate={(updatedCat) => {
                                 handleCategoryUpdate(updatedCat, cat.name);
                               }}
-                              trigger={<Edit role="button" size={20}/>}
+                              trigger={<Edit role="button" size={20} />}
                             />
 
                             <DialogDemo
                               isTriggerElement
                               dialogTrigger={
                                 <span className="flex items-center gap-2 text-red-600">
-                                  <Trash2 size={20} className="cursor-pointer"/>
+                                  <Trash2
+                                    size={20}
+                                    className="cursor-pointer"
+                                  />
                                 </span>
                               }
                               dialogTitle="Delete Category"
@@ -982,6 +1348,20 @@ const ListPage = () => {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="sm:hidden flex flex-col gap-3">
+              {displayCategories.map((cat, idx) => (
+                <CategoryCard
+                  key={`category-${cat.name}-${idx}`}
+                  cat={cat}
+                  index={idx}
+                  currentPage={currentPage}
+                  handleDeleteCategory={handleDeleteCategory}
+                  handleTypeUpdate={handleTypeUpdate}
+                  handleCategoryUpdate={handleCategoryUpdate}
+                  isPending={isPending}
+                />
+              ))}
             </div>
             {totalCategoryPages > 1 && (
               <div className="flex justify-center mt-4">
