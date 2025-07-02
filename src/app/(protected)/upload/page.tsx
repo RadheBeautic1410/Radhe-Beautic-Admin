@@ -3,7 +3,7 @@ import * as z from "zod";
 import axios from "axios";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
-import { Loader2 } from "lucide-react";
+import { CheckIcon, ChevronsUpDownIcon,  Loader2 } from "lucide-react";
 import {
   useRef,
   useState,
@@ -35,7 +35,7 @@ import { partyAddition } from "@/src/actions/party";
 import { toast } from "sonner";
 import { kurtiAddition } from "@/src/actions/kurti";
 import { useRouter } from "next/navigation";
-import { UserRole } from "@prisma/client";
+import { Category, Party, UserRole } from "@prisma/client";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import PageLoader from "@/src/components/loader";
@@ -43,6 +43,16 @@ import { AddSizeForm } from "../_components/dynamicFields/sizes";
 import DesignUpload, {
   ImageUploadRef,
 } from "../_components/upload/deisgnUpload";
+import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/src/components/ui/command";
+import React from "react";
 
 // Extended schema for bulk upload
 const BulkKurtiSchema = z.object({
@@ -93,13 +103,17 @@ const BulkUploadPage = () => {
   const [party, setParty] = useState<party[]>([]);
   const [partyLoader, setPartyLoader] = useState(true);
   const [categoryLoader, setCategoryLoader] = useState(true);
-  const [category, setCategory] = useState<category[]>([]);
+  // const [category, setCategory] = useState<category[]>([]);
+    const [open, setOpen] = React.useState(false);
+    const [categories, setCategories] = React.useState<Category[]>([]);
   const [images, setImages] = useState<any[]>([]);
   const [designs, setDesigns] = useState<Design[]>([]);
   const [generatorLoader, setGeneratorLoader] = useState(false);
   const [sizes, setSizes] = useState<Size[]>([]);
   const [barcodeDownloading, setBarcodeDownloading] = useState(false);
   const [bulkProcessing, setBulkProcessing] = useState(false);
+    const [openParty, setOpenParty] = React.useState(false);
+      const [parties, setParties] = React.useState<Party[]>([]);
   const router = useRouter();
 
   const onAddSize = (sizes: Size[]) => {
@@ -359,36 +373,59 @@ const handleBulkBarcodeDownload = async () => {
       setBulkProcessing(false);
     }
   };
-
-  useEffect(() => {
-    const fetchData = async () => {
+    React.useEffect(() => {
+    const fetchParties = async () => {
       try {
-        const response = await fetch("/api/party");
-        const result = await response.json();
-        const sortedParties = (result.data || []).sort((a: party, b: party) =>
-          a.name.localeCompare(b.name)
-        );
-        setParty(sortedParties);
-      } catch (error) {
-        console.error("Error fetching parties:", error);
-      } finally {
+        const res = await fetch("/api/party");
+        const json = await res.json();
+
+        if (Array.isArray(json.data)) {
+          const normalizedParties = json.data.map((p: any) => ({
+            ...p,
+            normalizedLowerCase: p.name?.toLowerCase().replace(/\s+/g, ""),
+          }));
+          setParties(normalizedParties);
+        } else {
+          setParties([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch parties", err);
+        setParties([]);
+      }finally {
         setPartyLoader(false);
       }
 
+    };
+
+    fetchParties();
+  }, []);
+
+   React.useEffect(() => {
+    const fetchCategories = async () => {
       try {
-        const response = await fetch("/api/category");
-        const result = await response.json();
-        const sortedCategory = (result.data || []).sort((a: category, b: category) =>
-          a.name.localeCompare(b.name)
-        );
-        setCategory(sortedCategory);
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-      } finally {
+        const res = await fetch("/api/category");
+        const json = await res.json();
+
+        if (Array.isArray(json.data)) {
+          const normalizedData = json.data.map((cat: Category) => ({
+            ...cat,
+            normalizedLowerCase: cat.name?.toLowerCase().replace(/\s+/g, ""),
+          }));
+          setCategories(normalizedData);
+        } else {
+          console.error("Invalid categories format:", json);
+          setCategories([]);
+        }
+      } catch (err) {
+        console.error("Failed to load categories", err);
+        setCategories([]);
+      }
+       finally {
         setCategoryLoader(false);
       }
     };
-    fetchData();
+
+    fetchCategories();
   }, []);
 
   const form = useForm<z.infer<typeof KurtiSchema>>({
@@ -440,7 +477,7 @@ const handleBulkBarcodeDownload = async () => {
                     render={({ field }) => (
                       <FormItem className="w-[30%]">
                         <FormLabel>Category</FormLabel>
-                        <Select
+                        {/* <Select
                           disabled={isPending}
                           onValueChange={field.onChange}
                           value={field.value}
@@ -457,7 +494,62 @@ const handleBulkBarcodeDownload = async () => {
                               </SelectItem>
                             ))}
                           </SelectContent>
-                        </Select>
+                        </Select> */}
+                                                  <Popover open={open} onOpenChange={setOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between"
+                              >
+                                {field.value
+                                  ? categories.find(
+                                      (c) =>
+                                        c.normalizedLowerCase === field.value
+                                    )?.name || "Select category"
+                                  : "Select category"}
+                                <ChevronsUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-60 overflow-y-auto">
+                              <Command>
+                                <CommandInput placeholder="Search category..." />
+                                <CommandEmpty>No category found.</CommandEmpty>
+                                <CommandGroup>
+                                  <CommandList>
+                                    {categories.map((category, idx) => (
+                                      <CommandItem
+                                        key={idx}
+                                        value={category.name}
+                                        onSelect={(currentValue) => {
+                                          const selected = categories.find(
+                                            (c) => c.name === currentValue
+                                          );
+                                          if (selected)
+                                            field.onChange(
+                                              selected.normalizedLowerCase
+                                            );
+                                          setOpen(false);
+                                        }}
+                                      >
+                                        <CheckIcon
+                                          className={`mr-2 h-4 w-4 ${
+                                            field.value ===
+                                            category.normalizedLowerCase
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          }`}
+                                        />
+                                        <span className="truncate">
+                                          {category.name}
+                                        </span>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandList>
+                                </CommandGroup>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -471,7 +563,7 @@ const handleBulkBarcodeDownload = async () => {
                       render={({ field }) => (
                         <FormItem className="w-[30%]">
                           <FormLabel>Party</FormLabel>
-                          <Select
+                          {/* <Select
                             disabled={isPending}
                             onValueChange={field.onChange}
                             value={field.value}
@@ -488,7 +580,54 @@ const handleBulkBarcodeDownload = async () => {
                                 </SelectItem>
                               ))}
                             </SelectContent>
-                          </Select>
+                          </Select> */}
+                                                    <Popover open={openParty} onOpenChange={setOpenParty}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="w-full justify-between"
+                              >
+                                {parties.find(
+                                  (p) => p.normalizedLowerCase === field.value
+                                )?.name || "Select party"}
+                                <ChevronsUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-60 overflow-y-auto">
+                              <Command>
+                                <CommandInput placeholder="Search party..." />
+                                <CommandEmpty>No party found.</CommandEmpty>
+                                <CommandGroup>
+                                  <CommandList>
+                                    {parties.map((party) => (
+                                      <CommandItem
+                                        key={party.id}
+                                        value={party.name}
+                                        onSelect={() => {
+                                          field.onChange(
+                                            party.normalizedLowerCase
+                                          );
+                                          setOpenParty(false);
+                                        }}
+                                      >
+                                        <CheckIcon
+                                          className={`mr-2 h-4 w-4 ${
+                                            field.value ===
+                                            party.normalizedLowerCase
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          }`}
+                                        />
+                                        <span className="truncate">
+                                          {party.name}
+                                        </span>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandList>
+                                </CommandGroup>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                           <FormMessage />
                         </FormItem>
                       )}
