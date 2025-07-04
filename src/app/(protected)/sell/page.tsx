@@ -49,7 +49,7 @@ function SellPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const [billCreatedBy, setBillCreatedBy] = useState("");
-  const [shopName, setShopName] = useState("");
+  // const [shopName, setShopName] = useState("");
 
   // Current product selection
   const [selectedSize, setSelectedSize] = useState("");
@@ -227,10 +227,10 @@ function SellPage() {
         return;
       }
 
-      if (!shopName.trim()) {
-        toast.error("Please enter shop name");
-        return;
-      }
+      // if (!shopName.trim()) {
+      //   toast.error("Please enter shop name");
+      //   return;
+      // }
 
       const currentTime = getCurrTime();
 
@@ -251,7 +251,7 @@ function SellPage() {
         customerPhone: customerPhone.trim(),
         selectedLocation: selectedLocation.trim(),
         billCreatedBy: billCreatedBy.trim(),
-        shopName: shopName.trim(),
+        // shopName: shopName.trim(),
       });
 
       const data = res.data.data;
@@ -413,7 +413,7 @@ function SellPage() {
         <body>
             <div class="invoice-container">
                 <div class="header">
-                    <h1 class="shop-name">${shopName || 'Radhe Beautic'}</h1>
+                    <h1 class="shop-name">${'Radhe Beautic'}</h1>
                     <p class="shop-tagline">Premium Fashion Collection</p>
                 </div>
                 
@@ -519,7 +519,7 @@ function SellPage() {
     setCustomerPhone("");
     setSelectedLocation("");
     setBillCreatedBy("");
-    setShopName("");
+    // setShopName("");
     setSelectedSize("");
     setSellingPrice("");
     setQuantity(1);
@@ -561,7 +561,7 @@ function SellPage() {
                 onChange={(e) => setCustomerPhone(e.target.value)}
               />
             </div>
-            <div>
+            {/* <div>
               <Label htmlFor="shop-name">Shop Name *</Label>
               <Input
                 id="shop-name"
@@ -569,7 +569,7 @@ function SellPage() {
                 value={shopName}
                 onChange={(e) => setShopName(e.target.value)}
               />
-            </div>
+            </div> */}
             <div>
               <Label htmlFor="shop-location">Shop Location *</Label>
               <select
