@@ -15,7 +15,14 @@ import {
 } from "@/src/components/ui/table";
 import { UserRole } from "@prisma/client";
 import axios from "axios";
-import { Loader2, Search, ShoppingCart, FileText, Trash2, Plus } from "lucide-react";
+import {
+  Loader2,
+  Search,
+  ShoppingCart,
+  FileText,
+  Trash2,
+  Plus,
+} from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
@@ -43,7 +50,7 @@ function SellPage() {
   const [loading, setLoading] = useState(false);
   const [selling, setSelling] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
-  
+
   // Sale details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -116,7 +123,8 @@ function SellPage() {
 
     // Check if same product+size already exists in cart
     const existingItemIndex = cart.findIndex(
-      item => item.kurti.code === kurti.code && item.selectedSize === selectedSize
+      (item) =>
+        item.kurti.code === kurti.code && item.selectedSize === selectedSize
     );
 
     const newItem: CartItem = {
@@ -125,7 +133,7 @@ function SellPage() {
       selectedSize,
       quantity,
       sellingPrice: parseInt(sellingPrice),
-      availableStock: sizeInfo.quantity
+      availableStock: sizeInfo.quantity,
     };
 
     if (existingItemIndex >= 0) {
@@ -133,16 +141,16 @@ function SellPage() {
       const updatedCart = [...cart];
       const existingItem = updatedCart[existingItemIndex];
       const totalQuantity = existingItem.quantity + quantity;
-      
+
       if (totalQuantity > sizeInfo.quantity) {
         toast.error("Total quantity exceeds available stock");
         return;
       }
-      
+
       updatedCart[existingItemIndex] = {
         ...existingItem,
         quantity: totalQuantity,
-        sellingPrice: parseInt(sellingPrice) // Update price if changed
+        sellingPrice: parseInt(sellingPrice), // Update price if changed
       };
       setCart(updatedCart);
     } else {
@@ -156,12 +164,12 @@ function SellPage() {
     setSelectedSize("");
     setSellingPrice("");
     setQuantity(1);
-    
+
     toast.success("Product added to cart!");
   };
 
   const removeFromCart = (itemId: string) => {
-    setCart(cart.filter(item => item.id !== itemId));
+    setCart(cart.filter((item) => item.id !== itemId));
     toast.success("Item removed from cart");
   };
 
@@ -171,7 +179,7 @@ function SellPage() {
       return;
     }
 
-    const updatedCart = cart.map(item => {
+    const updatedCart = cart.map((item) => {
       if (item.id === itemId) {
         if (newQuantity > item.availableStock) {
           toast.error("Quantity exceeds available stock");
@@ -190,7 +198,7 @@ function SellPage() {
       return;
     }
 
-    const updatedCart = cart.map(item => {
+    const updatedCart = cart.map((item) => {
       if (item.id === itemId) {
         return { ...item, sellingPrice: newPrice };
       }
@@ -200,7 +208,10 @@ function SellPage() {
   };
 
   const getTotalAmount = () => {
-    return cart.reduce((total, item) => total + (item.sellingPrice * item.quantity), 0);
+    return cart.reduce(
+      (total, item) => total + item.sellingPrice * item.quantity,
+      0
+    );
   };
 
   const handleSell = async () => {
@@ -235,12 +246,12 @@ function SellPage() {
       const currentTime = getCurrTime();
 
       // Prepare products data for API
-      const products = cart.map(item => ({
+      const products = cart.map((item) => ({
         code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
         kurti: item.kurti,
         selectedSize: item.selectedSize,
         quantity: item.quantity,
-        sellingPrice: item.sellingPrice
+        sellingPrice: item.sellingPrice,
       }));
 
       const res = await axios.post(`/api/sell`, {
@@ -286,229 +297,169 @@ function SellPage() {
     }, 500);
   };
 
+  const GST_RATE = 5; // Total GST (2.5% SGST + 2.5% CGST)
+
+  const calculateGSTAmount = (price: number) => {
+    const basePrice = price / (1 + GST_RATE / 100);
+    const gstAmount = price - basePrice;
+    const sgst = gstAmount / 2;
+    const cgst = gstAmount / 2;
+    return {
+      basePrice: parseFloat(basePrice.toFixed(2)),
+      sgst: parseFloat(sgst.toFixed(2)),
+      cgst: parseFloat(cgst.toFixed(2)),
+      totalGST: parseFloat(gstAmount.toFixed(2)),
+    };
+  };
+
   const generateInvoiceHTML = (saleData: any) => {
     const currentDate = new Date().toLocaleDateString("en-IN");
     const currentTime = new Date().toLocaleTimeString("en-IN");
     const invoiceNumber = `INV-${Date.now()}`;
     const totalAmount = getTotalAmount();
 
+    const totalSGST = cart.reduce(
+      (acc, item) =>
+        acc + calculateGSTAmount(item.sellingPrice * item.quantity).sgst,
+      0
+    );
+    const totalCGST = cart.reduce(
+      (acc, item) =>
+        acc + calculateGSTAmount(item.sellingPrice * item.quantity).cgst,
+      0
+    );
+    const totalGST = totalSGST + totalCGST;
+
     return `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Invoice - ${invoiceNumber}</title>
-            <style>
-                body { 
-                    font-family: Arial, sans-serif; 
-                    margin: 0; 
-                    padding: 20px; 
-                    background: #f5f5f5;
-                }
-                .invoice-container { 
-                    max-width: 800px; 
-                    margin: 0 auto; 
-                    background: white; 
-                    padding: 30px; 
-                    border-radius: 10px;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                }
-                .header { 
-                    text-align: center; 
-                    border-bottom: 3px solid #e74c3c; 
-                    padding-bottom: 20px; 
-                    margin-bottom: 30px;
-                }
-                .shop-name { 
-                    font-size: 32px; 
-                    font-weight: bold; 
-                    color: #e74c3c; 
-                    margin: 0;
-                    text-transform: uppercase;
-                    letter-spacing: 2px;
-                }
-                .shop-tagline { 
-                    font-size: 16px; 
-                    color: #666; 
-                    margin: 5px 0 0 0;
-                    font-style: italic;
-                }
-                .invoice-details { 
-                    display: flex; 
-                    justify-content: space-between; 
-                    margin-bottom: 30px;
-                    flex-wrap: wrap;
-                }
-                .invoice-info, .customer-info { 
-                    flex: 1; 
-                    min-width: 250px;
-                    margin: 10px;
-                }
-                .invoice-info h3, .customer-info h3 { 
-                    color: #2c3e50; 
-                    border-bottom: 2px solid #ecf0f1; 
-                    padding-bottom: 8px;
-                    margin-bottom: 15px;
-                }
-                .info-row { 
-                    margin-bottom: 8px; 
-                    display: flex;
-                }
-                .info-label { 
-                    font-weight: bold; 
-                    min-width: 100px;
-                    color: #555;
-                }
-                .product-table { 
-                    width: 100%; 
-                    border-collapse: collapse; 
-                    margin: 30px 0;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }
-                .product-table th { 
-                    background: #34495e; 
-                    color: white; 
-                    padding: 15px; 
-                    text-align: left;
-                    font-weight: bold;
-                }
-                .product-table td { 
-                    padding: 15px; 
-                    border-bottom: 1px solid #ecf0f1;
-                }
-                .product-table tr:nth-child(even) { 
-                    background-color: #f8f9fa;
-                }
-                .total-section { 
-                    text-align: right; 
-                    margin-top: 30px;
-                    padding: 20px;
-                    background: #f8f9fa;
-                    border-radius: 8px;
-                }
-                .total-amount { 
-                    font-size: 24px; 
-                    font-weight: bold; 
-                    color: #e74c3c;
-                    margin-top: 10px;
-                }
-                .footer { 
-                    text-align: center; 
-                    margin-top: 40px; 
-                    padding-top: 20px; 
-                    border-top: 2px solid #ecf0f1;
-                    color: #666;
-                }
-                .thank-you { 
-                    font-size: 18px; 
-                    color: #27ae60; 
-                    font-weight: bold;
-                    margin-bottom: 10px;
-                }
-                @media print {
-                    body { background: white; }
-                    .invoice-container { box-shadow: none; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="invoice-container">
-                <div class="header">
-                    <h1 class="shop-name">${'Radhe Beautic'}</h1>
-                    <p class="shop-tagline">Premium Fashion Collection</p>
-                </div>
-                
-                <div class="invoice-details">
-                    <div class="invoice-info">
-                        <h3>Invoice Details</h3>
-                        <div class="info-row">
-                            <span class="info-label">Invoice #:</span>
-                            <span>${invoiceNumber}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Date:</span>
-                            <span>${currentDate}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Time:</span>
-                            <span>${currentTime}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Seller:</span>
-                            <span>${currentUser?.name || "N/A"}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Location:</span>
-                            <span>${selectedLocation}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Bill By:</span>
-                            <span>${billCreatedBy}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="customer-info">
-                        <h3>Customer Details</h3>
-                        <div class="info-row">
-                            <span class="info-label">Name:</span>
-                            <span>${customerName}</span>
-                        </div>
-                        ${customerPhone ? `
-                        <div class="info-row">
-                            <span class="info-label">Phone:</span>
-                            <span>${customerPhone}</span>
-                        </div>
-                        ` : ""}
-                    </div>
-                </div>
-                
-                <table class="product-table">
-                    <thead>
-                        <tr>
-                            <th>Product Code</th>
-                            <th>Category</th>
-                            <th>Size</th>
-                            <th>Quantity</th>
-                            <th>Unit Price</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${cart.map(item => `
-                        <tr>
-                            <td>${item.kurti.code.toUpperCase()}</td>
-                            <td>${item.kurti.category}</td>
-                            <td>${item.selectedSize.toUpperCase()}</td>
-                            <td>${item.quantity}</td>
-                            <td>₹${item.sellingPrice}</td>
-                            <td>₹${item.sellingPrice * item.quantity}</td>
-                        </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                
-                <div class="total-section">
-                    <div style="font-size: 16px; margin-bottom: 5px;">
-                        <strong>Subtotal: ₹${totalAmount}</strong>
-                    </div>
-                    <div style="font-size: 16px; margin-bottom: 10px;">
-                        <strong>Tax: ₹0</strong>
-                    </div>
-                    <div class="total-amount">
-                        Total Amount: ₹${totalAmount}
-                    </div>
-                </div>
-                
-                <div class="footer">
-                    <div class="thank-you">Thank you for your purchase!</div>
-                    <p>Visit us again for more amazing collections</p>
-                    <p style="font-size: 12px; color: #999;">
-                        This is a computer generated invoice. For any queries, please contact us.
-                    </p>
-                </div>
-            </div>
-        </body>
-        </html>
-        `;
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Invoice - ${invoiceNumber}</title>
+      <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+        .invoice-container {
+          max-width: 800px;
+          margin: auto;
+          background: #fff;
+          padding: 30px;
+          border-radius: 10px;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .shop-name { font-size: 32px; font-weight: bold; color: #e74c3c; }
+        .shop-tagline { font-size: 16px; color: #666; font-style: italic; }
+        .invoice-details, .customer-info {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 20px;
+          flex-wrap: wrap;
+        }
+        .info-block { min-width: 250px; margin: 10px; }
+        .info-block h3 { border-bottom: 2px solid #eee; padding-bottom: 5px; color: #333; }
+        .info-row { margin: 6px 0; }
+        .info-label { font-weight: bold; width: 100px; display: inline-block; color: #555; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border: 1px solid #ccc; }
+        th { background: #34495e; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .total-section {
+          margin-top: 30px;
+          background: #f8f9fa;
+          padding: 20px;
+          border-radius: 8px;
+          text-align: right;
+        }
+        .total-amount { font-size: 24px; font-weight: bold; color: #e74c3c; }
+        .footer { margin-top: 40px; text-align: center; color: #666; font-size: 14px; border-top: 1px solid #ddd; padding-top: 20px; }
+        .thank-you { font-size: 18px; color: #27ae60; font-weight: bold; margin-bottom: 10px; }
+        @media print {
+          body { background: white; }
+          .invoice-container { box-shadow: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="invoice-container">
+        <div class="header">
+          <div class="shop-name">Radhe Beautic</div>
+          <div class="shop-tagline">Premium Fashion Collection</div>
+        </div>
+
+        <div class="invoice-details">
+          <div class="info-block">
+            <h3>Invoice Details</h3>
+            <div class="info-row"><span class="info-label">Invoice #:</span> ${invoiceNumber}</div>
+            <div class="info-row"><span class="info-label">Date:</span> ${currentDate}</div>
+            <div class="info-row"><span class="info-label">Time:</span> ${currentTime}</div>
+            <div class="info-row"><span class="info-label">Seller:</span> ${
+              currentUser?.name || "N/A"
+            }</div>
+            <div class="info-row"><span class="info-label">Location:</span> ${selectedLocation}</div>
+            <div class="info-row"><span class="info-label">Bill By:</span> ${billCreatedBy}</div>
+          </div>
+          <div class="info-block">
+            <h3>Customer Details</h3>
+            <div class="info-row"><span class="info-label">Name:</span> ${customerName}</div>
+            ${
+              customerPhone
+                ? `<div class="info-row"><span class="info-label">Phone:</span> ${customerPhone}</div>`
+                : ""
+            }
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>HSN Code</th>
+              <th>Size</th>
+              <th>Qty</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${cart
+              .map((item) => {
+                const gst = calculateGSTAmount(item.sellingPrice);
+                return `
+              <tr>
+                <td>
+                  ${item.kurti.code.toUpperCase()}<br/>
+                </td>
+                <td>${item.kurti.hsnCode || "N/A"}</td>
+                <td>${item.selectedSize.toUpperCase()}</td>
+                <td>${item.quantity}</td>
+                <td>₹${gst.basePrice}</td>
+              </tr>
+              `;
+              })
+              .join("")}
+          </tbody>
+        </table>
+
+        <div class="total-section">
+          <div><strong>Subtotal (incl. GST): ₹${totalAmount.toFixed(
+            2
+          )}</strong></div>
+          <div><strong>Total SGST: ₹${totalSGST.toFixed(2)}</strong></div>
+          <div><strong>Total CGST: ₹${totalCGST.toFixed(2)}</strong></div>
+          <div class="total-amount">Total Amount Payable: ₹${totalAmount.toFixed(
+            2
+          )}</div>
+        </div>
+
+        <div class="footer">
+          <div class="thank-you">Thank you for your purchase!</div>
+          <p>Visit us again for more amazing collections</p>
+          <p style="font-size: 12px; color: #999;">
+            This is a computer generated invoice. For any queries, please contact us.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
   };
 
   const resetForm = () => {
@@ -538,7 +489,6 @@ function SellPage() {
         </p>
       </CardHeader>
       <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
-        
         {/* Customer Details Section */}
         <div className="bg-blue-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
@@ -558,7 +508,14 @@ function SellPage() {
                 id="customer-phone"
                 placeholder="Enter customer phone"
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
+                maxLength={10}
+                onChange={(e) => {
+                  const input = e.target.value;
+                  // Only allow digits
+                  if (/^\d*$/.test(input)) {
+                    setCustomerPhone(input);
+                  }
+                }}
               />
             </div>
             {/* <div>
@@ -601,7 +558,9 @@ function SellPage() {
           <h3 className="text-lg font-semibold mb-3">Find Product</h3>
           <div className="flex flex-row flex-wrap gap-2 items-end">
             <div className="flex flex-col flex-wrap">
-              <Label htmlFor="product-code" className="mb-[10px]">Product Code</Label>
+              <Label htmlFor="product-code" className="mb-[10px]">
+                Product Code
+              </Label>
               <Input
                 id="product-code"
                 className="w-[250px] p-2"
@@ -697,7 +656,9 @@ function SellPage() {
 
                 {/* Add to Cart Form */}
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-                  <h4 className="font-semibold mb-3 text-yellow-800">Add to Cart</h4>
+                  <h4 className="font-semibold mb-3 text-yellow-800">
+                    Add to Cart
+                  </h4>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div>
                       <Label htmlFor="size-select">Select Size *</Label>
@@ -723,7 +684,9 @@ function SellPage() {
                         min="1"
                         placeholder="Enter quantity"
                         value={quantity}
-                        onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          setQuantity(parseInt(e.target.value) || 1)
+                        }
                       />
                     </div>
                     <div>
@@ -759,17 +722,29 @@ function SellPage() {
             <h3 className="text-lg font-semibold mb-4 text-green-800">
               Shopping Cart ({cart.length} items)
             </h3>
-            
+
             <div className="overflow-x-auto">
               <Table className="border border-collapse">
                 <TableHeader>
                   <TableRow className="bg-green-800">
-                    <TableHead className="font-bold border text-white">Product</TableHead>
-                    <TableHead className="font-bold border text-white">Size</TableHead>
-                    <TableHead className="font-bold border text-white">Quantity</TableHead>
-                    <TableHead className="font-bold border text-white">Unit Price</TableHead>
-                    <TableHead className="font-bold border text-white">Total</TableHead>
-                    <TableHead className="font-bold border text-white">Actions</TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Product
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Size
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Quantity
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Unit Price
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Total
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -783,19 +758,30 @@ function SellPage() {
                             className="w-12 h-12 object-cover rounded"
                           />
                           <div>
-                            <div className="font-semibold">{item.kurti.code.toUpperCase()}</div>
-                            <div className="text-sm text-gray-600">{item.kurti.category}</div>
+                            <div className="font-semibold">
+                              {item.kurti.code.toUpperCase()}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {item.kurti.category}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="border">{item.selectedSize.toUpperCase()}</TableCell>
+                      <TableCell className="border">
+                        {item.selectedSize.toUpperCase()}
+                      </TableCell>
                       <TableCell className="border">
                         <Input
                           type="number"
                           min="1"
                           max={item.availableStock}
                           value={item.quantity}
-                          onChange={(e) => updateCartItemQuantity(item.id, parseInt(e.target.value) || 1)}
+                          onChange={(e) =>
+                            updateCartItemQuantity(
+                              item.id,
+                              parseInt(e.target.value) || 1
+                            )
+                          }
                           className="w-20"
                         />
                       </TableCell>
@@ -804,7 +790,12 @@ function SellPage() {
                           type="number"
                           min="1"
                           value={item.sellingPrice}
-                          onChange={(e) => updateCartItemPrice(item.id, parseInt(e.target.value) || 1)}
+                          onChange={(e) =>
+                            updateCartItemPrice(
+                              item.id,
+                              parseInt(e.target.value) || 1
+                            )
+                          }
                           className="w-24"
                         />
                       </TableCell>
