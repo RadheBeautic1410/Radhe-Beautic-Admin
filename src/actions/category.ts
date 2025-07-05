@@ -129,6 +129,7 @@ export const categoryUpdate = async (
     const lowercaseName = name.toLowerCase();
 
     const dbCategory = await getCategorybyName(lowercaseName);
+    console.log("🚀 ~ dbCategory:", dbCategory)
     if (dbCategory && dbCategory.id !== id) {
         return { error: "Category Already Exist" }
     }

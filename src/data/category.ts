@@ -49,6 +49,7 @@ export const getAllCategoryWithCount = async () => {
                 name: category[i].name, 
                 type: category[i].type,
                 image: category[i].image,
+                id: category[i].id,
                 // count: category[i].countOfDesign, 
                 // countOfPiece: category[i].countOfPiece, 
                 // sellingPrice: category[i].sellingPrice,

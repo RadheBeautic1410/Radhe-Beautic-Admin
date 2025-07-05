@@ -75,6 +75,7 @@ import JSZip from "jszip";
 
 // Types
 interface Category {
+  id: string;
   name: string;
   count: number;
   type: string;
@@ -409,6 +410,7 @@ const ListPage = () => {
               toast.success(data.success);
               if (data.data) {
                 const newCategory: Category = {
+                  id: data.data.id,
                   name: data.data.name,
                   count: 0,
                   type: data.data.type || "",
@@ -993,6 +995,8 @@ const ListPage = () => {
       setDownloadLoading(false);
     }
   };
+
+  console.log("displayCategories", displayCategories);
 
   return (
     <Card className="sm:w-[90%]">

@@ -29,6 +29,7 @@ import { categoryUpdate } from "@/src/actions/category";
 // import { categoryUpdate } from "@/src/actions/category";
 
 interface Category {
+  id: string;
   name: string;
   count: number;
   type: string;
@@ -58,7 +59,7 @@ const EditCategoryModal = ({
   const form = useForm<z.infer<typeof categoryEditSchema>>({
     resolver: zodResolver(categoryEditSchema),
     defaultValues: {
-      id: category.name, // Using name as ID, adjust if you have actual ID
+      id: category.id,
       name: category.name,
       type: category.type || "",
       image: category.image || "/images/no-image.png",
@@ -73,12 +74,13 @@ const EditCategoryModal = ({
 
   const handleSubmit = (values: z.infer<typeof categoryEditSchema>) => {
     startTransition(() => {
-      categoryUpdate(values.id, {
+      categoryUpdate(category.id, {
         name: values.name,
         type: values.type || "",
         image: values.image,
       })
         .then((data) => {
+          console.log("🚀 ~ .then ~ data:", data);
           if (data.error) {
             toast.error(data.error);
             return;
@@ -86,7 +88,6 @@ const EditCategoryModal = ({
           if (data.success) {
             toast.success(data.success);
 
-            // Update the category in parent component
             const updatedCategory: Category = {
               ...category,
               name: values.name,
@@ -97,25 +98,23 @@ const EditCategoryModal = ({
             onCategoryUpdate(updatedCategory);
             setOpen(false);
             form.reset();
+            setTimeout(() => {
+              toast.success("Category updated successfully!");
+
+              // Update the category in parent component
+              const updatedCategory: Category = {
+                ...category,
+                name: values.name,
+                type: values.type || "",
+                image: values.image || "/images/no-image.png",
+              };
+
+              onCategoryUpdate(updatedCategory);
+              setOpen(false);
+            }, 1000);
           }
         })
         .catch(() => toast.error("Something went wrong!"));
-
-      // Temporary simulation for demonstration
-      setTimeout(() => {
-        toast.success("Category updated successfully!");
-
-        // Update the category in parent component
-        const updatedCategory: Category = {
-          ...category,
-          name: values.name,
-          type: values.type || "",
-          image: values.image || "/images/no-image.png",
-        };
-
-        onCategoryUpdate(updatedCategory);
-        setOpen(false);
-      }, 1000);
     });
   };
 
