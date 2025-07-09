@@ -43,14 +43,14 @@ interface CartItem {
   sellingPrice: number;
   availableStock: number;
 }
-
+type GSTType = "IGST" | "SGST_CGST";
 function SellPage() {
   const [code, setCode] = useState("");
   const [kurti, setKurti] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [selling, setSelling] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
-
+  const [gstType, setGstType] = useState<GSTType>("SGST_CGST");
   // Sale details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -299,17 +299,43 @@ function SellPage() {
 
   const GST_RATE = 5; // Total GST (2.5% SGST + 2.5% CGST)
 
-  const calculateGSTAmount = (price: number) => {
-    const basePrice = price / (1 + GST_RATE / 100);
-    const gstAmount = price - basePrice;
-    const sgst = gstAmount / 2;
-    const cgst = gstAmount / 2;
-    return {
-      basePrice: parseFloat(basePrice.toFixed(2)),
-      sgst: parseFloat(sgst.toFixed(2)),
-      cgst: parseFloat(cgst.toFixed(2)),
-      totalGST: parseFloat(gstAmount.toFixed(2)),
-    };
+  // const calculateGSTAmount = (price: number) => {
+  //   const basePrice = price / (1 + GST_RATE / 100);
+  //   const gstAmount = price - basePrice;
+  //   const sgst = gstAmount / 2;
+  //   const cgst = gstAmount / 2;
+  //   return {
+  //     basePrice: parseFloat(basePrice.toFixed(2)),
+  //     sgst: parseFloat(sgst.toFixed(2)),
+  //     cgst: parseFloat(cgst.toFixed(2)),
+  //     totalGST: parseFloat(gstAmount.toFixed(2)),
+  //   };
+  // };
+
+  const calculateGSTBreakdown = (totalPriceWithGST: number) => {
+    // Calculate base price (without GST)
+    const basePrice = totalPriceWithGST / (1 + GST_RATE / 100);
+    const totalGSTAmount = totalPriceWithGST - basePrice;
+
+    if (gstType === "IGST") {
+      return {
+        basePrice: parseFloat(basePrice.toFixed(2)),
+        igst: parseFloat(totalGSTAmount.toFixed(2)),
+        sgst: 0,
+        cgst: 0,
+        totalGST: parseFloat(totalGSTAmount.toFixed(2)),
+      };
+    } else {
+      const sgst = totalGSTAmount / 2;
+      const cgst = totalGSTAmount / 2;
+      return {
+        basePrice: parseFloat(basePrice.toFixed(2)),
+        igst: 0,
+        sgst: parseFloat(sgst.toFixed(2)),
+        cgst: parseFloat(cgst.toFixed(2)),
+        totalGST: parseFloat(totalGSTAmount.toFixed(2)),
+      };
+    }
   };
 
   const generateInvoiceHTML = (saleData: any) => {
@@ -318,18 +344,20 @@ function SellPage() {
     const invoiceNumber = `INV-${Date.now()}`;
     const totalAmount = getTotalAmount();
 
-    const totalSGST = cart.reduce(
-      (acc, item) =>
-        acc + calculateGSTAmount(item.sellingPrice * item.quantity).sgst,
-      0
+    const totalGSTBreakdown = cart.reduce(
+      (acc, item) => {
+        const itemTotal = item.sellingPrice * item.quantity;
+        const breakdown = calculateGSTBreakdown(itemTotal);
+        return {
+          basePrice: acc.basePrice + breakdown.basePrice,
+          igst: acc.igst + breakdown.igst,
+          sgst: acc.sgst + breakdown.sgst,
+          cgst: acc.cgst + breakdown.cgst,
+          totalGST: acc.totalGST + breakdown.totalGST,
+        };
+      },
+      { basePrice: 0, igst: 0, sgst: 0, cgst: 0, totalGST: 0 }
     );
-    const totalCGST = cart.reduce(
-      (acc, item) =>
-        acc + calculateGSTAmount(item.sellingPrice * item.quantity).cgst,
-      0
-    );
-    const totalGST = totalSGST + totalCGST;
-
     return `
     <!DOCTYPE html>
     <html>
@@ -415,13 +443,16 @@ function SellPage() {
               <th>HSN Code</th>
               <th>Size</th>
               <th>Qty</th>
-              <th>Total</th>
+              <th>Rate (Ex. GST)</th>
+              <th>Amount (Ex. GST)</th>
             </tr>
           </thead>
           <tbody>
             ${cart
               .map((item) => {
-                const gst = calculateGSTAmount(item.sellingPrice);
+                const itemTotal = item.sellingPrice * item.quantity;
+                const breakdown = calculateGSTBreakdown(itemTotal);
+                const unitPrice = breakdown.basePrice / item.quantity;
                 return `
               <tr>
                 <td>
@@ -430,25 +461,45 @@ function SellPage() {
                 <td>${item.kurti.hsnCode || "N/A"}</td>
                 <td>${item.selectedSize.toUpperCase()}</td>
                 <td>${item.quantity}</td>
-                <td>₹${gst.basePrice}</td>
+                <td>₹${unitPrice.toFixed(2)}</td>
+                <td>₹${breakdown.basePrice.toFixed(2)}</td>
               </tr>
               `;
               })
               .join("")}
+            <tr class="gst-row">
+              <td colspan="5" style="text-align: right; font-weight: bold;">Subtotal (Ex. GST):</td>
+              <td style="font-weight: bold;">₹${totalGSTBreakdown.basePrice.toFixed(2)}</td>
+            </tr>
+            ${
+              gstType === "IGST"
+                ? `
+            <tr>
+              <td colspan="5" style="text-align: right;">IGST (5%):</td>
+              <td>₹${totalGSTBreakdown.igst.toFixed(2)}</td>
+            </tr>
+            `
+                : `
+            <tr>
+              <td colspan="5" style="text-align: right;">SGST (2.5%):</td>
+              <td>₹${totalGSTBreakdown.sgst.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td colspan="5" style="text-align: right;">CGST (2.5%):</td>
+              <td>₹${totalGSTBreakdown.cgst.toFixed(2)}</td>
+            </tr>
+            `
+            }
+            <tr style="border-top: 2px solid #333;">
+              <td colspan="5" style="text-align: right; font-weight: bold; font-size: 18px;">Total Amount:</td>
+              <td style="font-weight: bold; font-size: 18px;">₹${totalAmount.toFixed(2)}</td>
+            </tr>
           </tbody>
         </table>
 
         <div class="total-section">
-          <div><strong>Subtotal (incl. GST): ₹${totalAmount.toFixed(
-            2
-          )}</strong></div>
-          <div><strong>Total SGST: ₹${totalSGST.toFixed(2)}</strong></div>
-          <div><strong>Total CGST: ₹${totalCGST.toFixed(2)}</strong></div>
-          <div class="total-amount">Total Amount Payable: ₹${totalAmount.toFixed(
-            2
-          )}</div>
+          <div class="total-amount">Total Amount Payable: ₹${totalAmount.toFixed(2)}</div>
         </div>
-
         <div class="footer">
           <div class="thank-you">Thank you for your purchase!</div>
           <p>Visit us again for more amazing collections</p>
@@ -489,6 +540,31 @@ function SellPage() {
         </p>
       </CardHeader>
       <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
+        <div className="bg-purple-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">GST Configuration</h3>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="gstType"
+                value="SGST_CGST"
+                checked={gstType === "SGST_CGST"}
+                onChange={(e) => setGstType(e.target.value as GSTType)}
+              />
+              <span>SGST + CGST (2.5% + 2.5%)</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="gstType"
+                value="IGST"
+                checked={gstType === "IGST"}
+                onChange={(e) => setGstType(e.target.value as GSTType)}
+              />
+              <span>IGST (5%)</span>
+            </label>
+          </div>
+        </div>
         {/* Customer Details Section */}
         <div className="bg-blue-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-3">Customer Details</h3>

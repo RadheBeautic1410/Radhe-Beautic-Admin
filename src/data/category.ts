@@ -36,28 +36,93 @@ export const getAllCategory = async () => {
 };
 
 
+// export const getAllCategoryWithCount = async () => {
+//     try {
+//         const category = await db.category.findMany({
+//             where: {
+//                 isDeleted: false
+//             }
+//         });
+//         let arr = [];
+//         for(let i = 0; i < category.length; i++) {
+//             arr.push({
+//                 name: category[i].name, 
+//                 type: category[i].type,
+//                 image: category[i].image,
+//                 // count: category[i].countOfDesign, 
+//                 // countOfPiece: category[i].countOfPiece, 
+//                 // sellingPrice: category[i].sellingPrice,
+//                 // actualPrice: category[i].actualPrice,
+//             });
+//         }
+//         return {counts: arr};
+//     } catch (error) {
+//         console.error('Error fetching category', error);
+//         return null;
+//     }
+// };
+
 export const getAllCategoryWithCount = async () => {
     try {
-        const category = await db.category.findMany({
+        const categories = await db.category.findMany({
             where: {
                 isDeleted: false
             }
         });
-        let arr = [];
-        for(let i = 0; i < category.length; i++) {
-            arr.push({
-                name: category[i].name, 
-                type: category[i].type,
-                image: category[i].image,
-                // count: category[i].countOfDesign, 
-                // countOfPiece: category[i].countOfPiece, 
-                // sellingPrice: category[i].sellingPrice,
-                // actualPrice: category[i].actualPrice,
+
+        const result = [];
+
+        for (const cat of categories) {
+            const categoryName = cat.name;
+
+            // Find all non-deleted kurtis for this category
+            const kurtis = await db.kurti.findMany({
+                where: {
+                    isDeleted: false,
+                    category: categoryName
+                },
+                select: {
+                    sellingPrice: true,
+                    actualPrice: true,
+                    countOfPiece: true
+                }
+            });
+
+            // If no kurti found, skip
+            if (kurtis.length === 0) {
+                result.push({
+                    name: cat.name,
+                    type: cat.type,
+                    image: cat.image,
+                    sellingPrice: 0,
+                    actualPrice: 0,
+                    countOfPiece: 0
+                });
+                continue;
+            }
+
+            // Use the price from the first kurti
+            const { sellingPrice, actualPrice } = kurtis[0];
+
+            // Sum up countOfPiece
+            const totalPieces = kurtis.reduce(
+                (sum, k) => sum + (k.countOfPiece || 0),
+                0
+            );
+
+            result.push({
+                name: cat.name,
+                type: cat.type,
+                image: cat.image,
+                sellingPrice: parseInt(sellingPrice || '0'),
+                actualPrice: parseInt(actualPrice || '0'),
+                countOfPiece: totalPieces
             });
         }
-        return {counts: arr};
+
+        return { counts: result };
     } catch (error) {
-        console.error('Error fetching category', error);
+        console.error('Error fetching category with stats:', error);
         return null;
     }
 };

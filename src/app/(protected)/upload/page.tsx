@@ -405,7 +405,7 @@ const handleBulkBarcodeDownload = async () => {
       try {
         const res = await fetch("/api/category");
         const json = await res.json();
-
+        console.log("categoryjson",json)
         if (Array.isArray(json.data)) {
           const normalizedData = json.data.map((cat: Category) => ({
             ...cat,
