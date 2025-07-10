@@ -72,6 +72,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import JSZip from "jszip";
+import { ImageWatermark } from "watermark-js-plus";
+import axios from "axios";
 
 // Types
 interface Category {
@@ -862,8 +864,153 @@ const ListPage = () => {
 
       const mediaUrls: any = [];
 
-      categoryKurtis.forEach((kurti: Kurti) => {
-        // Add images
+      // Helper function to find blocks and generate watermark texts for each kurti
+      const findBlocks = async (kurti: Kurti) => {
+        let selectSizes: string[] = [
+          "XS",
+          "S",
+          "M",
+          "L",
+          "XL",
+          "XXL",
+          "3XL",
+          "4XL",
+          "5XL",
+          "6XL",
+          "7XL",
+          "8XL",
+          "9XL",
+          "10XL",
+        ];
+
+        let sizesArray: any[] = kurti.sizes;
+        sizesArray.sort(
+          (a, b) => selectSizes.indexOf(a.size) - selectSizes.indexOf(b.size)
+        );
+
+        let ele = [];
+        let blocks: string = ``;
+
+        for (let i = 0; i < sizesArray.length; i++) {
+          ele.push(selectSizes.indexOf(sizesArray[i].size.toUpperCase()));
+          if (selectSizes.indexOf(sizesArray[i].size.toUpperCase()) > 0) {
+            ele.push(selectSizes.indexOf(sizesArray[i].size.toUpperCase()) - 1);
+          }
+        }
+
+        ele.sort((a, b) => a - b);
+
+        for (let i = 0; i < ele.length; i++) {
+          if (i === 0 || ele[i] !== ele[i - 1]) {
+            blocks += `\u2063  ${selectSizes[ele[i]]}`;
+          }
+        }
+
+        let url = process.env.NEXT_PUBLIC_SERVER_URL + `/genImg?text=${blocks}`;
+        const res = await axios.get(url);
+
+        let url2 =
+          process.env.NEXT_PUBLIC_SERVER_URL +
+          `/genImg2?text=${kurti.code.toUpperCase()}`;
+        const res2 = await axios.get(url2);
+
+        return { leftText: res.data, rightText: res2.data };
+      };
+
+      // Helper function to apply watermark to image and return blob
+      const applyWatermarkToImage = async (
+        imageSrc: string,
+        rightText: string,
+        leftText: string
+      ): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+
+          img.onload = async () => {
+            try {
+              // Create a temporary container for watermarking
+              const tempContainer = document.createElement("div");
+              tempContainer.style.position = "absolute";
+              tempContainer.style.left = "-9999px";
+              tempContainer.style.top = "-9999px";
+              document.body.appendChild(tempContainer);
+
+              const tempImg = document.createElement("img");
+              tempImg.src = imageSrc;
+              tempImg.crossOrigin = "anonymous";
+              tempImg.width = img.width;
+              tempImg.height = img.height;
+              tempContainer.appendChild(tempImg);
+
+              // Apply watermarks
+              const watermark1 = new ImageWatermark({
+                contentType: "image",
+                image: rightText,
+                imageWidth: img.width / 10,
+                imageHeight: img.height / 27,
+                width: img.width,
+                height: img.height,
+                dom: tempImg,
+                rotate: 0,
+                globalAlpha: 1,
+                translatePlacement: "top-end",
+              });
+
+              const watermark2 = new ImageWatermark({
+                contentType: "image",
+                image: leftText,
+                imageWidth: img.width / 6,
+                imageHeight: img.height / 16,
+                width: img.width,
+                height: img.height,
+                dom: tempImg,
+                rotate: 0,
+                globalAlpha: 1,
+                translatePlacement: "top-start",
+              });
+
+              await watermark1.create();
+              await watermark2.create();
+
+              // Convert to canvas and get blob
+              const canvas = document.createElement("canvas");
+              const ctx = canvas.getContext("2d");
+              canvas.width = img.width;
+              canvas.height = img.height;
+
+              ctx?.drawImage(tempImg, 0, 0);
+
+              canvas.toBlob(
+                (blob) => {
+                  document.body.removeChild(tempContainer);
+                  if (blob) {
+                    resolve(blob);
+                  } else {
+                    reject(
+                      new Error("Failed to convert watermarked image to blob")
+                    );
+                  }
+                },
+                "image/jpeg",
+                0.9
+              );
+            } catch (error) {
+              reject(error);
+            }
+          };
+
+          img.onerror = () => reject(new Error("Failed to load image"));
+          img.src = imageSrc;
+        });
+      };
+
+      // Collect all media URLs with watermark data for images
+      for (const kurti of categoryKurtis) {
+        // Get watermark texts for this kurti
+        const watermarkTexts = await findBlocks(kurti);
+
+        // Add images with watermark info
         if (kurti.images && Array.isArray(kurti.images)) {
           kurti.images.forEach((imageObj) => {
             if (imageObj.url && !imageObj.is_hidden) {
@@ -872,12 +1019,13 @@ const ListPage = () => {
                 filename: `${kurti.code}_image_${imageObj.id}.jpg`,
                 kurtiCode: kurti.code,
                 type: "image",
+                watermarkTexts: watermarkTexts, // Add watermark texts
               });
             }
           });
         }
 
-        // Add videos
+        // Add videos (no watermark needed)
         if (kurti.videos && Array.isArray(kurti.videos)) {
           kurti.videos.forEach((videoObj) => {
             if (videoObj.url && !videoObj.is_hidden) {
@@ -924,7 +1072,7 @@ const ListPage = () => {
             }
           });
         }
-      });
+      }
 
       if (mediaUrls.length === 0) {
         toast.error("No media files found in this category");
@@ -932,33 +1080,52 @@ const ListPage = () => {
       }
 
       const loadingToast = toast.loading(
-        `Downloading ${mediaUrls.length} files...`
+        `Processing ${mediaUrls.length} files...`
       );
 
       const zip = new JSZip();
-      const categoryFolder = zip.folder(categoryName);
 
       const downloadPromises = mediaUrls.map(
         async (mediaInfo: any, index: number) => {
           try {
-            const response = await fetch(mediaInfo.url);
-            if (!response.ok) {
-              console.warn(`Failed to download file: ${mediaInfo.url}`);
-              return null;
+            toast.loading(
+              `Processing ${mediaInfo.type} ${index + 1}/${
+                mediaUrls.length
+              }...`,
+              {
+                id: loadingToast,
+              }
+            );
+
+            if (mediaInfo.type === "image") {
+              // Apply watermark to images
+              const watermarkedBlob = await applyWatermarkToImage(
+                mediaInfo.url,
+                mediaInfo.watermarkTexts.rightText,
+                mediaInfo.watermarkTexts.leftText
+              );
+
+              zip.file(mediaInfo.filename, watermarkedBlob);
+              return true;
+            } else if (mediaInfo.type === "video") {
+              // Download videos directly (no watermark)
+              const response = await fetch(mediaInfo.url);
+              if (!response.ok) {
+                console.warn(`Failed to download file: ${mediaInfo.url}`);
+                return null;
+              }
+
+              const blob = await response.blob();
+              zip.file(mediaInfo.filename, blob);
+              return true;
             }
 
-            const blob = await response.blob();
-            const filename = mediaInfo.filename || `file_${index + 1}`;
-
-            const kurtiFolder = categoryFolder?.folder(mediaInfo.kurtiCode);
-            const typeFolder = kurtiFolder?.folder(
-              mediaInfo.type === "image" ? "Images" : "Videos"
-            );
-            typeFolder?.file(filename, blob);
-
-            return true;
+            return null;
           } catch (error) {
-            console.error(`Error downloading file ${mediaInfo.url}:`, error);
+            console.error(
+              `Error processing ${mediaInfo.type} ${mediaInfo.url}:`,
+              error
+            );
             return null;
           }
         }
@@ -969,11 +1136,19 @@ const ListPage = () => {
 
       if (successCount === 0) {
         toast.dismiss(loadingToast);
-        toast.error("Failed to download any files");
+        toast.error("Failed to process any files");
         return;
       }
 
+      toast.loading("Generating zip file...", {
+        id: loadingToast,
+      });
+
       const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      toast.loading("Starting download...", {
+        id: loadingToast,
+      });
 
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
@@ -987,7 +1162,9 @@ const ListPage = () => {
       URL.revokeObjectURL(url);
 
       toast.dismiss(loadingToast);
-      toast.success(`Downloaded ${successCount} files successfully!`);
+      toast.success(
+        `Downloaded ${successCount} files successfully with watermarks!`
+      );
     } catch (error) {
       console.error("Error creating zip file:", error);
       toast.error("Failed to create zip file");

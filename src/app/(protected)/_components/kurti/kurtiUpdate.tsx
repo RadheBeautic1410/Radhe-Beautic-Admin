@@ -123,7 +123,11 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
       console.log(allImages);
       startTransition(() => {
         addNewImages({
-          images: allImages,
+          images: allImages?.map((img) => ({
+            url: img.url,
+            id: uuidv4(),
+            is_hidden: false,
+          })),
           code: data.code,
           videos: videos.map((v) => ({
             url: v.url,
