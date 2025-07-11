@@ -238,6 +238,7 @@ const ListPage = () => {
       name: "",
       type: "",
       image: "",
+      bigPrice: 0,
     },
   });
 
@@ -400,7 +401,14 @@ const ListPage = () => {
   const handleSubmitCategory = useCallback(
     (values: z.infer<typeof categoryAddSchema>) => {
       startTransition(() => {
-        categoryAddition(values)
+        categoryAddition({
+          name: values.name,
+          type: values.type,
+          image: values.image,
+          bigPrice: values.bigPrice
+            ? parseFloat(values.bigPrice?.toString())
+            : null,
+        })
           .then((data) => {
             if (data.error) {
               form.reset();
@@ -1216,6 +1224,24 @@ const ListPage = () => {
                             {...field}
                             disabled={isPending}
                             placeholder="Enter category type"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="bigPrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Big price</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            disabled={isPending}
+                            placeholder="Enter price of big size"
                           />
                         </FormControl>
                         <FormMessage />

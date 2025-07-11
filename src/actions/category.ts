@@ -15,6 +15,7 @@ interface categoryAddtionProps {
     name: string;
     type: string;
     image?: string;
+    bigPrice?: number | null;
 }
 
 export const categoryAddition = async (
@@ -23,7 +24,7 @@ export const categoryAddition = async (
     const user = await currentUser();
     const role = await currentRole();
 
-    const { name, type,image } = data;
+    const { name, type,image,bigPrice } = data;
     if (name.length === 0) {
         return { error: "Category Can't be empty" }
     }
@@ -73,7 +74,8 @@ export const categoryAddition = async (
             name,
             code,
             type: type.toUpperCase(),
-            image:image || "",
+            image: image || "",
+            bigPrice: bigPrice || null,
         },
     });
 

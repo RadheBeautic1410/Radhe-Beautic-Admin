@@ -5,6 +5,7 @@ import {
   categoryChange,
   priceChange,
   stockAddition,
+  toggleKurtiBigPrice,
 } from "@/src/actions/kurti";
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { Button } from "@/src/components/ui/button";
@@ -37,6 +38,8 @@ import { AddSizeForm } from "../dynamicFields/sizes";
 // import ImageUpload,  from '../upload/imageUpload';
 import ImageUpload2, { ImageUploadRef } from "../upload/imageUpload2";
 import { v4 as uuidv4 } from "uuid";
+import { Switch } from "@/src/components/ui/switch";
+import { SwitchThumb } from "@radix-ui/react-switch";
 
 interface category {
   id: string;
@@ -68,6 +71,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [allCategory, setAllCategory] = useState<any[]>([]);
   const [changedCategory, setCategory] = useState(data?.category);
   const [uploading, setUploading] = useState(false);
+  const [isBigPrice, setIsBigPrice] = useState(data?.isBigPrice || false);
 
   const router = useRouter();
 
@@ -528,6 +532,19 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
               </Button>
             </DialogDemo>
           </Button>
+          <div className="flex flex-row items-center gap-4">
+          <h2>Big Price</h2>
+          <Switch
+            checked={isBigPrice}
+            onCheckedChange={async(e: boolean) => {
+              await toggleKurtiBigPrice(data?.id, e);
+              setIsBigPrice(e);
+              onKurtiUpdate({ ...data, isBigPrice: e });
+            }}
+            >
+            <SwitchThumb />
+          </Switch>
+            </div>
         </div>
       ) : (
         ""
