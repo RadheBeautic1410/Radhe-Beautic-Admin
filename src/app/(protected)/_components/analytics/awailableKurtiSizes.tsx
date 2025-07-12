@@ -2,49 +2,29 @@
 
 import { useState } from "react";
 import { HashLoader } from "react-spinners";
-import { CalendarIcon } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/src/components/ui/select";
 import { Card, CardContent } from "@/src/components/ui/card";
-import { Button } from "@/src/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/src/components/ui/table";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow, } from "@/src/components/ui/table";
 
 const headerCells = [
-    {
-        name: 'Kurti Size',
-        key: 'kurti_size'
-    },
-    {
-        name: 'Available Pieces',
-        key: 'available_pieces',
-    },
-    {
-      name: 'Reserved Pieces',
-      key: 'reserved_pieces',
-  },
+  { name: "Sr. No.", key: "sr_no" },
+  { name: "Kurti Code", key: "kurti_code" },
+  { name: "Size", key: "size" },
+  { name: "Available Pieces", key: "available_pieces" },
 ];
-let arr: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
-
-
-// const MONTHS: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-// const YEARS: number[] = [];
-// const lastYear = new Date().getFullYear() + 50;
-// const currentYear = new Date().getFullYear();
-// const currentMonth = new Date().getMonth() + 1;
-
-// for (let i = 2024; i <= lastYear; i++) {
-//   YEARS.push(i);
-// }
 
 const DayAnalytics = () => {
-  // const [month, setMonth] = useState<number>(currentMonth);
-  // const [year, setYear] = useState<number>(currentYear);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedSize, setSelectedSize] = useState("All");
 
   const fetchAvailableKurtiSizes = async () => {
     const res = await fetch("/api/analytics/getAvailableKurtiSizes", {
@@ -54,88 +34,184 @@ const DayAnalytics = () => {
       },
       next: { revalidate: 300 },
     });
-
     return res.json();
   };
 
   const { isPending, isFetching, data } = useQuery({
     queryKey: ["availableKurtiSizes"],
-    queryFn: () => fetchAvailableKurtiSizes(),
+    queryFn: fetchAvailableKurtiSizes,
     placeholderData: keepPreviousData,
   });
-  
+
+  const kurtiSizeData: {
+    [code: string]: { size: string; pieces: number }[];
+  } = data?.data?.sizeDataByKurtiCode ?? {};
+
+  // Extract unique sizes
+  const allSizes = Array.from(
+    new Set(
+      Object.values(kurtiSizeData)
+        .flat()
+        .map((entry) => entry.size)
+    )
+  );
+
+  const filteredKurtiCodes = Object.keys(kurtiSizeData).filter((code) => {
+    const matchesSearch = code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSize =
+      selectedSize === "All"
+        ? true
+        : kurtiSizeData[code]?.some((entry) => entry.size === selectedSize);
+    return matchesSearch && matchesSize;
+  });
+
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(filteredKurtiCodes.length / itemsPerPage);
+  const paginatedCodes = filteredKurtiCodes.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
-    <div className="w-full max-w-lg mx-auto p-4">
-      {/* <div className="grid grid-cols-2 gap-4 mb-4">
-        <Select
-          onValueChange={(val) => setMonth(Number(val))}
-          defaultValue={month.toString()}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Month" />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTHS.map((item, index) => (
-              <SelectItem key={index} value={`${item}`}>
-                {item}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div className="w-full max-w-5xl mx-auto p-6 space-y-6">
+      <h2 className="text-2xl font-semibold text-gray-800">
+        Kurti Code Availability
+      </h2>
 
-        <Select
-          onValueChange={(val) => setYear(Number(val))}
-          defaultValue={year.toString()}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            {YEARS.map((item, index) => (
-              <SelectItem key={index} value={`${item}`}>
-                {item}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div> */}
+      {/* Search & Filter */}
+      <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
+          placeholder="Search by Kurti Code..."
+          className="border border-gray-300 rounded px-3 py-1 text-sm w-full sm:w-64"
+        />
 
-      <Card className="bg-white rounded-xl shadow-lg">
-        <CardContent className="p-6 grid grid-col-2 gap-4 text-center">
-            <Table>
+        <select
+          value={selectedSize}
+          onChange={(e) => {
+            setSelectedSize(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="border border-gray-300 rounded px-3 py-1 text-sm w-full sm:w-48"
+        >
+          <option value="All">All Sizes</option>
+          {allSizes.map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <Card className="rounded-xl border border-gray-200 shadow-lg hover:shadow-xl transition">
+        <CardContent className="p-6">
+          {isPending || isFetching ? (
+            <div className="flex justify-center py-10">
+              <HashLoader color="#36D7B7" size={35} />
+            </div>
+          ) : Object.keys(kurtiSizeData).length > 0 ? (
+            <>
+              <Table className="text-sm">
+                <TableCaption className="text-gray-500 pb-4">
+                  Overview of Kurti Codes, Sizes & Available Pieces
+                </TableCaption>
                 <TableHeader>
-                    <TableRow className='text-black'>
-                        {headerCells.map((obj) => {
-                            return (
-                                <TableHead
-                                    key={obj.key}
-                                    className="text-center font-bold text-base"
-                                >
-                                    {obj.name}
-                                </TableHead>
-                            )
-                        })}
-                    </TableRow>
+                  <TableRow className="bg-gray-100">
+                    {headerCells.map((header) => (
+                      <TableHead
+                        key={header.key}
+                        className="text-center font-semibold text-gray-700"
+                      >
+                        {header.name}
+                      </TableHead>
+                    ))}
+                  </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {data?.data && arr.map((item: any, idx: any) => {
-                        return (
-                            <TableRow key={idx+1}>
-                                <TableCell className="text-center">
-                                    {item}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    {data?.data?.availablePieceSizes[item] }
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    {data?.data?.reservedSizes[item]}
-                                </TableCell>
-                            </TableRow>
-                        )
+                  {paginatedCodes.map((code, codeIndex) => {
+                    const filteredSizes = kurtiSizeData[code].filter((entry) =>
+                      selectedSize === "All"
+                        ? true
+                        : entry.size === selectedSize
+                    );
 
-                    })}
+                    return filteredSizes.map((entry, index) => {
+                      const isFirstRow = index === 0;
+                      const srNo = (currentPage - 1) * itemsPerPage + codeIndex + 1;
+
+                      return (
+                        <TableRow
+                          key={`${code}-${entry.size}`}
+                          className="hover:bg-gray-50 border-b transition"
+                        >
+                          {isFirstRow && (
+                            <TableCell
+                              rowSpan={filteredSizes.length}
+                              className="text-center text-gray-700 align-middle font-medium"
+                            >
+                              {srNo}
+                            </TableCell>
+                          )}
+                          {isFirstRow && (
+                            <TableCell
+                              rowSpan={filteredSizes.length}
+                              className="text-center font-bold text-purple-700 align-middle"
+                            >
+                              {code}
+                            </TableCell>
+                          )}
+                          <TableCell className="text-center text-gray-800">
+                            {entry.size}
+                          </TableCell>
+                          <TableCell className="text-center text-blue-600 font-semibold">
+                            {entry.pieces}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })}
                 </TableBody>
-            </Table>
+              </Table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-center mt-4 items-center gap-4">
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                    }
+                    disabled={currentPage === 1}
+                    className="px-4 py-1 border rounded text-sm hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    Prev
+                  </button>
+
+                  <span className="text-sm font-semibold text-gray-700">
+                    Page {currentPage} of {totalPages}
+                  </span>
+
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-1 border rounded text-sm hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center text-gray-500 py-10">
+              No data available to display.
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

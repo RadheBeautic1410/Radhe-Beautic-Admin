@@ -9,7 +9,7 @@ import { getTwoFactorConfirmationByUserId } from "./data/two-factor-confirmation
 
 
 export const { handlers: { GET, POST }, auth,
-    signIn, signOut, update
+    signIn, signOut
 } = NextAuth({
 
     pages: {
@@ -33,7 +33,7 @@ export const { handlers: { GET, POST }, auth,
             // Allow OAuth without email verification
             console.log(user, account);
             if (account?.provider !== "credentials") return true;
-
+if (user?.id) {
             const existingUser = await getUserById(user.id);
             console.log(existingUser?.isVerified)
             // prevent signin without email verification
@@ -52,6 +52,7 @@ export const { handlers: { GET, POST }, auth,
                     where: { id: twoFactorConfirmation.id }
                 })
             }
+        }
             return true;
         },
 
