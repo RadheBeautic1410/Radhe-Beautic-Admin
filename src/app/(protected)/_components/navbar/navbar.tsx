@@ -36,6 +36,12 @@ const routes = [
         icon: '💰'
     },
     {
+        name: 'Sell Retailer',
+        href: '/sellRetailer',
+        role: [UserRole.ADMIN, UserRole.SELLER],
+        icon: '🏬'
+    },
+    {
         name: 'Add Stock',
         href: '/addstock',
         role: [UserRole.ADMIN],
