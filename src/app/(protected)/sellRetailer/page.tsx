@@ -57,6 +57,7 @@ function SellPage() {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [billCreatedBy, setBillCreatedBy] = useState("");
   // const [shopName, setShopName] = useState("");
+  const [paymentType, setpaymentType] = useState("");
 
   // Current product selection
   const [selectedSize, setSelectedSize] = useState("");
@@ -81,7 +82,7 @@ function SellPage() {
         setKurti(null);
       } else {
         setKurti(data.kurti);
-        setSellingPrice(data.kurti.sellingPrice);
+        setSellingPrice("");
         setSelectedSize("");
         setQuantity(1);
         toast.success("Product found!");
@@ -466,37 +467,43 @@ function SellPage() {
               })
               .join("")}
             <tr class="gst-row">
-              <td colspan="5" style="text-align: right; font-weight: bold;">Subtotal (Ex. GST):</td>
-              <td style="font-weight: bold;">₹${totalGSTBreakdown.basePrice.toFixed(2)}</td>
+              <td colspan="4" style="text-align: right; font-weight: bold;">Subtotal (Ex. GST):</td>
+              <td style="font-weight: bold;">₹${totalGSTBreakdown.basePrice.toFixed(
+                2
+              )}</td>
             </tr>
             ${
               gstType === "IGST"
                 ? `
             <tr>
-              <td colspan="5" style="text-align: right;">IGST (5%):</td>
+              <td colspan="4" style="text-align: right;">IGST (5%):</td>
               <td>₹${totalGSTBreakdown.igst.toFixed(2)}</td>
             </tr>
             `
                 : `
             <tr>
-              <td colspan="5" style="text-align: right;">SGST (2.5%):</td>
+              <td colspan="4" style="text-align: right;">SGST (2.5%):</td>
               <td>₹${totalGSTBreakdown.sgst.toFixed(2)}</td>
             </tr>
             <tr>
-              <td colspan="5" style="text-align: right;">CGST (2.5%):</td>
+              <td colspan="4" style="text-align: right;">CGST (2.5%):</td>
               <td>₹${totalGSTBreakdown.cgst.toFixed(2)}</td>
             </tr>
             `
             }
             <tr style="border-top: 2px solid #333;">
-              <td colspan="5" style="text-align: right; font-weight: bold; font-size: 18px;">Total Amount:</td>
-              <td style="font-weight: bold; font-size: 18px;">₹${totalAmount.toFixed(2)}</td>
+              <td colspan="4" style="text-align: right; font-weight: bold; font-size: 18px;">Total Amount:</td>
+              <td style="font-weight: bold; font-size: 18px;">₹${totalAmount.toFixed(
+                2
+              )}</td>
             </tr>
           </tbody>
         </table>
 
         <div class="total-section">
-          <div class="total-amount">Total Amount Payable: ₹${totalAmount.toFixed(2)}</div>
+          <div class="total-amount">Total Amount Payable: ₹${totalAmount.toFixed(
+            2
+          )}</div>
         </div>
         <div class="footer">
           <div class="thank-you">Thank you for your purchase!</div>
@@ -519,6 +526,7 @@ function SellPage() {
     setCustomerPhone("");
     setSelectedLocation("");
     setBillCreatedBy("");
+    setpaymentType("");
     // setShopName("");
     setSelectedSize("");
     setSellingPrice("");
@@ -616,6 +624,21 @@ function SellPage() {
               </select>
             </div>
             <div>
+              <Label htmlFor="payment-type">Payment Type *</Label>
+              <select
+                id="payment-type"
+                className="w-full p-2 border rounded-md"
+                value={paymentType}
+                onChange={(e) => setpaymentType(e.target.value)}
+              >
+                <option value="">Select Payment Type</option>
+                <option value="GPay">GPay</option>
+                <option value="Cash">Cash</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+              </select>
+            </div>
+
+            <div>
               <Label htmlFor="bill-by">Bill Created By *</Label>
               <Input
                 id="bill-by"
@@ -685,7 +708,7 @@ function SellPage() {
                 <p className="text-lg">Category: {kurti.category}</p>
                 <p className="text-lg">Party: {kurti.party}</p>
                 <p className="text-xl font-semibold text-green-600">
-                  MRP: ₹{kurti.sellingPrice}
+                  Code: RB{kurti.sellingPrice}
                 </p>
 
                 {/* Size Table */}

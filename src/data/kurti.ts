@@ -455,6 +455,7 @@ export const sellMultipleKurtis = async (data: any) => {
       customerPhone,
       selectedLocation,
       billCreatedBy,
+      paymentType, 
       shopName,
     } = data;
 
@@ -586,6 +587,7 @@ export const sellMultipleKurtis = async (data: any) => {
                   quantity: quantity, // Add quantity field to track multiple items
                   shopLocation: selectedLocation,
                   billCreatedBy: billCreatedBy,
+                  paymentType:paymentType, // Default to CASH if not provided
                   shopName: shopName,
                 },
               });
@@ -728,6 +730,7 @@ const processSingleSale = async (
   customerPhone: string,
   selectedLocation: string,
   billCreatedBy: string,
+  paymentType: string, 
   shopName: string
 ) => {
   try {
@@ -803,6 +806,7 @@ const processSingleSale = async (
         customerPhone,
         selledPrice: sellingPrice,
         shopLocation: selectedLocation,
+        paymentType: paymentType, 
         billCreatedBy: billCreatedBy,
         shopName: shopName,
       },

@@ -161,6 +161,7 @@ model Kurti {
   prices      Prices?       @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   CartProduct CartProduct[]
   Sell        Sell[]
+  TopSoldKurti TopSoldKurti?
 }
 
 model Sell {
@@ -181,6 +182,7 @@ model Sell {
   invoiceNumber String? // Invoice number for tracking
   quantity      Int? 
   shopName      String?
+  paymentType   String? 
   billCreatedBy  String?
    batchId       String?   // Reference to SaleBatch
    batch         SaleBatch? @relation("BatchSales", fields: [batchId], references: [id])
@@ -269,4 +271,11 @@ model OrderCounter {
   id       String @id @default(auto()) @map("_id") @db.ObjectId
   date     String @unique
   sequence Int
+}
+model TopSoldKurti {
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  kurtiId    String  @unique
+  kurti      Kurti   @relation(fields: [kurtiId], references: [id])
+  soldCount  Int
+  updatedAt  DateTime @updatedAt
 }

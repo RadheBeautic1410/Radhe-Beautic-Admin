@@ -72,6 +72,12 @@ const routes = [
         icon: '📈'
     },
     {
+        name: 'Dashboard',
+        href: '/dashboard',
+        role: [UserRole.ADMIN],
+        icon: '📊'
+    },
+    {
         name: 'Settings',
         href: '/settings',
         role: [UserRole.ADMIN, UserRole.RESELLER, UserRole.SELLER, UserRole.UPLOADER],
