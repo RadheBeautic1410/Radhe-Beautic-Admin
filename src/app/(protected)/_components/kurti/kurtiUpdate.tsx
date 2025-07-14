@@ -58,7 +58,6 @@ interface Size {
 }
 
 const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
-  console.log("🚀 ~ data:", data);
   const [sizes, setSizes] = useState<Size[]>(data?.sizes || []);
   const [components, setComponents] = useState<any[]>([]);
   const [isPending, startTransition] = useTransition();
@@ -69,7 +68,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [downloading1, setDownloading1] = useState(false);
   const [downloading2, setDownloading2] = useState(false);
   const [allCategory, setAllCategory] = useState<any[]>([]);
-  const [changedCategory, setCategory] = useState(data?.category);
+  const [changedCategory, setCategory] = useState(data?.category?.toLowerCase());
   const [uploading, setUploading] = useState(false);
   const [isBigPrice, setIsBigPrice] = useState(data?.isBigPrice || false);
 
@@ -97,13 +96,25 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
 
   const [images, setImages] = useState<any[]>([]);
   const [videos, setVideos] = useState<any[]>([]);
+  const [bigPrice, setBigPrice] = useState(0);
+  const [selectedSizes, setSelectedSizes] = useState<{
+    size: string;
+    quantity: number;
+  }[]>([]);
+  const [allSizes, setAllSizes] = useState([]);
+
+  useEffect(() => {
+    if (data?.sizes) {
+      setAllSizes(data.sizes);
+    }
+  }, [data]);
   const handleImageChange = (data: any) => {
     setImages(data);
     console.log(data);
   };
 
   const handleVideoChange = (data: any) => {
-    console.log("🚀 ~ handleVideoChange ~ data:", data)
+    console.log("🚀 ~ handleVideoChange ~ data:", data);
     setVideos(data);
     console.log(data);
   };
@@ -315,34 +326,41 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
 
   const handleCategoryChange = async () => {
     const generatedCode = await CodeGenerator();
+    console.log("🚀 ~ handleCategoryChange ~ generatedCode:", generatedCode)
     if (!generatedCode.code) {
       return;
     }
+
+    // Check if any sizes are selected
+    const isPartialMove =
+      selectedSizes.length > 0 && selectedSizes.length < allSizes.length;
+
     startTransition(() => {
       categoryChange({
         code: data?.code,
         category: changedCategory,
         newCode: generatedCode.code,
+        selectedSizes: selectedSizes, // Pass selected sizes
+        isPartialMove: isPartialMove,
+        bigPrice: bigPrice, // Pass big price if needed
       })
         .then((data: any) => {
           console.log("🚀 ~ .then ~ data:", data);
           if (data.error) {
-            // formCategory.reset();
             toast.error(data.error);
           }
           if (data.success) {
-            // formCategory.reset();
             toast.success(data.success);
-
             router.replace(
               `/catalogue/${data.category}/${data.code.toLowerCase()}`
             );
-            // setSizes(data.data);
           }
         })
         .catch(() => toast.error("Something went wrong!"));
     });
   };
+
+
   return (
     <>
       {data ? (
@@ -447,12 +465,13 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
               bgColor="destructive"
             >
               <div>
+                {console.log(changedCategory,"llllllllllllllllllllllllllllllll")}
                 <Select
                   disabled={isPending}
                   onValueChange={(val) => {
                     setCategory(val);
                   }}
-                  defaultValue={changedCategory}
+                  defaultValue={changedCategory?.toUpperCase()}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Category" />
@@ -465,12 +484,60 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* Size Selection */}
+                <div className="mt-4">
+                  <label className="text-sm font-medium mb-2 block">
+                    Select Sizes to Move (Leave empty to move all)
+                  </label>
+                  <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+                    {allSizes.map(
+                      (size: { size: string; quantity: number }) => (
+                        <label
+                          key={size.size}
+                          className="flex items-center space-x-2"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedSizes.includes(size)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedSizes([...selectedSizes, size]);
+                              } else {
+                                setSelectedSizes(
+                                  selectedSizes.filter((s) => s !== size)
+                                );
+                              }
+                            }}
+                          />
+                          <span className="text-sm">{size.size}</span>
+                        </label>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {data?.isBigPrice && !changedCategory.bigPrice && (
+                  <Input
+                    className="mt-4"
+                    placeholder="Set big price"
+                    disabled={changedCategory?.bigPrice}
+                    type="number"
+                    onChange={(e) => {
+                      setBigPrice(
+                        e.target.value ? parseFloat(e.target.value) : 0
+                      );
+                    }}
+                  />
+                )}
+
                 <Input
                   disabled
                   className="mt-1 mb-1"
                   placeholder={"Generate the code"}
                   value={generatedCode.toUpperCase()}
                 />
+
                 <Button
                   onClick={CodeGenerator}
                   disabled={generatorLoader}
@@ -484,11 +551,11 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                   Generate Code
                 </Button>
               </div>
+
               <Button
                 type="button"
                 onClick={handleCategoryChange}
                 disabled={isPending}
-                // onClick={formCategory.handleSubmit(handleSubmitCategory)}
               >
                 Save
               </Button>
@@ -533,18 +600,22 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
             </DialogDemo>
           </Button>
           <div className="flex flex-row items-center gap-4">
-          <h2>Big Price</h2>
-          <Switch
-            checked={isBigPrice}
-            onCheckedChange={async(e: boolean) => {
-              await toggleKurtiBigPrice(data?.id, e);
-              setIsBigPrice(e);
-              onKurtiUpdate({ ...data, isBigPrice: e });
-            }}
+            <h2>Big Price</h2>
+            <Switch
+              checked={isBigPrice}
+              onCheckedChange={async (e: boolean) => {
+                const res = await toggleKurtiBigPrice(data?.id, e);
+                if (!res.success) {
+                  toast.error(res.error);
+                  return;
+                }
+                setIsBigPrice(e);
+                onKurtiUpdate({ ...data, isBigPrice: e });
+              }}
             >
-            <SwitchThumb />
-          </Switch>
-            </div>
+              <SwitchThumb />
+            </Switch>
+          </div>
         </div>
       ) : (
         ""

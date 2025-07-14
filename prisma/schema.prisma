@@ -161,9 +161,10 @@ model Kurti {
   isBigPrice      Boolean  @default(false)
   bigPrice        Float?
 
-  prices      Prices?       @relation(fields: [pricesId], references: [id], onDelete: NoAction)
-  CartProduct CartProduct[]
-  Sell        Sell[]
+  prices            Prices?             @relation(fields: [pricesId], references: [id], onDelete: NoAction)
+  CartProduct       CartProduct[]
+  Sell              Sell[]
+  MovedKurtiHistory MovedKurtiHistory[]
 }
 
 model Sell {
@@ -274,4 +275,16 @@ model OrderCounter {
   id       String @id @default(auto()) @map("_id") @db.ObjectId
   date     String @unique
   sequence Int
+}
+
+model MovedKurtiHistory {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  kurtiId      String   @db.ObjectId
+  kurti        Kurti    @relation(fields: [kurtiId], references: [id], onDelete: Cascade)
+  fromCategory String
+  toCategory   String
+  oldKurtiCode String
+  newKurtiCode String
+  sizes        Json[]
+  date         DateTime @default(now())
 }
