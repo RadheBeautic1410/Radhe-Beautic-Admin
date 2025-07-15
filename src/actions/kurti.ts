@@ -642,11 +642,12 @@ export const toggleKurtiBigPrice = async (
     },
     data: {
       isBigPrice: isBigPrice,
+      bigPrice: isBigPrice ? category.bigPrice : null,
       lastUpdatedTime: currTime,
     },
   });
 
-  return { success: "Kurti Big Price Updated!", kurti: updatedKurti };
+  return { success: "Kurti Big Size Price Updated!", kurti: updatedKurti };
 };
 
 

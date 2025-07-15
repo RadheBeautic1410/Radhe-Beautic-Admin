@@ -600,7 +600,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
             </DialogDemo>
           </Button>
           <div className="flex flex-row items-center gap-4">
-            <h2>Big Price</h2>
+            <h2>Big Size Price</h2>
             <Switch
               checked={isBigPrice}
               onCheckedChange={async (e: boolean) => {

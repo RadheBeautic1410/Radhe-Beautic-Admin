@@ -26,7 +26,6 @@ import { Button } from "@/src/components/ui/button";
 import ImageUpload2 from "../upload/imageUpload2";
 import { categoryEditSchema } from "@/src/schemas";
 import { categoryUpdate } from "@/src/actions/category";
-// import { categoryUpdate } from "@/src/actions/category";
 
 interface Category {
   id: string;
@@ -37,6 +36,7 @@ interface Category {
   sellingPrice: number;
   actualPrice: number;
   image?: string;
+  bigPrice?: number; // Added bigPrice field
 }
 
 interface EditCategoryModalProps {
@@ -63,6 +63,7 @@ const EditCategoryModal = ({
       name: category.name,
       type: category.type || "",
       image: category.image || "/images/no-image.png",
+      bigPrice: category.bigPrice || undefined, // Added bigPrice default value
     },
   });
 
@@ -78,6 +79,7 @@ const EditCategoryModal = ({
         name: values.name,
         type: values.type || "",
         image: values.image,
+        bigPrice: values.bigPrice, // Include bigPrice in the update
       })
         .then((data) => {
           console.log("🚀 ~ .then ~ data:", data);
@@ -93,6 +95,7 @@ const EditCategoryModal = ({
               name: values.name,
               type: values.type || "",
               image: values.image || "/images/no-image.png",
+              bigPrice: values.bigPrice, // Include bigPrice in updated category
             };
 
             onCategoryUpdate(updatedCategory);
@@ -107,6 +110,7 @@ const EditCategoryModal = ({
                 name: values.name,
                 type: values.type || "",
                 image: values.image || "/images/no-image.png",
+                bigPrice: values.bigPrice, // Include bigPrice in updated category
               };
 
               onCategoryUpdate(updatedCategory);
@@ -124,10 +128,11 @@ const EditCategoryModal = ({
     if (newOpen) {
       setCurrentImage(category.image || "/images/no-image.png");
       form.reset({
-        id: category.name,
+        id: category.id, // Fixed: should be category.id, not category.name
         name: category.name,
         type: category.type || "",
         image: category.image || "/images/no-image.png",
+        bigPrice: category.bigPrice || undefined, // Added bigPrice reset
       });
     }
   };
@@ -163,7 +168,7 @@ const EditCategoryModal = ({
                   <FormControl>
                     <Input
                       {...field}
-                      disabled={isPending}
+                      disabled={true}
                       placeholder="Enter category name"
                     />
                   </FormControl>
@@ -192,6 +197,32 @@ const EditCategoryModal = ({
 
             <FormField
               control={form.control}
+              name="bigPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Big Price (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      disabled={isPending}
+                      placeholder="Enter big price"
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value ? parseFloat(value) : undefined);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="image"
               render={({ field }) => (
                 <FormItem>
@@ -211,12 +242,6 @@ const EditCategoryModal = ({
                             }}
                           />
                         </div>
-                        {/* <div className="flex-1">
-                          <p className="text-sm text-gray-600">Current Image</p>
-                          <p className="text-xs text-gray-400 break-all">
-                            {currentImage}
-                          </p>
-                        </div> */}
                       </div>
 
                       {/* Image Upload Component */}

@@ -616,6 +616,12 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         key={"price"}
         className="text-2xl font-semibold mt-2 mb-1"
       >{`Price - ${data.sellingPrice}/-`}</p>
+      {data.isBigPrice && data.bigPrice && (
+        <p
+          key={"bigprice"}
+          className="text-base font-semibold mb-1"
+        >{`Big Size Price - ${parseFloat(data.bigPrice) + parseFloat(data.sellingPrice)}/-`}</p>
+      )}
       <div className="flex flex-row space-evenely mb-2 gap-2">
         <Table className="border border-collapse border-red">
           <TableHeader className="border border-red text-white bg-slate-800">

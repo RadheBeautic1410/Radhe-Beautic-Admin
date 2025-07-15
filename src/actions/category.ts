@@ -118,38 +118,59 @@ export const categoryTypeUpdate = async (lowercaseName: string, newType: string)
 }
 
 export const categoryUpdate = async (
-    id: string,
-    data: categoryAddtionProps
+  id: string,
+  data: categoryAddtionProps
 ) => {
-    const user = await currentUser();
-    const role = await currentRole();
+  const user = await currentUser();
+  const role = await currentRole();
 
-    const { name, type, image } = data;
-    if (name.length === 0) {
-        return { error: "Category Can't be empty" }
-    }
-    const lowercaseName = name.toLowerCase();
+  const { name, type, image, bigPrice } = data;
 
-    const dbCategory = await getCategorybyName(lowercaseName);
-    console.log("🚀 ~ dbCategory:", dbCategory)
-    if (dbCategory && dbCategory.id !== id) {
-        return { error: "Category Already Exist" }
-    }
+  if (name.length === 0) {
+    return { error: "Category Can't be empty" };
+  }
 
-    const existingCategory = await getCategoryByID(id);
-    if (!existingCategory) {
-        return { error: "Category does not exist" }
-    }
+  const lowercaseName = name.toLowerCase();
 
-    const updatedCategory = await db.category.update({
-        where: { id: id },
-        data: {
-            normalizedLowerCase: lowercaseName,
-            name,
-            type: type.toUpperCase(),
-            image: image ?? existingCategory.image,
-        },
+  const dbCategory = await getCategorybyName(lowercaseName);
+
+  if (dbCategory && dbCategory.id !== id) {
+    return { error: "Category Already Exist" };
+  }
+
+  const existingCategory = await getCategoryByID(id);
+  if (!existingCategory) {
+    return { error: "Category does not exist" };
+  }
+
+  const result = await db.$transaction(async (prisma) => {
+    const updatedCategory = await prisma.category.update({
+      where: { id: id },
+      data: {
+        normalizedLowerCase: lowercaseName,
+        name,
+        type: type.toUpperCase(),
+        image: image ?? existingCategory.image,
+        bigPrice: bigPrice ?? existingCategory.bigPrice,
+      },
     });
 
-    return { success: "category Updated!", data: updatedCategory }
-}
+    if (bigPrice !== undefined && bigPrice !== existingCategory.bigPrice) {
+      const categoryName = updatedCategory.name;
+
+      const updatedKurtis = await prisma.kurti.updateMany({
+        where: {
+          category: categoryName,
+          isBigPrice: true,
+        },
+        data: {
+          bigPrice: bigPrice,
+        },
+      });
+    }
+
+    return updatedCategory;
+  });
+
+  return { success: "category Updated!", data: result };
+};

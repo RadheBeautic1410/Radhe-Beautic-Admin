@@ -54,6 +54,7 @@ function KurtiListPage() {
   const [isErrorInPath, setPathError] = useState(false);
   const [valid, setValid] = useState(true);
   const [kurtiData, setKurtiData] = useState<kurti[]>([]);
+  console.log("🚀 ~ KurtiListPage ~ kurtiData:", kurtiData)
   const [displayData, setDisplayData] = useState<kurti[]>([]);
 
   const pathname = usePathname();
