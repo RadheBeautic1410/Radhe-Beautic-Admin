@@ -63,54 +63,43 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     console.log('Multiple sell request data:', data);
-    
+
     // Validate required fields
     if (!data.products || !Array.isArray(data.products) || data.products.length === 0) {
       return new NextResponse(
-        JSON.stringify({ error: "Products array is required and cannot be empty" }), 
+        JSON.stringify({ error: "Products array is required and cannot be empty" }),
         { status: 400 }
       );
     }
 
     if (!data.customerName?.trim()) {
-      return new NextResponse(
-        JSON.stringify({ error: "Customer name is required" }), 
-        { status: 400 }
-      );
+      return new NextResponse(JSON.stringify({ error: "Customer name is required" }), { status: 400 });
     }
 
     if (!data.selectedLocation?.trim()) {
-      return new NextResponse(
-        JSON.stringify({ error: "Shop location is required" }), 
-        { status: 400 }
-      );
+      return new NextResponse(JSON.stringify({ error: "Shop location is required" }), { status: 400 });
     }
 
     if (!data.billCreatedBy?.trim()) {
-      return new NextResponse(
-        JSON.stringify({ error: "Bill created by is required" }), 
-        { status: 400 }
-      );
+      return new NextResponse(JSON.stringify({ error: "Bill created by is required" }), { status: 400 });
     }
 
+    if (!data.paymentType?.trim()) {
+      return new NextResponse(JSON.stringify({ error: "Payment type is required" }), { status: 400 });
+    }
+
+    // ✅ Forward all required data to sellMultipleKurtis
     const result = await sellMultipleKurtis(data);
-    
+
     if (result.error) {
-      return new NextResponse(
-        JSON.stringify({ data: result }), 
-        { status: 400 }
-      );
+      return new NextResponse(JSON.stringify({ data: result }), { status: 400 });
     }
 
-    return new NextResponse(
-      JSON.stringify({ data: result }), 
-      { status: 200 }
-    );
-    
+    return new NextResponse(JSON.stringify({ data: result }), { status: 200 });
   } catch (error: any) {
     console.error('API Error:', error);
     return new NextResponse(
-      JSON.stringify({ error: error.message || "Internal server error" }), 
+      JSON.stringify({ error: error.message || "Internal server error" }),
       { status: 500 }
     );
   }

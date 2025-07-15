@@ -238,7 +238,10 @@ function SellPage() {
         toast.error("Please enter bill created by");
         return;
       }
-
+      if (!paymentType.trim()) {
+        toast.error("Please select payment type");
+        return;
+      }
       // if (!shopName.trim()) {
       //   toast.error("Please enter shop name");
       //   return;
@@ -263,6 +266,7 @@ function SellPage() {
         customerPhone: customerPhone.trim(),
         selectedLocation: selectedLocation.trim(),
         billCreatedBy: billCreatedBy.trim(),
+        paymentType: paymentType.trim(),
         // shopName: shopName.trim(),
       });
 
