@@ -255,7 +255,7 @@ const ListPage = () => {
         <img
           src={src}
           alt={alt}
-          className="max-w-full max-h-full object-contain rounded-lg"
+          className="max-w-screen-sm max-h-[85%] object-contain rounded-lg"
         />
         <button
           onClick={onClose}
