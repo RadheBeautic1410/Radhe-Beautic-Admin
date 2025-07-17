@@ -445,6 +445,225 @@ const isSize = (str: string): boolean => {
 // };
 
 
+// export const sellMultipleKurtis = async (data: any) => {
+//   try {
+//     let {
+//       products,
+//       currentUser,
+//       currentTime,
+//       customerName,
+//       customerPhone,
+//       selectedLocation,
+//       billCreatedBy,
+//       paymentType, 
+//       shopName,
+//     } = data;
+
+//     if (!products || products.length === 0) {
+//       return { error: "No products provided" };
+//     }
+
+//     const soldProducts = [];
+//     const errors = [];
+//     let totalAmount = 0;
+
+//     // Process each product in the cart
+//     for (let i = 0; i < products.length; i++) {
+//       const product = products[i];
+//       let { code, kurti, selectedSize, quantity, sellingPrice } = product;
+
+//       try {
+//         code = code.toUpperCase();
+//         let search = code.substring(0, 7).toUpperCase();
+//         let cmp = selectedSize.toUpperCase();
+
+//         // Handle special case for CK codes
+//         if (
+//           code.toUpperCase().substring(0, 2) === "CK" &&
+//           code[2] === "0" &&
+//           isSize(code.substring(6))
+//         ) {
+//           search = code.substring(0, 6).toUpperCase();
+//         }
+
+//         console.log(`Processing product ${i + 1} - search:`, search, "size:", cmp, "quantity:", quantity);
+
+//         const kurtiFromDB = await db.kurti.findUnique({
+//           where: { code: search.toUpperCase(), isDeleted: false },
+//           include: {
+//             prices: true,
+//           },
+//         });
+
+//         if (!kurtiFromDB) {
+//           errors.push(`Product ${search} not found`);
+//           continue;
+//         }
+
+//         if (kurtiFromDB?.sizes !== undefined) {
+//           let arr: any[] = kurtiFromDB?.sizes;
+//           let newArr: any[] = [];
+//           let flag = 0;
+
+//           for (let j = 0; j < arr?.length; j++) {
+//             let obj = arr[j];
+//             if (!obj) break;
+
+//             if (obj.size === cmp) {
+//               if (obj.quantity < quantity) {
+//                 errors.push(`Insufficient stock for ${search}-${cmp}. Available: ${obj.quantity}, Requested: ${quantity}`);
+//                 flag = 0;
+//                 break;
+//               } else {
+//                 flag = 1;
+//                 obj.quantity -= quantity;
+//                 if (obj.quantity >= 0) {
+//                   newArr.push(obj);
+//                 }
+//               }
+//             } else {
+//               newArr.push(arr[j]);
+//             }
+//           }
+
+//           if (flag === 1) {
+//             try {
+//               const currTime = await getCurrTime();
+
+//               // Update kurti stock
+//               const updateUser = await db.kurti.update({
+//                 where: {
+//                   code: search,
+//                 },
+//                 data: {
+//                   sizes: newArr,
+//                   lastUpdatedTime: currTime,
+//                 },
+//                 include: {
+//                   prices: true,
+//                 },
+//               });
+
+//               // Handle prices
+//               let prices = updateUser.prices;
+//               if (!prices || !prices.actualPrice1 || !prices.sellingPrice1) {
+//                 const sellPrice = parseInt(updateUser.sellingPrice || "0");
+//                 const actualP = parseInt(updateUser.actualPrice || "0");
+
+//                 prices = await db.prices.create({
+//                   data: {
+//                     sellingPrice1: sellPrice,
+//                     sellingPrice2: sellPrice,
+//                     sellingPrice3: sellPrice,
+//                     actualPrice1: actualP,
+//                     actualPrice2: actualP,
+//                     actualPrice3: actualP,
+//                   },
+//                 });
+
+//                 await db.kurti.update({
+//                   where: {
+//                     code: updateUser.code,
+//                   },
+//                   data: {
+//                     pricesId: prices.id,
+//                   },
+//                 });
+//               }
+
+//               // Create individual sell record for each product
+//               const sell = await db.sell.create({
+//                 data: {
+//                   sellTime: currentTime,
+//                   code: search.toUpperCase(),
+//                   sellerName: currentUser.name,
+//                   kurti: [updateUser],
+//                   kurtiId: updateUser.id,
+//                   pricesId: prices.id,
+//                   kurtiSize: cmp,
+//                   customerName,
+//                   customerPhone,
+//                   selledPrice: sellingPrice,
+//                   quantity: quantity, // Add quantity field to track multiple items
+//                   shopLocation: selectedLocation,
+//                   billCreatedBy: billCreatedBy,
+//                   paymentType:paymentType, // Default to CASH if not provided
+//                   shopName: shopName,
+//                 },
+//               });
+
+//               soldProducts.push({
+//                 kurti: updateUser,
+//                 sale: sell,
+//                 size: cmp,
+//                 quantity: quantity,
+//                 unitPrice: sellingPrice,
+//                 totalPrice: sellingPrice * quantity,
+//               });
+
+//               totalAmount += sellingPrice * quantity;
+
+//               console.log(`Product ${i + 1} sold successfully:`, sell);
+
+//             } catch (e: any) {
+//               console.error(`Error during sale of product ${i + 1}:`, e.message, e.stack);
+//               errors.push(`Error selling ${search}-${cmp}: ${e.message}`);
+//             }
+//           } else if (!errors.some(err => err.includes(search))) {
+//             errors.push(`Product ${search}-${cmp} not in stock`);
+//           }
+//         }
+//       } catch (productError: any) {
+//         console.error(`Error processing product ${i + 1}:`, productError);
+//         errors.push(`Error processing product ${i + 1}: ${productError.message}`);
+//       }
+//     }
+
+//     // Check if any products were sold successfully
+//     if (soldProducts.length === 0) {
+//       return { 
+//         error: "No products could be sold. Errors: " + errors.join(", ") 
+//       };
+//     }
+
+//     // If some products failed but others succeeded, return partial success
+//     if (errors.length > 0 && soldProducts.length > 0) {
+//       return {
+//         success: "Partial sale completed",
+//         soldProducts,
+//         totalAmount,
+//         errors,
+//         customer: {
+//           name: customerName,
+//           phone: customerPhone,
+//           location: selectedLocation,
+//           billCreatedBy,
+//           shopName,
+//         },
+//         partialSale: true,
+//       };
+//     }
+
+//     // All products sold successfully
+//     return {
+//       success: "All products sold successfully",
+//       soldProducts,
+//       totalAmount,
+//       customer: {
+//         name: customerName,
+//         phone: customerPhone,
+//         location: selectedLocation,
+//         billCreatedBy,
+//         shopName,
+//       },
+//     };
+
+//   } catch (error) {
+//     console.error("Multiple sell error:", error);
+//     return { error: "Something went wrong during the sale process!" };
+//   }
+// };
+
 export const sellMultipleKurtis = async (data: any) => {
   try {
     let {
@@ -584,11 +803,27 @@ export const sellMultipleKurtis = async (data: any) => {
                   customerName,
                   customerPhone,
                   selledPrice: sellingPrice,
-                  quantity: quantity, // Add quantity field to track multiple items
+                  quantity: quantity,
                   shopLocation: selectedLocation,
                   billCreatedBy: billCreatedBy,
-                  paymentType:paymentType, // Default to CASH if not provided
+                  paymentType: paymentType,
                   shopName: shopName,
+                },
+              });
+
+              // Update or create TopSoldKurti record
+              await db.topSoldKurti.upsert({
+                where: {
+                  kurtiId: updateUser.id,
+                },
+                update: {
+                  soldCount: {
+                    increment: quantity, // Increment by the quantity sold
+                  },
+                },
+                create: {
+                  kurtiId: updateUser.id,
+                  soldCount: quantity,
                 },
               });
 

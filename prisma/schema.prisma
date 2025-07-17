@@ -277,5 +277,6 @@ model TopSoldKurti {
   kurtiId    String  @unique
   kurti      Kurti   @relation(fields: [kurtiId], references: [id])
   soldCount  Int
+   createdAt        DateTime    @default(now())
   updatedAt  DateTime @updatedAt
 }
