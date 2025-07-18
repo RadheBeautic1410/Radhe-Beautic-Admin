@@ -622,9 +622,10 @@ function SellPage() {
                 onChange={(e) => setSelectedLocation(e.target.value)}
               >
                 <option value="">Select Location</option>
-                <option value="Katargam">Katargam</option>
-                <option value="Amroli">Amroli</option>
-                <option value="Mota Varachha">Mota Varachha</option>
+                <option value="shop_316">shop_316</option>
+                <option value="shop_269">shop_269</option>
+                <option value="shop_269_UP">shop_269_UP</option>
+                <option value="shop_269_Hallsell">shop_269_Hallsell</option>
               </select>
             </div>
             <div>
