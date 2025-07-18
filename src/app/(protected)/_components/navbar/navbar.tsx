@@ -40,6 +40,12 @@ const routes = [
     role: [UserRole.ADMIN, UserRole.SELLER],
     icon: "💰",
   },
+    {
+        name: 'Sell Retailer',
+        href: '/sellRetailer',
+        role: [UserRole.ADMIN, UserRole.SELLER],
+        icon: '🏬'
+    },
   {
     name: "Add Stock",
     href: "/addstock",
@@ -70,6 +76,12 @@ const routes = [
     role: [UserRole.ADMIN],
     icon: "📈",
   },
+    {
+        name: 'Dashboard',
+        href: '/dashboard',
+        role: [UserRole.ADMIN],
+        icon: '📊'
+    },
   {
     name: "Settings",
     href: "/settings",

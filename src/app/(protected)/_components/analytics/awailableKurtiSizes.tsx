@@ -64,6 +64,13 @@ const DayAnalytics = () => {
         : kurtiSizeData[code]?.some((entry) => entry.size === selectedSize);
     return matchesSearch && matchesSize;
   });
+  const sizeQuantityMap: { [size: string]: number } = {};
+
+  Object.values(kurtiSizeData).forEach((kurtiSizes) => {
+    kurtiSizes.forEach(({ size, pieces }) => {
+      sizeQuantityMap[size] = (sizeQuantityMap[size] || 0) + pieces;
+    });
+  });
 
   const itemsPerPage = 10;
   const totalPages = Math.ceil(filteredKurtiCodes.length / itemsPerPage);
@@ -102,7 +109,7 @@ const DayAnalytics = () => {
           <option value="All">All Sizes</option>
           {allSizes.map((size) => (
             <option key={size} value={size}>
-              {size}
+              {size} ({sizeQuantityMap[size] ?? 0})
             </option>
           ))}
         </select>
@@ -142,7 +149,8 @@ const DayAnalytics = () => {
 
                     return filteredSizes.map((entry, index) => {
                       const isFirstRow = index === 0;
-                      const srNo = (currentPage - 1) * itemsPerPage + codeIndex + 1;
+                      const srNo =
+                        (currentPage - 1) * itemsPerPage + codeIndex + 1;
 
                       return (
                         <TableRow

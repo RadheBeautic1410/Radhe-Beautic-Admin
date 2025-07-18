@@ -165,6 +165,7 @@ model Kurti {
   CartProduct       CartProduct[]
   Sell              Sell[]
   MovedKurtiHistory MovedKurtiHistory[]
+  TopSoldKurti TopSoldKurti?
 }
 
 model Sell {
@@ -185,6 +186,7 @@ model Sell {
   invoiceNumber String? // Invoice number for tracking
   quantity      Int?
   shopName      String?
+  paymentType   String? 
   billCreatedBy String?
   batchId       String? // Reference to SaleBatch
   batch         SaleBatch? @relation("BatchSales", fields: [batchId], references: [id])
@@ -287,4 +289,12 @@ model MovedKurtiHistory {
   newKurtiCode String
   sizes        Json[]
   date         DateTime @default(now())
+}
+model TopSoldKurti {
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  kurtiId    String  @unique
+  kurti      Kurti   @relation(fields: [kurtiId], references: [id])
+  soldCount  Int
+   createdAt        DateTime    @default(now())
+  updatedAt  DateTime @updatedAt
 }

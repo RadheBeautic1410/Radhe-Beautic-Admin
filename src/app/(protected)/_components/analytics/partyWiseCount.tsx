@@ -33,7 +33,9 @@ export default function PartyWiseSales() {
   }, [month]);
 
   // Filtering
-  const filteredData = Object.entries(data).filter(([party]) =>
+ const filteredData = Object.entries(data)
+  .sort((a, b) => b[1] - a[1]) // Sort by count DESCENDING
+  .filter(([party]) =>
     party.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -58,30 +60,29 @@ export default function PartyWiseSales() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-  {/* Search (left side) */}
-  <input
-    type="text"
-    placeholder="Search party"
-    value={search}
-    onChange={(e) => {
-      setSearch(e.target.value);
-      setCurrentPage(1);
-    }}
-    className="p-2 border rounded w-full sm:w-1/2"
-  />
+        {/* Search (left side) */}
+        <input
+          type="text"
+          placeholder="Search party"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="p-2 border rounded w-full sm:w-1/2"
+        />
 
-  {/* Month Filter (right side) */}
-  <input
-    type="month"
-    value={month}
-    onChange={(e) => {
-      setMonth(e.target.value);
-      setCurrentPage(1);
-    }}
-    className="p-2 border rounded w-full sm:w-[180px]"
-  />
-</div>
-
+        {/* Month Filter (right side) */}
+        <input
+          type="month"
+          value={month}
+          onChange={(e) => {
+            setMonth(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="p-2 border rounded w-full sm:w-[180px]"
+        />
+      </div>
 
       {/* Loading */}
       {loading ? (
