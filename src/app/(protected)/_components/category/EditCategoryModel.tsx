@@ -51,7 +51,6 @@ const EditCategoryModal = ({
   onCategoryUpdate,
   trigger,
 }: EditCategoryModalProps) => {
-  console.log("🚀 ~ category:", category)
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [currentImage, setCurrentImage] = useState<string>(

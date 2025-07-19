@@ -903,13 +903,30 @@ const ListPage = () => {
     setDownloadLoading(true);
     try {
       const categoryKurtis = kurtiData.filter(
-        (kurti) =>
-          kurti.category.toLowerCase() === categoryName.toLowerCase() &&
-          !kurti.isDeleted
+        (kurti) => {
+          // Basic filters
+          const matchesCategory = kurti.category.toLowerCase() === categoryName.toLowerCase();
+          const notDeleted = !kurti.isDeleted;
+          
+          // Check if kurti has available sizes (not reserved)
+          const hasAvailableSizes = kurti.sizes && 
+            kurti.sizes.length > 0 && 
+            kurti.sizes.some(size => {
+              // Calculate available quantity (total - reserved)
+              // const reservedQuantity = kurti.reservedSizes
+              //   ?.find(reserved => reserved.size === size.size)?.quantity || 0;
+              // const availableQuantity = size.quantity - reservedQuantity;
+              return size.quantity > 0;
+            });
+          
+          return matchesCategory && notDeleted && hasAvailableSizes;
+        }
       );
+      
+      console.log("🚀 ~ downloadCategoryImagesAndVideos ~ categoryKurtis:", categoryKurtis);
 
       if (categoryKurtis.length === 0) {
-        toast.error("No items found in this category");
+        toast.error("No items found in this category with available sizes");
         return;
       }
 
@@ -934,7 +951,14 @@ const ListPage = () => {
           "10XL",
         ];
 
-        let sizesArray: any[] = kurti.sizes;
+        let sizesArray: any[] = kurti.sizes.filter(size => {
+          // Only include sizes that have available quantity (after reservations)
+          // const reservedQuantity = kurti.reservedSizes
+          //   ?.find(reserved => reserved.size === size.size)?.quantity || 0;
+          // const availableQuantity = size.quantity - reservedQuantity;
+          return size.quantity > 0;
+        });
+
         sizesArray.sort(
           (a, b) => selectSizes.indexOf(a.size) - selectSizes.indexOf(b.size)
         );
@@ -1223,6 +1247,7 @@ const ListPage = () => {
       setDownloadLoading(false);
     }
   };
+
 
   console.log("displayCategories", displayCategories);
 
