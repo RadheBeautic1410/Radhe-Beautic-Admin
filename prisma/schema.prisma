@@ -129,6 +129,7 @@ model Category {
   countTotal          Int     @default(0)
   isDeleted           Boolean @default(false)
   bigPrice            Float?
+  walletDiscount      Int?     @default(0)
 }
 
 model Prices {

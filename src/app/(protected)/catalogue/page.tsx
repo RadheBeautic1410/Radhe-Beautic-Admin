@@ -85,6 +85,8 @@ interface Category {
   sellingPrice: number;
   actualPrice: number;
   image?: string;
+  bigPrice?: number;
+  walletDiscount?: number;
 }
 
 interface Kurti {
@@ -1488,6 +1490,9 @@ const ListPage = () => {
                     <TableHead className="text-center font-bold text-base">
                       Price
                     </TableHead>
+                    <TableHead className="text-center font-bold text-base">
+                      Wallet Discount
+                    </TableHead>
                     <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                       <TableHead className="text-center font-bold text-base">
                         Actions
@@ -1524,11 +1529,11 @@ const ListPage = () => {
                       </TableCell>
                       <TableCell className="text-center font-bold">
                         {cat.type}
-                        <TypeEdit
+                        {/* <TypeEdit
                           categoryName={cat.name}
                           onUpdateType={handleTypeUpdate}
                           initialType={cat.type}
-                        />
+                        /> */}
                       </TableCell>
                       <RoleGateForComponent
                         allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
@@ -1542,6 +1547,9 @@ const ListPage = () => {
                       </RoleGateForComponent>
                       <TableCell className="text-center">
                         {cat.sellingPrice}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {cat.walletDiscount ||0}
                       </TableCell>
                       <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                         <TableCell className="text-center">

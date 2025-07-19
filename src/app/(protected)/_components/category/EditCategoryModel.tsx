@@ -37,6 +37,7 @@ interface Category {
   actualPrice: number;
   image?: string;
   bigPrice?: number; // Added bigPrice field
+  walletDiscount?: number;
 }
 
 interface EditCategoryModalProps {
@@ -50,6 +51,7 @@ const EditCategoryModal = ({
   onCategoryUpdate,
   trigger,
 }: EditCategoryModalProps) => {
+  console.log("🚀 ~ category:", category)
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [currentImage, setCurrentImage] = useState<string>(
@@ -63,9 +65,11 @@ const EditCategoryModal = ({
       name: category.name,
       type: category.type || "",
       image: category.image || "/images/no-image.png",
-      bigPrice: category.bigPrice || undefined, // Added bigPrice default value
+      bigPrice: category.bigPrice || undefined,
+      walletDiscount: category.walletDiscount || undefined,
     },
   });
+  
 
   const handleImageChange = (images: { url: string }[]) => {
     const newImageUrl = images[0]?.url || "/images/no-image.png";
@@ -80,6 +84,7 @@ const EditCategoryModal = ({
         type: values.type || "",
         image: values.image,
         bigPrice: values.bigPrice, // Include bigPrice in the update
+        walletDiscount: values.walletDiscount || 0,
       })
         .then((data) => {
           console.log("🚀 ~ .then ~ data:", data);
@@ -132,7 +137,8 @@ const EditCategoryModal = ({
         name: category.name,
         type: category.type || "",
         image: category.image || "/images/no-image.png",
-        bigPrice: category.bigPrice || undefined, // Added bigPrice reset
+        bigPrice: category.bigPrice || 0,
+        walletDiscount: category.walletDiscount || 0,
       });
     }
   };
@@ -146,7 +152,7 @@ const EditCategoryModal = ({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[95%] overflow-auto">
         <DialogHeader>
           <DialogTitle>Edit Category</DialogTitle>
           <DialogDescription>
@@ -214,6 +220,33 @@ const EditCategoryModal = ({
                         const value = e.target.value;
                         field.onChange(value ? parseFloat(value) : undefined);
                       }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="walletDiscount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Wallet Discount (₹)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={field.value ?? ""}
+                      disabled={isPending}
+                      placeholder="Enter flat discount in ₹"
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value
+                            ? parseFloat(e.target.value)
+                            : undefined
+                        )
+                      }
                     />
                   </FormControl>
                   <FormMessage />

@@ -133,8 +133,10 @@ export const KurtiSchema = z.object({
 
 export const categoryEditSchema = z.object({
   id: z.string(),
-  name: z.string().min(1, "Category name is required"),
+  name: z.string().min(1, "Name is required"),
   type: z.string().optional(),
   image: z.string().optional(),
-  bigPrice: z.number().positive().optional(),
+  bigPrice: z.number().optional(),
+  walletDiscount: z.number().min(0, "Discount must be zero or more").optional(), 
 });
+  
