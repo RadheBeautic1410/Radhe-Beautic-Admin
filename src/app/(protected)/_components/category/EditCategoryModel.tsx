@@ -26,7 +26,6 @@ import { Button } from "@/src/components/ui/button";
 import ImageUpload2 from "../upload/imageUpload2";
 import { categoryEditSchema } from "@/src/schemas";
 import { categoryUpdate } from "@/src/actions/category";
-// import { categoryUpdate } from "@/src/actions/category";
 
 interface Category {
   id: string;
@@ -37,6 +36,8 @@ interface Category {
   sellingPrice: number;
   actualPrice: number;
   image?: string;
+  bigPrice?: number; // Added bigPrice field
+  walletDiscount?: number;
 }
 
 interface EditCategoryModalProps {
@@ -63,8 +64,11 @@ const EditCategoryModal = ({
       name: category.name,
       type: category.type || "",
       image: category.image || "/images/no-image.png",
+      bigPrice: category.bigPrice || undefined,
+      walletDiscount: category.walletDiscount || undefined,
     },
   });
+  
 
   const handleImageChange = (images: { url: string }[]) => {
     const newImageUrl = images[0]?.url || "/images/no-image.png";
@@ -78,6 +82,8 @@ const EditCategoryModal = ({
         name: values.name,
         type: values.type || "",
         image: values.image,
+        bigPrice: values.bigPrice, // Include bigPrice in the update
+        walletDiscount: values.walletDiscount || 0,
       })
         .then((data) => {
           console.log("🚀 ~ .then ~ data:", data);
@@ -93,6 +99,7 @@ const EditCategoryModal = ({
               name: values.name,
               type: values.type || "",
               image: values.image || "/images/no-image.png",
+              bigPrice: values.bigPrice, // Include bigPrice in updated category
             };
 
             onCategoryUpdate(updatedCategory);
@@ -107,6 +114,7 @@ const EditCategoryModal = ({
                 name: values.name,
                 type: values.type || "",
                 image: values.image || "/images/no-image.png",
+                bigPrice: values.bigPrice, // Include bigPrice in updated category
               };
 
               onCategoryUpdate(updatedCategory);
@@ -124,10 +132,12 @@ const EditCategoryModal = ({
     if (newOpen) {
       setCurrentImage(category.image || "/images/no-image.png");
       form.reset({
-        id: category.name,
+        id: category.id, // Fixed: should be category.id, not category.name
         name: category.name,
         type: category.type || "",
         image: category.image || "/images/no-image.png",
+        bigPrice: category.bigPrice || 0,
+        walletDiscount: category.walletDiscount || 0,
       });
     }
   };
@@ -141,7 +151,7 @@ const EditCategoryModal = ({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[95%] overflow-auto">
         <DialogHeader>
           <DialogTitle>Edit Category</DialogTitle>
           <DialogDescription>
@@ -163,7 +173,7 @@ const EditCategoryModal = ({
                   <FormControl>
                     <Input
                       {...field}
-                      disabled={isPending}
+                      disabled={true}
                       placeholder="Enter category name"
                     />
                   </FormControl>
@@ -192,6 +202,59 @@ const EditCategoryModal = ({
 
             <FormField
               control={form.control}
+              name="bigPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Big Price (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      disabled={isPending}
+                      placeholder="Enter big price"
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value ? parseFloat(value) : undefined);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="walletDiscount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Wallet Discount (₹)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={field.value ?? ""}
+                      disabled={isPending}
+                      placeholder="Enter flat discount in ₹"
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value
+                            ? parseFloat(e.target.value)
+                            : undefined
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="image"
               render={({ field }) => (
                 <FormItem>
@@ -211,12 +274,6 @@ const EditCategoryModal = ({
                             }}
                           />
                         </div>
-                        {/* <div className="flex-1">
-                          <p className="text-sm text-gray-600">Current Image</p>
-                          <p className="text-xs text-gray-400 break-all">
-                            {currentImage}
-                          </p>
-                        </div> */}
                       </div>
 
                       {/* Image Upload Component */}

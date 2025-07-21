@@ -85,6 +85,8 @@ interface Category {
   sellingPrice: number;
   actualPrice: number;
   image?: string;
+  bigPrice?: number;
+  walletDiscount?: number;
 }
 
 interface Kurti {
@@ -232,12 +234,47 @@ const ListPage = () => {
 
   const [isPending, startTransition] = useTransition();
   const [downloadLoading, setDownloadLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // Image Modal Component
+  const ImageModal = ({
+    src,
+    alt,
+    onClose,
+  }: {
+    src: string;
+    alt: string;
+    onClose: () => void;
+  }) => (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="max-w-4xl max-h-[90vh] p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <img
+          src={src}
+          alt={alt}
+          className="max-w-screen-sm max-h-[85%] object-contain rounded-lg"
+        />
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  );
 
   const form = useForm({
     defaultValues: {
       name: "",
       type: "",
       image: "",
+      bigPrice: 0,
     },
   });
 
@@ -400,7 +437,14 @@ const ListPage = () => {
   const handleSubmitCategory = useCallback(
     (values: z.infer<typeof categoryAddSchema>) => {
       startTransition(() => {
-        categoryAddition(values)
+        categoryAddition({
+          name: values.name,
+          type: values.type,
+          image: values.image,
+          bigPrice: values.bigPrice
+            ? parseFloat(values.bigPrice?.toString())
+            : null,
+        })
           .then((data) => {
             if (data.error) {
               form.reset();
@@ -732,6 +776,7 @@ const ListPage = () => {
     handleTypeUpdate,
     handleCategoryUpdate,
     isPending,
+    setSelectedImage,
   }: {
     cat: Category;
     index: number;
@@ -740,17 +785,23 @@ const ListPage = () => {
     handleTypeUpdate: (name: string, type: string) => void;
     handleCategoryUpdate: (category: Category, originalName: string) => void;
     isPending: boolean;
+    setSelectedImage: (image: string) => void;
   }) => (
     <Card className="w-full shadow-sm border hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
+      <CardContent className="p-4 flex flex-col">
         <div className="flex-shrink-0 flex gap-3 justify-between">
-          <Link href={`/catalogue/${cat.name.toLowerCase()}`}>
+          <TableCell className="text-center">
             <img
               src={cat.image || "/images/no-image.png"}
               alt={cat.name}
-              className="w-16 h-16 object-cover rounded-lg"
+              className="w-16 h-16 shrink-0 object-cover mx-auto cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => {
+                if (cat.image && cat.image !== "") {
+                  setSelectedImage(cat.image || "/images/no-image.png");
+                }
+              }}
             />
-          </Link>
+          </TableCell>
           <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
             <div className="flex gap-1 ml-2">
               <Download
@@ -852,13 +903,30 @@ const ListPage = () => {
     setDownloadLoading(true);
     try {
       const categoryKurtis = kurtiData.filter(
-        (kurti) =>
-          kurti.category.toLowerCase() === categoryName.toLowerCase() &&
-          !kurti.isDeleted
+        (kurti) => {
+          // Basic filters
+          const matchesCategory = kurti.category.toLowerCase() === categoryName.toLowerCase();
+          const notDeleted = !kurti.isDeleted;
+          
+          // Check if kurti has available sizes (not reserved)
+          const hasAvailableSizes = kurti.sizes && 
+            kurti.sizes.length > 0 && 
+            kurti.sizes.some(size => {
+              // Calculate available quantity (total - reserved)
+              // const reservedQuantity = kurti.reservedSizes
+              //   ?.find(reserved => reserved.size === size.size)?.quantity || 0;
+              // const availableQuantity = size.quantity - reservedQuantity;
+              return size.quantity > 0;
+            });
+          
+          return matchesCategory && notDeleted && hasAvailableSizes;
+        }
       );
+      
+      console.log("🚀 ~ downloadCategoryImagesAndVideos ~ categoryKurtis:", categoryKurtis);
 
       if (categoryKurtis.length === 0) {
-        toast.error("No items found in this category");
+        toast.error("No items found in this category with available sizes");
         return;
       }
 
@@ -883,7 +951,14 @@ const ListPage = () => {
           "10XL",
         ];
 
-        let sizesArray: any[] = kurti.sizes;
+        let sizesArray: any[] = kurti.sizes.filter(size => {
+          // Only include sizes that have available quantity (after reservations)
+          // const reservedQuantity = kurti.reservedSizes
+          //   ?.find(reserved => reserved.size === size.size)?.quantity || 0;
+          // const availableQuantity = size.quantity - reservedQuantity;
+          return size.quantity > 0;
+        });
+
         sizesArray.sort(
           (a, b) => selectSizes.indexOf(a.size) - selectSizes.indexOf(b.size)
         );
@@ -1173,13 +1248,14 @@ const ListPage = () => {
     }
   };
 
+
   console.log("displayCategories", displayCategories);
 
   return (
     <Card className="sm:w-[90%]">
       <CardHeader className="flex items-center">
         <p className="text-2xl font-semibold text-center">👜 Catalogue</p>
-        <div className="ml-auto mt-7 flex items-center gap-2">
+        <div className="sm:ml-auto mt-7 flex flex-col sm:flex-row justify-center items-center gap-2">
           <Button asChild>
             <DialogDemo
               dialogTrigger="+ Add Category"
@@ -1224,6 +1300,24 @@ const ListPage = () => {
                   />
                   <FormField
                     control={form.control}
+                    name="bigPrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Big price</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            disabled={isPending}
+                            placeholder="Enter price of big size"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="image"
                     render={({ field }) => (
                       <FormItem>
@@ -1254,7 +1348,7 @@ const ListPage = () => {
           </Button>
           <Button
             type="button"
-            className="ml-2"
+            className="sm:ml-2"
             disabled={isPending}
             onClick={() => downloadCSV(categories)}
           >
@@ -1327,30 +1421,31 @@ const ListPage = () => {
           </div>
         </div>
 
-        <div className="bg-gray-50 p-4 rounded-lg mb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-sm text-gray-600">Total Items</p>
-              <p className="text-xl font-bold text-blue-600">
-                {totals.totalItems}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Total Pieces</p>
-              <p className="text-xl font-bold text-green-600">
-                {totals.totalPieces}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Total Stock Value</p>
-              <p className="text-xl font-bold text-purple-600">
-                ₹{totals.totalStockPrice.toLocaleString()}
-              </p>
+        {!isSearching && (
+          <div className="bg-gray-50 p-4 rounded-lg mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-sm text-gray-600">Total Items</p>
+                <p className="text-xl font-bold text-blue-600">
+                  {totals.totalItems}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Pieces</p>
+                <p className="text-xl font-bold text-green-600">
+                  {totals.totalPieces}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Stock Value</p>
+                <p className="text-xl font-bold text-purple-600">
+                  ₹{totals.totalStockPrice.toLocaleString()}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Results */}
         {showKurtiResults ? (
           <>
             <div className="mb-4 text-center">
@@ -1420,6 +1515,9 @@ const ListPage = () => {
                     <TableHead className="text-center font-bold text-base">
                       Price
                     </TableHead>
+                    <TableHead className="text-center font-bold text-base">
+                      Wallet Discount
+                    </TableHead>
                     <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                       <TableHead className="text-center font-bold text-base">
                         Actions
@@ -1439,24 +1537,28 @@ const ListPage = () => {
                         </Link>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Link
-                          href={`/catalogue/${cat.name.toLowerCase()}`}
-                          className="w-16 h-16 object-cover mx-auto"
-                        >
+                        <TableCell className="text-center flex">
                           <img
                             src={cat.image || "/images/no-image.png"}
                             alt={cat.name}
-                            className="w-16 h-16 object-cover mx-auto"
+                            className="w-16 h-16 shrink-0 object-cover mx-auto cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => {
+                              if (cat.image && cat.image !== "") {
+                                setSelectedImage(
+                                  cat.image || "/images/no-image.png"
+                                );
+                              }
+                            }}
                           />
-                        </Link>
+                        </TableCell>
                       </TableCell>
                       <TableCell className="text-center font-bold">
                         {cat.type}
-                        <TypeEdit
+                        {/* <TypeEdit
                           categoryName={cat.name}
                           onUpdateType={handleTypeUpdate}
                           initialType={cat.type}
-                        />
+                        /> */}
                       </TableCell>
                       <RoleGateForComponent
                         allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
@@ -1471,6 +1573,9 @@ const ListPage = () => {
                       <TableCell className="text-center">
                         {cat.sellingPrice}
                       </TableCell>
+                      <TableCell className="text-center">
+                        {cat.walletDiscount ||0}
+                      </TableCell>
                       <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                         <TableCell className="text-center">
                           <div className="flex justify-center gap-2">
@@ -1483,7 +1588,6 @@ const ListPage = () => {
                               onClick={() =>
                                 downloadCategoryImagesAndVideos(cat.name)
                               }
-                              // title="Download all images from this category"
                             />
                             <EditCategoryModal
                               category={cat}
@@ -1505,7 +1609,6 @@ const ListPage = () => {
                               }
                               dialogTitle="Delete Category"
                               dialogDescription="Delete the category"
-                              // bgColor="destructive"
                             >
                               <div>
                                 <h1>Delete Category</h1>
@@ -1541,6 +1644,7 @@ const ListPage = () => {
                   handleTypeUpdate={handleTypeUpdate}
                   handleCategoryUpdate={handleCategoryUpdate}
                   isPending={isPending}
+                  setSelectedImage={setSelectedImage}
                 />
               ))}
             </div>
@@ -1554,6 +1658,13 @@ const ListPage = () => {
               </div>
             )}
           </>
+        )}
+        {selectedImage && (
+          <ImageModal
+            src={selectedImage}
+            alt="Category Image"
+            onClose={() => setSelectedImage(null)}
+          />
         )}
       </CardContent>
     </Card>

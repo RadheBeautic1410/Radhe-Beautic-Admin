@@ -9,9 +9,6 @@ import KurtiUpdate from "../../../_components/kurti/kurtiUpdate";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import NotAllowedPage from "../../../_components/errorPages/NotAllowedPage";
 import { UserRole } from "@prisma/client";
-import { Eye, EyeOff } from "lucide-react";
-import { Button } from "@/src/components/ui/button";
-import { toast } from "sonner";
 import KurtiVideoCardSingle from "../../../_components/kurti/KurtiVideoSingle";
 
 interface kurti {

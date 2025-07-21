@@ -12,66 +12,99 @@ import { useForm } from "react-hook-form";
 import { cn } from "@/src/lib/utils";
 
 const routes = [
+  {
+    name: "Upload",
+    href: "/upload",
+    role: [UserRole.ADMIN, UserRole.UPLOADER],
+    icon: "📤",
+  },
+  //     {
+  //     name: 'New Upload',
+  //     href: '/newupload',
+  //     role: [UserRole.ADMIN, UserRole.UPLOADER]
+  // },
+  {
+    name: "Catalogue",
+    href: "/catalogue",
+    role: [
+      UserRole.ADMIN,
+      UserRole.UPLOADER,
+      UserRole.SELLER,
+      UserRole.RESELLER,
+    ],
+    icon: "📋",
+  },
+  {
+    name: "Sell",
+    href: "/sell",
+    role: [UserRole.ADMIN, UserRole.SELLER],
+    icon: "💰",
+  },
     {
-        name: 'Upload',
-        href: '/upload',
-        role: [UserRole.ADMIN, UserRole.UPLOADER],
-        icon: '📤'
-    },
-    //     {
-    //     name: 'New Upload',
-    //     href: '/newupload',
-    //     role: [UserRole.ADMIN, UserRole.UPLOADER]
-    // },
-    {
-        name: 'Catalogue',
-        href: '/catalogue',
-        role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.RESELLER],
-        icon: '📋'
-    },
-    {
-        name: 'Sell',
-        href: '/sell',
+        name: 'Sell Retailer',
+        href: '/sellRetailer',
         role: [UserRole.ADMIN, UserRole.SELLER],
-        icon: '💰'
+        icon: '🏬'
     },
+  {
+    name: "Add Stock",
+    href: "/addstock",
+    role: [UserRole.ADMIN],
+    icon: "📦",
+  },
+  {
+    name: "Request",
+    href: "/request",
+    role: [UserRole.ADMIN],
+    icon: "📝",
+  },
+  {
+    name: "Selling History",
+    href: "/sellinghistory",
+    role: [UserRole.ADMIN],
+    icon: "📊",
+  },
+  {
+    name: "Orders",
+    href: "/orders",
+    role: [UserRole.ADMIN],
+    icon: "🛒",
+  },
+  {
+    name: "Analytics",
+    href: "/analytics",
+    role: [UserRole.ADMIN],
+    icon: "📈",
+  },
     {
-        name: 'Add Stock',
-        href: '/addstock',
-        role: [UserRole.ADMIN],
-        icon: '📦'
-    },
-    {
-        name: 'Request',
-        href: '/request',
-        role: [UserRole.ADMIN],
-        icon: '📝'
-    },
-    {
-        name: 'Selling History',
-        href: '/sellinghistory',
+        name: 'Dashboard',
+        href: '/dashboard',
         role: [UserRole.ADMIN],
         icon: '📊'
     },
-    {
-        name: 'Orders',
-        href: '/orders',
-        role: [UserRole.ADMIN],
-        icon: '🛒'
-    },
-    {
-        name: 'Analytics',
-        href: '/analytics',
-        role: [UserRole.ADMIN],
-        icon: '📈'
-    },
-    {
-        name: 'Settings',
-        href: '/settings',
-        role: [UserRole.ADMIN, UserRole.RESELLER, UserRole.SELLER, UserRole.UPLOADER],
-        icon: '⚙️'
-    }
-]
+  {
+    name: "Settings",
+    href: "/settings",
+    role: [
+      UserRole.ADMIN,
+      UserRole.RESELLER,
+      UserRole.SELLER,
+      UserRole.UPLOADER,
+    ],
+    icon: "⚙️",
+  },
+  {
+    name: "History",
+    href: "/moved-history",
+    role: [
+      UserRole.ADMIN,
+      UserRole.RESELLER,
+      UserRole.SELLER,
+      UserRole.UPLOADER,
+    ],
+    icon: "📜",
+  },
+];
 
 const Sidebar = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);

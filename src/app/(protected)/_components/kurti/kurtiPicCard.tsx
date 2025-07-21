@@ -264,11 +264,11 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     let blocks: string = ``;
     let stk = ``;
     for (let i = 0; i < sizesArray.length; i++) {
-      ele.push(selectSizes.indexOf(sizesArray[i].size.toUpperCase()));
-      if (selectSizes.indexOf(sizesArray[i].size.toUpperCase()) > 0) {
-        ele.push(selectSizes.indexOf(sizesArray[i].size.toUpperCase()) - 1);
+      ele.push(selectSizes.indexOf(sizesArray[i].size?.toUpperCase()));
+      if (selectSizes.indexOf(sizesArray[i].size?.toUpperCase()) > 0) {
+        ele.push(selectSizes.indexOf(sizesArray[i].size?.toUpperCase()) - 1);
       }
-      stk += `${sizesArray[i].size.toUpperCase()} - ${
+      stk += `${sizesArray[i].size?.toUpperCase()} - ${
         sizesArray[i].quantity
       }\n`;
     }
@@ -287,7 +287,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     console.log(res.data);
     let url2 =
       process.env.NEXT_PUBLIC_SERVER_URL +
-      `/genImg2?text=${data.code.toUpperCase()}`;
+      `/genImg2?text=${data.code?.toUpperCase()}`;
     const res2 = await axios.get(url2);
 
     return { leftText: res.data, rightText: res2.data };
@@ -611,11 +611,17 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       <p
         key={"code"}
         className="font-bold"
-      >{`Code: ${data.code.toUpperCase()} (${data.images.length} Images)`}</p>
+      >{`Code: ${data.code?.toUpperCase()} (${data.images.length} Images)`}</p>
       <p
         key={"price"}
-        className="text-2xl font-semibold mt-2 mb-1"
+        className="text-base font-bold mt-2 mb-1"
       >{`Price - ${data.sellingPrice}/-`}</p>
+      {data.isBigPrice && data.bigPrice && (
+        <p
+          key={"bigprice"}
+          className="text-base font-bold mb-1"
+        >{`Big Size Price - ${parseFloat(data.bigPrice) + parseFloat(data.sellingPrice)}/-`}</p>
+      )}
       <div className="flex flex-row space-evenely mb-2 gap-2">
         <Table className="border border-collapse border-red">
           <TableHeader className="border border-red text-white bg-slate-800">
@@ -634,7 +640,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
               return (
                 <TableRow key={i}>
                   <TableCell className="border border-red">
-                    {sz.size.toUpperCase()}
+                    {sz.size?.toUpperCase()}
                   </TableCell>
                   <TableCell className="border border-red">
                     {sz.quantity}
@@ -661,7 +667,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
               return (
                 <TableRow key={i}>
                   <TableCell className="border border-red">
-                    {sz.size.toUpperCase()}
+                    {sz.size?.toUpperCase()}
                   </TableCell>
                   <TableCell className="border border-red">
                     {sz.quantity}
@@ -696,7 +702,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
               <DialogTitle>Download Options</DialogTitle>
               <DialogDescription>
                 Choose what you want to download for{" "}
-                <span className="font-bold">{data.code.toUpperCase()}</span>
+                <span className="font-bold">{data.code?.toUpperCase()}</span>
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-3 py-4">
