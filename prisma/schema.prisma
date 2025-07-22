@@ -192,7 +192,7 @@ model Sell {
   batchId       String? // Reference to SaleBatch
   batch         SaleBatch? @relation("BatchSales", fields: [batchId], references: [id])
 
-  @@map("sells")
+  @@map("Sell")
 }
 
 // If you need to create a separate table for batch sales (optional)

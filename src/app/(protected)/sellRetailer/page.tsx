@@ -258,7 +258,7 @@ function SellPage() {
         sellingPrice: item.sellingPrice,
       }));
 
-      const res = await axios.post(`/api/sell`, {
+      const res = await axios.post(`/api/sell/retailer`, {
         products,
         currentUser,
         currentTime: currentTime,
