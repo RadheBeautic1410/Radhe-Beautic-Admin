@@ -712,9 +712,17 @@ function SellPage() {
                 </p>
                 <p className="text-lg">Category: {kurti.category}</p>
                 <p className="text-lg">Party: {kurti.party}</p>
-                <p className="text-xl font-semibold text-green-600">
-                  Code: RB{kurti.sellingPrice}
+                <p className="text-lg font-semibold text-green-600">
+                  SP: RB{kurti.sellingPrice}
                 </p>
+                {
+                  kurti?.isBigPrice && (
+                 
+                <p className="text-lg font-semibold text-green-600">
+                  BSP: RB{parseInt(kurti.sellingPrice) + (kurti?.isBigPrice ? kurti?.bigPrice : 0)}
+                </p>   
+                  )
+                }
 
                 {/* Size Table */}
                 <div className="mt-4">
