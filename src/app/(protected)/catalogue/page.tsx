@@ -1004,72 +1004,81 @@ const ListPage = () => {
 
           img.onload = async () => {
             try {
-              // Create a temporary container for watermarking
-              const tempContainer = document.createElement("div");
-              tempContainer.style.position = "absolute";
-              tempContainer.style.left = "-9999px";
-              tempContainer.style.top = "-9999px";
-              document.body.appendChild(tempContainer);
+              // Store original dimensions
+              const originalWidth = img.naturalWidth;
+              const originalHeight = img.naturalHeight;
 
-              const tempImg = document.createElement("img");
-              tempImg.src = imageSrc;
-              tempImg.crossOrigin = "anonymous";
-              tempImg.width = img.width;
-              tempImg.height = img.height;
-              tempContainer.appendChild(tempImg);
-
-              // Apply watermarks
-              const watermark1 = new ImageWatermark({
-                contentType: "image",
-                image: rightText,
-                imageWidth: img.width / 10,
-                imageHeight: img.height / 27,
-                width: img.width,
-                height: img.height,
-                dom: tempImg,
-                rotate: 0,
-                globalAlpha: 1,
-                translatePlacement: "top-end",
-              });
-
-              const watermark2 = new ImageWatermark({
-                contentType: "image",
-                image: leftText,
-                imageWidth: img.width / 6,
-                imageHeight: img.height / 16,
-                width: img.width,
-                height: img.height,
-                dom: tempImg,
-                rotate: 0,
-                globalAlpha: 1,
-                translatePlacement: "top-start",
-              });
-
-              await watermark1.create();
-              await watermark2.create();
-
-              // Convert to canvas and get blob
+              // Create canvas with exact original dimensions
               const canvas = document.createElement("canvas");
               const ctx = canvas.getContext("2d");
-              canvas.width = img.width;
-              canvas.height = img.height;
+              canvas.width = originalWidth;
+              canvas.height = originalHeight;
 
-              ctx?.drawImage(tempImg, 0, 0);
+              // Draw original image first
+              ctx?.drawImage(img, 0, 0, originalWidth, originalHeight);
 
-              canvas.toBlob(
-                (blob) => {
-                  document.body.removeChild(tempContainer);
-                  if (blob) {
-                    resolve(blob);
-                  } else {
-                    reject(
-                      new Error("Failed to convert watermarked image to blob")
+              // Create watermark images
+              const rightWatermarkImg = new Image();
+              const leftWatermarkImg = new Image();
+
+              let watermarksLoaded = 0;
+              const checkWatermarksLoaded = () => {
+                watermarksLoaded++;
+                if (watermarksLoaded === 2) {
+                  // Draw watermarks on canvas
+                  if (ctx) {
+                    // Right watermark (top-right)
+                    const rightWatermarkWidth = originalWidth / 10;
+                    const rightWatermarkHeight = originalHeight / 27;
+                    ctx.drawImage(
+                      rightWatermarkImg,
+                      originalWidth - rightWatermarkWidth - 10, // 10px padding from right
+                      10, // 10px padding from top
+                      rightWatermarkWidth,
+                      rightWatermarkHeight
+                    );
+
+                    // Left watermark (top-left)
+                    const leftWatermarkWidth = originalWidth / 6;
+                    const leftWatermarkHeight = originalHeight / 16;
+                    ctx.drawImage(
+                      leftWatermarkImg,
+                      10, // 10px padding from left
+                      10, // 10px padding from top
+                      leftWatermarkWidth,
+                      leftWatermarkHeight
                     );
                   }
-                },
-                "image/jpeg",
-                0.9
-              );
+
+                  // Convert to blob with high quality
+                  canvas.toBlob(
+                    (blob) => {
+                      if (blob) {
+                        resolve(blob);
+                      } else {
+                        reject(
+                          new Error(
+                            "Failed to convert watermarked image to blob"
+                          )
+                        );
+                      }
+                    },
+                    "image/jpeg",
+                    0.95 // Higher quality
+                  );
+                }
+              };
+
+              rightWatermarkImg.onload = checkWatermarksLoaded;
+              leftWatermarkImg.onload = checkWatermarksLoaded;
+
+              rightWatermarkImg.onerror = () =>
+                reject(new Error("Failed to load right watermark"));
+              leftWatermarkImg.onerror = () =>
+                reject(new Error("Failed to load left watermark"));
+
+              rightWatermarkImg.src = rightText;
+              leftWatermarkImg.src = leftText;
             } catch (error) {
               reject(error);
             }
@@ -1079,6 +1088,7 @@ const ListPage = () => {
           img.src = imageSrc;
         });
       };
+      
 
       // Collect all media URLs with watermark data for images
       for (const kurti of categoryKurtis) {

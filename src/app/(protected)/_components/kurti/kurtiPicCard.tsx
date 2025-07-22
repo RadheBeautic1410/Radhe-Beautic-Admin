@@ -179,7 +179,21 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
 
       img.onload = async () => {
         try {
-          // Create a temporary container for watermarking
+          // Get original dimensions
+          const originalWidth = img.naturalWidth || img.width;
+          const originalHeight = img.naturalHeight || img.height;
+
+          // Create canvas with original dimensions
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+
+          canvas.width = originalWidth;
+          canvas.height = originalHeight;
+
+          // Draw original image at full resolution
+          ctx?.drawImage(img, 0, 0, originalWidth, originalHeight);
+
+          // Create temporary container for watermarking
           const tempContainer = document.createElement("div");
           tempContainer.style.position = "absolute";
           tempContainer.style.left = "-9999px";
@@ -187,64 +201,76 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
           document.body.appendChild(tempContainer);
 
           const tempImg = document.createElement("img");
-          tempImg.src = imageSrc;
-          tempImg.crossOrigin = "anonymous";
-          tempImg.width = img.width;
-          tempImg.height = img.height;
+          tempImg.src = canvas.toDataURL("image/jpeg", 1.0);
+          tempImg.width = originalWidth;
+          tempImg.height = originalHeight;
           tempContainer.appendChild(tempImg);
 
-          // Apply watermarks
-          const watermark1 = new ImageWatermark({
-            contentType: "image",
-            image: rightText,
-            imageWidth: img.width / 10,
-            imageHeight: img.height / 27,
-            width: img.width,
-            height: img.height,
-            dom: tempImg,
-            rotate: 0,
-            globalAlpha: 1,
-            translatePlacement: "top-end",
-          });
+          // Wait for temp image to load
+          tempImg.onload = async () => {
+            try {
+              // Apply watermarks with original dimensions
+              const watermark1 = new ImageWatermark({
+                contentType: "image",
+                image: rightText,
+                imageWidth: originalWidth / 10,
+                imageHeight: originalHeight / 27,
+                width: originalWidth,
+                height: originalHeight,
+                dom: tempImg,
+                rotate: 0,
+                globalAlpha: 1,
+                translatePlacement: "top-end",
+              });
 
-          const watermark2 = new ImageWatermark({
-            contentType: "image",
-            image: leftText,
-            imageWidth: img.width / 6,
-            imageHeight: img.height / 16,
-            width: img.width,
-            height: img.height,
-            dom: tempImg,
-            rotate: 0,
-            globalAlpha: 1,
-            translatePlacement: "top-start",
-          });
+              const watermark2 = new ImageWatermark({
+                contentType: "image",
+                image: leftText,
+                imageWidth: originalWidth / 6,
+                imageHeight: originalHeight / 16,
+                width: originalWidth,
+                height: originalHeight,
+                dom: tempImg,
+                rotate: 0,
+                globalAlpha: 1,
+                translatePlacement: "top-start",
+              });
 
-          await watermark1.create();
-          await watermark2.create();
+              await watermark1.create();
+              await watermark2.create();
 
-          // Convert to canvas and get blob
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
-          canvas.width = img.width;
-          canvas.height = img.height;
+              // Create final canvas with original dimensions
+              const finalCanvas = document.createElement("canvas");
+              const finalCtx = finalCanvas.getContext("2d");
+              finalCanvas.width = originalWidth;
+              finalCanvas.height = originalHeight;
 
-          ctx?.drawImage(tempImg, 0, 0);
+              finalCtx?.drawImage(tempImg, 0, 0, originalWidth, originalHeight);
 
-          canvas.toBlob(
-            (blob) => {
+              finalCanvas.toBlob(
+                (blob) => {
+                  document.body.removeChild(tempContainer);
+                  if (blob) {
+                    resolve(blob);
+                  } else {
+                    reject(
+                      new Error("Failed to convert watermarked image to blob")
+                    );
+                  }
+                },
+                "image/jpeg",
+                0.95 // Higher quality
+              );
+            } catch (error) {
               document.body.removeChild(tempContainer);
-              if (blob) {
-                resolve(blob);
-              } else {
-                reject(
-                  new Error("Failed to convert watermarked image to blob")
-                );
-              }
-            },
-            "image/jpeg",
-            0.9
-          );
+              reject(error);
+            }
+          };
+
+          tempImg.onerror = () => {
+            document.body.removeChild(tempContainer);
+            reject(new Error("Failed to load temporary image"));
+          };
         } catch (error) {
           reject(error);
         }
@@ -254,6 +280,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       img.src = imageSrc;
     });
   };
+  
 
   const findBlocks = async () => {
     let sizesArray: any[] = data.sizes;
@@ -619,7 +646,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       {data.isBigPrice && data.bigPrice && (
         <p
           key={"bigprice"}
-          className="text-base font-bold mb-1"
+          className="text-base text-[#1e40af] font-bold mb-1"
         >{`Big Size Price - ${parseFloat(data.bigPrice) + parseFloat(data.sellingPrice)}/-`}</p>
       )}
       <div className="flex flex-row space-evenely mb-2 gap-2">
