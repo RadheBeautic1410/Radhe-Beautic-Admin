@@ -529,6 +529,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     let processingToastId: string | number | undefined;
 
     try {
+      if(data.videos.length > 0) {
+
       setDownloading(true);
 
       processingToastId = toast.loading("Starting video download process...");
@@ -576,6 +578,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
 
       toast.dismiss(processingToastId);
       toast.success("All videos downloaded successfully!");
+      
+      }
     } catch (error) {
       console.error("Error downloading videos:", error);
       if (processingToastId) {
