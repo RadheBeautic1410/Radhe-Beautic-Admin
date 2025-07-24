@@ -25,7 +25,6 @@ import { Button } from "@/src/components/ui/button";
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { deleteCategory } from "@/src/actions/kurti";
 import { toast } from "sonner";
-// import SearchBar from "@mkyy/mui-search-bar";
 import KurtiPicCard from "../_components/kurti/kurtiPicCard";
 import {
   Select,
@@ -72,10 +71,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import JSZip from "jszip";
-import { ImageWatermark } from "watermark-js-plus";
 import axios from "axios";
 
-// Types
 interface Category {
   id: string;
   name: string;
@@ -158,7 +155,7 @@ const calculateCategoryStats = (kurtiData: Kurti[], categories: Category[]) => {
     totalItems += 1;
 
     const pieceCount = kurti.sizes.reduce(
-      (sum, size) => sum + (size.quantity || 0),
+      (sum, size) => sum + (size.quantity > 0 ? size.quantity : 0 || 0),
       0
     );
     category.countOfPiece += pieceCount;
@@ -902,28 +899,31 @@ const ListPage = () => {
   const downloadCategoryImagesAndVideos = async (categoryName: string) => {
     setDownloadLoading(true);
     try {
-      const categoryKurtis = kurtiData.filter(
-        (kurti) => {
-          // Basic filters
-          const matchesCategory = kurti.category.toLowerCase() === categoryName.toLowerCase();
-          const notDeleted = !kurti.isDeleted;
-          
-          // Check if kurti has available sizes (not reserved)
-          const hasAvailableSizes = kurti.sizes && 
-            kurti.sizes.length > 0 && 
-            kurti.sizes.some(size => {
-              // Calculate available quantity (total - reserved)
-              // const reservedQuantity = kurti.reservedSizes
-              //   ?.find(reserved => reserved.size === size.size)?.quantity || 0;
-              // const availableQuantity = size.quantity - reservedQuantity;
-              return size.quantity > 0;
-            });
-          
-          return matchesCategory && notDeleted && hasAvailableSizes;
-        }
+      const categoryKurtis = kurtiData.filter((kurti) => {
+        // Basic filters
+        const matchesCategory =
+          kurti.category.toLowerCase() === categoryName.toLowerCase();
+        const notDeleted = !kurti.isDeleted;
+
+        // Check if kurti has available sizes (not reserved)
+        const hasAvailableSizes =
+          kurti.sizes &&
+          kurti.sizes.length > 0 &&
+          kurti.sizes.some((size) => {
+            // Calculate available quantity (total - reserved)
+            // const reservedQuantity = kurti.reservedSizes
+            //   ?.find(reserved => reserved.size === size.size)?.quantity || 0;
+            // const availableQuantity = size.quantity - reservedQuantity;
+            return size.quantity > 0;
+          });
+
+        return matchesCategory && notDeleted && hasAvailableSizes;
+      });
+
+      console.log(
+        "🚀 ~ downloadCategoryImagesAndVideos ~ categoryKurtis:",
+        categoryKurtis
       );
-      
-      console.log("🚀 ~ downloadCategoryImagesAndVideos ~ categoryKurtis:", categoryKurtis);
 
       if (categoryKurtis.length === 0) {
         toast.error("No items found in this category with available sizes");
@@ -951,7 +951,7 @@ const ListPage = () => {
           "10XL",
         ];
 
-        let sizesArray: any[] = kurti.sizes.filter(size => {
+        let sizesArray: any[] = kurti.sizes.filter((size) => {
           // Only include sizes that have available quantity (after reservations)
           // const reservedQuantity = kurti.reservedSizes
           //   ?.find(reserved => reserved.size === size.size)?.quantity || 0;
@@ -1088,7 +1088,6 @@ const ListPage = () => {
           img.src = imageSrc;
         });
       };
-      
 
       // Collect all media URLs with watermark data for images
       for (const kurti of categoryKurtis) {
@@ -1257,7 +1256,6 @@ const ListPage = () => {
       setDownloadLoading(false);
     }
   };
-
 
   console.log("displayCategories", displayCategories);
 
@@ -1584,7 +1582,7 @@ const ListPage = () => {
                         {cat.sellingPrice}
                       </TableCell>
                       <TableCell className="text-center">
-                        {cat.walletDiscount ||0}
+                        {cat.walletDiscount || 0}
                       </TableCell>
                       <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                         <TableCell className="text-center">

@@ -26,8 +26,6 @@ import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ImageWatermark } from "watermark-js-plus";
-import NextImage from "next/image";
-import { DialogDemo } from "@/src/components/dialog-demo";
 import {
   Dialog,
   DialogContent,
@@ -37,8 +35,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/src/components/ui/dialog";
-// Import JSZip for creating zip files
-import JSZip from "jszip";
 
 interface kurti {
   id: string;
@@ -280,7 +276,6 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       img.src = imageSrc;
     });
   };
-  
 
   const findBlocks = async () => {
     let sizesArray: any[] = data.sizes;
@@ -570,10 +565,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
           link.click();
           document.body.removeChild(link);
 
-          // Clean up URL object
           URL.revokeObjectURL(url);
 
-          // Small delay between downloads to prevent browser issues
           await new Promise((resolve) => setTimeout(resolve, 500));
         } catch (error) {
           console.error(`Error processing video ${i + 1}:`, error);
@@ -647,7 +640,9 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         <p
           key={"bigprice"}
           className="text-base text-[#1e40af] font-bold mb-1"
-        >{`Big Size Price - ${parseFloat(data.bigPrice) + parseFloat(data.sellingPrice)}/-`}</p>
+        >{`Big Size Price - ${
+          parseFloat(data.bigPrice) + parseFloat(data.sellingPrice)
+        }/-`}</p>
       )}
       <div className="flex flex-row space-evenely mb-2 gap-2">
         <Table className="border border-collapse border-red">
@@ -707,7 +702,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       </div>
       <div className="flex flex-row space-evenely gap-3">
         {/* Download Options Dialog */}
-        <Dialog open={downloadDialogOpen} onOpenChange={setDownloadDialogOpen}>
+        {/* <Dialog open={downloadDialogOpen} onOpenChange={setDownloadDialogOpen}>
           <DialogTrigger asChild>
             <Button
               type="button"
@@ -777,8 +772,25 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+        </Dialog> */}
 
+        <Button
+          type="button"
+          onClick={async () => {
+            await downloadAllImagesDirectly();
+            await downloadAllVideosDirectly();
+          }}
+          variant={"outline"}
+          key={"download"}
+          disabled={downloading}
+        >
+          {downloading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4" />
+          )}
+          Download
+        </Button>
         <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
           <Link
             href={

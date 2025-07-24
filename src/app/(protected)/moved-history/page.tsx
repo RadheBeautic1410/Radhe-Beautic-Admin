@@ -1,13 +1,15 @@
 "use client";
 import { fetchMovedKurtiHistory } from "@/src/actions/kurti";
 import { JsonValue } from "@prisma/client/runtime/library";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Search,
+  X,
 } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
@@ -29,6 +31,7 @@ const MovedHistory = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageInput, setPageInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -48,6 +51,25 @@ const MovedHistory = () => {
       }
     })();
   }, []);
+
+  // Filter data based on search term
+  const filteredData = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return historyData;
+    }
+
+    const searchLower = searchTerm.toLowerCase().trim();
+    return historyData.filter(
+      (item) =>
+        item.oldKurtiCode.toLowerCase().includes(searchLower) ||
+        item.newKurtiCode.toLowerCase().includes(searchLower)
+    );
+  }, [historyData, searchTerm]);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -74,11 +96,11 @@ const MovedHistory = () => {
     );
   };
 
-  // Pagination calculations
-  const totalPages = Math.ceil(historyData.length / itemsPerPage);
+  // Pagination calculations using filtered data
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentData = historyData.slice(startIndex, endIndex);
+  const currentData = filteredData.slice(startIndex, endIndex);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -98,6 +120,10 @@ const MovedHistory = () => {
         `Please enter a valid page number between 1 and ${totalPages}`
       );
     }
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm("");
   };
 
   const getPaginationRange = () => {
@@ -140,14 +166,55 @@ const MovedHistory = () => {
     <div className="max-w-7xl mx-auto sm:p-6">
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Moved Kurti History
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Moved Kurti History
+            </h2>
+
+            {/* Search Field */}
+            <div className="relative max-w-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <Input
+                type="text"
+                placeholder="Search by kurti code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              {searchTerm && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
+
         <div className="p-6">
-          {historyData.length === 0 ? (
+          {/* Search Results Info */}
+          {searchTerm && (
+            <div className="mb-4 text-sm text-gray-600">
+              {filteredData.length === 0 ? (
+                <></>
+              ) : (
+                <span>
+                  Found {filteredData.length} result
+                  {filteredData.length !== 1 ? "s" : ""} for "{searchTerm}"
+                </span>
+              )}
+            </div>
+          )}
+
+          {filteredData.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              No moved history found
+              {searchTerm
+                ? `No results found for "${searchTerm}"`
+                : "No moved history found"}
             </div>
           ) : (
             <>
@@ -289,7 +356,7 @@ const MovedHistory = () => {
                         Page {currentPage} of {totalPages}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {historyData.length} entries
+                        {filteredData.length} entries
                       </div>
                     </div>
 
@@ -383,8 +450,10 @@ const MovedHistory = () => {
                   <div className="hidden sm:flex items-center justify-between">
                     <div className="text-sm text-gray-500">
                       Showing {startIndex + 1} to{" "}
-                      {Math.min(endIndex, historyData.length)} of{" "}
-                      {historyData.length} entries
+                      {Math.min(endIndex, filteredData.length)} of{" "}
+                      {filteredData.length} entries
+                      {searchTerm &&
+                        ` (filtered from ${historyData.length} total)`}
                     </div>
 
                     <div className="flex items-center space-x-2">
