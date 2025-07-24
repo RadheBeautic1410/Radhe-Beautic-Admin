@@ -3,13 +3,8 @@ import * as z from "zod";
 import axios from "axios";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
-import { CheckIcon, ChevronsUpDownIcon,  Loader2 } from "lucide-react";
-import {
-  useRef,
-  useState,
-  useTransition,
-  useEffect,
-} from "react";
+import { CheckIcon, ChevronsUpDownIcon, Loader2 } from "lucide-react";
+import { useRef, useState, useTransition, useEffect } from "react";
 import { Button } from "@/src/components/ui/button";
 import {
   Form,
@@ -43,7 +38,11 @@ import { AddSizeForm } from "../_components/dynamicFields/sizes";
 import DesignUpload, {
   ImageUploadRef,
 } from "../_components/upload/deisgnUpload";
-import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@radix-ui/react-popover";
 import {
   Command,
   CommandEmpty,
@@ -53,18 +52,27 @@ import {
   CommandList,
 } from "@/src/components/ui/command";
 import React from "react";
+import { v4 as uuidv4 } from "uuid";
 
 // Extended schema for bulk upload
 const BulkKurtiSchema = z.object({
-  designs: z.array(z.object({
-    images: z.array(z.any()).min(1, "At least one image required"),
-    code: z.string().min(1, "Code is required"),
-    sizes: z.array(z.object({
-      size: z.string(),
-      quantity: z.number().min(1)
-    })).min(1, "At least one size required"),
-    countOfPiece: z.number().min(1)
-  })).min(1, "At least one design required"),
+  designs: z
+    .array(
+      z.object({
+        images: z.array(z.any()).min(1, "At least one image required"),
+        code: z.string().min(1, "Code is required"),
+        sizes: z
+          .array(
+            z.object({
+              size: z.string(),
+              quantity: z.number().min(1),
+            })
+          )
+          .min(1, "At least one size required"),
+        countOfPiece: z.number().min(1),
+      })
+    )
+    .min(1, "At least one design required"),
   party: z.string().min(1, "Party is required"),
   sellingPrice: z.string().min(1, "Selling price is required"),
   actualPrice: z.string().min(1, "Actual price is required"),
@@ -104,16 +112,16 @@ const BulkUploadPage = () => {
   const [partyLoader, setPartyLoader] = useState(true);
   const [categoryLoader, setCategoryLoader] = useState(true);
   // const [category, setCategory] = useState<category[]>([]);
-    const [open, setOpen] = React.useState(false);
-    const [categories, setCategories] = React.useState<Category[]>([]);
+  const [open, setOpen] = React.useState(false);
+  const [categories, setCategories] = React.useState<Category[]>([]);
   const [images, setImages] = useState<any[]>([]);
   const [designs, setDesigns] = useState<Design[]>([]);
   const [generatorLoader, setGeneratorLoader] = useState(false);
   const [sizes, setSizes] = useState<Size[]>([]);
   const [barcodeDownloading, setBarcodeDownloading] = useState(false);
   const [bulkProcessing, setBulkProcessing] = useState(false);
-    const [openParty, setOpenParty] = React.useState(false);
-      const [parties, setParties] = React.useState<Party[]>([]);
+  const [openParty, setOpenParty] = React.useState(false);
+  const [parties, setParties] = React.useState<Party[]>([]);
   const router = useRouter();
 
   const onAddSize = (sizes: Size[]) => {
@@ -144,35 +152,44 @@ const BulkUploadPage = () => {
     try {
       const newDesigns: Design[] = [];
       const response = await fetch(
-          `/api/kurti/generateCode?cat=${categorySelected}`
-        );
-        const result = await response.json();
+        `/api/kurti/generateCode?cat=${categorySelected}`
+      );
+      const result = await response.json();
       // Process each image as a separate design
       // Extract prefix and number from result.code
-const match = result.code.match(/^([A-Z]+)(\d+)$/);
-if (!match) {
-  throw new Error("Invalid code format from API");
-}
-const prefix = match[1];           // e.g., 'CR'
-let codeNumber = parseInt(match[2]); // e.g., 70011
+      const match = result.code.match(/^([A-Z]+)(\d+)$/);
+      if (!match) {
+        throw new Error("Invalid code format from API");
+      }
+      const prefix = match[1]; // e.g., 'CR'
+      let codeNumber = parseInt(match[2]); // e.g., 70011
 
-for (let i = 0; i < images.length; i++) {
-  // Calculate total pieces for this design
-  let totalPieces = 0;
-  sizes.forEach(size => {
-    totalPieces += size.quantity;
-  });
+      const imagesWithIds = images.map((image) => ({
+        url: image.url,
+        id: uuidv4(),
+        is_hidden: false,
+        path: image.path,
+      }));
 
-  // Generate new code with increment
-  const newCode = `${prefix}${(codeNumber + i).toString().padStart(5, '0')}`;
+      for (let i = 0; i < imagesWithIds.length; i++) {
+        // Calculate total pieces for this design
+        let totalPieces = 0;
+        sizes.forEach((size) => {
+          totalPieces += size.quantity;
+        });
 
-  newDesigns.push({
-    images: [images[i]], // Each design gets one image
-    code: newCode,
-    sizes: [...sizes], // Copy of sizes for each design
-    countOfPiece: totalPieces
-  });
-}
+        // Generate new code with increment
+        const newCode = `${prefix}${(codeNumber + i)
+          .toString()
+          .padStart(5, "0")}`;
+
+        newDesigns.push({
+          images: [imagesWithIds[i]], // Each design gets one image
+          code: newCode,
+          sizes: [...sizes], // Copy of sizes for each design
+          countOfPiece: totalPieces,
+        });
+      }
 
       setDesigns(newDesigns);
       toast.success(`Generated ${newDesigns.length} designs successfully!`);
@@ -185,99 +202,90 @@ for (let i = 0; i < images.length; i++) {
     }
   };
 
-
-
-
-
-
-const handleBulkBarcodeDownload = async () => {
-  if (designs.length === 0) {
-    toast.error("No designs to generate barcodes!");
-    return;
-  }
-
-  try {
-    setBarcodeDownloading(true);
-
-    for (const design of designs) {
-      if (!design.sizes || design.sizes.length === 0 || !design.code) {
-        console.warn("Skipping invalid design", design);
-        continue;
-      }
-
-      const obj = JSON.stringify(design.sizes);
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${design.code}`,
-        {
-          responseType: "blob",
-        }
-      );
-
-      const blob = res.data;
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${design.code}.pdf`; // unique filename per design
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+  const handleBulkBarcodeDownload = async () => {
+    if (designs.length === 0) {
+      toast.error("No designs to generate barcodes!");
+      return;
     }
 
-    toast.success("All barcode PDFs downloaded!");
-  } catch (e: any) {
-    console.error("Error downloading barcodes:", e.message);
-    toast.error("Something went wrong while downloading barcodes.");
-  } finally {
-    setBarcodeDownloading(false);
-  }
-};
+    try {
+      setBarcodeDownloading(true);
 
+      for (const design of designs) {
+        if (!design.sizes || design.sizes.length === 0 || !design.code) {
+          console.warn("Skipping invalid design", design);
+          continue;
+        }
 
+        const obj = JSON.stringify(design.sizes);
+        const res = await axios.get(
+          `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${design.code}`,
+          {
+            responseType: "blob",
+          }
+        );
 
+        const blob = res.data;
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${design.code}.pdf`; // unique filename per design
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
 
-
+      toast.success("All barcode PDFs downloaded!");
+    } catch (e: any) {
+      console.error("Error downloading barcodes:", e.message);
+      toast.error("Something went wrong while downloading barcodes.");
+    } finally {
+      setBarcodeDownloading(false);
+    }
+  };
 
   // Handle bulk barcode download
-//   const handleBulkBarcodeDownload = async () => {
-//     if (designs.length === 0) {
-//       toast.error("No designs to download barcodes for");
-//       return;
-//     }
+  //   const handleBulkBarcodeDownload = async () => {
+  //     if (designs.length === 0) {
+  //       toast.error("No designs to download barcodes for");
+  //       return;
+  //     }
 
-//     setBarcodeDownloading(true);
-//     try {
-//       // Create bulk barcode data
-//       const barcodeData = designs.map(design => ({
-//         id: design.code,
-//         sizes: design.sizes
-//       }));
+  //     setBarcodeDownloading(true);
+  //     try {
+  //       // Create bulk barcode data
+  //       const barcodeData = designs.map(design => ({
+  //         id: design.code,
+  //         sizes: design.sizes
+  //       }));
 
-//       const res = await axios.get(
-//         `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-bulk-pdf?data=${JSON.stringify(barcodeData)}`,
-//         {
-//           responseType: "blob",
-//         }
-//       );
+  //       const res = await axios.get(
+  //         `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-bulk-pdf?data=${JSON.stringify(barcodeData)}`,
+  //         {
+  //           responseType: "blob",
+  //         }
+  //       );
 
-//       const blob = res.data;
-//       const url = window.URL.createObjectURL(blob);
-//       const a = document.createElement("a");
-//       a.href = url;
-//       a.download = `bulk-barcodes-${new Date().getTime()}.pdf`;
-//       document.body.appendChild(a);
-//       a.click();
-//       a.remove();
-//       window.URL.revokeObjectURL(url);
-//     } catch (e: any) {
-//       console.log(e.message);
-//       toast.error("Failed to download barcodes");
-//     } finally {
-//       setBarcodeDownloading(false);
-//     }
-//   };
+  //       const blob = res.data;
+  //       const url = window.URL.createObjectURL(blob);
+  //       const a = document.createElement("a");
+  //       a.href = url;
+  //       a.download = `bulk-barcodes-${new Date().getTime()}.pdf`;
+  //       document.body.appendChild(a);
+  //       a.click();
+  //       a.remove();
+  //       window.URL.revokeObjectURL(url);
+  //     } catch (e: any) {
+  //       console.log(e.message);
+  //       toast.error("Failed to download barcodes");
+  //     } finally {
+  //       setBarcodeDownloading(false);
+  //     }
+  //   };
 
   const handleImageChange = (data: any) => {
+    console.log("🚀 ~ handleImageChange ~ data:", data);
     setImages([...data]);
     // Reset designs when images change
     setDesigns([]);
@@ -299,14 +307,14 @@ const handleBulkBarcodeDownload = async () => {
             // const sortedParty = (result || []).sort((a: party, b: party) =>
             //   a.name.localeCompare(b.name)
             // );
-            
-                      if (data.data) {
-            let result = [...party, data.data]; // create a new array
-            const sortedParty = result.sort((a: party, b: party) =>
-              a.name.localeCompare(b.name)
-            );
-            setParty(sortedParty);
-          }
+
+            if (data.data) {
+              let result = [...party, data.data]; // create a new array
+              const sortedParty = result.sort((a: party, b: party) =>
+                a.name.localeCompare(b.name)
+              );
+              setParty(sortedParty);
+            }
           }
         })
         .catch(() => toast.error("Something went wrong!"));
@@ -325,7 +333,7 @@ const handleBulkBarcodeDownload = async () => {
 
     try {
       // Submit each design individually
-      const promises = designs.map(design => {
+      const promises = designs.map((design) => {
         const designData = {
           images: design.images,
           sizes: design.sizes,
@@ -340,9 +348,9 @@ const handleBulkBarcodeDownload = async () => {
       });
 
       const results = await Promise.all(promises);
-      
+
       // Check if all submissions were successful
-      const successful = results.filter(result => result.success).length;
+      const successful = results.filter((result) => result.success).length;
       const failed = results.length - successful;
 
       if (successful > 0) {
@@ -350,10 +358,10 @@ const handleBulkBarcodeDownload = async () => {
         if (failed > 0) {
           toast.error(`${failed} designs failed to upload`);
         }
-        
+
         // Download barcodes for successful uploads
         await handleBulkBarcodeDownload();
-        
+
         // Reset form
         form.reset();
         setSizes([]);
@@ -373,7 +381,7 @@ const handleBulkBarcodeDownload = async () => {
       setBulkProcessing(false);
     }
   };
-    React.useEffect(() => {
+  React.useEffect(() => {
     const fetchParties = async () => {
       try {
         const res = await fetch("/api/party");
@@ -391,16 +399,15 @@ const handleBulkBarcodeDownload = async () => {
       } catch (err) {
         console.error("Failed to fetch parties", err);
         setParties([]);
-      }finally {
+      } finally {
         setPartyLoader(false);
       }
-
     };
 
     fetchParties();
   }, []);
 
-   React.useEffect(() => {
+  React.useEffect(() => {
     const fetchCategories = async () => {
       try {
         const res = await fetch("/api/category");
@@ -419,8 +426,7 @@ const handleBulkBarcodeDownload = async () => {
       } catch (err) {
         console.error("Failed to load categories", err);
         setCategories([]);
-      }
-       finally {
+      } finally {
         setCategoryLoader(false);
       }
     };
@@ -495,61 +501,60 @@ const handleBulkBarcodeDownload = async () => {
                             ))}
                           </SelectContent>
                         </Select> */}
-                                                  <Popover open={open} onOpenChange={setOpen}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                className="w-full justify-between"
-                              >
-                                {field.value
-                                  ? categories.find(
-                                      (c) =>
-                                        c.normalizedLowerCase === field.value
-                                    )?.name || "Select category"
-                                  : "Select category"}
-                                <ChevronsUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-60 overflow-y-auto">
-                              <Command>
-                                <CommandInput placeholder="Search category..." />
-                                <CommandEmpty>No category found.</CommandEmpty>
-                                <CommandGroup>
-                                  <CommandList>
-                                    {categories.map((category, idx) => (
-                                      <CommandItem
-                                        key={idx}
-                                        value={category.name}
-                                        onSelect={(currentValue) => {
-                                          const selected = categories.find(
-                                            (c) => c.name === currentValue
+                        <Popover open={open} onOpenChange={setOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className="w-full justify-between"
+                            >
+                              {field.value
+                                ? categories.find(
+                                    (c) => c.normalizedLowerCase === field.value
+                                  )?.name || "Select category"
+                                : "Select category"}
+                              <ChevronsUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-60 overflow-y-auto">
+                            <Command>
+                              <CommandInput placeholder="Search category..." />
+                              <CommandEmpty>No category found.</CommandEmpty>
+                              <CommandGroup>
+                                <CommandList>
+                                  {categories.map((category, idx) => (
+                                    <CommandItem
+                                      key={idx}
+                                      value={category.name}
+                                      onSelect={(currentValue) => {
+                                        const selected = categories.find(
+                                          (c) => c.name === currentValue
+                                        );
+                                        if (selected)
+                                          field.onChange(
+                                            selected.normalizedLowerCase
                                           );
-                                          if (selected)
-                                            field.onChange(
-                                              selected.normalizedLowerCase
-                                            );
-                                          setOpen(false);
-                                        }}
-                                      >
-                                        <CheckIcon
-                                          className={`mr-2 h-4 w-4 ${
-                                            field.value ===
-                                            category.normalizedLowerCase
-                                              ? "opacity-100"
-                                              : "opacity-0"
-                                          }`}
-                                        />
-                                        <span className="truncate">
-                                          {category.name}
-                                        </span>
-                                      </CommandItem>
-                                    ))}
-                                  </CommandList>
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
+                                        setOpen(false);
+                                      }}
+                                    >
+                                      <CheckIcon
+                                        className={`mr-2 h-4 w-4 ${
+                                          field.value ===
+                                          category.normalizedLowerCase
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        }`}
+                                      />
+                                      <span className="truncate">
+                                        {category.name}
+                                      </span>
+                                    </CommandItem>
+                                  ))}
+                                </CommandList>
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -581,7 +586,7 @@ const handleBulkBarcodeDownload = async () => {
                               ))}
                             </SelectContent>
                           </Select> */}
-                                                    <Popover open={openParty} onOpenChange={setOpenParty}>
+                          <Popover open={openParty} onOpenChange={setOpenParty}>
                             <PopoverTrigger asChild>
                               <Button
                                 variant="outline"
@@ -685,7 +690,11 @@ const handleBulkBarcodeDownload = async () => {
                       <FormItem className="w-[30%]">
                         <FormLabel>Actual Price</FormLabel>
                         <FormControl>
-                          <Input {...field} disabled={isPending} type="number" />
+                          <Input
+                            {...field}
+                            disabled={isPending}
+                            type="number"
+                          />
                         </FormControl>
                         <FormDescription>
                           Enter Actual Price per Piece.
@@ -702,7 +711,11 @@ const handleBulkBarcodeDownload = async () => {
                       <FormItem className="w-[30%]">
                         <FormLabel>Sell Price</FormLabel>
                         <FormControl>
-                          <Input {...field} disabled={isPending} type="number" />
+                          <Input
+                            {...field}
+                            disabled={isPending}
+                            type="number"
+                          />
                         </FormControl>
                         <FormDescription>
                           Enter Selling Price per Piece.
@@ -760,7 +773,10 @@ const handleBulkBarcodeDownload = async () => {
                                   Pieces: {design.countOfPiece}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  Sizes: {design.sizes.map(s => `${s.size}(${s.quantity})`).join(', ')}
+                                  Sizes:{" "}
+                                  {design.sizes
+                                    .map((s) => `${s.size}(${s.quantity})`)
+                                    .join(", ")}
                                 </p>
                               </div>
                             </div>
