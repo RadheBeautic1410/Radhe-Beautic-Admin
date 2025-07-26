@@ -813,6 +813,18 @@ const ListPage = () => {
                 onClick={() => downloadCategoryImagesAndVideos(cat.name)}
                 // title="Download all images from this category"
               />
+              <FileDownIcon
+                role="button"
+                size={20}
+                className={`text-blue-600 cursor-pointer hover:text-blue-800 ${
+                  isGenerating && "pointer-events-none"
+                }`}
+                onClick={async () => {
+                  if (cat.code) {
+                    handleGeneratePDF(cat.code);
+                  }
+                }}
+              />
               <EditCategoryModal
                 category={cat}
                 onCategoryUpdate={(updatedCat) => {
@@ -1651,7 +1663,6 @@ const ListPage = () => {
                                 isGenerating && "pointer-events-none"
                               }`}
                               onClick={async () => {
-                                console.log(cat);
                                 if (cat.code) {
                                   handleGeneratePDF(cat.code);
                                 }
