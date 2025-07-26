@@ -64,6 +64,7 @@ import {
   ChevronRight,
   Download,
   Edit,
+  FileDownIcon,
   Package,
   Pencil,
   ShoppingBag,
@@ -1267,6 +1268,8 @@ const ListPage = () => {
 
     setIsGenerating(true);
 
+    let pdfGenerateTost = toast.loading("Generating PDF...");
+
     try {
       const result = await generateCategoryPDF(categoryCode);
 
@@ -1299,6 +1302,7 @@ const ListPage = () => {
       alert("An error occurred while generating the PDF");
     } finally {
       setIsGenerating(false);
+      toast.dismiss(pdfGenerateTost);
     }
   };
 
@@ -1640,10 +1644,10 @@ const ListPage = () => {
                                 downloadCategoryImagesAndVideos(cat.name)
                               }
                             />
-                            <Download
+                            <FileDownIcon
                               role="button"
                               size={20}
-                              className={`text-green-600 cursor-pointer hover:text-green-800 ${
+                              className={`text-blue-600 cursor-pointer hover:text-blue-800 ${
                                 isGenerating && "pointer-events-none"
                               }`}
                               onClick={async () => {
