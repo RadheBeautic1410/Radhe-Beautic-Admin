@@ -157,13 +157,14 @@ const BulkUploadPage = () => {
       const result = await response.json();
       // Process each image as a separate design
       // Extract prefix and number from result.code
-      const match = result.code.match(/^([A-Z]+)(\d+)$/);
-      if (!match) {
-        throw new Error("Invalid code format from API");
-      }
-      const prefix = match[1]; // e.g., 'CR'
-      let codeNumber = parseInt(match[2]); // e.g., 70011
-
+      // const match = result.code.match(/^([A-Z]+)(\d+)$/);
+      // if (!match) {
+      //   throw new Error("Invalid code format from API");
+      // }
+      // const prefix = match[1]; // e.g., 'CR'
+      // let codeNumber = parseInt(match[2]); // e.g., 70011
+      const prefix = result.code.substring(0, 2); // First 2 characters
+      const codeNumber = result.code.substring(2);
       const imagesWithIds = images.map((image) => ({
         url: image.url,
         id: uuidv4(),

@@ -54,7 +54,7 @@ import {
 } from "@/src/components/ui/form";
 import { Input } from "@/src/components/ui/input";
 import { categoryAddSchema } from "@/src/schemas";
-import { categoryAddition } from "@/src/actions/category";
+import { categoryAddition, generateCategoryPDF } from "@/src/actions/category";
 import { z } from "zod";
 import ImageUpload2 from "../_components/upload/imageUpload2";
 import EditCategoryModal from "../_components/category/EditCategoryModel";
@@ -64,6 +64,7 @@ import {
   ChevronRight,
   Download,
   Edit,
+  FileDownIcon,
   Package,
   Pencil,
   ShoppingBag,
@@ -84,6 +85,7 @@ interface Category {
   image?: string;
   bigPrice?: number;
   walletDiscount?: number;
+  code?: string;
 }
 
 interface Kurti {
@@ -232,6 +234,7 @@ const ListPage = () => {
   const [isPending, startTransition] = useTransition();
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Image Modal Component
   const ImageModal = ({
@@ -810,6 +813,18 @@ const ListPage = () => {
                 onClick={() => downloadCategoryImagesAndVideos(cat.name)}
                 // title="Download all images from this category"
               />
+              <FileDownIcon
+                role="button"
+                size={20}
+                className={`text-blue-600 cursor-pointer hover:text-blue-800 ${
+                  isGenerating && "pointer-events-none"
+                }`}
+                onClick={async () => {
+                  if (cat.code) {
+                    handleGeneratePDF(cat.code);
+                  }
+                }}
+              />
               <EditCategoryModal
                 category={cat}
                 onCategoryUpdate={(updatedCat) => {
@@ -1257,7 +1272,51 @@ const ListPage = () => {
     }
   };
 
-  console.log("displayCategories", displayCategories);
+  const handleGeneratePDF = async (categoryCode: string) => {
+    if (!categoryCode.trim()) {
+      alert("Please enter a category code");
+      return;
+    }
+
+    setIsGenerating(true);
+
+    let pdfGenerateTost = toast.loading("Generating PDF...");
+
+    try {
+      const result = await generateCategoryPDF(categoryCode);
+
+      if (result.success && result.pdfData) {
+        // Create blob from base64 data
+        const binaryString = atob(result.pdfData);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const blob = new Blob([bytes], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+
+        // Create download link
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = result.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Clean up
+        URL.revokeObjectURL(url);
+      } else {
+        alert(result.error || "Failed to generate PDF");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("An error occurred while generating the PDF");
+    } finally {
+      setIsGenerating(false);
+      toast.dismiss(pdfGenerateTost);
+    }
+  };
 
   return (
     <Card className="sm:w-[90%]">
@@ -1596,6 +1655,18 @@ const ListPage = () => {
                               onClick={() =>
                                 downloadCategoryImagesAndVideos(cat.name)
                               }
+                            />
+                            <FileDownIcon
+                              role="button"
+                              size={20}
+                              className={`text-blue-600 cursor-pointer hover:text-blue-800 ${
+                                isGenerating && "pointer-events-none"
+                              }`}
+                              onClick={async () => {
+                                if (cat.code) {
+                                  handleGeneratePDF(cat.code);
+                                }
+                              }}
                             />
                             <EditCategoryModal
                               category={cat}
