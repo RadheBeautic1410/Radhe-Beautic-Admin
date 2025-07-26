@@ -10,6 +10,9 @@ import {
   getCategoryByID,
   getCategorybyName,
 } from "../data/category";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+
 
 interface partyAddtionProps {
   name: string;
@@ -176,3 +179,197 @@ export const categoryUpdate = async (
 
   return { success: "category Updated!", data: result };
 };
+
+export async function generateCategoryPDF(categoryCode: string) {
+  try {
+    const category = await db.category.findUnique({
+      where: { code: categoryCode?.toUpperCase() },
+    });
+    console.log("🚀 ~ generateCategoryPDF ~ category:", category)
+
+    if (!category) {
+      throw new Error("Category not found");
+    }
+
+    const kurtis = await db.kurti.findMany({
+      where: {
+        category: category.name?.toLowerCase(),
+        isDeleted: false,
+      },
+      select: {
+        code: true,
+        category: true,
+        sizes: true,
+      },
+    });
+
+    // Generate PDF buffer
+    const pdfBuffer = await generatePDFBuffer(kurtis, category.name);
+
+    // Convert buffer to base64 for client-side download
+    const base64PDF = pdfBuffer.toString("base64");
+
+    return {
+      success: true,
+      pdfData: base64PDF,
+      filename: `${categoryCode}_inventory_${
+        new Date().toISOString().split("T")[0]
+      }.pdf`,
+    };
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to generate PDF",
+    };
+  }
+}
+
+async function generatePDFBuffer(
+  kurtis: any[],
+  categoryName: string
+): Promise<Buffer> {
+  try {
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    const title = `Kurti Stock Report - ${categoryName}`;
+    const titleWidth = doc.getTextWidth(title);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    doc.text(title, (pageWidth - titleWidth) / 2, 20);
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const dateText = `Generated on: ${new Date().toLocaleString()}`;
+    const dateWidth = doc.getTextWidth(dateText);
+    doc.text(dateText, (pageWidth - dateWidth) / 2, 30);
+
+    const tableData: string[][] = [];
+
+    for (const kurti of kurtis) {
+      const sizes = Array.isArray(kurti.sizes) ? kurti.sizes : [];
+
+      if (sizes.length === 0) {
+        tableData.push([
+          kurti.code || "",
+          kurti.category || "",
+          "-",
+          "0",
+          "", // Checkbox symbol
+        ]);
+      } else {
+        for (const sizeData of sizes) {
+          tableData.push([
+            kurti.code || "",
+            kurti.category || "",
+            sizeData.size || "-",
+            (sizeData.quantity || 0).toString(),
+            "",
+          ]);
+        }
+      }
+    }
+
+    autoTable(doc, {
+      startY: 40,
+      head: [["Kurti Code", "Category", "Size", "Stock Qty", "Store Qty"]],
+      body: tableData,
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        overflow: "linebreak",
+      },
+      headStyles: {
+        fillColor: [74, 85, 104],
+        textColor: [255, 255, 255],
+        fontSize: 10,
+        fontStyle: "bold",
+        halign: "center",
+      },
+      columnStyles: {
+        0: { halign: "center" },
+        1: { halign: "center" },
+        2: { halign: "center" },
+        3: { halign: "center" },
+        4: { halign: "center" },
+      },
+      alternateRowStyles: {
+        fillColor: [247, 250, 252], // Light gray for alternate rows
+      },
+      tableLineColor: [226, 232, 240],
+      tableLineWidth: 0.5,
+      margin: { left: 15, right: 15 },
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+
+    // Add background rectangle for total
+    doc.setFillColor(226, 232, 240);
+    doc.rect(15, finalY - 5, pageWidth - 30, 15, "F");
+
+    // Add total text
+    const totalText = `Total Items: ${kurtis.length}`;
+    const totalWidth = doc.getTextWidth(totalText);
+    doc.text(totalText, (pageWidth - totalWidth) / 2, finalY + 5);
+
+    // Add footer with page numbers
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(
+        `Page ${i} of ${pageCount}`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: "center" }
+      );
+    }
+
+    const pdfArrayBuffer = doc.output("arraybuffer");
+    return Buffer.from(pdfArrayBuffer);
+  } catch (error) {
+    console.error("PDF generation error:", error);
+    throw error;
+  }
+}
+
+export async function downloadPDF(categoryCode: string) {
+  const result = await generateCategoryPDF(categoryCode);
+
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+
+  return {
+    base64: result.pdfData,
+    filename: result.filename,
+    mimeType: "application/pdf",
+  };
+}
+
+export async function generateMultipleCategoryPDFs(categoryCodes: string[]) {
+  const results = [];
+
+  for (const categoryCode of categoryCodes) {
+    try {
+      const result = await generateCategoryPDF(categoryCode);
+      results.push({ categoryCode, ...result });
+    } catch (error) {
+      results.push({
+        categoryCode,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  return results;
+}
