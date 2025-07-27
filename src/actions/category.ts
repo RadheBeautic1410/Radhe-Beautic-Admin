@@ -193,7 +193,7 @@ export async function generateCategoryPDF(categoryCode: string) {
 
     const kurtis = await db.kurti.findMany({
       where: {
-        category: category.name?.toLowerCase(),
+        category: category.name,
         isDeleted: false,
       },
       select: {
