@@ -127,9 +127,12 @@ model Category {
   type                String?
   image               String?
   countTotal          Int     @default(0)
+  totalItems          Int     @default(0)
   isDeleted           Boolean @default(false)
   bigPrice            Float?
   walletDiscount      Int?     @default(0)
+  sellingPrice        Float?
+  actualPrice         Float?
 }
 
 model Prices {

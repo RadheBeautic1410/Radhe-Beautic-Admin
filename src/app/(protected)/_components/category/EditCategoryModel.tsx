@@ -32,7 +32,8 @@ interface Category {
   name: string;
   count: number;
   type: string;
-  countOfPiece: number;
+  countTotal: number;
+  totalItems: number;
   sellingPrice: number;
   actualPrice: number;
   image?: string;

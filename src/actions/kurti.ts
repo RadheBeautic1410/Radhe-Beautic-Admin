@@ -218,7 +218,6 @@ export const categoryChange = async (data: any) => {
     let newKurti;
 
     if (isPartialMove && selectedSizes.length > 0) {
-
       const selectedSizesSet = selectedSizes.map((s: any) =>
         s.size.toUpperCase()
       );
@@ -632,7 +631,7 @@ export const toggleKurtiBigPrice = async (
     return {
       success: false,
       error: "Category has no big price, please set it first.",
-      code:"NO_BIG_PRICE",
+      code: "NO_BIG_PRICE",
     };
   }
 
@@ -650,7 +649,6 @@ export const toggleKurtiBigPrice = async (
   return { success: "Kurti Big Size Price Updated!", kurti: updatedKurti };
 };
 
-
 export const fetchMovedKurtiHistory = async () => {
   try {
     const movedKurtis = await db.movedKurtiHistory.findMany({});
@@ -664,4 +662,24 @@ export const fetchMovedKurtiHistory = async () => {
       error: error.message,
     };
   }
-}
+};
+
+export const fetchKurtiByCategory = async (category: string) => {
+  try {
+    const kurties = await db.kurti.findMany({
+      where: {
+        category: category,
+      },
+    });
+
+    return {
+      data: kurties,
+    };
+  } catch (error) {
+    console.log("🚀 ~ fetchKurtiByCategory ~ error:", error);
+
+    return {
+      data: [],
+    };
+  }
+};

@@ -185,7 +185,6 @@ export async function generateCategoryPDF(categoryCode: string) {
     const category = await db.category.findUnique({
       where: { code: categoryCode?.toUpperCase() },
     });
-    console.log("🚀 ~ generateCategoryPDF ~ category:", category)
 
     if (!category) {
       throw new Error("Category not found");
