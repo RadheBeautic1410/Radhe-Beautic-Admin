@@ -1160,108 +1160,110 @@ const ListPage = () => {
     return <div style={{ color: "red" }}>{catError || kurtiError}</div>;
 
   return (
-    <Card className="sm:w-[90%]">
-      <CardHeader className="flex items-center">
-        <p className="text-2xl font-semibold text-center">👜 Catalogue</p>
-        <div className="sm:ml-auto mt-7 flex flex-col sm:flex-row justify-center items-center gap-2">
-          <Button asChild>
-            <DialogDemo
-              dialogTrigger="+ Add Category"
-              dialogTitle="New Category Addition"
-              dialogDescription="Give category name and click add category"
+    <Card className="rounded-none">
+      <CardHeader className="flex py-3">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+          <p className="text-2xl font-semibold text-center">👜 Catalogue</p>
+          <div>
+            <Button asChild>
+              <DialogDemo
+                dialogTrigger="+ Add Category"
+                dialogTitle="New Category Addition"
+                dialogDescription="Give category name and click add category"
+              >
+                <Form {...form}>
+                  <form className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              disabled={isPending}
+                              placeholder="Enter category name"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Type</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              disabled={isPending}
+                              placeholder="Enter category type"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="bigPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Big price</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              disabled={isPending}
+                              placeholder="Enter price of big size"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="image"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Image</FormLabel>
+                          <FormControl>
+                            <ImageUpload2
+                              images={[field.value]}
+                              singleFile
+                              onImageChange={(data) => {
+                                field.onChange(data[0]?.url || "");
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="button"
+                      disabled={isPending}
+                      onClick={form.handleSubmit(handleSubmitCategory)}
+                    >
+                      Add Category
+                    </Button>
+                  </form>
+                </Form>
+              </DialogDemo>
+            </Button>
+            <Button
+              type="button"
+              className="sm:ml-2"
+              disabled={isGenerating}
+              onClick={() => downloadCSV()}
             >
-              <Form {...form}>
-                <form className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            disabled={isPending}
-                            placeholder="Enter category name"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Type</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            disabled={isPending}
-                            placeholder="Enter category type"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="bigPrice"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Big price</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            {...field}
-                            disabled={isPending}
-                            placeholder="Enter price of big size"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="image"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Image</FormLabel>
-                        <FormControl>
-                          <ImageUpload2
-                            images={[field.value]}
-                            singleFile
-                            onImageChange={(data) => {
-                              field.onChange(data[0]?.url || "");
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="button"
-                    disabled={isPending}
-                    onClick={form.handleSubmit(handleSubmitCategory)}
-                  >
-                    Add Category
-                  </Button>
-                </form>
-              </Form>
-            </DialogDemo>
-          </Button>
-          <Button
-            type="button"
-            className="sm:ml-2"
-            disabled={isGenerating}
-            onClick={() => downloadCSV()}
-          >
-            Download CSV
-          </Button>
+              Download CSV
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -1330,23 +1332,23 @@ const ListPage = () => {
         </div>
 
         {!isSearching && (
-          <div className="bg-gray-50 p-4 rounded-lg mb-4">
+          <div className="bg-gray-200 px-4 py-1 rounded-lg">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-sm text-gray-600">Total Items</p>
-                <p className="text-xl font-bold text-blue-600">
+              <div className="flex items-center gap-5">
+                <p className="text-sm text-gray-600">Total Items:</p>
+                <p className="text-base font-bold text-blue-600">
                   {categoryStates.totalItems}
                 </p>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Pieces</p>
-                <p className="text-xl font-bold text-green-600">
+              <div className="flex items-center gap-5">
+                <p className="text-sm text-gray-600">Total Pieces:</p>
+                <p className="text-base font-bold text-green-600">
                   {categoryStates.totalPices}
                 </p>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Stock Value</p>
-                <p className="text-xl font-bold text-purple-600">
+              <div className="flex items-center gap-5">
+                <p className="text-sm text-gray-600">Total Stock Value:</p>
+                <p className="text-base font-bold text-purple-600">
                   ₹{categoryStates.totalStockPrice.toLocaleString()}
                 </p>
               </div>
@@ -1365,13 +1367,13 @@ const ListPage = () => {
           <>
             {showKurtiResults ? (
               <>
-                <div className="mb-4 text-center">
+                {/* <div className="mb-4 text-center">
                   <p className="text-sm text-gray-600">
                     Showing {kurtiList.length} of {kurtiPagination?.total}{" "}
                     designs
                     {searchValue && ` for "${searchValue}"`}
                   </p>
-                </div>
+                </div> */}
                 <CardContent className="w-full flex flex-row justify-center flex-wrap gap-3">
                   {kurtiList.map((data, i) => (
                     <KurtiPicCard
@@ -1394,13 +1396,13 @@ const ListPage = () => {
               </>
             ) : (
               <>
-                <div className="mb-4 text-center">
+                {/* <div className="mb-4 text-center">
                   <p className="text-sm text-gray-600">
                     Showing {categoryList.length} of {categoryPagination?.total}{" "}
                     categories
                     {searchValue && ` for "${searchValue}"`}
                   </p>
-                </div>
+                </div> */}
                 <div className="flex-col gap-2 hidden sm:flex">
                   <Table>
                     <TableCaption>List of all categories</TableCaption>

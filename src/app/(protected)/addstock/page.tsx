@@ -51,7 +51,7 @@ function StockAddPage() {
     }
 
     return (
-      <Card className="w-[90%]">
+      <Card className="w-full h-full rounded-none">
         <CardHeader>
           <p className="text-2xl font-semibold text-center">🛒 Add Stock</p>
         </CardHeader>

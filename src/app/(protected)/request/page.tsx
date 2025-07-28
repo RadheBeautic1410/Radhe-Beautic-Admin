@@ -106,94 +106,104 @@ const ModeratorPage = () => {
 
 
     return (
-        <>
-            <PageLoader loading={loadingUsers} />
-            <RoleGate allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
-                <Card className="w-[90%]">
-                    <CardHeader className="bg-secondary rounded-xl">
-                        <div className="flex flex-row justify-between items-center ">
-                            <div className='flex sm:gap-x-2 max-sm:flex-col max-sm:gap-y-3'>
-                                <Button
-                                    asChild
-                                    className="cursor-pointer"
-                                    variant={tabNum === 0 ? "default" : "outline"}
-                                    onClick={() => {
-                                        if (tabNum !== 0) {
-                                            setTabNum(0);
-                                        }
-                                    }}
-                                >
-                                    <a>🧑‍💼 Staff Members</a>
-                                </Button>
-                                <Button
-                                    asChild
-                                    className="cursor-pointer"
-                                    variant={tabNum === 1 ? "default" : "outline"}
-                                    onClick={() => {
-                                        if (tabNum !== 1) {
-                                            setTabNum(1);
-                                        }
-                                    }}
-                                >
-                                    <a>🧑‍💻 Customers</a>
-                                </Button>
-                            </div>
-                            <Button
-                                asChild
-                                className="cursor-pointer mt-1"
-                                variant={"outline"}
-                                onClick={() => {
-                                    setTabNum(0);
-                                    setLoadingUsers(true);
-                                }}
-                            >
-                                <Link href='/request'>⟳ Refresh Page</Link>
-                            </Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableCaption>End of list</TableCaption>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="text-center">Name</TableHead>
-                                    <TableHead className="text-center">Phone Number</TableHead>
-                                    {/* <TableHead className="text-center">Organization</TableHead> */}
-                                    <TableHead className="text-center">Verified</TableHead>
-                                    <TableHead className="text-center">Role</TableHead>
-                                    <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
-                                        <TableHead className="text-center">Verified By</TableHead>
-                                    </RoleGateForComponent>
-                                    {/* <TableHead className="text-center">Action</TableHead> */}
-                                    <TableHead className="text-center">Action</TableHead>
-
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {tabNum === 0 ?
-                                    <>
-                                        {users.map((user) => (
-                                            user.role !== UserRole.MOD &&
-                                            (<ModeratorRow key={user.id} userData={user} onUpdateUserData={updateUserData} />)
-                                        ))}
-                                    </>
-                                    :
-                                    <>
-                                        {customers.map((user) => (
-                                            user.role !== UserRole.MOD &&
-                                            (<CustomerRow key={user.id} userData={user} onUpdateUserData={updateUserData} />)
-                                        ))}
-                                    </>
-                                }
-
-                            </TableBody>
-
-                        </Table>
-                    </CardContent>
-                </Card>
-
-            </RoleGate>
-        </>
+      <>
+        <PageLoader loading={loadingUsers} />
+        <RoleGate allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+          <Card className="rounded-none w-full h-full">
+            <CardHeader className="bg-secondary rounded-xl">
+              <div className="flex flex-row justify-between items-center ">
+                <div className="flex sm:gap-x-2 max-sm:flex-col max-sm:gap-y-3">
+                  <Button
+                    asChild
+                    className="cursor-pointer"
+                    variant={tabNum === 0 ? "default" : "outline"}
+                    onClick={() => {
+                      if (tabNum !== 0) {
+                        setTabNum(0);
+                      }
+                    }}
+                  >
+                    <a>🧑‍💼 Staff Members</a>
+                  </Button>
+                  <Button
+                    asChild
+                    className="cursor-pointer"
+                    variant={tabNum === 1 ? "default" : "outline"}
+                    onClick={() => {
+                      if (tabNum !== 1) {
+                        setTabNum(1);
+                      }
+                    }}
+                  >
+                    <a>🧑‍💻 Customers</a>
+                  </Button>
+                </div>
+                <Button
+                  asChild
+                  className="cursor-pointer mt-1"
+                  variant={"outline"}
+                  onClick={() => {
+                    setTabNum(0);
+                    setLoadingUsers(true);
+                  }}
+                >
+                  <Link href="/request">⟳ Refresh Page</Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableCaption>End of list</TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-center">Name</TableHead>
+                    <TableHead className="text-center">Phone Number</TableHead>
+                    {/* <TableHead className="text-center">Organization</TableHead> */}
+                    <TableHead className="text-center">Verified</TableHead>
+                    <TableHead className="text-center">Role</TableHead>
+                    <RoleGateForComponent
+                      allowedRole={[UserRole.ADMIN, UserRole.MOD]}
+                    >
+                      <TableHead className="text-center">Verified By</TableHead>
+                    </RoleGateForComponent>
+                    {/* <TableHead className="text-center">Action</TableHead> */}
+                    <TableHead className="text-center">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tabNum === 0 ? (
+                    <>
+                      {users.map(
+                        (user) =>
+                          user.role !== UserRole.MOD && (
+                            <ModeratorRow
+                              key={user.id}
+                              userData={user}
+                              onUpdateUserData={updateUserData}
+                            />
+                          )
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {customers.map(
+                        (user) =>
+                          user.role !== UserRole.MOD && (
+                            <CustomerRow
+                              key={user.id}
+                              userData={user}
+                              onUpdateUserData={updateUserData}
+                            />
+                          )
+                      )}
+                    </>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </RoleGate>
+      </>
     );
 };
 

@@ -68,7 +68,7 @@ function OneKurtiPage() {
   return (
     <>
       <PageLoader loading={loader} />
-      <Card className="w-[90%]">
+      <Card className="rounded-none w-full h-full">
         <CardHeader className="font-bold">
           <p className="text-2xl font-semibold text-center">
             {`👗 KURTI - ${paths[3].toUpperCase()}`}

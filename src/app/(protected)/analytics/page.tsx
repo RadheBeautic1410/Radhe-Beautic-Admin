@@ -54,7 +54,7 @@ const AnalyticsPage = () => {
 
     return (
         <>
-            <Card className="w-[100%] ">
+            <Card className="w-[100%] rounded-none">
                 <DayAnalytics />
                 <MonthAnalytics />
                 {/* <YearAnalytics /> */}

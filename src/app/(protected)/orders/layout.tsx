@@ -62,7 +62,7 @@ const OrdersLayout = ({ children }: ProtectedLayoutProps) => {
     return (
         <InvalidateContext.Provider value={invalidateQueries}>
 
-            <Card className="w-[90%] mx-auto shadow-lg">
+            <Card className="w-full h-full rounded-none">
                 <CardContent className="p-2 ">
                     {/* Mobile View */}
                     <div className="md:hidden">
