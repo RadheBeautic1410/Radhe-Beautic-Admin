@@ -341,7 +341,7 @@ const BulkUploadPage = () => {
           party: formValues.party,
           sellingPrice: formValues.sellingPrice,
           actualPrice: formValues.actualPrice,
-          category: formValues.category,
+          category: formValues.category?.toUpperCase(),
           code: design.code,
           countOfPiece: design.countOfPiece,
         };

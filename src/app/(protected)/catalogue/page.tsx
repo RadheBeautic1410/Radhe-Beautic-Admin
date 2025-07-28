@@ -1,6 +1,10 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { categoryAddition, generateCategoryPDF } from "@/src/actions/category";
+import {
+  categoryAddition,
+  generateCategoryPDF,
+  getCategoryOverallStates,
+} from "@/src/actions/category";
 import { deleteCategory, fetchKurtiByCategory } from "@/src/actions/kurti";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
@@ -38,7 +42,7 @@ import {
   Trash2,
   TrendingUp,
 } from "lucide-react";
-import React, { useCallback, useState, useTransition } from "react";
+import React, { useCallback, useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -141,6 +145,17 @@ const ListPage = () => {
   const usingDesignSearch = searchType === SEARCH_TYPES.DESIGN;
 
   const debounceSeaerchValue = useDebounce(searchValue, 400);
+
+  useEffect(() => {
+    (async () => {
+      const res = await getCategoryOverallStates();
+      setCategoryStates({
+        totalItems: res.totalItems,
+        totalPices: res.totalPices,
+        totalStockPrice: res.totalStockPrice,
+      });
+    })();
+  }, []);
 
   const {
     data: kurtiList,
@@ -1314,30 +1329,30 @@ const ListPage = () => {
           </div>
         </div>
 
-        {/* {!isSearching && (
+        {!isSearching && (
           <div className="bg-gray-50 p-4 rounded-lg mb-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
               <div>
                 <p className="text-sm text-gray-600">Total Items</p>
                 <p className="text-xl font-bold text-blue-600">
-                  {totals.totalItems}
+                  {categoryStates.totalItems}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Pieces</p>
                 <p className="text-xl font-bold text-green-600">
-                  {totals.totalPieces}
+                  {categoryStates.totalPices}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Stock Value</p>
                 <p className="text-xl font-bold text-purple-600">
-                  ₹{totals.totalStockPrice.toLocaleString()}
+                  ₹{categoryStates.totalStockPrice.toLocaleString()}
                 </p>
               </div>
             </div>
           </div>
-        )} */}
+        )}
         {catLoading || kurtiLoading ? (
           <div className="flex items-center justify-center w-full h-96">
             <HashLoader

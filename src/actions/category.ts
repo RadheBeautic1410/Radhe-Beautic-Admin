@@ -13,7 +13,6 @@ import {
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
-
 interface partyAddtionProps {
   name: string;
 }
@@ -135,7 +134,7 @@ export const categoryUpdate = async (
   }
 
   const lowercaseName = name.toLowerCase();
-
+ 
   const dbCategory = await getCategorybyName(lowercaseName);
 
   if (dbCategory && dbCategory.id !== id) {
@@ -372,3 +371,41 @@ export async function generateMultipleCategoryPDFs(categoryCodes: string[]) {
 
   return results;
 }
+
+export const getCategoryOverallStates = async () => {
+  try {
+    const categories = await db.category.findMany({
+      where: {
+        isDeleted: false,
+      },
+    });
+
+    let totalItems = 0;
+    let totalPices = 0;
+    let totalStockPrice = 0;
+
+    for (let index = 0; index < categories.length; index++) {
+      const item = categories[index];
+      totalItems = totalItems + item.totalItems;
+      totalPices = totalPices + item.countTotal;
+      if (item.actualPrice && item.countTotal && item.totalItems) {
+        totalStockPrice =
+          totalStockPrice +
+          item?.totalItems * item.actualPrice;
+      }
+    }
+
+    return {
+      totalItems,
+      totalPices,
+      totalStockPrice,
+    };
+  } catch (error) {
+    console.error("Error fetching states:", error);
+   return {
+     totalItems:0,
+     totalPices:0,
+     totalStockPrice:0,
+   };
+  }
+};
