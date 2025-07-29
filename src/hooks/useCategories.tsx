@@ -13,6 +13,7 @@ interface Category {
   bigPrice?: number;
   walletDiscount?: number;
   code?: string;
+  isStockReady: boolean;
 }
 interface CategoriesPaginationMeta {
   page: number;
