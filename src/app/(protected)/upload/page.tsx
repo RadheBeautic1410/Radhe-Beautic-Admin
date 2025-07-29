@@ -163,8 +163,8 @@ const BulkUploadPage = () => {
       // }
       // const prefix = match[1]; // e.g., 'CR'
       // let codeNumber = parseInt(match[2]); // e.g., 70011
-      const prefix = result.code.substring(0, 2); // First 2 characters
-      const codeNumber = result.code.substring(2);
+      const prefix = result.code.substring(0, 3); // First 2 characters
+      const codeNumber = result.code.substring(3);
       const imagesWithIds = images.map((image) => ({
         url: image.url,
         id: uuidv4(),
@@ -180,9 +180,9 @@ const BulkUploadPage = () => {
         });
 
         // Generate new code with increment
-        const newCode = `${prefix}${(codeNumber + i)
+        const newCode = `${prefix}${(parseInt(codeNumber) + i)
           .toString()
-          .padStart(5, "0")}`;
+          .padStart(4, "0")}`;
 
         newDesigns.push({
           images: [imagesWithIds[i]], // Each design gets one image
