@@ -453,7 +453,6 @@ export const clearStockData = async (categoryCode: string) => {
         code: categoryCode,
       },
       data: {
-        totalItems: 0,
         countTotal: 0,
         isStockReady: false,
       },

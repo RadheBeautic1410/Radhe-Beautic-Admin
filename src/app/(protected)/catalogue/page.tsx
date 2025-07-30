@@ -1057,7 +1057,7 @@ const ListPage = () => {
         setCategoryData(
           categoryList.map((cat) =>
             cat.name.toLowerCase() === categoryCode.toLowerCase()
-              ? { ...cat, countTotal: 0, totalItems: 0, isStockReady: false }
+              ? { ...cat, countTotal: 0, isStockReady: false }
               : cat
           )
         );
