@@ -71,7 +71,6 @@ import {
 import { SearchBar } from "@/src/components/Searchbar";
 import KurtiPicCard from "../_components/kurti/kurtiPicCard";
 import { HashLoader } from "react-spinners";
-import { debounce } from "lodash";
 import { useDebounce } from "@/src/hooks/useDebounce";
 
 interface Category {
@@ -221,6 +220,7 @@ const ListPage = () => {
       type: "",
       image: "",
       bigPrice: 0,
+      price:0
     },
   });
 
@@ -286,6 +286,7 @@ const ListPage = () => {
           name: values.name,
           type: values.type,
           image: values.image,
+          price: values.price,
           bigPrice: values.bigPrice
             ? parseFloat(values.bigPrice?.toString())
             : null,
@@ -1200,6 +1201,24 @@ const ListPage = () => {
                             {...field}
                             disabled={isPending}
                             placeholder="Enter category type"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Price</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            disabled={isPending}
+                            placeholder="Enter price"
                           />
                         </FormControl>
                         <FormMessage />

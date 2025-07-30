@@ -53,6 +53,7 @@ import {
 } from "@/src/components/ui/command";
 import React from "react";
 import { v4 as uuidv4 } from "uuid";
+import { updateTotalItem,updateTotalPiece } from "@/src/actions/category";
 
 // Extended schema for bulk upload
 const BulkKurtiSchema = z.object({
@@ -163,8 +164,8 @@ const BulkUploadPage = () => {
       // }
       // const prefix = match[1]; // e.g., 'CR'
       // let codeNumber = parseInt(match[2]); // e.g., 70011
-      const prefix = result.code.substring(0, 2); // First 2 characters
-      const codeNumber = result.code.substring(2);
+      const prefix = result.code.substring(0, 3); // First 2 characters
+      const codeNumber = result.code.substring(3);
       const imagesWithIds = images.map((image) => ({
         url: image.url,
         id: uuidv4(),
@@ -180,9 +181,9 @@ const BulkUploadPage = () => {
         });
 
         // Generate new code with increment
-        const newCode = `${prefix}${(codeNumber + i)
+        const newCode = `${prefix}${(parseInt(codeNumber) + i)
           .toString()
-          .padStart(5, "0")}`;
+          .padStart(4, "0")}`;
 
         newDesigns.push({
           images: [imagesWithIds[i]], // Each design gets one image
@@ -349,7 +350,15 @@ const BulkUploadPage = () => {
       });
 
       const results = await Promise.all(promises);
-
+      const updateCountInCategory = updateTotalItem(
+        formValues.category?.toUpperCase(),
+        designs.length
+      )
+      const totalCountOfPiece = designs.reduce((sum, design) => sum + (design.countOfPiece || 0), 0);
+       const updateTotalPieceInCategory = updateTotalPiece(
+        formValues.category?.toUpperCase(),
+        totalCountOfPiece - designs.length
+      )
       // Check if all submissions were successful
       const successful = results.filter((result) => result.success).length;
       const failed = results.length - successful;
@@ -411,7 +420,11 @@ const BulkUploadPage = () => {
   React.useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await fetch("/api/category");
+         const query = new URLSearchParams({
+           page: "1",
+           limit: "500",
+         })
+        const res = await fetch(`/api/category?${query.toString()}`);
         const json = await res.json();
 
         if (Array.isArray(json.data)) {
