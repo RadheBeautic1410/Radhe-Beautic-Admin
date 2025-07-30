@@ -21,6 +21,7 @@ interface categoryAddtionProps {
   name: string;
   type: string;
   image?: string;
+  price?: number | null;
   bigPrice?: number | null;
   walletDiscount?: number;
 }
@@ -29,7 +30,7 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
   const user = await currentUser();
   const role = await currentRole();
 
-  const { name, type, image, bigPrice } = data;
+  const { name, type, image, bigPrice, price } = data;
   if (name.length === 0) {
     return { error: "Category Can't be empty" };
   }
@@ -80,6 +81,7 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
       code,
       type: type.toUpperCase(),
       image: image || "",
+      sellingPrice: price || null,
       bigPrice: bigPrice || null,
     },
   });
@@ -106,6 +108,31 @@ export const categoryDelete = async (id: string) => {
   return { success: "Deletion Success!", deletedCategory };
 };
 
+export const updateTotalItem = async (code: string, total: number) => {
+  console.log("code and total ---------------",code, total);
+  const result = await db.category.update({
+    where: { code: code },
+    data: {
+      totalItems: {
+        increment: total, // adds 'total' to the current totalItem value
+      },
+    },
+  });
+  return { success: "Update Done!", result };
+};
+
+export const updateTotalPiece = async (code: string, total: number) => {
+  console.log("code and total in piece---------------",code, total);
+  const result = await db.category.update({
+    where: { code: code },
+    data: {
+      countTotal: {
+        increment: total, // adds 'total' to the current totalItem value
+      },
+    },
+  });
+  return { success: "Update Done!", result };
+};
 export const categoryTypeUpdate = async (
   lowercaseName: string,
   newType: string
