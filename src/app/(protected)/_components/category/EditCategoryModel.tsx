@@ -39,6 +39,7 @@ interface Category {
   image?: string;
   bigPrice?: number; // Added bigPrice field
   walletDiscount?: number;
+  isStockReady: boolean;
 }
 
 interface EditCategoryModalProps {
@@ -69,7 +70,6 @@ const EditCategoryModal = ({
       walletDiscount: category.walletDiscount || undefined,
     },
   });
-  
 
   const handleImageChange = (images: { url: string }[]) => {
     const newImageUrl = images[0]?.url || "/images/no-image.png";

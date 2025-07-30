@@ -133,6 +133,7 @@ model Category {
   walletDiscount      Int?     @default(0)
   sellingPrice        Float?
   actualPrice         Float?
+  isStockReady        Boolean  @default(true)
 }
 
 model Prices {

@@ -161,7 +161,7 @@ export const categoryUpdate = async (
   }
 
   const lowercaseName = name.toLowerCase();
- 
+
   const dbCategory = await getCategorybyName(lowercaseName);
 
   if (dbCategory && dbCategory.id !== id) {
@@ -416,9 +416,7 @@ export const getCategoryOverallStates = async () => {
       totalItems = totalItems + item.totalItems;
       totalPices = totalPices + item.countTotal;
       if (item.actualPrice && item.countTotal && item.totalItems) {
-        totalStockPrice =
-          totalStockPrice +
-          item?.totalItems * item.actualPrice;
+        totalStockPrice = totalStockPrice + item?.totalItems * item.actualPrice;
       }
     }
 
@@ -429,10 +427,116 @@ export const getCategoryOverallStates = async () => {
     };
   } catch (error) {
     console.error("Error fetching states:", error);
-   return {
-     totalItems:0,
-     totalPices:0,
-     totalStockPrice:0,
-   };
+    return {
+      totalItems: 0,
+      totalPices: 0,
+      totalStockPrice: 0,
+    };
   }
 };
+
+export const clearStockData = async (categoryCode: string) => {
+  try {
+    const category = await db.category.findUnique({
+      where: {
+        code: categoryCode,
+      },
+    });
+
+    if (!category) {
+      return {
+        success: false,
+        error: "Category not found",
+      };
+    }
+
+    const kurtis = await db.kurti.findMany({
+      where: {
+        category: category.name,
+        isDeleted: false,
+      },
+    });
+    if (kurtis.length === 0) {
+      return {
+        success: false,
+        error: "No kurtis found in this category",
+      };
+    }
+
+    await db.kurti.updateMany({
+      where: {
+        category: category.name,
+      },
+      data: {
+        sizes: [],
+        countOfPiece: 0,
+        reservedSizes: [],
+        lastUpdatedTime: new Date(),
+      },
+    });
+
+    await db.category.update({
+      where: {
+        code: categoryCode,
+      },
+      data: {
+        countTotal: 0,
+        isStockReady: false,
+      },
+    });
+    return {
+      success: true,
+      message: "Stock cleared successfully",
+    };
+  } catch (error) {
+    console.error("Error fetching category data:", error);
+    return {
+      success: false,
+      error: "Failed to fetch category data",
+    };
+  }
+};
+
+export const setStockReady = async (categoryCode: string) => {
+  try {
+    const category = await db.category.findUnique({
+      where: {
+        code: categoryCode,
+      },
+    });
+
+    if (!category) {
+      return {
+        success: false,
+        error: "Category not found",
+      };
+    }
+
+    if (category.isStockReady) {
+      return {
+        success: false,
+        error: "Stock is already marked as ready",
+      };
+    }
+
+    await db.category.update({
+      where: {
+        code: categoryCode,
+      },
+      data: {
+        isStockReady: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Stock marked as ready successfully",
+    };
+  } catch (error) {
+    console.error("Error setting stock ready:", error);
+    return {
+      success: false,
+      error: "Failed to set stock ready",
+    };
+  }
+}

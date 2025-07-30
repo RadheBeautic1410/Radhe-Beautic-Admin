@@ -2,8 +2,10 @@
 import { Button } from "@/components/ui/button";
 import {
   categoryAddition,
+  clearStockData,
   generateCategoryPDF,
   getCategoryOverallStates,
+  setStockReady,
 } from "@/src/actions/category";
 import { deleteCategory, fetchKurtiByCategory } from "@/src/actions/kurti";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
@@ -32,11 +34,17 @@ import { useKurtiSearch } from "@/src/hooks/useKurtieSearch";
 import { categoryAddSchema } from "@/src/schemas";
 import { UserRole } from "@prisma/client";
 import {
+  Brush,
+  BrushIcon,
+  Check,
+  CheckCheck,
   ChevronLeft,
   ChevronRight,
   Download,
   Edit,
   FileDownIcon,
+  LucideBrush,
+  LucidePaintbrush,
   Package,
   ShoppingBag,
   Trash2,
@@ -72,6 +80,8 @@ import { SearchBar } from "@/src/components/Searchbar";
 import KurtiPicCard from "../_components/kurti/kurtiPicCard";
 import { HashLoader } from "react-spinners";
 import { useDebounce } from "@/src/hooks/useDebounce";
+import ClearStockModal from "../_components/category/ClearStockModel";
+import SetStockReadyModal from "../_components/category/StockReadyModel";
 
 interface Category {
   id: string;
@@ -86,6 +96,7 @@ interface Category {
   bigPrice?: number;
   walletDiscount?: number;
   code?: string;
+  isStockReady: boolean;
 }
 
 interface Kurti {
@@ -311,6 +322,7 @@ const ListPage = () => {
                   countTotal: 0,
                   actualPrice: 0,
                   image: data.data.image || undefined,
+                  isStockReady: true,
                 };
                 setCategoryData([...categoryList, newCategory]);
               }
@@ -1013,6 +1025,79 @@ const ListPage = () => {
     }
   };
 
+  const handleClearStock = async (
+    categoryCode: string,
+    password: string
+  ): Promise<{ success?: boolean; error?: string }> => {
+    if (!categoryCode.trim()) {
+      toast.error("Please enter a category code");
+      return { error: "Please enter a category code" };
+    }
+
+    if (!password.trim()) {
+      toast.error("Please enter the password");
+      return { error: "Please enter the password" };
+    }
+
+    const passToCheck = process.env.NEXT_PUBLIC_CLEAR_STOCK_PASSWORD;
+
+    if (passToCheck !== password) {
+      toast.error("Invalid password");
+      return { error: "Invalid password" };
+    }
+
+    try {
+      const data = await clearStockData(categoryCode);
+      if (!data?.success) {
+        toast.error(data?.error);
+        return { error: data?.error };
+      }
+      if (data.success) {
+        toast.success("Stock cleared successfully!");
+        // Refresh the category data
+        setCategoryData(
+          categoryList.map((cat) =>
+            cat.name.toLowerCase() === categoryCode.toLowerCase()
+              ? { ...cat, countTotal: 0, isStockReady: false }
+              : cat
+          )
+        );
+        setIsLoading(true);
+        return { success: data.success };
+      }
+      return {};
+    } catch (error) {
+      toast.error("Something went wrong!");
+      return { error: "Something went wrong!" };
+    }
+  };
+
+  const handleSetStockReady = async (
+    categoryCode: string
+  ): Promise<{ success?: boolean; error?: string }> => {
+    try {
+      const res = await setStockReady(categoryCode);
+      if (res.success) {
+        toast.success("Stock ready successfully!");
+        setCategoryData(
+          categoryList.map((cat) =>
+            cat.name.toLowerCase() === categoryCode.toLowerCase()
+              ? { ...cat, isStockReady: true }
+              : cat
+          )
+        );
+        setIsLoading(true);
+        return { success: true };
+      } else {
+        toast.error(res.error || "Failed to set stock ready!");
+        return { error: res.error || "Failed to set stock ready!" };
+      }
+    } catch (error) {
+      toast.error("Something went wrong while setting stock ready!");
+      return { error: "Something went wrong while setting stock ready!" };
+    }
+  };
+
   const CategoryCard = ({
     cat,
     index,
@@ -1032,7 +1117,11 @@ const ListPage = () => {
     isPending: boolean;
     setSelectedImage: (image: string) => void;
   }) => (
-    <Card className="w-full shadow-sm border hover:shadow-md transition-shadow">
+    <Card
+      className={`w-full shadow-sm border hover:shadow-md transition-shadow ${
+        cat.isStockReady ? "" : "bg-red-200"
+      }`}
+    >
       <CardContent className="p-4 flex flex-col">
         <div className="flex-shrink-0 flex gap-3 justify-between">
           <TableCell className="text-center">
@@ -1105,6 +1194,16 @@ const ListPage = () => {
                   Delete
                 </Button>
               </DialogDemo>
+              <ClearStockModal
+                categoryCode={cat.code!}
+                categoryName={cat.name}
+                onClearStock={async (categoryCode, password) =>
+                  handleClearStock(categoryCode, password)
+                }
+                trigger={
+                  <LucidePaintbrush role="button" size={20} color="red" />
+                }
+              />
             </div>
           </RoleGateForComponent>
         </div>
@@ -1148,6 +1247,19 @@ const ListPage = () => {
                 <TrendingUp size={14} className="text-purple-500" />
                 <span className="text-gray-600">Price:</span>
                 <span className="font-medium">₹{cat.sellingPrice}</span>
+              </div>
+              <div className="flex items-center gap-4">
+                Stock Ready: {cat.isStockReady ? "Yes" : "No"}
+                {!cat.isStockReady && (
+                  <SetStockReadyModal
+                    categoryCode={cat.code!}
+                    categoryName={cat.name}
+                    trigger={<Check color="red" className="cursor-pointer" />}
+                    onSetStockReady={async (categoryCode) =>
+                      handleSetStockReady(categoryCode)
+                    }
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -1441,12 +1553,18 @@ const ListPage = () => {
                           <TableHead className="text-center font-bold text-base">
                             Actions
                           </TableHead>
+                          <TableHead className="text-center font-bold text-base">
+                            Stock Ready
+                          </TableHead>
                         </RoleGateForComponent>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {categoryList.map((cat, idx) => (
-                        <TableRow key={`category-${cat.name}-${idx}`}>
+                        <TableRow
+                          key={`category-${cat.name}-${idx}`}
+                          className={`${cat.isStockReady ? "" : "!bg-red-200"}`}
+                        >
                           <TableCell className="text-center">
                             {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                           </TableCell>
@@ -1558,6 +1676,42 @@ const ListPage = () => {
                                     Delete
                                   </Button>
                                 </DialogDemo>
+
+                                <ClearStockModal
+                                  categoryCode={cat.code!}
+                                  categoryName={cat.name}
+                                  onClearStock={async (
+                                    categoryCode,
+                                    password
+                                  ) => handleClearStock(categoryCode, password)}
+                                  trigger={
+                                    <LucidePaintbrush
+                                      role="button"
+                                      size={20}
+                                      color="red"
+                                    />
+                                  }
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-4">
+                                {cat.isStockReady ? "Yes" : "No"}
+                                {!cat.isStockReady && (
+                                  <SetStockReadyModal
+                                    categoryCode={cat.code!}
+                                    categoryName={cat.name}
+                                    trigger={
+                                      <Check
+                                        color="red"
+                                        className="cursor-pointer"
+                                      />
+                                    }
+                                    onSetStockReady={async (categoryCode) =>
+                                      handleSetStockReady(categoryCode)
+                                    }
+                                  />
+                                )}
                               </div>
                             </TableCell>
                           </RoleGateForComponent>
