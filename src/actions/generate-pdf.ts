@@ -14,7 +14,7 @@ export const generateInvoicePDF = async (data: {
   soldProducts: any[];
   totalAmount: number;
   gstType: "IGST" | "SGST_CGST";
-}): Promise<{ success: boolean; pdfBuffer?: Buffer; error?: string }> => {
+}): Promise<{ success: boolean; pdfBase64?: string; error?: string }> => {
   try {
     const {
       saleData,
@@ -62,9 +62,12 @@ export const generateInvoicePDF = async (data: {
     // Generate PDF from HTML
     const pdfBuffer = await generatePDFFromHTML(invoiceHTML);
 
+    // Convert Buffer to base64 string for serialization
+    const pdfBase64 = pdfBuffer.toString('base64');
+
     return {
       success: true,
-      pdfBuffer
+      pdfBase64
     };
   } catch (error) {
     console.error('Error generating PDF:', error);

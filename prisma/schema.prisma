@@ -15,6 +15,8 @@ enum UserRole {
   SELLER
   UPLOADER
   RESELLER
+  SHOP_SELLER
+  SELLER_MANAGER
 }
 
 enum OrderStatus {
@@ -62,6 +64,7 @@ model User {
   cart          Cart[]
   orders        Orders[]
   Address       Address[]
+  shop          Shop?     @relation("ShopOwner")
 }
 
 model VerificationToken {
@@ -230,8 +233,6 @@ model OfflineSellBatch {
   batchNumber   String        @unique
   customerName  String
   customerPhone String?
-  shopLocation  String
-  shopName      String
   billCreatedBy String
   totalAmount   Int
   totalItems    Int
@@ -241,8 +242,13 @@ model OfflineSellBatch {
   invoiceUrl    String?
   isHallSell    Boolean       @default(false)
   sales         OfflineSell[] @relation("OfflineBatchSales")
+  shopId        String?       @db.ObjectId
+  shop          Shop?         @relation(fields: [shopId], references: [id])
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+
+  paymentType   String?
+  gstType       String?
 
   @@map("offline_sale_batches")
 }
@@ -346,4 +352,15 @@ model TopSoldKurti {
   soldCount Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Shop {
+  id               String             @id @default(auto()) @map("_id") @db.ObjectId
+  shopName         String
+  shopLocation     String
+  shopAddress      String?
+  ownerId          String?            @unique @db.ObjectId
+  owner            User?              @relation("ShopOwner", fields: [ownerId], references: [id])
+  OfflineSellBatch OfflineSellBatch[]
+  isHallSell       Boolean            @default(false)
 }

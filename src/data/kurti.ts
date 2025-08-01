@@ -1311,6 +1311,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
       billCreatedBy,
       paymentType,
       shopName,
+      shopId,
       gstType,
     } = data;
 
@@ -1329,14 +1330,15 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         batchNumber,
         customerName: customerName.trim(),
         customerPhone: customerPhone?.trim() || null,
-        shopLocation: selectedLocation.trim(),
-        shopName: shopName?.trim() || "",
         billCreatedBy: billCreatedBy.trim(),
         totalAmount: 0, // Will be calculated
         totalItems: 0, // Will be calculated
         saleTime: currentTime,
         sellerName: currentUser.name,
         isHallSell: false, // Always false for retailer sales
+        shopId: shopId || null, // Associate with selected shop
+        paymentType: paymentType?.trim() || null,
+        gstType: gstType || "SGST_CGST",
       },
     });
 
@@ -1587,7 +1589,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
           phone: customerPhone,
           location: selectedLocation,
           billCreatedBy,
-          shopName,
+          shopId,
         },
         batchNumber,
         partialSale: true,
@@ -1604,7 +1606,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         phone: customerPhone,
         location: selectedLocation,
         billCreatedBy,
-        shopName,
+        shopId,
       },
       batchNumber,
     };

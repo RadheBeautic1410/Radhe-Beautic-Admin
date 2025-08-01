@@ -28,6 +28,8 @@ import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { generateInvoicePDF } from "@/src/actions/generate-pdf";
+import { getShopList } from "@/src/actions/shop";
+import { useEffect } from "react";
 
 const getCurrTime = () => {
   const currentTime = new Date();
@@ -57,7 +59,8 @@ function SellPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const [billCreatedBy, setBillCreatedBy] = useState("");
-  // const [shopName, setShopName] = useState("");
+  const [selectedShopId, setSelectedShopId] = useState("");
+  const [shops, setShops] = useState<any[]>([]);
   const [paymentType, setpaymentType] = useState("");
 
   // Current product selection
@@ -66,6 +69,20 @@ function SellPage() {
   const [quantity, setQuantity] = useState(1);
 
   const currentUser = useCurrentUser();
+
+  // Load shops on component mount
+  useEffect(() => {
+    const loadShops = async () => {
+      try {
+        const shopList = await getShopList();
+        setShops(shopList);
+      } catch (error) {
+        console.error("Error loading shops:", error);
+        toast.error("Failed to load shops");
+      }
+    };
+    loadShops();
+  }, []);
 
   const handleFind = async () => {
     try {
@@ -235,6 +252,11 @@ function SellPage() {
         return;
       }
 
+      if (!selectedShopId.trim()) {
+        toast.error("Please select a shop");
+        return;
+      }
+
       if (!billCreatedBy.trim()) {
         toast.error("Please enter bill created by");
         return;
@@ -269,7 +291,7 @@ function SellPage() {
         billCreatedBy: billCreatedBy.trim(),
         paymentType: paymentType.trim(),
         gstType: gstType,
-        // shopName: shopName.trim(),
+        shopId: selectedShopId.trim(),
       });
 
       const data = res.data.data;
@@ -322,12 +344,17 @@ function SellPage() {
         gstType
       });
 
-      if (!result.success || !result.pdfBuffer) {
+      if (!result.success || !result.pdfBase64) {
         throw new Error(result.error || 'Failed to generate PDF');
       }
 
-      // Convert Buffer to Blob and trigger download
-      const blob = new Blob([result.pdfBuffer], { type: 'application/pdf' });
+      // Convert base64 string to Blob and trigger download
+      const binaryString = atob(result.pdfBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -351,9 +378,10 @@ function SellPage() {
     setCustomerName("");
     setCustomerPhone("");
     setSelectedLocation("");
+    setSelectedShopId("");
     setBillCreatedBy("");
     setpaymentType("");
-    // setShopName("");
+    setGstType("SGST_CGST");
     setSelectedSize("");
     setSellingPrice("");
     setQuantity(1);
@@ -426,15 +454,24 @@ function SellPage() {
                 }}
               />
             </div>
-            {/* <div>
-              <Label htmlFor="shop-name">Shop Name *</Label>
-              <Input
-                id="shop-name"
-                placeholder="Enter shop name"
-                value={shopName}
-                onChange={(e) => setShopName(e.target.value)}
-              />
-            </div> */}
+            <div>
+              <Label htmlFor="shop-select">Select Shop *</Label>
+              <select
+                id="shop-select"
+                name="shop-select"
+                aria-label="Select shop"
+                className="w-full p-2 border rounded-md"
+                value={selectedShopId}
+                onChange={(e) => setSelectedShopId(e.target.value)}
+              >
+                <option value="">Select Shop</option>
+                {shops.map((shop) => (
+                  <option key={shop.id} value={shop.id}>
+                    {shop.shopName} - {shop.shopLocation}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <Label htmlFor="shop-location">Shop Location *</Label>
               <select

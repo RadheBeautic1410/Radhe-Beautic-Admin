@@ -39,6 +39,10 @@ export async function POST(request: NextRequest) {
       return new NextResponse(JSON.stringify({ error: "Payment type is required" }), { status: 400 });
     }
 
+    if (!data.gstType?.trim()) {
+      return new NextResponse(JSON.stringify({ error: "GST type is required" }), { status: 400 });
+    }
+
     // ✅ Forward all required data to sellMultipleOfflineKurtis
     const result = await sellMultipleOfflineKurtis(data);
 
