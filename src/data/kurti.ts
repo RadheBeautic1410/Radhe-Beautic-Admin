@@ -1,5 +1,8 @@
 import { db } from "@/src/lib/db";
 import { error } from "console";
+import { uploadInvoicePDFToFirebase } from "@/src/lib/firebase/firebase";
+import { generateInvoiceHTML } from "@/src/lib/utils";
+import { generatePDFFromHTML } from "@/src/lib/puppeteer";
 
 export const getCurrTime = async () => {
   const currentTime = new Date();
@@ -161,7 +164,7 @@ export const getKurtiByCategoryWithPages = async (
 export const deleteKurti = async (code: string, category: string) => {
   try {
     const kurtiData = await db.kurti.findUnique({
-      where: { code: code.toUpperCase(),isDeleted: false },
+      where: { code: code.toUpperCase(), isDeleted: false },
     });
     await db.category.update({
       where: { code: category.toUpperCase() },
@@ -1253,15 +1256,15 @@ export const addStock = async (code: string) => {
       },
     });
     const increaseInCategory = await db.category.update({
-      where:{
-        code: KurtiNew?.category.toUpperCase()
+      where: {
+        code: KurtiNew?.category.toUpperCase(),
       },
-      data:{
+      data: {
         countTotal: {
-          increment: 1
-        }
-      }
-    })
+          increment: 1,
+        },
+      },
+    });
     return KurtiNew;
   } catch (e: any) {
     console.log(e.message);
@@ -1291,5 +1294,322 @@ export const migrate2 = async () => {
   } catch (e: any) {
     console.log(e.message);
     return e;
+  }
+};
+
+// Function to generate invoice HTML
+
+export const sellMultipleOfflineKurtis = async (data: any) => {
+  try {
+    let {
+      products,
+      currentUser,
+      currentTime,
+      customerName,
+      customerPhone,
+      selectedLocation,
+      billCreatedBy,
+      paymentType,
+      shopName,
+      gstType,
+    } = data;
+
+    if (!products || products.length === 0) {
+      return { error: "No products provided" };
+    }
+
+    const soldProducts = [];
+    const errors = [];
+    let totalAmount = 0;
+
+    // Create offline sale batch first
+    const batchNumber = `OFFLINE-${Date.now()}`;
+    const offlineBatch = await db.offlineSellBatch.create({
+      data: {
+        batchNumber,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone?.trim() || null,
+        shopLocation: selectedLocation.trim(),
+        shopName: shopName?.trim() || "",
+        billCreatedBy: billCreatedBy.trim(),
+        totalAmount: 0, // Will be calculated
+        totalItems: 0, // Will be calculated
+        saleTime: currentTime,
+        sellerName: currentUser.name,
+        isHallSell: false, // Always false for retailer sales
+      },
+    });
+
+    // Process each product in the cart
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
+      let { code, kurti, selectedSize, quantity, sellingPrice } = product;
+
+      try {
+        code = code.toUpperCase();
+        let search = code.substring(0, 7).toUpperCase();
+        let cmp = selectedSize.toUpperCase();
+
+        // Handle special case for CK codes
+        if (
+          code.toUpperCase().substring(0, 2) === "CK" &&
+          code[2] === "0" &&
+          isSize(code.substring(6))
+        ) {
+          search = code.substring(0, 6).toUpperCase();
+        }
+
+        const kurtiFromDB = await db.kurti.findUnique({
+          where: { code: search.toUpperCase(), isDeleted: false },
+          include: {
+            prices: true,
+          },
+        });
+
+        if (!kurtiFromDB) {
+          errors.push(`Product ${search} not found`);
+          continue;
+        }
+
+        if (kurtiFromDB?.sizes !== undefined) {
+          let arr: any[] = kurtiFromDB?.sizes;
+          let newArr: any[] = [];
+          let flag = 0;
+
+          for (let j = 0; j < arr?.length; j++) {
+            let obj = arr[j];
+            if (!obj) break;
+
+            if (obj.size === cmp) {
+              if (obj.quantity < quantity) {
+                errors.push(
+                  `Insufficient stock for ${search}-${cmp}. Available: ${obj.quantity}, Requested: ${quantity}`
+                );
+                flag = 0;
+                break;
+              } else {
+                flag = 1;
+                obj.quantity -= quantity;
+                if (obj.quantity >= 0) {
+                  newArr.push(obj);
+                }
+              }
+            } else {
+              newArr.push(arr[j]);
+            }
+          }
+
+          if (flag === 1) {
+            try {
+              const currTime = await getCurrTime();
+
+              // Update kurti stock
+              const updateUser = await db.kurti.update({
+                where: {
+                  code: search,
+                },
+                data: {
+                  sizes: newArr,
+                  lastUpdatedTime: currTime,
+                },
+                include: {
+                  prices: true,
+                },
+              });
+
+              // Handle prices
+              let prices = updateUser.prices;
+              if (!prices || !prices.actualPrice1 || !prices.sellingPrice1) {
+                const sellPrice = parseInt(updateUser.sellingPrice || "0");
+                const actualP = parseInt(updateUser.actualPrice || "0");
+
+                prices = await db.prices.create({
+                  data: {
+                    sellingPrice1: sellPrice,
+                    sellingPrice2: sellPrice,
+                    sellingPrice3: sellPrice,
+                    actualPrice1: actualP,
+                    actualPrice2: actualP,
+                    actualPrice3: actualP,
+                  },
+                });
+
+                await db.kurti.update({
+                  where: {
+                    code: updateUser.code,
+                  },
+                  data: {
+                    pricesId: prices.id,
+                  },
+                });
+              }
+
+              // Create individual offline sell record for each product
+              const offlineSell = await db.offlineSell.create({
+                data: {
+                  sellTime: currentTime,
+                  code: search.toUpperCase(),
+                  kurtiId: updateUser.id,
+                  batchId: offlineBatch.id,
+                  pricesId: prices.id,
+                  kurtiSize: cmp,
+                  shopLocation: selectedLocation,
+                  customerName: customerName,
+                  customerPhone: customerPhone,
+                  selledPrice: sellingPrice,
+                },
+              });
+
+              // Update or create TopSoldKurti record
+              await db.topSoldKurti.upsert({
+                where: {
+                  kurtiId: updateUser.id,
+                },
+                update: {
+                  soldCount: {
+                    increment: quantity, // Increment by the quantity sold
+                  },
+                },
+                create: {
+                  kurtiId: updateUser.id,
+                  soldCount: quantity,
+                },
+              });
+
+              soldProducts.push({
+                kurti: updateUser,
+                sale: offlineSell,
+                size: cmp,
+                quantity: quantity,
+                unitPrice: sellingPrice,
+                totalPrice: sellingPrice * quantity,
+              });
+
+              totalAmount += sellingPrice * quantity;
+            } catch (e: any) {
+              console.error(
+                `Error during offline sale of product ${i + 1}:`,
+                e.message,
+                e.stack
+              );
+              errors.push(`Error selling ${search}-${cmp}: ${e.message}`);
+            }
+          } else if (!errors.some((err) => err.includes(search))) {
+            errors.push(`Product ${search}-${cmp} not in stock`);
+          }
+        }
+      } catch (productError: any) {
+        console.error(
+          `Error processing offline product ${i + 1}:`,
+          productError
+        );
+        errors.push(
+          `Error processing product ${i + 1}: ${productError.message}`
+        );
+      }
+    }
+
+    // Update batch with final totals
+    if (soldProducts.length > 0) {
+      await db.offlineSellBatch.update({
+        where: { id: offlineBatch.id },
+        data: {
+          totalAmount: totalAmount,
+          totalItems: soldProducts.reduce(
+            (sum, product) => sum + product.quantity,
+            0
+          ),
+        },
+      });
+
+      // Generate and upload invoice to Firebase
+      try {
+        const invoiceHTML = generateInvoiceHTML(
+          data,
+          batchNumber,
+          customerName,
+          customerPhone,
+          selectedLocation,
+          billCreatedBy,
+          currentUser,
+          soldProducts,
+          totalAmount,
+          gstType || "SGST_CGST"
+        );
+
+        console.log(data);
+
+        // Generate PDF from HTML using Puppeteer
+        const pdfBuffer = await generatePDFFromHTML(invoiceHTML);
+
+        // Upload PDF to Firebase
+        const invoiceUrl = await uploadInvoicePDFToFirebase(
+          pdfBuffer,
+          batchNumber
+        );
+
+        // Update batch with invoice URL
+        await db.offlineSellBatch.update({
+          where: { id: offlineBatch.id },
+          data: {
+            invoiceUrl: invoiceUrl,
+          },
+        });
+      } catch (invoiceError) {
+        console.error(
+          "Error generating or uploading invoice to Firebase:",
+          invoiceError
+        );
+        // Don't fail the entire sale if invoice upload fails
+      }
+    }
+
+    // Check if any products were sold successfully
+    if (soldProducts.length === 0) {
+      // Delete the batch if no products were sold
+      await db.offlineSellBatch.delete({
+        where: { id: offlineBatch.id },
+      });
+      return {
+        error: "No products could be sold. Errors: " + errors.join(", "),
+      };
+    }
+
+    // If some products failed but others succeeded, return partial success
+    if (errors.length > 0 && soldProducts.length > 0) {
+      return {
+        success: "Partial offline sale completed",
+        soldProducts,
+        totalAmount,
+        errors,
+        customer: {
+          name: customerName,
+          phone: customerPhone,
+          location: selectedLocation,
+          billCreatedBy,
+          shopName,
+        },
+        batchNumber,
+        partialSale: true,
+      };
+    }
+
+    // All products sold successfully
+    return {
+      success: "All offline products sold successfully",
+      soldProducts,
+      totalAmount,
+      customer: {
+        name: customerName,
+        phone: customerPhone,
+        location: selectedLocation,
+        billCreatedBy,
+        shopName,
+      },
+      batchNumber,
+    };
+  } catch (error) {
+    console.error("Multiple offline sell error:", error);
+    return { error: "Something went wrong during the offline sale process!" };
   }
 };

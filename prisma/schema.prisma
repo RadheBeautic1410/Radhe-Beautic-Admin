@@ -130,22 +130,23 @@ model Category {
   totalItems          Int     @default(0)
   isDeleted           Boolean @default(false)
   bigPrice            Float?
-  walletDiscount      Int?     @default(0)
+  walletDiscount      Int?    @default(0)
   sellingPrice        Float?
   actualPrice         Float?
-  isStockReady        Boolean  @default(true)
+  isStockReady        Boolean @default(true)
 }
 
 model Prices {
-  id            String  @id @default(auto()) @map("_id") @db.ObjectId
-  sellingPrice1 Int     @default(0)
-  sellingPrice2 Int     @default(0)
-  sellingPrice3 Int     @default(0)
-  actualPrice1  Int     @default(0)
-  actualPrice2  Int     @default(0)
-  actualPrice3  Int     @default(0)
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  sellingPrice1 Int           @default(0)
+  sellingPrice2 Int           @default(0)
+  sellingPrice3 Int           @default(0)
+  actualPrice1  Int           @default(0)
+  actualPrice2  Int           @default(0)
+  actualPrice3  Int           @default(0)
   Kurti         Kurti[]
   Sell          Sell[]
+  OfflineSell   OfflineSell[]
 }
 
 model Kurti {
@@ -171,6 +172,7 @@ model Kurti {
   Sell              Sell[]
   MovedKurtiHistory MovedKurtiHistory[]
   TopSoldKurti      TopSoldKurti?
+  OfflineSell       OfflineSell[]
 }
 
 model Sell {
@@ -223,6 +225,47 @@ model SaleBatch {
   @@map("sale_batches")
 }
 
+model OfflineSellBatch {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  batchNumber   String        @unique
+  customerName  String
+  customerPhone String?
+  shopLocation  String
+  shopName      String
+  billCreatedBy String
+  totalAmount   Int
+  totalItems    Int
+  saleTime      DateTime
+  sellerName    String
+  invoiceNumber Int?
+  invoiceUrl    String?
+  isHallSell    Boolean       @default(false)
+  sales         OfflineSell[] @relation("OfflineBatchSales")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("offline_sale_batches")
+}
+
+model OfflineSell {
+  id            String           @id @default(auto()) @map("_id") @db.ObjectId
+  sellTime      DateTime
+  code          String
+  kurtiSize     String
+  kurtiId       String           @db.ObjectId
+  kurti         Kurti            @relation(fields: [kurtiId], references: [id])
+  batchId       String           @db.ObjectId
+  batch         OfflineSellBatch @relation("OfflineBatchSales", fields: [batchId], references: [id])
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  pricesId      String?          @db.ObjectId
+  prices        Prices?          @relation(fields: [pricesId], references: [id], onDelete: NoAction)
+  shopLocation  String?
+  customerName  String?
+  customerPhone String?
+  selledPrice   Int?
+}
+
 model Deletetime {
   id    String    @id @default(auto()) @map("_id") @db.ObjectId
   owner String    @unique
@@ -231,7 +274,7 @@ model Deletetime {
 
 model Cart {
   id          String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String         @db.ObjectId
+  userId      String        @db.ObjectId
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   CartProduct CartProduct[]
   orders      Orders[]
