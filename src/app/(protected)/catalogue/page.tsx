@@ -294,8 +294,8 @@ const ListPage = () => {
     (values: z.infer<typeof categoryAddSchema>) => {
       startTransition(() => {
         categoryAddition({
-          name: values.name,
-          type: values.type,
+          name: values.name.toUpperCase(),
+          type: values.type.toUpperCase(),
           image: values.image,
           price: values.price,
           bigPrice: values.bigPrice

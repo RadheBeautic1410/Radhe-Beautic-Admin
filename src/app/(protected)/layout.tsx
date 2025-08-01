@@ -51,7 +51,7 @@ const ProtectedLayout = ({ children }: ProtectedLayoutProps) => {
         <Sidebar />
         <main className="flex-1 overflow-y-auto">
           <div className="h-full">
-            <div className="mx-auto h-full">{children}</div>
+            <div className="mx-auto min-h">{children}</div>
           </div>
         </main>
         <ReactQueryDevtools />
