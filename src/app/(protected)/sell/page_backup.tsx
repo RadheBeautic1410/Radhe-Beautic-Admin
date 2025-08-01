@@ -87,7 +87,7 @@ function SellPage() {
     // }
 
     return (
-      <Card className="w-[90%]">
+      <Card className="rounded-none w-full h-full">
         <CardHeader>
           <p className="text-2xl font-semibold text-center">🛒 Sell</p>
         </CardHeader>

@@ -13,7 +13,6 @@ import {
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
-
 interface partyAddtionProps {
   name: string;
 }
@@ -22,6 +21,7 @@ interface categoryAddtionProps {
   name: string;
   type: string;
   image?: string;
+  price?: number | null;
   bigPrice?: number | null;
   walletDiscount?: number;
 }
@@ -30,7 +30,7 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
   const user = await currentUser();
   const role = await currentRole();
 
-  const { name, type, image, bigPrice } = data;
+  const { name, type, image, bigPrice, price } = data;
   if (name.length === 0) {
     return { error: "Category Can't be empty" };
   }
@@ -81,6 +81,7 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
       code,
       type: type.toUpperCase(),
       image: image || "",
+      sellingPrice: price || null,
       bigPrice: bigPrice || null,
     },
   });
@@ -107,6 +108,31 @@ export const categoryDelete = async (id: string) => {
   return { success: "Deletion Success!", deletedCategory };
 };
 
+export const updateTotalItem = async (code: string, total: number) => {
+  console.log("code and total ---------------",code, total);
+  const result = await db.category.update({
+    where: { code: code },
+    data: {
+      totalItems: {
+        increment: total, // adds 'total' to the current totalItem value
+      },
+    },
+  });
+  return { success: "Update Done!", result };
+};
+
+export const updateTotalPiece = async (code: string, total: number) => {
+  console.log("code and total in piece---------------",code, total);
+  const result = await db.category.update({
+    where: { code: code },
+    data: {
+      countTotal: {
+        increment: total, // adds 'total' to the current totalItem value
+      },
+    },
+  });
+  return { success: "Update Done!", result };
+};
 export const categoryTypeUpdate = async (
   lowercaseName: string,
   newType: string
@@ -185,7 +211,6 @@ export async function generateCategoryPDF(categoryCode: string) {
     const category = await db.category.findUnique({
       where: { code: categoryCode?.toUpperCase() },
     });
-    console.log("🚀 ~ generateCategoryPDF ~ category:", category)
 
     if (!category) {
       throw new Error("Category not found");
@@ -372,4 +397,146 @@ export async function generateMultipleCategoryPDFs(categoryCodes: string[]) {
   }
 
   return results;
+}
+
+export const getCategoryOverallStates = async () => {
+  try {
+    const categories = await db.category.findMany({
+      where: {
+        isDeleted: false,
+      },
+    });
+
+    let totalItems = 0;
+    let totalPices = 0;
+    let totalStockPrice = 0;
+
+    for (let index = 0; index < categories.length; index++) {
+      const item = categories[index];
+      totalItems = totalItems + item.totalItems;
+      totalPices = totalPices + item.countTotal;
+      if (item.actualPrice && item.countTotal && item.totalItems) {
+        totalStockPrice = totalStockPrice + item?.totalItems * item.actualPrice;
+      }
+    }
+
+    return {
+      totalItems,
+      totalPices,
+      totalStockPrice,
+    };
+  } catch (error) {
+    console.error("Error fetching states:", error);
+    return {
+      totalItems: 0,
+      totalPices: 0,
+      totalStockPrice: 0,
+    };
+  }
+};
+
+export const clearStockData = async (categoryCode: string) => {
+  try {
+    const category = await db.category.findUnique({
+      where: {
+        code: categoryCode,
+      },
+    });
+
+    if (!category) {
+      return {
+        success: false,
+        error: "Category not found",
+      };
+    }
+
+    const kurtis = await db.kurti.findMany({
+      where: {
+        category: category.name,
+        isDeleted: false,
+      },
+    });
+    if (kurtis.length === 0) {
+      return {
+        success: false,
+        error: "No kurtis found in this category",
+      };
+    }
+
+    await db.kurti.updateMany({
+      where: {
+        category: category.name,
+      },
+      data: {
+        sizes: [],
+        countOfPiece: 0,
+        reservedSizes: [],
+        lastUpdatedTime: new Date(),
+      },
+    });
+
+    await db.category.update({
+      where: {
+        code: categoryCode,
+      },
+      data: {
+        countTotal: 0,
+        isStockReady: false,
+      },
+    });
+    return {
+      success: true,
+      message: "Stock cleared successfully",
+    };
+  } catch (error) {
+    console.error("Error fetching category data:", error);
+    return {
+      success: false,
+      error: "Failed to fetch category data",
+    };
+  }
+};
+
+export const setStockReady = async (categoryCode: string) => {
+  try {
+    const category = await db.category.findUnique({
+      where: {
+        code: categoryCode,
+      },
+    });
+
+    if (!category) {
+      return {
+        success: false,
+        error: "Category not found",
+      };
+    }
+
+    if (category.isStockReady) {
+      return {
+        success: false,
+        error: "Stock is already marked as ready",
+      };
+    }
+
+    await db.category.update({
+      where: {
+        code: categoryCode,
+      },
+      data: {
+        isStockReady: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Stock marked as ready successfully",
+    };
+  } catch (error) {
+    console.error("Error setting stock ready:", error);
+    return {
+      success: false,
+      error: "Failed to set stock ready",
+    };
+  }
 }

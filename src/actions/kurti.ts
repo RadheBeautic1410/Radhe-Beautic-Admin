@@ -85,49 +85,79 @@ function isSize(size: string) {
   return arr.includes(size);
 }
 
+// export const stockAddition = async (data: any) => {
+
+//   // const user = await currentUser();
+//   // const role = await currentRole();
+//   console.log(data);
+//   const { code, sizes } = data;
+//   let cnt = 0;
+//   for (let i = 0; i < sizes.length; i++) {
+//     cnt += sizes[i].quantity;
+//   }
+//   console.log(code);
+//   let kurti: any = await db.kurti.findUnique({
+//     where: {
+//       code: code,
+//     },
+//   });
+
+//   const currTime = await getCurrTime();
+//   await db.kurti.update({
+//     where: { code },
+//     data: {
+//       sizes: data.sizes,
+//       // countOfPiece: cnt,
+//       lastUpdatedTime: currTime,
+//     },
+//   });
+
+//   const dbpartyFetch = await getKurtiByCode(code);
+//   return { success: "Stock Updated!", data: dbpartyFetch?.sizes };
+// };
+
 export const stockAddition = async (data: any) => {
-  // const user = await currentUser();
-  // const role = await currentRole();
-  console.log(data);
   const { code, sizes } = data;
-  let cnt = 0;
+
+  // Step 1: Calculate new total count of pieces from sizes
+  let newCount = 0;
   for (let i = 0; i < sizes.length; i++) {
-    cnt += sizes[i].quantity;
+    newCount += sizes[i].quantity;
   }
-  console.log(code);
-  let kurti: any = await db.kurti.findUnique({
-    where: {
-      code: code,
-    },
+
+  // Step 2: Fetch existing Kurti
+  const kurti = await db.kurti.findUnique({
+    where: { code },
   });
 
+  if (!kurti) throw new Error("Kurti not found");
+
+  const oldCount = kurti.countOfPiece || 0;
+  const diff = newCount - oldCount;
+
+  // Step 3: Update Kurti with new sizes and count
   const currTime = await getCurrTime();
+
   await db.kurti.update({
     where: { code },
     data: {
-      sizes: data.sizes,
-      // countOfPiece: cnt,
+      sizes,
+      countOfPiece: newCount,
       lastUpdatedTime: currTime,
     },
   });
-  // cnt -= kurti?.countOfPiece || 0;
-  // console.log(code);
-  // await db.category.update({
-  //     where: {
-  //         normalizedLowerCase: kurti?.category.toLowerCase(),
-  //     },
-  //     data: {
-  //         countOfPiece: {
-  //             increment: cnt,
-  //         },
-  //         actualPrice: {
-  //             increment: (cnt * kurti.actualPrice),
-  //         },
-  //         countTotal: {
-  //             increment: 1,
-  //         },
-  //     }
-  // })
+
+  // Step 4: Update category's countTotal using category code
+  if (kurti.category) {
+    await db.category.update({
+      where: { code: kurti.category.toUpperCase() }, // assuming category code is used
+      data: {
+        countTotal: {
+          increment: diff, // could be positive or negative
+        },
+      },
+    });
+  }
 
   const dbpartyFetch = await getKurtiByCode(code);
   return { success: "Stock Updated!", data: dbpartyFetch?.sizes };
@@ -171,7 +201,56 @@ export const categoryChange = async (data: any) => {
     data;
   const currTime = await getCurrTime();
 
-  console.log(code, newCode, selectedSizes, isPartialMove);
+  console.log(
+    "its category change",
+    code,
+    newCode,
+    selectedSizes,
+    isPartialMove,
+    category,
+    bigPrice
+  );
+  // its category change JK30005 CR70028 [ { size: 'XL', quantity: 10 } ] true CR7 0
+  // Total pieces in selected sizes
+  const pieceCount = selectedSizes.reduce(
+    (sum: number, size: any) => sum + (size?.quantity || 0),
+    0
+  );
+  if (isPartialMove) {
+    console.log("its inside partial move");
+    
+    // Decrease countTotal from old category
+    await db.category.update({
+      where: { code: code.substring(0, 3) },
+      data: {
+        countTotal: { decrement: pieceCount - selectedSizes.length },
+      },
+    });
+    // Increase countTotal from new category
+    await db.category.update({
+      where: { code: newCode.substring(0, 3) },
+      data: {
+        countTotal: { increment: pieceCount - selectedSizes.length},
+      },
+    });
+  } else {
+        console.log("its outside partial move");
+    await db.category.update({
+      where: { code: code.substring(0, 3) },
+      data: {
+        countTotal: { decrement: pieceCount - selectedSizes.length},
+        totalItems: { decrement: 1 },
+      },
+    });
+    // Increase countTotal from new category
+    await db.category.update({
+      where: { code: newCode.substring(0, 3) },
+      data: {
+        countTotal: { increment: pieceCount - selectedSizes.length},
+        totalItems: { increment: 1 },
+      },
+    });
+  }
 
   const sanitizeForPrisma = (obj: any) => {
     const sanitized = { ...obj };
@@ -218,7 +297,6 @@ export const categoryChange = async (data: any) => {
     let newKurti;
 
     if (isPartialMove && selectedSizes.length > 0) {
-
       const selectedSizesSet = selectedSizes.map((s: any) =>
         s.size.toUpperCase()
       );
@@ -632,7 +710,7 @@ export const toggleKurtiBigPrice = async (
     return {
       success: false,
       error: "Category has no big price, please set it first.",
-      code:"NO_BIG_PRICE",
+      code: "NO_BIG_PRICE",
     };
   }
 
@@ -650,7 +728,6 @@ export const toggleKurtiBigPrice = async (
   return { success: "Kurti Big Size Price Updated!", kurti: updatedKurti };
 };
 
-
 export const fetchMovedKurtiHistory = async () => {
   try {
     const movedKurtis = await db.movedKurtiHistory.findMany({});
@@ -664,4 +741,24 @@ export const fetchMovedKurtiHistory = async () => {
       error: error.message,
     };
   }
-}
+};
+
+export const fetchKurtiByCategory = async (category: string) => {
+  try {
+    const kurties = await db.kurti.findMany({
+      where: {
+        category: category,
+      },
+    });
+
+    return {
+      data: kurties,
+    };
+  } catch (error) {
+    console.log("🚀 ~ fetchKurtiByCategory ~ error:", error);
+
+    return {
+      data: [],
+    };
+  }
+};

@@ -163,7 +163,7 @@ const MovedHistory = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto sm:p-6">
+    <div className="w-full h-full bg-white">
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -171,7 +171,6 @@ const MovedHistory = () => {
               Moved Kurti History
             </h2>
 
-            {/* Search Field */}
             <div className="relative max-w-sm">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 text-gray-400" />

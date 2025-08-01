@@ -27,6 +27,9 @@ export const categoryAddSchema = z.object({
     image: z.optional(z.string().url({
         message: "Image must be a valid URL"
     })),
+    price: z.optional(z.number().min(1, {
+        message: "Price must be a number greater than 0"
+    })),
     bigPrice: z.optional(z.number().min(1, {
         message: "Big price must be a number greater than 0"
     })),

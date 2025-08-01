@@ -32,12 +32,14 @@ interface Category {
   name: string;
   count: number;
   type: string;
-  countOfPiece: number;
+  countTotal: number;
+  totalItems: number;
   sellingPrice: number;
   actualPrice: number;
   image?: string;
   bigPrice?: number; // Added bigPrice field
   walletDiscount?: number;
+  isStockReady: boolean;
 }
 
 interface EditCategoryModalProps {
@@ -68,7 +70,6 @@ const EditCategoryModal = ({
       walletDiscount: category.walletDiscount || undefined,
     },
   });
-  
 
   const handleImageChange = (images: { url: string }[]) => {
     const newImageUrl = images[0]?.url || "/images/no-image.png";

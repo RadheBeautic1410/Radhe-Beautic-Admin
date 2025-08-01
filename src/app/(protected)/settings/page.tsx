@@ -53,137 +53,139 @@ const SettingsPage = () => {
     }
     const [passwordType, setPasswordType] = useState('password');
     return (
-        <Card className="w-[90%]">
-            <CardHeader>
-                <p className="text-2xl font-semibold text-center">
-                    ⚙️ Settings
-                </p>
-            </CardHeader>
-            <CardContent>
+      <Card className="rounded-none w-full h-full">
+        <CardHeader>
+          <p className="text-2xl font-semibold text-center">⚙️ Settings</p>
+        </CardHeader>
+        <CardContent>
+          <Label className="space-y-2">Name</Label>
+          <Input
+            className="space-y-2"
+            value={user?.name || ""}
+            disabled={true}
+          />
 
-                <Label className="space-y-2">Name</Label>
-                <Input className="space-y-2" value={user?.name || ""} disabled={true} />
+          <Label className="space-y-2">Email</Label>
+          <Input
+            className="space-y-2"
+            value={user?.email || ""}
+            disabled={true}
+          />
 
-                <Label className="space-y-2">Email</Label>
-                <Input className="space-y-2" value={user?.email || ""} disabled={true} />
+          <Label className="space-y-2">Role</Label>
+          <Input
+            className="space-y-2"
+            value={user?.role || ""}
+            disabled={true}
+          />
 
-                <Label className="space-y-2">Role</Label>
-                <Input className="space-y-2" value={user?.role || ""} disabled={true} />
+          <Label className="space-y-2">Organization</Label>
+          <Input
+            className="space-y-2"
+            value={user?.organization || ""}
+            disabled={true}
+          />
 
-                <Label className="space-y-2">Organization</Label>
-                <Input className="space-y-2" value={user?.organization || ""} disabled={true} />
-
-
-
-                <Form {...form}>
-                    <form
-                        className="space-y-6"
-                        onSubmit={form.handleSubmit(onSubmit)}
-                    >
-                        <div className="space-y-4">
-                            <FormField
-                                control={form.control}
-                                name="password"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Password</FormLabel>
-                                        <FormControl>
-                                            <div
-                                                style={{
-                                                    position: 'relative'
-                                                }}
-                                            >
-                                                <Input
-                                                    {...field}
-                                                    disabled={isPending}
-                                                    placeholder="******"
-                                                    type={passwordType}
-                                                ></Input>
-                                                <div
-                                                    style={{
-                                                        position: 'absolute',
-                                                        top: '25%',
-                                                        right: '3%',
-                                                        bottom: '20%',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    {
-                                                        passwordType === "text" ?
-                                                            <FaRegEye
-                                                                onClick={() => setPasswordType('password')}
-                                                            />
-                                                            :
-                                                            <FaRegEyeSlash
-                                                                onClick={() => setPasswordType('text')}
-                                                            />
-                                                    }
-                                                </div>
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
-                                name="newPassword"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>New Password</FormLabel>
-                                        <FormControl>
-                                            <div
-                                                style={{
-                                                    position: 'relative'
-                                                }}
-                                            >
-                                                <Input
-                                                    {...field}
-                                                    disabled={isPending}
-                                                    placeholder="******"
-                                                    type={passwordType}
-                                                ></Input>
-                                                <div
-                                                    style={{
-                                                        position: 'absolute',
-                                                        top: '25%',
-                                                        right: '3%',
-                                                        bottom: '20%',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    {
-                                                        passwordType === "text" ?
-                                                            <FaRegEye
-                                                                onClick={() => setPasswordType('password')}
-                                                            />
-                                                            :
-                                                            <FaRegEyeSlash
-                                                                onClick={() => setPasswordType('text')}
-                                                            />
-                                                    }
-                                                </div>
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                        </div>
-                        <FormError message={error} />
-                        <FormSuccess message={success} />
-                        <Button
-                            disabled={isPending}
-                            type="submit"
+          <Form {...form}>
+            <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <div
+                          style={{
+                            position: "relative",
+                          }}
                         >
-                            Update
-                        </Button>
-                    </form>
-                </Form>
-            </CardContent>
-        </Card>
+                          <Input
+                            {...field}
+                            disabled={isPending}
+                            placeholder="******"
+                            type={passwordType}
+                          ></Input>
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: "25%",
+                              right: "3%",
+                              bottom: "20%",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {passwordType === "text" ? (
+                              <FaRegEye
+                                onClick={() => setPasswordType("password")}
+                              />
+                            ) : (
+                              <FaRegEyeSlash
+                                onClick={() => setPasswordType("text")}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>New Password</FormLabel>
+                      <FormControl>
+                        <div
+                          style={{
+                            position: "relative",
+                          }}
+                        >
+                          <Input
+                            {...field}
+                            disabled={isPending}
+                            placeholder="******"
+                            type={passwordType}
+                          ></Input>
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: "25%",
+                              right: "3%",
+                              bottom: "20%",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {passwordType === "text" ? (
+                              <FaRegEye
+                                onClick={() => setPasswordType("password")}
+                              />
+                            ) : (
+                              <FaRegEyeSlash
+                                onClick={() => setPasswordType("text")}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormError message={error} />
+              <FormSuccess message={success} />
+              <Button disabled={isPending} type="submit">
+                Update
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
     );
 }
 

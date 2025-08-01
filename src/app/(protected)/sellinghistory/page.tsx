@@ -54,82 +54,86 @@ function SellingHistory() {
     }, []);
 
     return (
-        <>
-            <PageLoader loading={loader} />
-            {loader ? "" :
-                <Card className='w-[90%]'>
-                    <CardHeader>
-                        <p className="text-2xl font-semibold text-center">
-                            🛒 Sell History
-                        </p>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col gap-2">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className='text-black'>
-                                        {headerCells.map((obj) => {
-                                            return (
-                                                <TableHead
-                                                    key={obj.key}
-                                                    className="text-center font-bold text-base"
-                                                >
-                                                    {obj.name}
-                                                </TableHead>
-                                            )
-                                        })}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {sellData && sellData.map((obj, idx) => {
-                                        let isoString = obj.sellTime;
-                                        let [date, time] = isoString.split("T");
-                                        let [hours, minutes, seconds] = time.split(":");
-                                        hours = parseInt(hours, 10);
-                                        minutes = parseInt(minutes, 10);
-                                        seconds = parseInt(seconds, 10);
+      <>
+        <PageLoader loading={loader} />
+        {loader ? (
+          ""
+        ) : (
+          <Card className="rounded-none w-full h-full">
+            <CardHeader>
+              <p className="text-2xl font-semibold text-center">
+                🛒 Sell History
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-2">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="text-black">
+                      {headerCells.map((obj) => {
+                        return (
+                          <TableHead
+                            key={obj.key}
+                            className="text-center font-bold text-base"
+                          >
+                            {obj.name}
+                          </TableHead>
+                        );
+                      })}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sellData &&
+                      sellData.map((obj, idx) => {
+                        let isoString = obj.sellTime;
+                        let [date, time] = isoString.split("T");
+                        let [hours, minutes, seconds] = time.split(":");
+                        hours = parseInt(hours, 10);
+                        minutes = parseInt(minutes, 10);
+                        seconds = parseInt(seconds, 10);
 
-                                        // Determine AM or PM
-                                        const period = hours >= 12 ? 'PM' : 'AM';
+                        // Determine AM or PM
+                        const period = hours >= 12 ? "PM" : "AM";
 
-                                        // Convert hours to 12-hour format
-                                        let displayHours = hours % 12;
-                                        displayHours = displayHours === 0 ? 12 : displayHours; // Handle midnight (0) as 12 AM
+                        // Convert hours to 12-hour format
+                        let displayHours = hours % 12;
+                        displayHours = displayHours === 0 ? 12 : displayHours; // Handle midnight (0) as 12 AM
 
-                                        // Format minutes and seconds with leading zeros if needed
-                                        const displayMinutes = minutes < 10 ? `0${minutes}` : minutes;
+                        // Format minutes and seconds with leading zeros if needed
+                        const displayMinutes =
+                          minutes < 10 ? `0${minutes}` : minutes;
 
-                                        // Construct the final formatted time string
-                                        const formattedTime = `${displayHours}:${displayMinutes} ${period}`;
-                                        return (
-                                            <TableRow key={obj.id}>
-                                                <TableCell className="text-center">
-                                                    {sellData.length - idx}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {/* {format(new Date(timeIn24HourFormat), 'h:mm aa')} */}
-                                                    {formattedTime}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {obj.sellerName}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {obj.code}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {obj.kurtiSize}
-                                                </TableCell>
-                                            </TableRow>
-                                        )
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                </Card>
-            }
-        </>
-    )
+                        // Construct the final formatted time string
+                        const formattedTime = `${displayHours}:${displayMinutes} ${period}`;
+                        return (
+                          <TableRow key={obj.id}>
+                            <TableCell className="text-center">
+                              {sellData.length - idx}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {/* {format(new Date(timeIn24HourFormat), 'h:mm aa')} */}
+                              {formattedTime}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {obj.sellerName}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {obj.code}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {obj.kurtiSize}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </>
+    );
 }
 
 const SellHistoruHelper = () => {

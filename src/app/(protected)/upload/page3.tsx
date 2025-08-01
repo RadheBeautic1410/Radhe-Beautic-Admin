@@ -325,16 +325,16 @@ const UploadPage = () => {
       {partyLoader || categoryLoader ? (
         ""
       ) : (
-        <Card className="w-[90%]">
+        <Card className="rounded-none w-full h-full">
           <CardHeader>
             <p className="text-2xl font-semibold text-center">⬆️ UPLOAD</p>
           </CardHeader>
           <CardContent className="text-center">
             <ImageUpload2
-                      ref={imageUploadRef}
-                      images={images}
-                      onImageChange={setImages}
-                    />
+              ref={imageUploadRef}
+              images={images}
+              onImageChange={setImages}
+            />
             <div className="text-left w-[100%]">
               <Form {...form}>
                 {/* Add Category Component */}

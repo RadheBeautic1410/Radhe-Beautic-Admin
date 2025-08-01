@@ -543,7 +543,7 @@ function SellPage() {
   };
 
   return (
-    <Card className="w-[95%] max-w-6xl">
+    <Card className="rounded-none w-full h-full">
       <CardHeader>
         <p className="text-2xl font-semibold text-center">
           🛒 Multi-Product Sale System
@@ -715,14 +715,13 @@ function SellPage() {
                 <p className="text-lg font-semibold text-green-600">
                   SP: RB{kurti.sellingPrice}
                 </p>
-                {
-                  kurti?.isBigPrice && (
-                 
-                <p className="text-lg font-semibold text-green-600">
-                  BSP: RB{parseInt(kurti.sellingPrice) + (kurti?.isBigPrice ? kurti?.bigPrice : 0)}
-                </p>   
-                  )
-                }
+                {kurti?.isBigPrice && (
+                  <p className="text-lg font-semibold text-green-600">
+                    BSP: RB
+                    {parseInt(kurti.sellingPrice) +
+                      (kurti?.isBigPrice ? kurti?.bigPrice : 0)}
+                  </p>
+                )}
 
                 {/* Size Table */}
                 <div className="mt-4">

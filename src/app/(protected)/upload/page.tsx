@@ -53,6 +53,7 @@ import {
 } from "@/src/components/ui/command";
 import React from "react";
 import { v4 as uuidv4 } from "uuid";
+import { updateTotalItem,updateTotalPiece } from "@/src/actions/category";
 
 // Extended schema for bulk upload
 const BulkKurtiSchema = z.object({
@@ -341,7 +342,7 @@ const BulkUploadPage = () => {
           party: formValues.party,
           sellingPrice: formValues.sellingPrice,
           actualPrice: formValues.actualPrice,
-          category: formValues.category,
+          category: formValues.category?.toUpperCase(),
           code: design.code,
           countOfPiece: design.countOfPiece,
         };
@@ -349,7 +350,15 @@ const BulkUploadPage = () => {
       });
 
       const results = await Promise.all(promises);
-
+      const updateCountInCategory = updateTotalItem(
+        formValues.category?.toUpperCase(),
+        designs.length
+      )
+      const totalCountOfPiece = designs.reduce((sum, design) => sum + (design.countOfPiece || 0), 0);
+       const updateTotalPieceInCategory = updateTotalPiece(
+        formValues.category?.toUpperCase(),
+        totalCountOfPiece - designs.length
+      )
       // Check if all submissions were successful
       const successful = results.filter((result) => result.success).length;
       const failed = results.length - successful;
@@ -411,7 +420,11 @@ const BulkUploadPage = () => {
   React.useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await fetch("/api/category");
+         const query = new URLSearchParams({
+           page: "1",
+           limit: "500",
+         })
+        const res = await fetch(`/api/category?${query.toString()}`);
         const json = await res.json();
 
         if (Array.isArray(json.data)) {
@@ -461,7 +474,7 @@ const BulkUploadPage = () => {
       {partyLoader || categoryLoader ? (
         ""
       ) : (
-        <Card className="w-[90%]">
+        <Card className="rounded-none w-full h-full">
           <CardHeader>
             <p className="text-2xl font-semibold text-center">
               ⬆️ BULK UPLOAD ({images.length} Images)
