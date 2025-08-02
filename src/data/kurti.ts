@@ -1325,6 +1325,14 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
 
     // Create offline sale batch first
     const batchNumber = `OFFLINE-${Date.now()}`;
+    
+    // Generate invoice number (get the latest invoice number and increment)
+    const latestBatch = await db.offlineSellBatch.findFirst({
+      orderBy: { invoiceNumber: 'desc' },
+      where: { invoiceNumber: { not: null } }
+    });
+    const invoiceNumber = latestBatch ? (latestBatch.invoiceNumber || 0) + 1 : 1;
+    
     const offlineBatch = await db.offlineSellBatch.create({
       data: {
         batchNumber,
@@ -1339,6 +1347,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         shopId: shopId || null, // Associate with selected shop
         paymentType: paymentType?.trim() || null,
         gstType: gstType || "SGST_CGST",
+        invoiceNumber: invoiceNumber,
       },
     });
 
@@ -1536,7 +1545,8 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
           currentUser,
           soldProducts,
           totalAmount,
-          gstType || "SGST_CGST"
+          gstType || "SGST_CGST",
+          invoiceNumber.toString()
         );
 
         console.log(data);
@@ -1609,6 +1619,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         shopId,
       },
       batchNumber,
+      invoiceNumber,
     };
   } catch (error) {
     console.error("Multiple offline sell error:", error);

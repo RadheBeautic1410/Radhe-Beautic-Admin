@@ -67,6 +67,12 @@ const routes = [
     icon: "📊",
   },
   {
+    name: "Offline Sales",
+    href: "/offline-sales",
+    role: [UserRole.ADMIN, UserRole.SELLER, UserRole.SHOP_SELLER, UserRole.SELLER_MANAGER],
+    icon: "🏪",
+  },
+  {
     name: "Orders",
     href: "/orders",
     role: [UserRole.ADMIN],

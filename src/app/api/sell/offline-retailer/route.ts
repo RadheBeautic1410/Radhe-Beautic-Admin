@@ -9,7 +9,6 @@ const getCurrTime = () => {
     const ISTTime = new Date(currentTime.getTime() + ISTOffset);
     return ISTTime;
 }
-
 // API Route Handler for Offline Retailer Sales
 export async function POST(request: NextRequest) {
   try {
@@ -27,9 +26,9 @@ export async function POST(request: NextRequest) {
       return new NextResponse(JSON.stringify({ error: "Customer name is required" }), { status: 400 });
     }
 
-    if (!data.selectedLocation?.trim()) {
-      return new NextResponse(JSON.stringify({ error: "Shop location is required" }), { status: 400 });
-    }
+    // if (!data.selectedLocation?.trim()) {
+    //   return new NextResponse(JSON.stringify({ error: "Shop location is required" }), { status: 400 });
+    // }
 
     if (!data.billCreatedBy?.trim()) {
       return new NextResponse(JSON.stringify({ error: "Bill created by is required" }), { status: 400 });

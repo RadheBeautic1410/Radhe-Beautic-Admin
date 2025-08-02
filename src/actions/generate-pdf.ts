@@ -14,6 +14,7 @@ export const generateInvoicePDF = async (data: {
   soldProducts: any[];
   totalAmount: number;
   gstType: "IGST" | "SGST_CGST";
+  invoiceNumber: string;
 }): Promise<{ success: boolean; pdfBase64?: string; error?: string }> => {
   try {
     const {
@@ -26,24 +27,25 @@ export const generateInvoicePDF = async (data: {
       currentUser,
       soldProducts,
       totalAmount,
-      gstType
+      gstType,
+      invoiceNumber
     } = data;
 
     // Debug logging
-    console.log('PDF Generation Debug:', {
-      batchNumber,
-      customerName,
-      soldProducts: soldProducts.map(item => ({
-        code: item.kurti?.code,
-        selledPrice: item.selledPrice,
-        quantity: item.quantity,
-        selledPriceType: typeof item.selledPrice,
-        quantityType: typeof item.quantity
-      })),
-      totalAmount,
-      totalAmountType: typeof totalAmount,
-      gstType
-    });
+    // console.log('PDF Generation Debug:', {
+    //   batchNumber,
+    //   customerName,
+    //   soldProducts: soldProducts.map(item => ({
+    //     code: item.kurti?.code,
+    //     selledPrice: item.selledPrice,
+    //     quantity: item.quantity,
+    //     selledPriceType: typeof item.selledPrice,
+    //     quantityType: typeof item.quantity
+    //   })),
+    //   totalAmount,
+    //   totalAmountType: typeof totalAmount,
+    //   gstType
+    // });
 
     // Generate HTML invoice
     const invoiceHTML = generateInvoiceHTML(
@@ -56,7 +58,8 @@ export const generateInvoicePDF = async (data: {
       currentUser,
       soldProducts,
       totalAmount,
-      gstType || "SGST_CGST"
+      gstType || "SGST_CGST",
+      invoiceNumber
     );
 
     // Generate PDF from HTML

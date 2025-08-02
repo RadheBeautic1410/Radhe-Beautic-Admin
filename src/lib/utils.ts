@@ -16,7 +16,8 @@ export const generateInvoiceHTML = (
   currentUser: any,
   soldProducts: any[],
   totalAmount: number,
-  gstType: "IGST" | "SGST_CGST" = "SGST_CGST"
+  gstType: "IGST" | "SGST_CGST" = "SGST_CGST",
+  invoiceNumber: string = ""
 ) => {
   const currentDate = new Date().toLocaleDateString("en-IN");
   const currentTime = new Date().toLocaleTimeString("en-IN");
@@ -124,7 +125,8 @@ export const generateInvoiceHTML = (
         <div class="invoice-details">
           <div class="info-block">
             <h3>Invoice Details</h3>
-            <div class="info-row"><span class="info-label">Invoice #:</span> ${batchNumber}</div>
+            <div class="info-row"><span class="info-label">Invoice #:</span> ${invoiceNumber || batchNumber}</div>
+            <div class="info-row"><span class="info-label">Batch #:</span> ${batchNumber}</div>
             <div class="info-row"><span class="info-label">Date:</span> ${currentDate}</div>
             <div class="info-row"><span class="info-label">Time:</span> ${currentTime}</div>
             <div class="info-row"><span class="info-label">Seller:</span> ${

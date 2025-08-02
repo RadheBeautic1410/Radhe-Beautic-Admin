@@ -309,6 +309,7 @@ function SellPage() {
       });
 
       const data = res.data.data;
+      console.log("🚀 ~ handleSell ~ data:", data)
 
       if (data.error) {
         toast.error(data.error);
@@ -356,6 +357,7 @@ function SellPage() {
         soldProducts,
         totalAmount: getTotalAmount(),
         gstType,
+        invoiceNumber: saleData.invoiceNumber || "",
       });
 
       if (!result.success || !result.pdfBase64) {
@@ -476,11 +478,11 @@ function SellPage() {
             </div>
             <div>
               <Label htmlFor="shop-select">
-                {currentUser?.role === UserRole.ADMIN
+                {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER)
                   ? "Select Shop *"
                   : "Shop"}
               </Label>
-              {currentUser?.role === UserRole.ADMIN ? (
+              {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER) ? (
                 <select
                   id="shop-select"
                   name="shop-select"

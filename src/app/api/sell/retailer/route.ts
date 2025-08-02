@@ -76,9 +76,9 @@ export async function POST(request: NextRequest) {
       return new NextResponse(JSON.stringify({ error: "Customer name is required" }), { status: 400 });
     }
 
-    if (!data.selectedLocation?.trim()) {
-      return new NextResponse(JSON.stringify({ error: "Shop location is required" }), { status: 400 });
-    }
+    // if (!data.selectedLocation?.trim()) {
+    //   return new NextResponse(JSON.stringify({ error: "Shop location is required" }), { status: 400 });
+    // }
 
     if (!data.billCreatedBy?.trim()) {
       return new NextResponse(JSON.stringify({ error: "Bill created by is required" }), { status: 400 });
