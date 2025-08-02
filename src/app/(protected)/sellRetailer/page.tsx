@@ -28,7 +28,7 @@ import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { generateInvoicePDF } from "@/src/actions/generate-pdf";
-import { getShopList } from "@/src/actions/shop";
+import { getShopList, getUserShop } from "@/src/actions/shop";
 import { useEffect } from "react";
 
 const getCurrTime = () => {
@@ -57,11 +57,11 @@ function SellPage() {
   // Sale details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("");
   const [billCreatedBy, setBillCreatedBy] = useState("");
   const [selectedShopId, setSelectedShopId] = useState("");
   const [shops, setShops] = useState<any[]>([]);
   const [paymentType, setpaymentType] = useState("");
+  const [userShop, setUserShop] = useState<any>(null);
 
   // Current product selection
   const [selectedSize, setSelectedSize] = useState("");
@@ -70,19 +70,33 @@ function SellPage() {
 
   const currentUser = useCurrentUser();
 
-  // Load shops on component mount
+  // Load shops and user's shop on component mount
   useEffect(() => {
-    const loadShops = async () => {
+    const loadShopsAndUserShop = async () => {
       try {
         const shopList = await getShopList();
         setShops(shopList);
+
+        // If user is SELLER or SELLER_MANAGER, get their associated shop
+        if (
+          currentUser?.id &&
+          (currentUser.role === UserRole.SELLER ||
+            currentUser.role === UserRole.SELLER_MANAGER ||
+            currentUser.role === UserRole.SHOP_SELLER)
+        ) {
+          const userShopData = await getUserShop(currentUser.id);
+          if (userShopData) {
+            setUserShop(userShopData);
+            setSelectedShopId(userShopData.id);
+          }
+        }
       } catch (error) {
         console.error("Error loading shops:", error);
         toast.error("Failed to load shops");
       }
     };
-    loadShops();
-  }, []);
+    loadShopsAndUserShop();
+  }, [currentUser]);
 
   const handleFind = async () => {
     try {
@@ -247,13 +261,14 @@ function SellPage() {
         return;
       }
 
-      if (!selectedLocation.trim()) {
-        toast.error("Please select location");
-        return;
-      }
+
 
       if (!selectedShopId.trim()) {
-        toast.error("Please select a shop");
+        if (currentUser?.role === UserRole.ADMIN) {
+          toast.error("Please select a shop");
+        } else {
+          toast.error("No shop associated with your account");
+        }
         return;
       }
 
@@ -287,7 +302,6 @@ function SellPage() {
         currentTime: currentTime,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
-        selectedLocation: selectedLocation.trim(),
         billCreatedBy: billCreatedBy.trim(),
         paymentType: paymentType.trim(),
         gstType: gstType,
@@ -302,12 +316,12 @@ function SellPage() {
         toast.success("Sale completed successfully!");
         // Generate invoice
         await generateInvoice(data);
-        
+
         // Show invoice URL if available
         if (data.batchNumber) {
           toast.success(`Invoice saved with batch number: ${data.batchNumber}`);
         }
-        
+
         resetForm();
       }
     } catch (error) {
@@ -321,13 +335,13 @@ function SellPage() {
   const generateInvoice = async (saleData: any) => {
     try {
       // Convert cart items to the format expected by the shared utility
-      const soldProducts = cart.map(item => ({
+      const soldProducts = cart.map((item) => ({
         kurti: item.kurti,
         size: item.selectedSize,
         quantity: item.quantity,
         selledPrice: item.sellingPrice,
         unitPrice: item.sellingPrice,
-        totalPrice: item.sellingPrice * item.quantity
+        totalPrice: item.sellingPrice * item.quantity,
       }));
 
       // Call the server action for PDF generation
@@ -336,16 +350,16 @@ function SellPage() {
         batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
         customerName,
         customerPhone,
-        selectedLocation,
+        selectedLocation: userShop?.shopLocation || "",
         billCreatedBy,
         currentUser,
         soldProducts,
         totalAmount: getTotalAmount(),
-        gstType
+        gstType,
       });
 
       if (!result.success || !result.pdfBase64) {
-        throw new Error(result.error || 'Failed to generate PDF');
+        throw new Error(result.error || "Failed to generate PDF");
       }
 
       // Convert base64 string to Blob and trigger download
@@ -354,20 +368,22 @@ function SellPage() {
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const blob = new Blob([bytes], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.download = `invoice-${saleData.batchNumber || `OFFLINE-INV-${Date.now()}`}.pdf`;
+      link.download = `invoice-${
+        saleData.batchNumber || `OFFLINE-INV-${Date.now()}`
+      }.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast.success('Invoice PDF downloaded successfully!');
+      toast.success("Invoice PDF downloaded successfully!");
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF invoice');
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to generate PDF invoice");
     }
   };
 
@@ -377,8 +393,12 @@ function SellPage() {
     setCart([]);
     setCustomerName("");
     setCustomerPhone("");
-    setSelectedLocation("");
-    setSelectedShopId("");
+    // Reset shop based on user role
+    if (currentUser?.role === UserRole.ADMIN) {
+      setSelectedShopId("");
+    } else if (userShop) {
+      setSelectedShopId(userShop.id);
+    }
     setBillCreatedBy("");
     setpaymentType("");
     setGstType("SGST_CGST");
@@ -455,40 +475,40 @@ function SellPage() {
               />
             </div>
             <div>
-              <Label htmlFor="shop-select">Select Shop *</Label>
-              <select
-                id="shop-select"
-                name="shop-select"
-                aria-label="Select shop"
-                className="w-full p-2 border rounded-md"
-                value={selectedShopId}
-                onChange={(e) => setSelectedShopId(e.target.value)}
-              >
-                <option value="">Select Shop</option>
-                {shops.map((shop) => (
-                  <option key={shop.id} value={shop.id}>
-                    {shop.shopName} - {shop.shopLocation}
-                  </option>
-                ))}
-              </select>
+              <Label htmlFor="shop-select">
+                {currentUser?.role === UserRole.ADMIN
+                  ? "Select Shop *"
+                  : "Shop"}
+              </Label>
+              {currentUser?.role === UserRole.ADMIN ? (
+                <select
+                  id="shop-select"
+                  name="shop-select"
+                  aria-label="Select shop"
+                  className="w-full p-2 border rounded-md"
+                  value={selectedShopId}
+                  onChange={(e) => setSelectedShopId(e.target.value)}
+                >
+                  <option value="">Select Shop</option>
+                  {shops.map((shop) => (
+                    <option key={shop.id} value={shop.id}>
+                      {shop.shopName} - {shop.shopLocation}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full p-2 border rounded-md bg-gray-50">
+                  {userShop ? (
+                    <span className="text-gray-700 font-medium">
+                      {userShop.shopName} - {userShop.shopLocation}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500">No shop associated</span>
+                  )}
+                </div>
+              )}
             </div>
-            <div>
-              <Label htmlFor="shop-location">Shop Location *</Label>
-              <select
-                id="shop-location"
-                name="shop-location"
-                aria-label="Select shop location"
-                className="w-full p-2 border rounded-md"
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-              >
-                <option value="">Select Location</option>
-                <option value="shop_316">shop_316</option>
-                <option value="shop_269">shop_269</option>
-                <option value="shop_269_UP">shop_269_UP</option>
-                <option value="shop_269_Hallsell">shop_269_Hallsell</option>
-              </select>
-            </div>
+
             <div>
               <Label htmlFor="payment-type">Payment Type *</Label>
               <select
@@ -830,7 +850,14 @@ function SellPage() {
 const SellerHelp = () => {
   return (
     <>
-      <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.SELLER]}>
+      <RoleGateForComponent
+        allowedRole={[
+          UserRole.ADMIN,
+          UserRole.SELLER,
+          UserRole.SHOP_SELLER,
+          UserRole.SELLER_MANAGER,
+        ]}
+      >
         <SellPage />
       </RoleGateForComponent>
       <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>

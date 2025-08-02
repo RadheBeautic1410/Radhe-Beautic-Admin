@@ -31,19 +31,21 @@ const routes = [
       UserRole.UPLOADER,
       UserRole.SELLER,
       UserRole.RESELLER,
+      UserRole.SHOP_SELLER,
+      UserRole.SELLER_MANAGER
     ],
     icon: "📋",
   },
   {
     name: "Sell",
     href: "/sell",
-    role: [UserRole.ADMIN, UserRole.SELLER],
+    role: [UserRole.ADMIN, UserRole.SELLER, UserRole.SHOP_SELLER, UserRole.SELLER_MANAGER],
     icon: "💰",
   },
     {
         name: 'Sell Retailer',
         href: '/sellRetailer',
-        role: [UserRole.ADMIN, UserRole.SELLER],
+        role: [UserRole.ADMIN, UserRole.SELLER, UserRole.SHOP_SELLER, UserRole.SELLER_MANAGER],
         icon: '🏬'
     },
   {
