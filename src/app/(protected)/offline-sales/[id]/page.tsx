@@ -1,8 +1,11 @@
+
 "use client";
 
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import { Input } from "@/src/components/ui/input";
+import { Label } from "@/src/components/ui/label";
 import {
   Table,
   TableBody,
@@ -11,97 +14,78 @@ import {
   TableHeader,
   TableRow,
 } from "@/src/components/ui/table";
-import { Badge } from "@/src/components/ui/badge";
-import { Input } from "@/src/components/ui/input";
-import { Label } from "@/src/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/src/components/ui/select";
 import { UserRole } from "@prisma/client";
 import axios from "axios";
 import {
-  ArrowLeft,
-  Download,
-  User,
-  Phone,
-  Calendar,
-  ShoppingBag,
-  Building,
-  FileText,
-  CreditCard,
-  Receipt,
-  Package,
-  MapPin,
-  UserCheck,
   Loader2,
-  Edit,
-  Save,
-  X,
+  Search,
+  ShoppingCart,
+  FileText,
+  Trash2,
+  Plus,
 } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { toast } from "sonner";
-import { useParams, useRouter } from "next/navigation";
+import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
+import { generateInvoicePDF } from "@/src/actions/generate-pdf";
+import { getShopList, getUserShop } from "@/src/actions/shop";
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 
-interface OfflineSaleDetail {
+const getCurrTime = () => {
+  const currentTime = new Date();
+  const ISTOffset = 5.5 * 60 * 60 * 1000;
+  const ISTTime = new Date(currentTime.getTime() + ISTOffset);
+  return ISTTime;
+};
+
+interface CartItem {
   id: string;
-  batchNumber: string;
-  invoiceNumber?: number;
-  customerName: string;
-  customerPhone?: string;
-  billCreatedBy: string;
-  totalAmount: number;
-  totalItems: number;
-  saleTime: string;
-  sellerName: string;
-  paymentType?: string;
-  gstType?: string;
-  invoiceUrl?: string;
-  shop?: {
-    id: string;
-    shopName: string;
-    shopLocation: string;
-  };
-  sales: Array<{
-    id: string;
-    code: string;
-    kurtiSize: string;
-    selledPrice?: number;
-    kurti: {
-      code: string;
-      category: string;
-      party: string;
-      images: Array<{ url: string }>;
-    };
-  }>;
+  kurti: any;
+  selectedSize: string;
+  quantity: number;
+  sellingPrice: number;
+  availableStock: number;
 }
-
+type GSTType = "IGST" | "SGST_CGST";
 interface SaleDetailsPageProps {
   params: {
     id: string;
   };
 }
+function SaleDetailsPage({ params }: SaleDetailsPageProps){
+  const [code, setCode] = useState("");
+  const [kurti, setKurti] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [selling, setSelling] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [gstType, setGstType] = useState<GSTType>("SGST_CGST");
+  // Sale details
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [billCreatedBy, setBillCreatedBy] = useState("");
+  const [selectedShopId, setSelectedShopId] = useState("");
+  const [shops, setShops] = useState<any[]>([]);
+  const [paymentType, setpaymentType] = useState("");
+  const [userShop, setUserShop] = useState<any>(null);
 
-function SaleDetailsPage({ params }: SaleDetailsPageProps) {
-  const [sale, setSale] = useState<OfflineSaleDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [editForm, setEditForm] = useState({
-    customerName: "",
-    customerPhone: "",
-    billCreatedBy: "",
-    paymentType: "",
-    gstType: "",
-  });
-  const router = useRouter();
+  // Current product selection
+  const [selectedSize, setSelectedSize] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [quantity, setQuantity] = useState(1);
+
   const currentUser = useCurrentUser();
 
+
+
+
+
+
+
+
+
+  const router = useRouter();
   useEffect(() => {
     const loadSaleDetails = async () => {
       try {
@@ -109,27 +93,48 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         const response = await axios.get(
           `/api/sell/offline-sales/${params.id}`
         );
+        setCustomerName(response.data.data.customerName);
+        setCustomerPhone(response.data.data.customerPhone);
+        setBillCreatedBy(response.data.data.billCreatedBy);
+        setpaymentType(response.data.data.paymentType);
+        setGstType(response.data.data.gstType);
+
+        console.log("response", response);
         const saleData = response.data.data;
-        setSale(saleData);
+        console.log("saleData.sales", response.data.data);
+        
+        saleData.sales.forEach((sale: any) => {
+          const cartItem = {
+            id: sale.id,
+            kurti: sale.kurti,
+            selectedSize: sale.kurtiSize,
+            quantity: sale.quantity,
+            sellingPrice: sale.sellingPrice,
+            availableStock: sale.availableStock,
+          };
+          setCart((prevCart) => [...prevCart, cartItem]);
+        })
+        // setKurti(saleData.sales[0].kurti);
+        //setSale(saleData);
         
         // Populate edit form with current data
-        setEditForm({
-          customerName: saleData.customerName || "",
-          customerPhone: saleData.customerPhone || "",
-          billCreatedBy: saleData.billCreatedBy || "",
-          paymentType: saleData.paymentType || "",
-          gstType: saleData.gstType || "SGST_CGST",
-        });
+        // setEditForm({
+        //   customerName: saleData.customerName || "",
+        //   customerPhone: saleData.customerPhone || "",
+        //   billCreatedBy: saleData.billCreatedBy || "",
+        //   paymentType: saleData.paymentType || "",
+        //   gstType: saleData.gstType || "SGST_CGST",
+        // });
       } catch (error: any) {
-        console.error("Error loading sale details:", error);
-        if (error.response?.status === 404) {
-          setError("Sale not found");
-        } else if (error.response?.status === 403) {
-          setError("Access denied");
-        } else {
-          setError("Failed to load sale details");
-        }
-        toast.error("Failed to load sale details");
+        // console.error("Error loading sale details:", error);
+        // if (error.response?.status === 404) {
+        //   setError("Sale not found");
+        // } else if (error.response?.status === 403) {
+        //   setError("Access denied");
+        // } else {
+        //   setError("Failed to load sale details");
+        // }
+        // toast.error("Failed to load sale details");
       } finally {
         setLoading(false);
       }
@@ -140,474 +145,802 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     }
   }, [params.id]);
 
-  const handleEdit = () => {
-    setIsEditing(true);
-  };
 
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    // Reset form to original values
-    if (sale) {
-      setEditForm({
-        customerName: sale.customerName || "",
-        customerPhone: sale.customerPhone || "",
-        billCreatedBy: sale.billCreatedBy || "",
-        paymentType: sale.paymentType || "",
-        gstType: sale.gstType || "SGST_CGST",
-      });
-    }
-  };
 
-  const handleSaveEdit = async () => {
-    if (!sale) return;
 
-    try {
-      setSaving(true);
-      const response = await axios.put(`/api/sell/offline-sales/${params.id}`, editForm);
-      
-      if (response.data.success) {
-        setSale(response.data.data);
-        setIsEditing(false);
-        toast.success("Sale updated successfully!");
-      } else {
-        toast.error(response.data.error || "Failed to update sale");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // Load shops and user's shop on component mount
+  useEffect(() => {
+    const loadShopsAndUserShop = async () => {
+      try {
+        const shopList = await getShopList();
+        setShops(shopList);
+
+        // If user is SELLER or SELLER_MANAGER, get their associated shop
+        if (
+          currentUser?.id &&
+          (currentUser.role === UserRole.SELLER ||
+            currentUser.role === UserRole.SELLER_MANAGER ||
+            currentUser.role === UserRole.SHOP_SELLER)
+        ) {
+          const userShopData = await getUserShop(currentUser.id);
+          if (userShopData) {
+            setUserShop(userShopData);
+            setSelectedShopId(userShopData.id);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading shops:", error);
+        toast.error("Failed to load shops");
       }
-    } catch (error: any) {
-      console.error("Error updating sale:", error);
-      toast.error(error.response?.data?.error || "Failed to update sale");
+    };
+    loadShopsAndUserShop();
+  }, [currentUser]);
+
+  const handleFind = async () => {
+    try {
+      setLoading(true);
+      if (code.length < 6) {
+        toast.error("Please enter correct code!!!");
+        return;
+      }
+
+      const res = await axios.post(`/api/kurti/find-kurti`, { code });
+      const data = res.data.data;
+
+      if (data.error) {
+        toast.error(data.error);
+        setKurti(null);
+      } else {
+        setKurti(data.kurti);
+        setSellingPrice("");
+        setSelectedSize("");
+        setQuantity(1);
+        toast.success("Product found!");
+      }
+    } catch (error) {
+      console.error("Error finding product:", error);
+      toast.error("Error finding product");
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setEditForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const addToCart = () => {
+    if (!kurti) {
+      toast.error("Please find a product first");
+      return;
+    }
+
+    if (!selectedSize) {
+      toast.error("Please select size");
+      return;
+    }
+
+    if (!sellingPrice || parseInt(sellingPrice) <= 0) {
+      toast.error("Please enter valid selling price");
+      return;
+    }
+
+    if (quantity <= 0) {
+      toast.error("Please enter valid quantity");
+      return;
+    }
+
+    const sizeInfo = kurti.sizes.find((sz: any) => sz.size === selectedSize);
+    if (!sizeInfo || sizeInfo.quantity < quantity) {
+      toast.error("Insufficient stock for selected quantity");
+      return;
+    }
+
+    // Check if same product+size already exists in cart
+    const existingItemIndex = cart.findIndex(
+      (item) =>
+        item.kurti.code === kurti.code && item.selectedSize === selectedSize
+    );
+
+    const newItem: CartItem = {
+      id: `${kurti.code}-${selectedSize}-${Date.now()}`,
+      kurti,
+      selectedSize,
+      quantity,
+      sellingPrice: parseInt(sellingPrice),
+      availableStock: sizeInfo.quantity,
+    };
+
+    if (existingItemIndex >= 0) {
+      // Update existing item
+      const updatedCart = [...cart];
+      const existingItem = updatedCart[existingItemIndex];
+      const totalQuantity = existingItem.quantity + quantity;
+
+      if (totalQuantity > sizeInfo.quantity) {
+        toast.error("Total quantity exceeds available stock");
+        return;
+      }
+
+      updatedCart[existingItemIndex] = {
+        ...existingItem,
+        quantity: totalQuantity,
+        sellingPrice: parseInt(sellingPrice), // Update price if changed
+      };
+      setCart(updatedCart);
+    } else {
+      // Add new item
+      setCart([...cart, newItem]);
+    }
+
+    // Reset current product selection
+    setCode("");
+    setKurti(null);
+    setSelectedSize("");
+    setSellingPrice("");
+    setQuantity(1);
+
+    toast.success("Product added to cart!");
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-IN", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
+  const removeFromCart = (itemId: string) => {
+    setCart(cart.filter((item) => item.id !== itemId));
+    toast.success("Item removed from cart");
+  };
+
+  const updateCartItemQuantity = (itemId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeFromCart(itemId);
+      return;
+    }
+
+    const updatedCart = cart.map((item) => {
+      if (item.id === itemId) {
+        if (newQuantity > item.availableStock) {
+          toast.error("Quantity exceeds available stock");
+          return item;
+        }
+        return { ...item, quantity: newQuantity };
+      }
+      return item;
     });
+    setCart(updatedCart);
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
+  const updateCartItemPrice = (itemId: string, newPrice: number) => {
+    if (newPrice <= 0) {
+      toast.error("Please enter valid price");
+      return;
+    }
+
+    const updatedCart = cart.map((item) => {
+      if (item.id === itemId) {
+        return { ...item, sellingPrice: newPrice };
+      }
+      return item;
     });
+    setCart(updatedCart);
   };
 
-  const downloadInvoice = async (
-    invoiceUrl: string,
-    batchNumber: string,
-    invoiceNumber?: number
-  ) => {
+  const getTotalAmount = () => {
+    return cart.reduce(
+      (total, item) => total + item.sellingPrice * item.quantity,
+      0
+    );
+  };
+
+  const handleSell = async () => {
     try {
-      const response = await fetch(invoiceUrl);
-      const blob = await response.blob();
+      setSelling(true);
+
+      if (cart.length === 0) {
+        toast.error("Please add products to cart");
+        return;
+      }
+
+      if (!customerName.trim()) {
+        toast.error("Please enter customer name");
+        return;
+      }
+
+
+
+      if (!selectedShopId.trim()) {
+        if (currentUser?.role === UserRole.ADMIN) {
+          toast.error("Please select a shop");
+        } else {
+          toast.error("No shop associated with your account");
+        }
+        return;
+      }
+
+      if (!billCreatedBy.trim()) {
+        toast.error("Please enter bill created by");
+        return;
+      }
+      if (!paymentType.trim()) {
+        toast.error("Please select payment type");
+        return;
+      }
+      // if (!shopName.trim()) {
+      //   toast.error("Please enter shop name");
+      //   return;
+      // }
+
+      const currentTime = getCurrTime();
+
+      // Prepare products data for API
+      const products = cart.map((item) => ({
+        code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
+        kurti: item.kurti,
+        selectedSize: item.selectedSize,
+        quantity: item.quantity,
+        sellingPrice: item.sellingPrice,
+      }));
+
+      const res = await axios.post(`/api/sell/offline-retailer`, {
+        products,
+        currentUser,
+        currentTime: currentTime,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        billCreatedBy: billCreatedBy.trim(),
+        paymentType: paymentType.trim(),
+        gstType: gstType,
+        shopId: selectedShopId.trim(),
+      });
+
+      const data = res.data.data;
+      console.log("🚀 ~ handleSell ~ data:", data)
+
+      if (data.error) {
+        toast.error(data.error);
+      } else {
+        toast.success("Sale completed successfully!");
+        // Generate invoice
+        await generateInvoice(data);
+
+        // Show invoice URL if available
+        if (data.batchNumber) {
+          toast.success(`Invoice saved with batch number: ${data.batchNumber}`);
+        }
+
+        resetForm();
+      }
+    } catch (error) {
+      console.error("Error selling products:", error);
+      toast.error("Error processing sale");
+    } finally {
+      setSelling(false);
+    }
+  };
+
+  const generateInvoice = async (saleData: any) => {
+    try {
+      // Convert cart items to the format expected by the shared utility
+      const soldProducts = cart.map((item) => ({
+        kurti: item.kurti,
+        size: item.selectedSize,
+        quantity: item.quantity,
+        selledPrice: item.sellingPrice,
+        unitPrice: item.sellingPrice,
+        totalPrice: item.sellingPrice * item.quantity,
+      }));
+
+      // Call the server action for PDF generation
+      const result = await generateInvoicePDF({
+        saleData,
+        batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
+        customerName,
+        customerPhone,
+        selectedLocation: userShop?.shopLocation || "",
+        billCreatedBy,
+        currentUser,
+        soldProducts,
+        totalAmount: getTotalAmount(),
+        gstType,
+        invoiceNumber: saleData.invoiceNumber || "",
+      });
+
+      if (!result.success || !result.pdfBase64) {
+        throw new Error(result.error || "Failed to generate PDF");
+      }
+
+      // Convert base64 string to Blob and trigger download
+      const binaryString = atob(result.pdfBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const fileName = invoiceNumber
-        ? `invoice-INV-${invoiceNumber.toString().padStart(6, "0")}.pdf`
-        : `invoice-${batchNumber}.pdf`;
-      link.download = fileName;
+      link.download = `invoice-${
+        saleData.batchNumber || `OFFLINE-INV-${Date.now()}`
+      }.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      toast.success("Invoice downloaded successfully!");
+
+      toast.success("Invoice PDF downloaded successfully!");
     } catch (error) {
-      console.error("Error downloading invoice:", error);
-      toast.error("Failed to download invoice");
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to generate PDF invoice");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading sale details...</span>
-        </div>
-      </div>
-    );
-  }
+  const resetForm = () => {
+    setCode("");
+    setKurti(null);
+    setCart([]);
+    setCustomerName("");
+    setCustomerPhone("");
+    // Reset shop based on user role
+    if (currentUser?.role === UserRole.ADMIN) {
+      setSelectedShopId("");
+    } else if (userShop) {
+      setSelectedShopId(userShop.id);
+    }
+    setBillCreatedBy("");
+    setpaymentType("");
+    setGstType("SGST_CGST");
+    setSelectedSize("");
+    setSellingPrice("");
+    setQuantity(1);
+  };
 
-  if (error || !sale) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="text-center">
-          <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {error || "Sale not found"}
-          </h3>
-          <p className="text-gray-500 mb-4">
-            The sale you're looking for doesn't exist or you don't have access
-            to it.
-          </p>
-          <Button onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Go Back
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const getAvailableSizes = () => {
+    if (!kurti?.sizes) return [];
+    return kurti.sizes.filter((sz: any) => sz.quantity > 0);
+  };
 
   return (
-    <div className="space-y-6 p-2">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => router.back()}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Sales
-          </Button>
-          <div className="flex gap-2">
-            <h1 className="text-2xl font-semibold">📋 Sale Details</h1>
-            <p className="text-gray-600">
-              Invoice:{" "}
-              {sale.invoiceNumber
-                ? `INV-${sale.invoiceNumber.toString().padStart(6, "0")}`
-                : sale.batchNumber}
-            </p>
+    <Card className="rounded-none w-full h-full">
+      <CardHeader>
+        <p className="text-2xl font-semibold text-center">
+          🛒 Offline Multi-Product Sale System
+        </p>
+      </CardHeader>
+      <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
+        <div className="bg-purple-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">GST Configuration</h3>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="gstType"
+                value="SGST_CGST"
+                checked={gstType === "SGST_CGST"}
+                onChange={(e) => setGstType(e.target.value as GSTType)}
+              />
+              <span>SGST + CGST (2.5% + 2.5%)</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="gstType"
+                value="IGST"
+                checked={gstType === "IGST"}
+                onChange={(e) => setGstType(e.target.value as GSTType)}
+              />
+              <span>IGST (5%)</span>
+            </label>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {sale.invoiceUrl && (
-            <Button
-              onClick={() =>
-                downloadInvoice(
-                  sale.invoiceUrl!,
-                  sale.batchNumber,
-                  sale.invoiceNumber
-                )
-              }
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Download Invoice
-            </Button>
-          )}
-          
-          {isEditing ? (
-            <>
-              <Button
-                onClick={handleSaveEdit}
-                disabled={saving}
-                className="flex items-center gap-2"
-              >
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                {saving ? "Saving..." : "Save"}
-              </Button>
-              <Button
-                onClick={handleCancelEdit}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <X className="h-4 w-4" />
-                Cancel
-              </Button>
-            </>
-          ) : (
-            <Button
-              onClick={handleEdit}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Edit className="h-4 w-4" />
-              Edit
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sale Information */}
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              Sale Information
-            </h3>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Invoice Number:</span>
-                <Badge variant="outline">
-                  {sale.invoiceNumber
-                    ? `INV-${sale.invoiceNumber.toString().padStart(6, "0")}`
-                    : sale.batchNumber}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Date:</span>
-                <span>{formatDate(sale.saleTime)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Time:</span>
-                <span>{formatTime(sale.saleTime)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Seller:</span>
-                <span>{sale.sellerName}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Bill Created By:</span>
-                <span>{sale.billCreatedBy}</span>
-              </div>
+        {/* Customer Details Section */}
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="customer-name">Customer Name *</Label>
+              <Input
+                id="customer-name"
+                placeholder="Enter customer name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+              />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Customer Information */}
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Customer Information
-            </h3>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Name:</span>
-                {isEditing ? (
-                  <Input
-                    value={editForm.customerName}
-                    onChange={(e) => handleInputChange("customerName", e.target.value)}
-                    className="flex-1"
-                    placeholder="Customer name"
-                  />
-                ) : (
-                  <span>{sale.customerName}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Phone:</span>
-                {isEditing ? (
-                  <Input
-                    value={editForm.customerPhone}
-                    onChange={(e) => handleInputChange("customerPhone", e.target.value)}
-                    className="flex-1"
-                    placeholder="Customer phone"
-                  />
-                ) : (
-                  <span>{sale.customerPhone || "Not provided"}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Bill Created By:</span>
-                {isEditing ? (
-                  <Input
-                    value={editForm.billCreatedBy}
-                    onChange={(e) => handleInputChange("billCreatedBy", e.target.value)}
-                    className="flex-1"
-                    placeholder="Bill created by"
-                  />
-                ) : (
-                  <span>{sale.billCreatedBy}</span>
-                )}
-              </div>
+            <div>
+              <Label htmlFor="customer-phone">Customer Phone (Optional)</Label>
+              <Input
+                id="customer-phone"
+                placeholder="Enter customer phone"
+                value={customerPhone}
+                maxLength={10}
+                onChange={(e) => {
+                  const input = e.target.value;
+                  // Only allow digits
+                  if (/^\d*$/.test(input)) {
+                    setCustomerPhone(input);
+                  }
+                }}
+              />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Shop Information */}
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Building className="h-5 w-5" />
-              Shop Information
-            </h3>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              {sale.shop ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Building className="h-4 w-4 text-gray-500" />
-                    <span className="font-medium">Shop:</span>
-                    <span>{sale.shop.shopName}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-gray-500" />
-                    <span className="font-medium">Location:</span>
-                    <span>{sale.shop.shopLocation}</span>
-                  </div>
-                </>
-              ) : (
-                <div className="text-gray-500">
-                  No shop information available
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Payment Information */}
-      <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Payment Information
-          </h3>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Total Amount:</span>
-              </div>
-              <div className="text-2xl font-bold text-green-600">
-                ₹{sale.totalAmount.toLocaleString()}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Total Items:</span>
-              </div>
-              <div className="text-2xl font-bold text-blue-600">
-                {sale.totalItems}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Payment Type:</span>
-              </div>
-              {isEditing ? (
-                <Select
-                  value={editForm.paymentType}
-                  onValueChange={(value) => handleInputChange("paymentType", value)}
+            <div>
+              <Label htmlFor="shop-select">
+                {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER)
+                  ? "Select Shop *"
+                  : "Shop"}
+              </Label>
+              {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER) ? (
+                <select
+                  id="shop-select"
+                  name="shop-select"
+                  aria-label="Select shop"
+                  className="w-full p-2 border rounded-md"
+                  value={selectedShopId}
+                  onChange={(e) => setSelectedShopId(e.target.value)}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Cash">Cash</SelectItem>
-                    <SelectItem value="Card">Card</SelectItem>
-                    <SelectItem value="UPI">UPI</SelectItem>
-                    <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                    <SelectItem value="Cheque">Cheque</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="">Select Shop</option>
+                  {shops.map((shop) => (
+                    <option key={shop.id} value={shop.id}>
+                      {shop.shopName} - {shop.shopLocation}
+                    </option>
+                  ))}
+                </select>
               ) : (
-                <div className="text-lg font-medium">
-                  {sale.paymentType || "Not specified"}
+                <div className="w-full p-2 border rounded-md bg-gray-50">
+                  {userShop ? (
+                    <span className="text-gray-700 font-medium">
+                      {userShop.shopName} - {userShop.shopLocation}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500">No shop associated</span>
+                  )}
                 </div>
               )}
-              <div className="text-sm text-gray-500">
-                {isEditing ? (
-                  <Select
-                    value={editForm.gstType}
-                    onValueChange={(value) => handleInputChange("gstType", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select GST type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="SGST_CGST">SGST+CGST</SelectItem>
-                      <SelectItem value="IGST">IGST</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <span>GST: {sale.gstType || "SGST+CGST"}</span>
+            </div>
+
+            <div>
+              <Label htmlFor="payment-type">Payment Type *</Label>
+              <select
+                id="payment-type"
+                name="payment-type"
+                aria-label="Select payment type"
+                className="w-full p-2 border rounded-md"
+                value={paymentType}
+                onChange={(e) => setpaymentType(e.target.value)}
+              >
+                <option value="">Select Payment Type</option>
+                <option value="GPay">GPay</option>
+                <option value="Cash">Cash</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="bill-by">Bill Created By *</Label>
+              <Input
+                id="bill-by"
+                placeholder="Enter person name"
+                value={billCreatedBy}
+                onChange={(e) => setBillCreatedBy(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Search Section */}
+        <div className="bg-slate-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">Find Product</h3>
+          <div className="flex flex-row flex-wrap gap-2 items-end">
+            <div className="flex flex-col flex-wrap">
+              <Label htmlFor="product-code" className="mb-[10px]">
+                Product Code
+              </Label>
+              <Input
+                id="product-code"
+                className="w-[250px] p-2"
+                placeholder="Enter product code (without size)"
+                value={code}
+                onKeyUp={(e) => {
+                  if (e.key === "Enter") {
+                    handleFind();
+                  }
+                }}
+                onChange={(e) => {
+                  setCode(e.target.value);
+                }}
+              />
+            </div>
+            <Button
+              type="button"
+              onClick={handleFind}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="mr-2 h-4 w-4" />
+              )}
+              Find Product
+            </Button>
+          </div>
+        </div>
+
+        {/* Product Details */}
+        {kurti && (
+          <div className="bg-white border rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-3">Product Details</h3>
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-shrink-0">
+                <img
+                  src={kurti.images[0]?.url}
+                  alt={kurti.code}
+                  className="w-64 h-64 object-cover rounded-lg border"
+                />
+              </div>
+              <div className="flex-1 space-y-2">
+                <p className="text-xl font-bold">
+                  Code: {kurti.code.toUpperCase()}
+                </p>
+                <p className="text-lg">Category: {kurti.category}</p>
+                <p className="text-lg">Party: {kurti.party}</p>
+                <p className="text-lg font-semibold text-green-600">
+                  SP: RB{kurti.sellingPrice}
+                </p>
+                {kurti?.isBigPrice && (
+                  <p className="text-lg font-semibold text-green-600">
+                    BSP: RB
+                    {parseInt(kurti.sellingPrice) +
+                      (kurti?.isBigPrice ? kurti?.bigPrice : 0)}
+                  </p>
                 )}
+
+                {/* Size Table */}
+                <div className="mt-4">
+                  <h4 className="font-semibold mb-2">Available Sizes:</h4>
+                  <div className="flex flex-wrap gap-4">
+                    <Table className="border border-collapse max-w-md">
+                      <TableHeader>
+                        <TableRow className="bg-slate-800">
+                          <TableHead className="font-bold border text-white">
+                            SIZE
+                          </TableHead>
+                          <TableHead className="font-bold border text-white">
+                            STOCK
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {kurti.sizes.map((sz: any, i: number) => (
+                          <TableRow
+                            key={i}
+                            className={sz.quantity === 0 ? "opacity-50" : ""}
+                          >
+                            <TableCell className="border">
+                              {sz.size.toUpperCase()}
+                            </TableCell>
+                            <TableCell
+                              className={`border ${
+                                sz.quantity === 0
+                                  ? "text-red-500"
+                                  : "text-green-600"
+                              }`}
+                            >
+                              {sz.quantity}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                {/* Add to Cart Form */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                  <h4 className="font-semibold mb-3 text-yellow-800">
+                    Add to Cart
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div>
+                      <Label htmlFor="size-select">Select Size *</Label>
+                      <select
+                        id="size-select"
+                        name="size-select"
+                        aria-label="Select size"
+                        className="w-full p-2 border rounded-md"
+                        value={selectedSize}
+                        onChange={(e) => setSelectedSize(e.target.value)}
+                      >
+                        <option value="">Select Size</option>
+                        {getAvailableSizes().map((sz: any, i: number) => (
+                          <option key={i} value={sz.size}>
+                            {sz.size.toUpperCase()} (Stock: {sz.quantity})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="quantity">Quantity *</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        min="1"
+                        placeholder="Enter quantity"
+                        value={quantity}
+                        onChange={(e) =>
+                          setQuantity(parseInt(e.target.value) || 1)
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="selling-price">Selling Price *</Label>
+                      <Input
+                        id="selling-price"
+                        type="number"
+                        placeholder="Enter selling price"
+                        value={sellingPrice}
+                        onChange={(e) => setSellingPrice(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        onClick={addToCart}
+                        className="w-full bg-yellow-600 hover:bg-yellow-700"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add to Cart
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      {/* Products Table */}
-      <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Products Sold ({sale.sales.length} items)
-          </h3>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product Code</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Party</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Image</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sale.sales.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-mono font-medium">
-                      {item.code}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{item.kurti.category}</Badge>
-                    </TableCell>
-                    <TableCell>{item.kurti.party}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{item.kurtiSize}</Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      ₹{item.selledPrice?.toLocaleString() || "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      {item.kurti.images && item.kurti.images.length > 0 ? (
-                        <img
-                          src={item.kurti.images[0].url}
-                          alt={item.code}
-                          className="w-12 h-12 object-cover rounded border"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-gray-100 rounded border flex items-center justify-center">
-                          <span className="text-xs text-gray-500">
-                            No Image
-                          </span>
-                        </div>
-                      )}
-                    </TableCell>
+        {/* Shopping Cart */}
+        {cart.length > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-4 text-green-800">
+              Shopping Cart ({cart.length} items)
+            </h3>
+
+            <div className="overflow-x-auto">
+              <Table className="border border-collapse">
+                <TableHeader>
+                  <TableRow className="bg-green-800">
+                    <TableHead className="font-bold border text-white">
+                      Product
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Size
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Quantity
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Unit Price
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Total
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Actions
+                    </TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {cart.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="border">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={item.kurti.images[0]?.url}
+                            alt={item.kurti.code}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                          <div>
+                            <div className="font-semibold">
+                              {item.kurti.code.toUpperCase()}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {item.kurti.category}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="border">
+                        {item.selectedSize.toUpperCase()}
+                      </TableCell>
+                      <TableCell className="border">
+                        <Input
+                          type="number"
+                          min="1"
+                          max={item.availableStock}
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateCartItemQuantity(
+                              item.id,
+                              parseInt(e.target.value) || 1
+                            )
+                          }
+                          className="w-20"
+                        />
+                      </TableCell>
+                      <TableCell className="border">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.sellingPrice}
+                          onChange={(e) =>
+                            updateCartItemPrice(
+                              item.id,
+                              parseInt(e.target.value) || 1
+                            )
+                          }
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell className="border font-semibold">
+                        ₹{item.sellingPrice * item.quantity}
+                      </TableCell>
+                      <TableCell className="border">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-green-300">
+              <div className="text-xl font-bold text-green-800">
+                Total Amount: ₹{getTotalAmount()}
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  onClick={handleSell}
+                  disabled={selling || cart.length === 0}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {selling ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                  )}
+                  Complete Sale & Generate Invoice
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetForm}
+                  disabled={selling}
+                >
+                  Clear All
+                </Button>
+              </div>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -634,3 +967,4 @@ const SaleDetailsPageWrapper = () => {
 };
 
 export default SaleDetailsPageWrapper;
+

@@ -24,6 +24,15 @@ export const generateInvoiceHTML = (
   const GST_RATE = 5; // Total GST (2.5% SGST + 2.5% CGST)
 
   const calculateGSTBreakdown = (totalPriceWithGST: number) => {
+      if (!totalPriceWithGST || isNaN(totalPriceWithGST)) {
+    return {
+      basePrice: 0,
+      igst: 0,
+      sgst: 0,
+      cgst: 0,
+      totalGST: 0,
+    };
+  }
     const basePrice = totalPriceWithGST / (1 + GST_RATE / 100);
     const totalGSTAmount = totalPriceWithGST - basePrice;
 
@@ -49,23 +58,28 @@ export const generateInvoiceHTML = (
   };
 
   const totalGSTBreakdown = soldProducts.reduce(
-    (acc, item) => {
-      // Ensure selledPrice is a number
-      const selledPrice = typeof item.selledPrice === 'string' ? parseFloat(item.selledPrice) : (item.selledPrice || 0);
-      const quantity = typeof item.quantity === 'string' ? parseInt(item.quantity) : (item.quantity || 0);
-      
-      const itemTotal = selledPrice * quantity;
-      const breakdown = calculateGSTBreakdown(itemTotal);
-      return {
-        basePrice: acc.basePrice + breakdown.basePrice,
-        igst: acc.igst + breakdown.igst,
-        sgst: acc.sgst + breakdown.sgst,
-        cgst: acc.cgst + breakdown.cgst,
-        totalGST: acc.totalGST + breakdown.totalGST,
-      };
-    },
-    { basePrice: 0, igst: 0, sgst: 0, cgst: 0, totalGST: 0 }
-  );
+  (acc, item) => {
+const selledPrice = item.sale?.selledPrice ??
+  item.unitPrice ??
+  (typeof item.sellingPrice === "number" ? item.sellingPrice : parseFloat(item.sellingPrice || "0"));
+
+    const quantity = Number(item.quantity) || 0;
+
+    const itemTotal = selledPrice * quantity;
+    const breakdown = calculateGSTBreakdown(itemTotal);
+
+    return {
+      basePrice: acc.basePrice + breakdown.basePrice,
+      igst: acc.igst + breakdown.igst,
+      sgst: acc.sgst + breakdown.sgst,
+      cgst: acc.cgst + breakdown.cgst,
+      totalGST: acc.totalGST + breakdown.totalGST,
+    };
+  },
+  { basePrice: 0, igst: 0, sgst: 0, cgst: 0, totalGST: 0 }
+);
+
+console.log("totalGSTBreakdown",totalGSTBreakdown)
 
   return `
     <!DOCTYPE html>
@@ -159,22 +173,15 @@ export const generateInvoiceHTML = (
           <tbody>
             ${soldProducts
               .map((item) => {
-                // Ensure selledPrice and quantity are numbers
-                const selledPrice = typeof item.selledPrice === 'string' ? parseFloat(item.selledPrice) : (item.selledPrice || 0);
-                const quantity = typeof item.quantity === 'string' ? parseInt(item.quantity) : (item.quantity || 0);
-                
-                const itemTotal = selledPrice * quantity;
-                const breakdown = calculateGSTBreakdown(itemTotal);
-                const unitPrice = breakdown.basePrice / quantity;
                 return `
               <tr>
                 <td>
                   ${item.kurti.code.toUpperCase()}<br/>
                 </td>
                 <td>${item.kurti.hsnCode || "N/A"}</td>
-                <td>${quantity}</td>
-                <td>₹${unitPrice.toFixed(2)}</td>
-                <td>₹${breakdown.basePrice.toFixed(2)}</td>
+                <td>${item.quantity}</td>
+                <td>₹${item.unitPrice.toFixed(2).toString()}</td>
+                <td>₹${item.totalPrice.toFixed(2).toString()}</td>
               </tr>
               `;
               })
