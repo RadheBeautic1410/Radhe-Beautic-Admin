@@ -1,205 +1,340 @@
-"use client"
+"use client";
 
 import * as z from "zod";
-import { Button } from "@/src/components/ui/button";
-import { UserRole } from "@prisma/client";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { TableCell, TableRow, } from "@/src/components/ui/table"
-import { useTransition } from "react";
+import { TableCell, TableRow } from "@/src/components/ui/table";
+import { Button } from "@/src/components/ui/button";
 import { DialogDemo } from "@/src/components/dialog-demo";
-
-import { Form, FormField, FormControl, FormItem, FormLabel, FormDescription, FormMessage, } from "@/src/components/ui/form";
-import { useForm } from "react-hook-form";
-
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/src/components/ui/select";
-import { Switch } from "@/src/components/ui/switch";
-import { ModeratorUpdateSchema } from "@/src/schemas";
-import { moderatorUpdate } from "@/src/actions/moderator";
-import { ImCross } from "react-icons/im";
-import { IoMdCheckmark } from "react-icons/io";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
-import { userDelete } from "@/src/actions/user";
-import { DialogFooter } from "@/src/components/ui/dialog";
 import { VerifierDetail } from "./verifierDetail";
 
+import {
+  Form,
+  FormField,
+  FormControl,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/src/components/ui/form";
+
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectItem,
+  SelectContent,
+} from "@/src/components/ui/select";
+
+import { Switch } from "@/src/components/ui/switch";
+import { UserRole } from "@prisma/client";
+
+import { IoMdCheckmark } from "react-icons/io";
+import { ImCross } from "react-icons/im";
+import Link from "next/link";
+import { moderatorUpdate } from "@/src/actions/moderator";
 
 interface userProps {
-    id: string;
-    name: string | null;
-    phoneNumber: string | null;
-    emailVerified: Date | null;
-    image: string | null;
-    password: string | null;
-    organization: string | null;
-    isVerified: boolean;
-    verifiedBy: string | null
-    role: UserRole;
-    isTwoFactorEnabled: boolean;
+  id: string;
+  name: string | null;
+  phoneNumber: string | null;
+  emailVerified: Date | null;
+  image: string | null;
+  password: string | null;
+  organization: string | null;
+  isVerified: boolean;
+  verifiedBy: string | null;
+  balance: number | null;
+  role: UserRole;
+  isTwoFactorEnabled: boolean;
 }
 
 interface moderatorRowProps {
-    userData: userProps;
-    onUpdateUserData: (updateUserData: userProps) => void;
-    // onDeleteUserData: (deleteUserData: userProps) => void;
+  userData: userProps;
+  onUpdateUserData: (updateUserData: userProps) => void;
 }
 
+const editSchema = z.object({
+  isVerified: z.boolean(),
+  role: z.nativeEnum(UserRole),
+});
 
-export const CustomerRow = ({ userData, onUpdateUserData }: moderatorRowProps) => {
+const addMoneySchema = z.object({
+  amount: z.string().min(1, "Amount is required"),
+  paymentMethod: z.enum(["cash", "bank_transfer", "gpay"]),
+});
 
-    const { id } = userData;
-    const form = useForm({
-        defaultValues: {
-            isVerified: userData?.isVerified,
-            role: userData?.role || undefined,
-        }
+export const CustomerRow = ({
+  userData,
+  onUpdateUserData,
+}: moderatorRowProps) => {
+  const { id } = userData;
+  const [isPending, startTransition] = useTransition();
+
+  // Form for editing user (verification + role)
+  const editForm = useForm<z.infer<typeof editSchema>>({
+    resolver: zodResolver(editSchema),
+    defaultValues: {
+      isVerified: userData.isVerified,
+      role: userData.role,
+    },
+  });
+
+  const handleEditSubmit = (values: z.infer<typeof editSchema>) => {
+    const combinedData = { ...values, id };
+    startTransition(() => {
+      moderatorUpdate(combinedData)
+        .then((data) => {
+          if (data.error) {
+            toast.error(data.error);
+            return;
+          }
+
+          if (data.success && data.updatedUser) {
+            toast.success(data.success);
+            onUpdateUserData(data.updatedUser);
+          }
+        })
+        .catch(() => toast.error("Something went wrong!"));
     });
+  };
 
-    const [isPending, startTransition] = useTransition()
+  // Form for adding money
+  const moneyForm = useForm<z.infer<typeof addMoneySchema>>({
+    resolver: zodResolver(addMoneySchema),
+    defaultValues: {
+      amount: "",
+      paymentMethod: "cash",
+    },
+  });
 
-    const onSubmit = (values: any) => {
-        const combinedData = { ...values, id }
-        console.log(combinedData)
-        startTransition(() => {
-            moderatorUpdate(combinedData)
-                .then((data) => {
-                    if (data.error) {
-                        toast.error(data.error);
-                    }
+  const handleAddMoney = async (
+    values: z.infer<typeof addMoneySchema>,
+    closeDialog: () => void
+  ) => {
+    const payload = {
+      amount: parseFloat(values.amount),
+      paymentMethod: values.paymentMethod,
+      userId: id,
+    };
 
-                    if (data.success) {
-                        toast.success(data.success);
-                        onUpdateUserData(data.updatedUser)
-
-                    }
-                })
-                .catch(() => toast.error("Something went wrong!"));
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/wallet/add-money", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
         });
-    }
 
-    // const onSubmitDelete = () => {
-    //     startTransition(() => {
-    //         userDelete(id)
-    //             .then((data) => {
-    //                 if (data.error) {
-    //                     toast.error(data.error);
-    //                 }
+        const data = await res.json();
+        if (data.error) {
+          toast.error(data.error);
+          return;
+        }
 
-    //                 if (data.success) {
-    //                     toast.success(data.success);
-    //                     onDeleteUserData(data.deletedUser)
+        toast.success(data.success || "Money added successfully!");
+        moneyForm.reset(); // optional: reset form after success
+        closeDialog(); // ✅ close the dialog
+      } catch (err) {
+        toast.error("Something went wrong while adding money.");
+        console.error("API Error:", err);
+      }
+    });
+  };
 
-    //                 }
-    //             })
-    //             .catch(() => toast.error("Something went wrong!"));
-    //     });
-    // }
+  const [balance, setBalance] = useState<number | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    return (
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const res = await fetch(`/api/wallet/balance`);
+        const data = await res.json();
 
-        <TableRow key={userData.id}>
-            <TableCell className="text-center font-medium">{userData.name}</TableCell>
-            <TableCell className="text-center">{userData.phoneNumber}</TableCell>
-            {/* <TableCell className="text-center">{userData.organization}</TableCell> */}
-            <TableCell className="text-center">
-                <div className="flex justify-center">
-                    {userData.isVerified ? <IoMdCheckmark /> : <ImCross />}
-                </div>
-            </TableCell>
-            <TableCell className="text-center">{userData.role}</TableCell>
+        if (res.ok) {
+          setBalance(data.balance);
+        } else {
+          console.error("Balance fetch error:", data.error);
+        }
+      } catch (err) {
+        console.error("Balance fetch failed:", err);
+      }
+    };
 
-            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+    fetchBalance();
+  }, []);
 
-                <TableCell className="text-center">{userData.verifiedBy ? <VerifierDetail id={userData.verifiedBy} /> : <Button variant="ghost">
-                    Not verified
-                </Button>}</TableCell>
+  return (
+    <TableRow key={userData.id}>
+      <TableCell className="text-center font-medium">{userData.name}</TableCell>
+      <TableCell className="text-center">{userData.phoneNumber}</TableCell>
+      <TableCell className="text-center">
+        <div className="flex justify-center">
+          {userData.isVerified ? <IoMdCheckmark /> : <ImCross />}
+        </div>
+      </TableCell>
+      <TableCell className="text-center">{userData.role}</TableCell>
 
-            </RoleGateForComponent>
+      <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+        <TableCell className="text-center">
+          {userData.verifiedBy ? (
+            <VerifierDetail id={userData.verifiedBy} />
+          ) : (
+            <Button variant="ghost">Not verified</Button>
+          )}
+        </TableCell>
+      </RoleGateForComponent>
 
-            {/* <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
-                <TableCell className="text-center">
-                    <DialogDemo
-                        dialogTrigger="Delete"
-                        dialogTitle="Delete User"
-                        dialogDescription="Do you want to delete this User?"
-                        ButtonLabel="yes"
+      {/* Edit User Dialog */}
+      <TableCell className="text-center">
+        <DialogDemo
+          dialogTrigger="Edit User"
+          dialogTitle="Edit User"
+          dialogDescription="Make changes to the user's profile. Click save when done."
+          ButtonLabel="Save Changes"
+        >
+          <Form {...editForm}>
+            <form
+              className="space-y-6"
+              onSubmit={editForm.handleSubmit(handleEditSubmit)}
+            >
+              <FormField
+                control={editForm.control}
+                name="isVerified"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <FormLabel>Verification Status</FormLabel>
+                    <FormControl>
+                      <Switch
+                        disabled={isPending}
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select
+                      disabled={isPending}
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
                     >
-                        <DialogFooter>
-                            <Button type="submit" variant="destructive" disabled={isPending} onClick={onSubmitDelete}>Yes</Button>
-                        </DialogFooter>
-                    </DialogDemo>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={UserRole.USER}>Customer</SelectItem>
+                        <SelectItem value={UserRole.ADMIN}>Admin</SelectItem>
+                        <SelectItem value={UserRole.MOD}>Moderator</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                </TableCell>
-            </RoleGateForComponent> */}
+              <Button type="submit" disabled={isPending}>
+                Save Changes
+              </Button>
+            </form>
+          </Form>
+        </DialogDemo>
+      </TableCell>
+      <TableCell className="text-center">{userData.balance}</TableCell>
 
-            <TableCell className="text-center">
-                <DialogDemo
-                    dialogTrigger="Edit User"
-                    dialogTitle="Edit User"
-                    dialogDescription="Make changes to your profile here. Click save when you're done."
-                    ButtonLabel="Save Changes"
-                >
+      {/* Add Money Dialog */}
+      <TableCell className="text-center">
+        <DialogDemo
+          dialogTrigger="Add Money"
+          dialogTitle="Add Money"
+          dialogDescription="Add money to the user's account."
+        >
+          {(closeDialog) => (
+            <Form {...moneyForm}>
+              <form
+                className="space-y-6"
+                onSubmit={moneyForm.handleSubmit((values) =>
+                  handleAddMoney(values, closeDialog)
+                )}
+              >
+                <FormField
+                  control={moneyForm.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Amount</FormLabel>
+                      <FormControl>
+                        <input
+                          type="number"
+                          placeholder="Enter amount"
+                          className="input input-bordered w-full px-3 py-2 border rounded-md"
+                          {...field}
+                          disabled={isPending}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    <Form {...form}>
-                        <form
-                            className="space-y-6"
-                            onSubmit={form.handleSubmit(onSubmit)}
-                        >
+                <FormField
+                  control={moneyForm.control}
+                  name="paymentMethod"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Method</FormLabel>
+                      <Select
+                        disabled={isPending}
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select method" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="bank_transfer">
+                            Bank Transfer
+                          </SelectItem>
+                          <SelectItem value="gpay">GPay</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                            <FormField
-                                control={form.control}
-                                name="isVerified"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                        <div className="space-y-0.5">
-                                            <FormLabel>Verification Status</FormLabel>
-                                        </div>
-                                        <FormControl>
-                                            <Switch
-                                                disabled={isPending}
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
-                                name="role"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Role</FormLabel>
-                                        <Select
-                                            disabled={isPending}
-                                            onValueChange={field.onChange}
-                                            defaultValue={field.value}
-                                        >
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select a role" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-                                                    <SelectItem value={UserRole.USER}>
-                                                        Customer
-                                                    </SelectItem>
-                                                </RoleGateForComponent>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <Button type="submit" disabled={isPending}>Save Changes</Button>
-                        </form>
-                    </Form>
-
-                </DialogDemo>
-            </TableCell>
-        </TableRow>
-    )
-}
-
+                <Button type="submit" disabled={isPending}>
+                  Add Money
+                </Button>
+              </form>
+            </Form>
+          )}
+        </DialogDemo>
+      </TableCell>
+      <TableCell className="text-center">
+        <Link href={`/balance-history/${id}`}>
+          <Button variant="outline">Balance History</Button>
+        </Link>
+      </TableCell>
+    </TableRow>
+  );
+};

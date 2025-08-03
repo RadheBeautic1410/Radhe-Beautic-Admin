@@ -58,10 +58,12 @@ model User {
 
   verifiedByUser User? @relation("VerifiedBy", fields: [verifiedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  verifiedUsers User[]    @relation("VerifiedBy")
+  verifiedUsers User[]          @relation("VerifiedBy")
   cart          Cart[]
   orders        Orders[]
   Address       Address[]
+  balance       Float           @default(0)
+  WalletHistory WalletHistory[] @relation(name: "UserWalletHistory")
 }
 
 model VerificationToken {
@@ -130,10 +132,10 @@ model Category {
   totalItems          Int     @default(0)
   isDeleted           Boolean @default(false)
   bigPrice            Float?
-  walletDiscount      Int?     @default(0)
+  walletDiscount      Int?    @default(0)
   sellingPrice        Float?
   actualPrice         Float?
-  isStockReady        Boolean  @default(true)
+  isStockReady        Boolean @default(true)
 }
 
 model Prices {
@@ -231,7 +233,7 @@ model Deletetime {
 
 model Cart {
   id          String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String         @db.ObjectId
+  userId      String        @db.ObjectId
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   CartProduct CartProduct[]
   orders      Orders[]
@@ -303,4 +305,21 @@ model TopSoldKurti {
   soldCount Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model WalletHistory {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String        @db.ObjectId
+  user          User          @relation("UserWalletHistory", fields: [userId], references: [id])
+  amount        Float
+  type          WalletTxnType
+  paymentMethod String
+  createdAt     DateTime      @default(now())
+
+  @@index([userId])
+}
+
+enum WalletTxnType {
+  CREDIT
+  DEBIT
 }
