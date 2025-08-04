@@ -232,7 +232,11 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("/api/category"); // Adjust the API endpoint based on your actual setup
+         const query = new URLSearchParams({
+           page: "1",
+           limit: "500",
+         })
+        const response = await fetch(`/api/category?${query.toString()}`); // Adjust the API endpoint based on your actual setup
         const result = await response.json();
         const sortedCategory = (result.data || []).sort((a: any, b: any) =>
           a.name.localeCompare(b.name)
