@@ -52,6 +52,9 @@ export const kurtiAddition = async (data: any) => {
     },
     data: {
       countTotal: {
+        increment:data.countOfPiece,
+      },
+      totalItems: {
         increment: 1,
       },
     },
@@ -150,7 +153,7 @@ export const stockAddition = async (data: any) => {
   // Step 4: Update category's countTotal using category code
   if (kurti.category) {
     await db.category.update({
-      where: { code: kurti.category.toUpperCase() }, // assuming category code is used
+      where: { code: code.toUpperCase().substring(0, 3) }, // assuming category code is used
       data: {
         countTotal: {
           increment: diff, // could be positive or negative

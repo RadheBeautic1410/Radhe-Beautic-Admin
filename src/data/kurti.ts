@@ -160,11 +160,12 @@ export const getKurtiByCategoryWithPages = async (
 
 export const deleteKurti = async (code: string, category: string) => {
   try {
+    console.log("its kurti delete",code,category)
     const kurtiData = await db.kurti.findUnique({
-      where: { code: code.toUpperCase(),isDeleted: false },
+      where: { code: code.toUpperCase(), isDeleted: false },
     });
     await db.category.update({
-      where: { code: category.toUpperCase() },
+      where: { code: code.toUpperCase().substring(0, 3) },
       data: {
         totalItems: {
           decrement: 1,
@@ -427,6 +428,16 @@ export const sellKurti2 = async (data: any) => {
                 kurtiId: updateUser.id,
                 pricesId: prices.id,
                 kurtiSize: cmp,
+              },
+            });
+            await db.category.update({
+              where: {
+                code: search.toUpperCase().substring(0, 3),
+              },
+              data: {
+                countTotal: {
+                  decrement: 1,
+                },
               },
             });
             console.log(sell);
@@ -835,6 +846,17 @@ export const sellMultipleKurtis = async (data: any) => {
                   soldCount: quantity,
                 },
               });
+
+              await db.category.update({
+                where: {
+                  code: search.substring(0, 3),
+                },
+                data: {
+                  countTotal: {
+                    decrement: quantity,
+                  },
+                },
+              })
 
               soldProducts.push({
                 kurti: updateUser,
@@ -1253,15 +1275,15 @@ export const addStock = async (code: string) => {
       },
     });
     const increaseInCategory = await db.category.update({
-      where:{
-        code: KurtiNew?.category.toUpperCase()
+      where: {
+        code: KurtiNew?.category.toUpperCase(),
       },
-      data:{
+      data: {
         countTotal: {
-          increment: 1
-        }
-      }
-    })
+          increment: 1,
+        },
+      },
+    });
     return KurtiNew;
   } catch (e: any) {
     console.log(e.message);

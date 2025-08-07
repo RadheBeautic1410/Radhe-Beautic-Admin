@@ -81,8 +81,8 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
       code,
       type: type.toUpperCase(),
       image: image || "",
-      sellingPrice: price || null,
-      bigPrice: bigPrice || null,
+      sellingPrice: price || 0,
+      bigPrice: bigPrice || 0,
     },
   });
 
@@ -415,8 +415,8 @@ export const getCategoryOverallStates = async () => {
       const item = categories[index];
       totalItems = totalItems + item.totalItems;
       totalPices = totalPices + item.countTotal;
-      if (item.actualPrice && item.countTotal && item.totalItems) {
-        totalStockPrice = totalStockPrice + item?.totalItems * item.actualPrice;
+      if (item.sellingPrice && item.countTotal && item.totalItems) {
+        totalStockPrice = totalStockPrice + item?.totalItems * item.sellingPrice;
       }
     }
 
