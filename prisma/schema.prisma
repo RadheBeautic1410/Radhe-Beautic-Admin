@@ -269,6 +269,7 @@ model OfflineSell {
   shopLocation  String?
   customerName  String?
   customerPhone String?
+  quantity      Int?
   selledPrice   Int?
 }
 

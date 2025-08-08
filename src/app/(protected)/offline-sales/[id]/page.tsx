@@ -23,6 +23,10 @@ import {
   FileText,
   Trash2,
   Plus,
+  Edit,
+  Save,
+  X,
+  Eye,
 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -49,11 +53,13 @@ interface CartItem {
   availableStock: number;
 }
 type GSTType = "IGST" | "SGST_CGST";
+
 interface SaleDetailsPageProps {
   params: {
     id: string;
   };
 }
+
 function SaleDetailsPage({ params }: SaleDetailsPageProps){
   const [code, setCode] = useState("");
   const [kurti, setKurti] = useState<any>(null);
@@ -61,6 +67,14 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
   const [selling, setSelling] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [gstType, setGstType] = useState<GSTType>("SGST_CGST");
+  
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [originalSaleData, setOriginalSaleData] = useState<any>(null);
+  const [removedItems, setRemovedItems] = useState<string[]>([]);
+  const [regeneratingInvoice, setRegeneratingInvoice] = useState(false);
+  
   // Sale details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -76,16 +90,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
   const [quantity, setQuantity] = useState(1);
 
   const currentUser = useCurrentUser();
-
-
-
-
-
-
-
-
-
   const router = useRouter();
+
   useEffect(() => {
     const loadSaleDetails = async () => {
       try {
@@ -93,48 +99,35 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
         const response = await axios.get(
           `/api/sell/offline-sales/${params.id}`
         );
-        setCustomerName(response.data.data.customerName);
-        setCustomerPhone(response.data.data.customerPhone);
-        setBillCreatedBy(response.data.data.billCreatedBy);
-        setpaymentType(response.data.data.paymentType);
-        setGstType(response.data.data.gstType);
+        
+        const saleData = response.data.data;
+        setOriginalSaleData(saleData);
+        
+        // Populate form fields with existing data
+        setCustomerName(saleData.customerName || "");
+        setCustomerPhone(saleData.customerPhone || "");
+        setBillCreatedBy(saleData.billCreatedBy || "");
+        setpaymentType(saleData.paymentType || "");
+        setGstType(saleData.gstType || "SGST_CGST");
+        setSelectedShopId(saleData.shopId || "");
 
         console.log("response", response);
-        const saleData = response.data.data;
         console.log("saleData.sales", response.data.data);
         
-        saleData.sales.forEach((sale: any) => {
-          const cartItem = {
-            id: sale.id,
-            kurti: sale.kurti,
-            selectedSize: sale.kurtiSize,
-            quantity: sale.quantity,
-            sellingPrice: sale.sellingPrice,
-            availableStock: sale.availableStock,
-          };
-          setCart((prevCart) => [...prevCart, cartItem]);
-        })
-        // setKurti(saleData.sales[0].kurti);
-        //setSale(saleData);
+        // Load existing cart items
+        const existingCartItems = saleData.sales.map((sale: any) => ({
+          id: sale.id,
+          kurti: sale.kurti,
+          selectedSize: sale.kurtiSize,
+          quantity: sale.quantity,
+          sellingPrice: sale.selledPrice,
+          availableStock: sale.availableStock,
+        }));
+        setCart(existingCartItems);
         
-        // Populate edit form with current data
-        // setEditForm({
-        //   customerName: saleData.customerName || "",
-        //   customerPhone: saleData.customerPhone || "",
-        //   billCreatedBy: saleData.billCreatedBy || "",
-        //   paymentType: saleData.paymentType || "",
-        //   gstType: saleData.gstType || "SGST_CGST",
-        // });
       } catch (error: any) {
-        // console.error("Error loading sale details:", error);
-        // if (error.response?.status === 404) {
-        //   setError("Sale not found");
-        // } else if (error.response?.status === 403) {
-        //   setError("Access denied");
-        // } else {
-        //   setError("Failed to load sale details");
-        // }
-        // toast.error("Failed to load sale details");
+        console.error("Error loading sale details:", error);
+        toast.error("Failed to load sale details");
       } finally {
         setLoading(false);
       }
@@ -144,26 +137,6 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
       loadSaleDetails();
     }
   }, [params.id]);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   // Load shops and user's shop on component mount
   useEffect(() => {
@@ -182,7 +155,10 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
           const userShopData = await getUserShop(currentUser.id);
           if (userShopData) {
             setUserShop(userShopData);
-            setSelectedShopId(userShopData.id);
+            // Only set shop if not already set from sale data
+            if (!selectedShopId) {
+              setSelectedShopId(userShopData.id);
+            }
           }
         }
       } catch (error) {
@@ -191,7 +167,156 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
       }
     };
     loadShopsAndUserShop();
-  }, [currentUser]);
+  }, [currentUser, selectedShopId]);
+
+  // Toggle edit mode
+  const toggleEditMode = () => {
+    if (isEditMode) {
+      // Cancel edit mode - restore original data
+      if (originalSaleData) {
+        setCustomerName(originalSaleData.customerName || "");
+        setCustomerPhone(originalSaleData.customerPhone || "");
+        setBillCreatedBy(originalSaleData.billCreatedBy || "");
+        setpaymentType(originalSaleData.paymentType || "");
+        setGstType(originalSaleData.gstType || "SGST_CGST");
+        setSelectedShopId(originalSaleData.shopId || "");
+        
+        // Restore original cart items
+        const originalCartItems = originalSaleData.sales.map((sale: any) => ({
+          id: sale.id,
+          kurti: sale.kurti,
+          selectedSize: sale.kurtiSize,
+          quantity: sale.quantity,
+          sellingPrice: sale.selledPrice,
+          availableStock: sale.availableStock,
+        }));
+        setCart(originalCartItems);
+        setRemovedItems([]);
+      }
+    } else {
+      // Enter edit mode - clear removed items
+      setRemovedItems([]);
+    }
+    setIsEditMode(!isEditMode);
+  };
+
+  // Save changes
+  const handleSaveChanges = async () => {
+    try {
+      setUpdating(true);
+
+      // Validate required fields
+      if (!customerName.trim()) {
+        toast.error("Customer name is required");
+        return;
+      }
+
+      if (!billCreatedBy.trim()) {
+        toast.error("Bill created by is required");
+        return;
+      }
+
+      if (!paymentType.trim()) {
+        toast.error("Payment type is required");
+        return;
+      }
+
+      // Prepare data for API call
+      const updateData: any = {
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        billCreatedBy: billCreatedBy.trim(),
+        paymentType: paymentType.trim(),
+        gstType: gstType,
+      };
+
+      // Add new products if any are in the cart that weren't in the original data
+      const originalSaleIds = originalSaleData?.sales?.map((sale: any) => sale.id) || [];
+      const newProducts = cart
+        .filter((item) => !originalSaleIds.includes(item.id))
+        .map((item) => ({
+          kurtiId: item.kurti.id,
+          kurtiCode: item.kurti.code,
+          selectedSize: item.selectedSize,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+          code: item.kurti.code,
+        }));
+
+      if (newProducts.length > 0) {
+        updateData.newProducts = newProducts;
+      }
+
+      // Add updated items (existing items that have been modified)
+      const updatedItems = cart
+        .filter((item) => originalSaleIds.includes(item.id))
+        .map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+        }));
+
+      if (updatedItems.length > 0) {
+        updateData.updatedItems = updatedItems;
+      }
+
+      // Add removed items if any
+      if (removedItems.length > 0) {
+        updateData.removedItems = removedItems;
+      }
+
+      const response = await axios.put(
+        `/api/sell/offline-sales/${params.id}`,
+        updateData
+      );
+
+      if (response.data.success) {
+        toast.success("Sale updated successfully!");
+        setOriginalSaleData(response.data.data);
+        
+        // Update cart with the new data from server
+        const updatedCartItems = response.data.data.sales.map((sale: any) => ({
+          id: sale.id,
+          kurti: sale.kurti,
+          selectedSize: sale.kurtiSize,
+          quantity: sale.quantity,
+          sellingPrice: sale.selledPrice,
+          availableStock: sale.availableStock,
+        }));
+        setCart(updatedCartItems);
+        
+        // Handle invoice regeneration
+        if (response.data.invoiceRegenerated && response.data.newInvoiceUrl) {
+          toast.success("Invoice regenerated successfully!");
+          
+          // Download the new invoice
+          try {
+            const link = document.createElement("a");
+            link.href = response.data.newInvoiceUrl;
+            link.download = `invoice-${response.data.data.batchNumber}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast.success("New invoice downloaded!");
+          } catch (error) {
+            console.error("Error downloading invoice:", error);
+            toast.error("Failed to download invoice");
+          }
+        }
+        
+        // Reset removed items and exit edit mode
+        setRemovedItems([]);
+        setIsEditMode(false);
+      } else {
+        toast.error("Failed to update sale");
+      }
+    } catch (error: any) {
+      console.error("Error updating sale:", error);
+      toast.error(error.response?.data?.error || "Failed to update sale");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const handleFind = async () => {
     try {
@@ -221,6 +346,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
       setLoading(false);
     }
   };
+  console.log("🚀 ~ SaleDetailsPage ~ cart:", cart);
 
   const addToCart = () => {
     if (!kurti) {
@@ -255,8 +381,11 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
         item.kurti.code === kurti.code && item.selectedSize === selectedSize
     );
 
+    // Create a unique temporary ID for new items (will be replaced with real ID after save)
+    const tempId = `temp-${kurti.code}-${selectedSize}-${Date.now()}`;
+
     const newItem: CartItem = {
-      id: `${kurti.code}-${selectedSize}-${Date.now()}`,
+      id: tempId,
       kurti,
       selectedSize,
       quantity,
@@ -296,12 +425,21 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
     toast.success("Product added to cart!");
   };
 
-  const removeFromCart = (itemId: string) => {
-    setCart(cart.filter((item) => item.id !== itemId));
+  const removeFromCart = async (itemId: string) => {
+    const updatedCart = cart.filter((item) => item.id !== itemId);
+    setCart(updatedCart);
+    
+    // For new items (temp IDs), just remove from cart
+    // For existing items, track them for removal on save
+    if (!itemId.startsWith('temp-')) {
+      // This is an existing item that was removed
+      setRemovedItems(prev => [...prev, itemId]);
+    }
+    
     toast.success("Item removed from cart");
   };
 
-  const updateCartItemQuantity = (itemId: string, newQuantity: number) => {
+  const updateCartItemQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeFromCart(itemId);
       return;
@@ -320,7 +458,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
     setCart(updatedCart);
   };
 
-  const updateCartItemPrice = (itemId: string, newPrice: number) => {
+  const updateCartItemPrice = async (itemId: string, newPrice: number) => {
     if (newPrice <= 0) {
       toast.error("Please enter valid price");
       return;
@@ -356,8 +494,6 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
         return;
       }
 
-
-
       if (!selectedShopId.trim()) {
         if (currentUser?.role === UserRole.ADMIN) {
           toast.error("Please select a shop");
@@ -375,10 +511,6 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
         toast.error("Please select payment type");
         return;
       }
-      // if (!shopName.trim()) {
-      //   toast.error("Please enter shop name");
-      //   return;
-      // }
 
       const currentTime = getCurrTime();
 
@@ -504,21 +636,123 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
     setQuantity(1);
   };
 
+  const regenerateInvoice = async () => {
+    try {
+      setRegeneratingInvoice(true);
+      
+      const response = await axios.post(`/api/sell/offline-sales/${params.id}/regenerate-invoice`);
+      
+      if (response.data.success) {
+        toast.success("Invoice regenerated successfully!");
+        
+        // Download the new invoice
+        try {
+          const link = document.createElement("a");
+          link.href = response.data.invoiceUrl;
+          link.download = `invoice-${originalSaleData.batchNumber}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.success("New invoice downloaded!");
+        } catch (error) {
+          console.error("Error downloading invoice:", error);
+          toast.error("Failed to download invoice");
+        }
+      } else {
+        toast.error(response.data.error || "Failed to regenerate invoice");
+      }
+    } catch (error: any) {
+      console.error("Error regenerating invoice:", error);
+      toast.error(error.response?.data?.error || "Failed to regenerate invoice");
+    } finally {
+      setRegeneratingInvoice(false);
+    }
+  };
+
   const getAvailableSizes = () => {
     if (!kurti?.sizes) return [];
     return kurti.sizes.filter((sz: any) => sz.quantity > 0);
   };
 
+  if (loading) {
+    return (
+      <Card className="rounded-none w-full h-full">
+        <CardContent className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading sale details...</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="rounded-none w-full h-full">
       <CardHeader>
-        <p className="text-2xl font-semibold text-center">
-          🛒 Offline Multi-Product Sale System
-        </p>
+        <div className="flex justify-between items-center">
+          <p className="text-2xl font-semibold text-center">
+            {isEditMode ? "✏️ Edit Offline Sale" : "👁️ View Offline Sale"}
+          </p>
+          <div className="flex gap-2">
+            {!isEditMode ? (
+              <>
+                <Button
+                  onClick={toggleEditMode}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Sale
+                </Button>
+                <Button
+                  onClick={regenerateInvoice}
+                  disabled={regeneratingInvoice}
+                  variant="outline"
+                  className="border-green-600 text-green-600 hover:bg-green-50"
+                >
+                  {regeneratingInvoice ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="mr-2 h-4 w-4" />
+                  )}
+                  Regenerate Invoice
+                </Button>
+              </>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSaveChanges}
+                  disabled={updating}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {updating ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Save Changes
+                </Button>
+                <Button
+                  onClick={toggleEditMode}
+                  variant="outline"
+                  disabled={updating}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
-        <div className="bg-purple-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">GST Configuration</h3>
+        <div className={`p-4 rounded-lg ${isEditMode ? 'bg-yellow-50 border-2 border-yellow-200' : 'bg-blue-50'}`}>
+          <h3 className="text-lg font-semibold mb-3">
+            {isEditMode ? "🔄 Edit Mode Active" : "📋 Sale Information"}
+          </h3>
+          {isEditMode && (
+            <p className="text-sm text-yellow-700 mb-3">
+              You are currently editing this sale. Make your changes and click "Save Changes" to update.
+            </p>
+          )}
           <div className="flex gap-4">
             <label className="flex items-center gap-2">
               <input
@@ -527,6 +761,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
                 value="SGST_CGST"
                 checked={gstType === "SGST_CGST"}
                 onChange={(e) => setGstType(e.target.value as GSTType)}
+                disabled={!isEditMode}
               />
               <span>SGST + CGST (2.5% + 2.5%)</span>
             </label>
@@ -537,11 +772,13 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
                 value="IGST"
                 checked={gstType === "IGST"}
                 onChange={(e) => setGstType(e.target.value as GSTType)}
+                disabled={!isEditMode}
               />
               <span>IGST (5%)</span>
             </label>
           </div>
         </div>
+        
         {/* Customer Details Section */}
         <div className="bg-blue-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
@@ -553,6 +790,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
                 placeholder="Enter customer name"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
+                disabled={!isEditMode}
+                className={!isEditMode ? "bg-gray-50" : ""}
               />
             </div>
             <div>
@@ -569,6 +808,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
                     setCustomerPhone(input);
                   }
                 }}
+                disabled={!isEditMode}
+                className={!isEditMode ? "bg-gray-50" : ""}
               />
             </div>
             <div>
@@ -582,9 +823,10 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
                   id="shop-select"
                   name="shop-select"
                   aria-label="Select shop"
-                  className="w-full p-2 border rounded-md"
+                  className={`w-full p-2 border rounded-md ${!isEditMode ? "bg-gray-50" : ""}`}
                   value={selectedShopId}
                   onChange={(e) => setSelectedShopId(e.target.value)}
+                  disabled={!isEditMode}
                 >
                   <option value="">Select Shop</option>
                   {shops.map((shop) => (
@@ -612,9 +854,10 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
                 id="payment-type"
                 name="payment-type"
                 aria-label="Select payment type"
-                className="w-full p-2 border rounded-md"
+                className={`w-full p-2 border rounded-md ${!isEditMode ? "bg-gray-50" : ""}`}
                 value={paymentType}
                 onChange={(e) => setpaymentType(e.target.value)}
+                disabled={!isEditMode}
               >
                 <option value="">Select Payment Type</option>
                 <option value="GPay">GPay</option>
@@ -630,52 +873,56 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
                 placeholder="Enter person name"
                 value={billCreatedBy}
                 onChange={(e) => setBillCreatedBy(e.target.value)}
+                disabled={!isEditMode}
+                className={!isEditMode ? "bg-gray-50" : ""}
               />
             </div>
           </div>
         </div>
 
-        {/* Search Section */}
-        <div className="bg-slate-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Find Product</h3>
-          <div className="flex flex-row flex-wrap gap-2 items-end">
-            <div className="flex flex-col flex-wrap">
-              <Label htmlFor="product-code" className="mb-[10px]">
-                Product Code
-              </Label>
-              <Input
-                id="product-code"
-                className="w-[250px] p-2"
-                placeholder="Enter product code (without size)"
-                value={code}
-                onKeyUp={(e) => {
-                  if (e.key === "Enter") {
-                    handleFind();
-                  }
-                }}
-                onChange={(e) => {
-                  setCode(e.target.value);
-                }}
-              />
+        {/* Search Section - Only show in edit mode */}
+        {isEditMode && (
+          <div className="bg-slate-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3">Find Product</h3>
+            <div className="flex flex-row flex-wrap gap-2 items-end">
+              <div className="flex flex-col flex-wrap">
+                <Label htmlFor="product-code" className="mb-[10px]">
+                  Product Code
+                </Label>
+                <Input
+                  id="product-code"
+                  className="w-[250px] p-2"
+                  placeholder="Enter product code (without size)"
+                  value={code}
+                  onKeyUp={(e) => {
+                    if (e.key === "Enter") {
+                      handleFind();
+                    }
+                  }}
+                  onChange={(e) => {
+                    setCode(e.target.value);
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={handleFind}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {loading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="mr-2 h-4 w-4" />
+                )}
+                Find Product
+              </Button>
             </div>
-            <Button
-              type="button"
-              onClick={handleFind}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="mr-2 h-4 w-4" />
-              )}
-              Find Product
-            </Button>
           </div>
-        </div>
+        )}
 
-        {/* Product Details */}
-        {kurti && (
+        {/* Product Details - Only show in edit mode */}
+        {isEditMode && kurti && (
           <div className="bg-white border rounded-lg p-4">
             <h3 className="text-lg font-semibold mb-3">Product Details</h3>
             <div className="flex flex-col lg:flex-row gap-4">
@@ -811,7 +1058,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
         {cart.length > 0 && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <h3 className="text-lg font-semibold mb-4 text-green-800">
-              Shopping Cart ({cart.length} items)
+              {isEditMode ? "Edit Cart Items" : "Sale Items"} ({cart.length} items)
             </h3>
 
             <div className="overflow-x-auto">
@@ -833,9 +1080,11 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
                     <TableHead className="font-bold border text-white">
                       Total
                     </TableHead>
-                    <TableHead className="font-bold border text-white">
-                      Actions
-                    </TableHead>
+                    {isEditMode && (
+                      <TableHead className="font-bold border text-white">
+                        Actions
+                      </TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -862,47 +1111,59 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
                         {item.selectedSize.toUpperCase()}
                       </TableCell>
                       <TableCell className="border">
-                        <Input
-                          type="number"
-                          min="1"
-                          max={item.availableStock}
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateCartItemQuantity(
-                              item.id,
-                              parseInt(e.target.value) || 1
-                            )
-                          }
-                          className="w-20"
-                        />
+                        {isEditMode ? (
+                          <Input
+                            type="number"
+                            min="1"
+                            max={item.availableStock}
+                            value={item.quantity}
+                            onChange={async (e) => {
+                              await updateCartItemQuantity(
+                                item.id,
+                                parseInt(e.target.value) || 1
+                              );
+                            }}
+                            className="w-20"
+                          />
+                        ) : (
+                          <span>{item.quantity}</span>
+                        )}
                       </TableCell>
                       <TableCell className="border">
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.sellingPrice}
-                          onChange={(e) =>
-                            updateCartItemPrice(
-                              item.id,
-                              parseInt(e.target.value) || 1
-                            )
-                          }
-                          className="w-24"
-                        />
+                        {isEditMode ? (
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.sellingPrice}
+                            onChange={async (e) => {
+                              await updateCartItemPrice(
+                                item.id,
+                                parseInt(e.target.value) || 1
+                              );
+                            }}
+                            className="w-24"
+                          />
+                        ) : (
+                          <span>₹{item.sellingPrice}</span>
+                        )}
                       </TableCell>
                       <TableCell className="border font-semibold">
                         ₹{item.sellingPrice * item.quantity}
                       </TableCell>
-                      <TableCell className="border">
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => removeFromCart(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
+                      {isEditMode && (
+                        <TableCell className="border">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={async () => {
+                              await removeFromCart(item.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -913,29 +1174,25 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps){
               <div className="text-xl font-bold text-green-800">
                 Total Amount: ₹{getTotalAmount()}
               </div>
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  onClick={handleSell}
-                  disabled={selling || cart.length === 0}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {selling ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                  )}
-                  Complete Sale & Generate Invoice
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetForm}
-                  disabled={selling}
-                >
-                  Clear All
-                </Button>
-              </div>
+              {isEditMode && (
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setCart([]);
+                      setCode("");
+                      setKurti(null);
+                      setSelectedSize("");
+                      setSellingPrice("");
+                      setQuantity(1);
+                    }}
+                    disabled={selling}
+                  >
+                    Clear Cart
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -3,7 +3,7 @@ import firebase from "firebase/compat/app";
 import { getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage, ref, uploadString, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadString, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const firebaseApp = firebase.initializeApp(firebaseConfig);
 
@@ -46,6 +46,22 @@ export const uploadInvoicePDFToFirebase = async (pdfBuffer: Buffer, batchNumber:
   } catch (error) {
     console.error('Error uploading invoice PDF to Firebase:', error);
     throw new Error('Failed to upload invoice PDF to Firebase storage');
+  }
+};
+
+// Function to delete invoice from Firebase storage
+export const deleteInvoiceFromFirebase = async (batchNumber: string): Promise<void> => {
+  try {
+    // Create a reference to the invoice PDF file in Firebase storage
+    const invoiceRef = ref(storage, `invoices/${batchNumber}.pdf`);
+    
+    // Delete the file
+    await deleteObject(invoiceRef);
+    
+    console.log(`Invoice ${batchNumber}.pdf deleted from Firebase storage`);
+  } catch (error) {
+    console.error('Error deleting invoice from Firebase:', error);
+    // Don't throw error as the file might not exist
   }
 };
 
