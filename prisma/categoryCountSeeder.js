@@ -9,7 +9,7 @@ async function main() {
     // For each category, find all KURTIs with that category
     const kurtis = await prisma.kurti.findMany({
       where: {
-        category: category.name,
+        category: category.name.toUpperCase(),
         isDeleted: false,
       },
     });
@@ -26,7 +26,7 @@ async function main() {
       if (sizes && Array.isArray(sizes)) {
         for (const sizeObject of sizes) {
           if (sizeObject.quantity !== -1 && typeof sizeObject.quantity == "number") {
-            countTotal += sizeObject.quantity;
+            if(sizeObject.quantity > 0) countTotal += sizeObject.quantity;
           }
         }
       }
