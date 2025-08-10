@@ -55,6 +55,7 @@ interface OfflineSale {
   paymentType?: string;
   gstType?: string;
   invoiceUrl?: string;
+  isHallSell?: boolean;
   shop?: {
     id: string;
     shopName: string;
@@ -196,15 +197,19 @@ function OfflineSalesPage() {
     });
   };
 
-  const downloadInvoice = async (invoiceUrl: string, batchNumber: string, invoiceNumber?: number) => {
+  const downloadInvoice = async (
+    invoiceUrl: string,
+    batchNumber: string,
+    invoiceNumber?: number
+  ) => {
     try {
       const response = await fetch(invoiceUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const fileName = invoiceNumber 
-        ? `invoice-INV-${invoiceNumber.toString().padStart(6, '0')}.pdf`
+      const fileName = invoiceNumber
+        ? `invoice-INV-${invoiceNumber.toString().padStart(6, "0")}.pdf`
         : `invoice-${batchNumber}.pdf`;
       link.download = fileName;
       document.body.appendChild(link);
@@ -431,23 +436,32 @@ function OfflineSalesPage() {
         ) : (
           <div className="overflow-x-auto">
             <Table>
-                             <TableHeader>
-                 <TableRow>
-                   <TableHead>Invoice Number</TableHead>
-                   <TableHead>Customer</TableHead>
-                   <TableHead>Shop</TableHead>
-                   <TableHead>Sale Details</TableHead>
-                   <TableHead>Payment</TableHead>
-                   <TableHead>Date & Time</TableHead>
-                   <TableHead>Actions</TableHead>
-                 </TableRow>
-               </TableHeader>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice Number</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Shop</TableHead>
+                  <TableHead>Sale Details</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead>Date & Time</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
               <TableBody>
                 {sales.map((sale) => (
-                                     <TableRow key={sale.id}>
-                     <TableCell className="font-mono font-medium">
-                       {sale.invoiceNumber ? `INV-${sale.invoiceNumber.toString().padStart(6, '0')}` : sale.batchNumber}
-                     </TableCell>
+                  <TableRow
+                    key={sale.id}
+                    className={
+                      sale.isHallSell ? "bg-blue-50 hover:bg-blue-100" : ""
+                    }
+                  >
+                    <TableCell className="font-mono font-medium">
+                      {sale.invoiceNumber
+                        ? `INV-${sale.invoiceNumber
+                            .toString()
+                            .padStart(6, "0")}`
+                        : sale.batchNumber}
+                    </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center gap-1">
@@ -470,6 +484,11 @@ function OfflineSalesPage() {
                     <TableCell>
                       {sale.shop ? (
                         <div className="space-y-1">
+                          {sale.isHallSell && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              Hall Sale
+                            </span>
+                          )}
                           <div className="flex items-center gap-1">
                             <Building className="h-4 w-4 text-gray-500" />
                             <span className="font-medium">
@@ -520,22 +539,22 @@ function OfflineSalesPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                                                 {sale.invoiceUrl && (
-                           <Button
-                             size="sm"
-                             variant="outline"
-                             onClick={() =>
-                               downloadInvoice(
-                                 sale.invoiceUrl!,
-                                 sale.batchNumber,
-                                 sale.invoiceNumber
-                               )
-                             }
-                             title="Download Invoice"
-                           >
-                             <Download className="h-4 w-4" />
-                           </Button>
-                         )}
+                        {sale.invoiceUrl && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              downloadInvoice(
+                                sale.invoiceUrl!,
+                                sale.batchNumber,
+                                sale.invoiceNumber
+                              )
+                            }
+                            title="Download Invoice"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"

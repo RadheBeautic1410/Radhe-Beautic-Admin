@@ -22,22 +22,14 @@ import {
   FileText,
   Trash2,
   Plus,
-  Edit,
-  Save,
-  X,
-  Eye,
-  ChevronLeft,
 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { generateInvoicePDF } from "@/src/actions/generate-pdf";
-import { getShopList, getUserShop } from "@/src/actions/shop";
+import { getUserShop, getHallSaleShops } from "@/src/actions/shop";
 import { useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { PasswordDialog } from "@/src/app/(protected)/_components/PasswordDialog";
-import Link from "next/link";
 
 const getCurrTime = () => {
   const currentTime = new Date();
@@ -55,28 +47,13 @@ interface CartItem {
   availableStock: number;
 }
 type GSTType = "IGST" | "SGST_CGST";
-
-interface SaleDetailsPageProps {
-  params: {
-    id: string;
-  };
-}
-
-function SaleDetailsPage({ params }: SaleDetailsPageProps) {
+function HallSalesPage() {
   const [code, setCode] = useState("");
   const [kurti, setKurti] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [selling, setSelling] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [gstType, setGstType] = useState<GSTType>("SGST_CGST");
-
-  // Edit mode state
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [originalSaleData, setOriginalSaleData] = useState<any>(null);
-  const [removedItems, setRemovedItems] = useState<string[]>([]);
-  const [regeneratingInvoice, setRegeneratingInvoice] = useState(false);
-
   // Sale details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -85,74 +62,24 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   const [shops, setShops] = useState<any[]>([]);
   const [paymentType, setpaymentType] = useState("");
   const [userShop, setUserShop] = useState<any>(null);
-  const [isHallSell, setIsHallSell] = useState(false);
 
   // Current product selection
   const [selectedSize, setSelectedSize] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [quantity, setQuantity] = useState(1);
 
-  // Password dialog state
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-
   const currentUser = useCurrentUser();
-  const router = useRouter();
-
-  useEffect(() => {
-    const loadSaleDetails = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(
-          `/api/sell/offline-sales/${params.id}`
-        );
-
-        const saleData = response.data.data;
-        setOriginalSaleData(saleData);
-
-        // Populate form fields with existing data
-        setCustomerName(saleData.customerName || "");
-        setCustomerPhone(saleData.customerPhone || "");
-        setBillCreatedBy(saleData.billCreatedBy || "");
-        setpaymentType(saleData.paymentType || "");
-        setGstType(saleData.gstType || "SGST_CGST");
-        setSelectedShopId(saleData.shopId || "");
-        setIsHallSell(saleData.isHallSell || false);
-
-        console.log("response", response);
-        console.log("saleData.sales", response.data.data);
-
-        // Load existing cart items
-        const existingCartItems = saleData.sales.map((sale: any) => ({
-          id: sale.id,
-          kurti: sale.kurti,
-          selectedSize: sale.kurtiSize,
-          quantity: sale.quantity,
-          sellingPrice: sale.selledPrice,
-          availableStock: sale.availableStock,
-        }));
-        setCart(existingCartItems);
-      } catch (error: any) {
-        console.error("Error loading sale details:", error);
-        toast.error("Failed to load sale details");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (params.id) {
-      loadSaleDetails();
-    }
-  }, [params.id]);
 
   // Load shops and user's shop on component mount
   useEffect(() => {
     const loadShopsAndUserShop = async () => {
       try {
-        const shopList = await getShopList();
-        setShops(shopList);
-
-        // If user is SELLER or SELLER_MANAGER, get their associated shop
-        if (
+        // For admin users, get only shops with isHallSell = true
+        // For seller managers, get their associated shop
+        if (currentUser?.role === UserRole.ADMIN) {
+          const hallSaleShops = await getHallSaleShops();
+          setShops(hallSaleShops);
+        } else if (
           currentUser?.id &&
           (currentUser.role === UserRole.SELLER ||
             currentUser.role === UserRole.SELLER_MANAGER ||
@@ -161,9 +88,13 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           const userShopData = await getUserShop(currentUser.id);
           if (userShopData) {
             setUserShop(userShopData);
-            // Only set shop if not already set from sale data
-            if (!selectedShopId) {
-              setSelectedShopId(userShopData.id);
+            setSelectedShopId(userShopData.id);
+            // For non-admin users, only show their shop in the list if it's a hall sale shop
+            if (userShopData.isHallSell) {
+              setShops([userShopData]);
+            } else {
+              setShops([]);
+              toast.warning("Your associated shop is not configured for hall sales");
             }
           }
         }
@@ -173,159 +104,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       }
     };
     loadShopsAndUserShop();
-  }, [currentUser, selectedShopId]);
-
-  // Toggle edit mode
-  const toggleEditMode = () => {
-    if (isEditMode) {
-      // Cancel edit mode - restore original data
-      if (originalSaleData) {
-        setCustomerName(originalSaleData.customerName || "");
-        setCustomerPhone(originalSaleData.customerPhone || "");
-        setBillCreatedBy(originalSaleData.billCreatedBy || "");
-        setpaymentType(originalSaleData.paymentType || "");
-        setGstType(originalSaleData.gstType || "SGST_CGST");
-        setSelectedShopId(originalSaleData.shopId || "");
-        setIsHallSell(originalSaleData.isHallSell || false);
-
-        // Restore original cart items
-        const originalCartItems = originalSaleData.sales.map((sale: any) => ({
-          id: sale.id,
-          kurti: sale.kurti,
-          selectedSize: sale.kurtiSize,
-          quantity: sale.quantity,
-          sellingPrice: sale.selledPrice,
-          availableStock: sale.availableStock,
-        }));
-        setCart(originalCartItems);
-        setRemovedItems([]);
-      }
-    } else {
-      // Enter edit mode - clear removed items
-      setRemovedItems([]);
-    }
-    setIsEditMode(!isEditMode);
-  };
-
-  // Save changes
-  const handleSaveChanges = async () => {
-    try {
-      setUpdating(true);
-
-      // Validate required fields
-      if (!customerName.trim()) {
-        toast.error("Customer name is required");
-        return;
-      }
-
-      if (!billCreatedBy.trim()) {
-        toast.error("Bill created by is required");
-        return;
-      }
-
-      if (!paymentType.trim()) {
-        toast.error("Payment type is required");
-        return;
-      }
-
-      // Prepare data for API call
-      const updateData: any = {
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        billCreatedBy: billCreatedBy.trim(),
-        paymentType: paymentType.trim(),
-        gstType: gstType,
-        isHallSell: isHallSell,
-      };
-
-      // Add new products if any are in the cart that weren't in the original data
-      const originalSaleIds =
-        originalSaleData?.sales?.map((sale: any) => sale.id) || [];
-      const newProducts = cart
-        .filter((item) => !originalSaleIds.includes(item.id))
-        .map((item) => ({
-          kurtiId: item.kurti.id,
-          kurtiCode: item.kurti.code,
-          selectedSize: item.selectedSize,
-          quantity: item.quantity,
-          sellingPrice: item.sellingPrice,
-          code: item.kurti.code,
-        }));
-
-      if (newProducts.length > 0) {
-        updateData.newProducts = newProducts;
-      }
-
-      // Add updated items (existing items that have been modified)
-      const updatedItems = cart
-        .filter((item) => originalSaleIds.includes(item.id))
-        .map((item) => ({
-          id: item.id,
-          quantity: item.quantity,
-          sellingPrice: item.sellingPrice,
-        }));
-
-      if (updatedItems.length > 0) {
-        updateData.updatedItems = updatedItems;
-      }
-
-      // Add removed items if any
-      if (removedItems.length > 0) {
-        updateData.removedItems = removedItems;
-      }
-
-      const response = await axios.put(
-        `/api/sell/offline-sales/${params.id}`,
-        updateData
-      );
-
-      if (response.data.success) {
-        toast.success("Sale updated successfully!");
-        setOriginalSaleData(response.data.data);
-
-        // Update cart with the new data from server
-        const updatedCartItems = response.data.data.sales.map((sale: any) => ({
-          id: sale.id,
-          kurti: sale.kurti,
-          selectedSize: sale.kurtiSize,
-          quantity: sale.quantity,
-          sellingPrice: sale.selledPrice,
-          availableStock: sale.availableStock,
-        }));
-        setCart(updatedCartItems);
-
-        // Handle invoice regeneration
-        if (response.data.invoiceRegenerated && response.data.newInvoiceUrl) {
-          toast.success("Invoice regenerated successfully!");
-
-          // Download the new invoice
-          try {
-            const link = document.createElement("a");
-            link.href = response.data.newInvoiceUrl;
-            link.download = `invoice-${response.data.data.batchNumber}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            toast.success("New invoice downloaded!");
-          } catch (error) {
-            console.error("Error downloading invoice:", error);
-            toast.error("Failed to download invoice");
-          }
-        }
-
-        // Reset removed items and exit edit mode
-        setRemovedItems([]);
-        setIsEditMode(false);
-      } else {
-        toast.error("Failed to update sale");
-      }
-    } catch (error: any) {
-      console.error("Error updating sale:", error);
-      toast.error(error.response?.data?.error || "Failed to update sale");
-    } finally {
-      setUpdating(false);
-    }
-  };
+  }, [currentUser]);
 
   const handleFind = async () => {
     try {
@@ -354,14 +133,6 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleEditClick = () => {
-    setShowPasswordDialog(true);
-  };
-
-  const handlePasswordSuccess = () => {
-    toggleEditMode();
   };
 
   const addToCart = () => {
@@ -397,11 +168,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         item.kurti.code === kurti.code && item.selectedSize === selectedSize
     );
 
-    // Create a unique temporary ID for new items (will be replaced with real ID after save)
-    const tempId = `temp-${kurti.code}-${selectedSize}-${Date.now()}`;
-
     const newItem: CartItem = {
-      id: tempId,
+      id: `${kurti.code}-${selectedSize}-${Date.now()}`,
       kurti,
       selectedSize,
       quantity,
@@ -441,24 +209,12 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     toast.success("Product added to cart!");
   };
 
-  const removeFromCart = async (itemId: string) => {
-    const updatedCart = cart.filter((item) => item.id !== itemId);
-    setCart(updatedCart);
-
-    // For new items (temp IDs), just remove from cart
-    // For existing items, track them for removal on save
-    if (!itemId.startsWith("temp-")) {
-      // This is an existing item that was removed
-      setRemovedItems((prev) => [...prev, itemId]);
-    }
-
+  const removeFromCart = (itemId: string) => {
+    setCart(cart.filter((item) => item.id !== itemId));
     toast.success("Item removed from cart");
   };
 
-  const updateCartItemQuantity = async (
-    itemId: string,
-    newQuantity: number
-  ) => {
+  const updateCartItemQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeFromCart(itemId);
       return;
@@ -477,7 +233,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     setCart(updatedCart);
   };
 
-  const updateCartItemPrice = async (itemId: string, newPrice: number) => {
+  const updateCartItemPrice = (itemId: string, newPrice: number) => {
     if (newPrice <= 0) {
       toast.error("Please enter valid price");
       return;
@@ -530,6 +286,10 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         toast.error("Please select payment type");
         return;
       }
+      // if (!shopName.trim()) {
+      //   toast.error("Please enter shop name");
+      //   return;
+      // }
 
       const currentTime = getCurrTime();
 
@@ -552,6 +312,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         paymentType: paymentType.trim(),
         gstType: gstType,
         shopId: selectedShopId.trim(),
+        isHallSell: true, // Mark this as a hall sale
       });
 
       const data = res.data.data;
@@ -604,7 +365,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         totalAmount: getTotalAmount(),
         gstType,
         invoiceNumber: saleData.invoiceNumber || "",
-        isHallSell: isHallSell, // Pass the hall sale status
+        isHallSell: true, // Hall sales are always hall sales
       });
 
       if (!result.success || !result.pdfBase64) {
@@ -656,139 +417,21 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     setQuantity(1);
   };
 
-  const regenerateInvoice = async () => {
-    try {
-      setRegeneratingInvoice(true);
-
-      const response = await axios.post(
-        `/api/sell/offline-sales/${params.id}/regenerate-invoice`
-      );
-
-      if (response.data.success) {
-        toast.success("Invoice regenerated successfully!");
-
-        // Download the new invoice
-        try {
-          const link = document.createElement("a");
-          link.href = response.data.invoiceUrl;
-          link.download = `invoice-${originalSaleData.batchNumber}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          toast.success("New invoice downloaded!");
-        } catch (error) {
-          console.error("Error downloading invoice:", error);
-          toast.error("Failed to download invoice");
-        }
-      } else {
-        toast.error(response.data.error || "Failed to regenerate invoice");
-      }
-    } catch (error: any) {
-      console.error("Error regenerating invoice:", error);
-      toast.error(
-        error.response?.data?.error || "Failed to regenerate invoice"
-      );
-    } finally {
-      setRegeneratingInvoice(false);
-    }
-  };
-
   const getAvailableSizes = () => {
     if (!kurti?.sizes) return [];
     return kurti.sizes.filter((sz: any) => sz.quantity > 0);
   };
 
-  if (loading) {
-    return (
-      <Card className="rounded-none w-full h-full">
-        <CardContent className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">Loading sale details...</span>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className="rounded-none w-full h-full">
       <CardHeader>
-        <div className="flex justify-between items-center">
-          {/* <p className="text-2xl font-semibold text-center">
-            {isEditMode ? "✏️ Edit Offline Sale" : "👁️ View Offline Sale"}
-          </p>
-           */}
-          <Link href="/offline-sales" className="flex items-center gap-2">
-            <ChevronLeft className="h-4 w-4" />
-            <span>Back</span>
-          </Link>
-          <div className="flex gap-2">
-            {!isEditMode ? (
-              <>
-                <Button
-                  onClick={handleEditClick}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Sale
-                </Button>
-                <Button
-                  onClick={regenerateInvoice}
-                  disabled={regeneratingInvoice}
-                  variant="outline"
-                  className="border-green-600 text-green-600 hover:bg-green-50"
-                >
-                  {regeneratingInvoice ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileText className="mr-2 h-4 w-4" />
-                  )}
-                  Regenerate Invoice
-                </Button>
-              </>
-            ) : (
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleSaveChanges}
-                  disabled={updating}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {updating ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 h-4 w-4" />
-                  )}
-                  Save Changes
-                </Button>
-                <Button
-                  onClick={toggleEditMode}
-                  variant="outline"
-                  disabled={updating}
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Cancel
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
+        <p className="text-2xl font-semibold text-center">
+          🛒 Offline Hall Sale System
+        </p>
       </CardHeader>
       <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
-        <div
-          className={`p-4 rounded-lg ${
-            isEditMode
-              ? "bg-yellow-50 border-2 border-yellow-200"
-              : "bg-blue-50"
-          }`}
-        >
-          <h3 className="text-lg font-semibold mb-3">
-            {isEditMode ? "🔄 Edit Mode Active" : "📋 Sale Information"}
-          </h3>
-          {isEditMode && (
-            <p className="text-sm text-yellow-700 mb-3">
-              You are currently editing this sale. Make your changes and click
-              "Save Changes" to update.
-            </p>
-          )}
+        <div className="bg-purple-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">GST Configuration</h3>
           <div className="flex gap-4">
             <label className="flex items-center gap-2">
               <input
@@ -797,7 +440,6 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 value="SGST_CGST"
                 checked={gstType === "SGST_CGST"}
                 onChange={(e) => setGstType(e.target.value as GSTType)}
-                disabled={!isEditMode}
               />
               <span>SGST + CGST (2.5% + 2.5%)</span>
             </label>
@@ -808,40 +450,14 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 value="IGST"
                 checked={gstType === "IGST"}
                 onChange={(e) => setGstType(e.target.value as GSTType)}
-                disabled={!isEditMode}
               />
               <span>IGST (5%)</span>
             </label>
           </div>
         </div>
-
         {/* Customer Details Section */}
-        <div
-          className={`p-4 rounded-lg ${
-            isHallSell ? "bg-blue-50 border-2 border-blue-200" : "bg-blue-50"
-          }`}
-        >
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-semibold">Customer Details</h3>
-            <div className="flex items-center gap-2">
-              {isHallSell && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  Hall Sale
-                </span>
-              )}
-              {isEditMode && (
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={isHallSell}
-                    onChange={(e) => setIsHallSell(e.target.checked)}
-                    className="rounded"
-                  />
-                  <span>Mark as Hall Sale</span>
-                </label>
-              )}
-            </div>
-          </div>
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="customer-name">Customer Name *</Label>
@@ -850,8 +466,6 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 placeholder="Enter customer name"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                disabled={!isEditMode}
-                className={!isEditMode ? "bg-gray-50" : ""}
               />
             </div>
             <div>
@@ -868,29 +482,24 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                     setCustomerPhone(input);
                   }
                 }}
-                disabled={!isEditMode}
-                className={!isEditMode ? "bg-gray-50" : ""}
               />
             </div>
             <div>
               <Label htmlFor="shop-select">
-                {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER)
-                  ? "Select Shop *"
-                  : "Shop"}
+                {currentUser?.role === UserRole.ADMIN
+                  ? "Select Hall Sale Shop *"
+                  : "Hall Sale Shop"}
               </Label>
-              {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER) ? (
+              {currentUser?.role === UserRole.ADMIN ? (
                 <select
                   id="shop-select"
                   name="shop-select"
                   aria-label="Select shop"
-                  className={`w-full p-2 border rounded-md ${
-                    !isEditMode ? "bg-gray-50" : ""
-                  }`}
+                  className="w-full p-2 border rounded-md"
                   value={selectedShopId}
                   onChange={(e) => setSelectedShopId(e.target.value)}
-                  disabled={!isEditMode}
                 >
-                  <option value="">Select Shop</option>
+                  <option value="">Select Hall Sale Shop</option>
                   {shops.map((shop) => (
                     <option key={shop.id} value={shop.id}>
                       {shop.shopName} - {shop.shopLocation}
@@ -899,9 +508,13 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 </select>
               ) : (
                 <div className="w-full p-2 border rounded-md bg-gray-50">
-                  {userShop ? (
+                  {userShop && userShop.isHallSell ? (
                     <span className="text-gray-700 font-medium">
                       {userShop.shopName} - {userShop.shopLocation}
+                    </span>
+                  ) : userShop ? (
+                    <span className="text-red-500">
+                      Shop not configured for hall sales
                     </span>
                   ) : (
                     <span className="text-gray-500">No shop associated</span>
@@ -916,12 +529,9 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 id="payment-type"
                 name="payment-type"
                 aria-label="Select payment type"
-                className={`w-full p-2 border rounded-md ${
-                  !isEditMode ? "bg-gray-50" : ""
-                }`}
+                className="w-full p-2 border rounded-md"
                 value={paymentType}
                 onChange={(e) => setpaymentType(e.target.value)}
-                disabled={!isEditMode}
               >
                 <option value="">Select Payment Type</option>
                 <option value="GPay">GPay</option>
@@ -937,56 +547,52 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 placeholder="Enter person name"
                 value={billCreatedBy}
                 onChange={(e) => setBillCreatedBy(e.target.value)}
-                disabled={!isEditMode}
-                className={!isEditMode ? "bg-gray-50" : ""}
               />
             </div>
           </div>
         </div>
 
-        {/* Search Section - Only show in edit mode */}
-        {isEditMode && (
-          <div className="bg-slate-50 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold mb-3">Find Product</h3>
-            <div className="flex flex-row flex-wrap gap-2 items-end">
-              <div className="flex flex-col flex-wrap">
-                <Label htmlFor="product-code" className="mb-[10px]">
-                  Product Code
-                </Label>
-                <Input
-                  id="product-code"
-                  className="w-[250px] p-2"
-                  placeholder="Enter product code (without size)"
-                  value={code}
-                  onKeyUp={(e) => {
-                    if (e.key === "Enter") {
-                      handleFind();
-                    }
-                  }}
-                  onChange={(e) => {
-                    setCode(e.target.value);
-                  }}
-                />
-              </div>
-              <Button
-                type="button"
-                onClick={handleFind}
-                disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {loading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="mr-2 h-4 w-4" />
-                )}
-                Find Product
-              </Button>
+        {/* Search Section */}
+        <div className="bg-slate-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">Find Product</h3>
+          <div className="flex flex-row flex-wrap gap-2 items-end">
+            <div className="flex flex-col flex-wrap">
+              <Label htmlFor="product-code" className="mb-[10px]">
+                Product Code
+              </Label>
+              <Input
+                id="product-code"
+                className="w-[250px] p-2"
+                placeholder="Enter product code (without size)"
+                value={code}
+                onKeyUp={(e) => {
+                  if (e.key === "Enter") {
+                    handleFind();
+                  }
+                }}
+                onChange={(e) => {
+                  setCode(e.target.value);
+                }}
+              />
             </div>
+            <Button
+              type="button"
+              onClick={handleFind}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="mr-2 h-4 w-4" />
+              )}
+              Find Product
+            </Button>
           </div>
-        )}
+        </div>
 
-        {/* Product Details - Only show in edit mode */}
-        {isEditMode && kurti && (
+        {/* Product Details */}
+        {kurti && (
           <div className="bg-white border rounded-lg p-4">
             <h3 className="text-lg font-semibold mb-3">Product Details</h3>
             <div className="flex flex-col lg:flex-row gap-4">
@@ -1122,8 +728,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         {cart.length > 0 && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <h3 className="text-lg font-semibold mb-4 text-green-800">
-              {isEditMode ? "Edit Cart Items" : "Sale Items"} ({cart.length}{" "}
-              items)
+              Shopping Cart ({cart.length} items)
             </h3>
 
             <div className="overflow-x-auto">
@@ -1145,11 +750,9 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                     <TableHead className="font-bold border text-white">
                       Total
                     </TableHead>
-                    {isEditMode && (
-                      <TableHead className="font-bold border text-white">
-                        Actions
-                      </TableHead>
-                    )}
+                    <TableHead className="font-bold border text-white">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1176,59 +779,47 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                         {item.selectedSize.toUpperCase()}
                       </TableCell>
                       <TableCell className="border">
-                        {isEditMode ? (
-                          <Input
-                            type="number"
-                            min="1"
-                            max={item.availableStock}
-                            value={item.quantity}
-                            onChange={async (e) => {
-                              await updateCartItemQuantity(
-                                item.id,
-                                parseInt(e.target.value) || 1
-                              );
-                            }}
-                            className="w-20"
-                          />
-                        ) : (
-                          <span>{item.quantity}</span>
-                        )}
+                        <Input
+                          type="number"
+                          min="1"
+                          max={item.availableStock}
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateCartItemQuantity(
+                              item.id,
+                              parseInt(e.target.value) || 1
+                            )
+                          }
+                          className="w-20"
+                        />
                       </TableCell>
                       <TableCell className="border">
-                        {isEditMode ? (
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.sellingPrice}
-                            onChange={async (e) => {
-                              await updateCartItemPrice(
-                                item.id,
-                                parseInt(e.target.value) || 1
-                              );
-                            }}
-                            className="w-24"
-                          />
-                        ) : (
-                          <span>₹{item.sellingPrice}</span>
-                        )}
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.sellingPrice}
+                          onChange={(e) =>
+                            updateCartItemPrice(
+                              item.id,
+                              parseInt(e.target.value) || 1
+                            )
+                          }
+                          className="w-24"
+                        />
                       </TableCell>
                       <TableCell className="border font-semibold">
                         ₹{item.sellingPrice * item.quantity}
                       </TableCell>
-                      {isEditMode && (
-                        <TableCell className="border">
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            onClick={async () => {
-                              await removeFromCart(item.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      )}
+                      <TableCell className="border">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1239,62 +830,55 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
               <div className="text-xl font-bold text-green-800">
                 Total Amount: ₹{getTotalAmount()}
               </div>
-              {isEditMode && (
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setCart([]);
-                      setCode("");
-                      setKurti(null);
-                      setSelectedSize("");
-                      setSellingPrice("");
-                      setQuantity(1);
-                    }}
-                    disabled={selling}
-                  >
-                    Clear Cart
-                  </Button>
-                </div>
-              )}
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  onClick={handleSell}
+                  disabled={selling || cart.length === 0}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {selling ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                  )}
+                  Complete Sale & Generate Invoice
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetForm}
+                  disabled={selling}
+                >
+                  Clear All
+                </Button>
+              </div>
             </div>
           </div>
         )}
-
-        {/* Password Dialog */}
-        <PasswordDialog
-          isOpen={showPasswordDialog}
-          onClose={() => setShowPasswordDialog(false)}
-          onSuccess={handlePasswordSuccess}
-          title="Enable Edit Mode"
-          description="Please enter the password to enable edit mode for this offline sale."
-        />
       </CardContent>
     </Card>
   );
 }
 
-const SaleDetailsPageWrapper = () => {
-  const params = useParams();
+const HallSalesPageWrapper = () => {
   return (
     <>
       <RoleGateForComponent
         allowedRole={[
           UserRole.ADMIN,
-          UserRole.SELLER,
-          UserRole.SHOP_SELLER,
+          // UserRole.SELLER,
+          // UserRole.SHOP_SELLER,
           UserRole.SELLER_MANAGER,
         ]}
       >
-        <SaleDetailsPage
-          params={{
-            id: params.id as string,
-          }}
-        />
+        <HallSalesPage />
+      </RoleGateForComponent>
+      <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
+        <NotAllowedPage />
       </RoleGateForComponent>
     </>
   );
 };
 
-export default SaleDetailsPageWrapper;
+export default HallSalesPageWrapper;

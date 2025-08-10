@@ -1313,6 +1313,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
       shopName,
       shopId,
       gstType,
+      isHallSell = false, // Default to false for backward compatibility
     } = data;
 
     if (!products || products.length === 0) {
@@ -1343,7 +1344,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         totalItems: 0, // Will be calculated
         saleTime: currentTime,
         sellerName: currentUser.name,
-        isHallSell: false, // Always false for retailer sales
+        isHallSell: isHallSell, // Use the parameter passed from the calling function
         shopId: shopId || null, // Associate with selected shop
         paymentType: paymentType?.trim() || null,
         gstType: gstType || "SGST_CGST",
@@ -1547,7 +1548,8 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
           soldProducts,
           totalAmount,
           gstType || "SGST_CGST",
-          invoiceNumber.toString()
+          invoiceNumber.toString(),
+          isHallSell
         );
 
         console.log(data);
@@ -1675,7 +1677,8 @@ export const regenerateOfflineSaleInvoice = async (batchId: string, currentUser:
       soldProducts,
       existingBatch.totalAmount,
       (existingBatch.gstType === "IGST" ? "IGST" : "SGST_CGST"),
-      existingBatch.invoiceNumber?.toString() || ""
+      existingBatch.invoiceNumber?.toString() || "",
+      existingBatch.isHallSell || false
     );
 
     // Generate PDF from HTML using Puppeteer
@@ -1931,7 +1934,8 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
           allSoldProducts,
           newTotalAmount,
           gstType || "SGST_CGST",
-          existingBatch.invoiceNumber?.toString() || ""
+          existingBatch.invoiceNumber?.toString() || "",
+          existingBatch.isHallSell || false
         );
 
         // Generate PDF from HTML using Puppeteer

@@ -17,7 +17,8 @@ export const generateInvoiceHTML = (
   soldProducts: any[],
   totalAmount: number,
   gstType: "IGST" | "SGST_CGST" = "SGST_CGST",
-  invoiceNumber: string = ""
+  invoiceNumber: string = "",
+  isHallSell: boolean = false
 ) => {
   const currentDate = new Date().toLocaleDateString("en-IN");
   const currentTime = new Date().toLocaleTimeString("en-IN");
@@ -56,6 +57,32 @@ export const generateInvoiceHTML = (
       };
     }
   };
+
+  // Group products by code and price for hall sales
+  let displayProducts = soldProducts;
+  if (isHallSell) {
+    const groupedProducts = new Map();
+    
+    soldProducts.forEach((item) => {
+      const key = `${item.kurti.code}-${item.unitPrice}`;
+      if (groupedProducts.has(key)) {
+        const existing = groupedProducts.get(key);
+        existing.quantity += item.quantity;
+        existing.totalPrice += item.totalPrice;
+      } else {
+        groupedProducts.set(key, {
+          kurti: item.kurti,
+          size: item.size,
+          quantity: item.quantity,
+          selledPrice: item.selledPrice,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+        });
+      }
+    });
+    
+    displayProducts = Array.from(groupedProducts.values());
+  }
 
   const totalGSTBreakdown = soldProducts.reduce(
   (acc, item) => {
@@ -133,7 +160,7 @@ console.log("totalGSTBreakdown",totalGSTBreakdown)
       <div class="invoice-container">
         <div class="header">
           <div class="shop-name">Radhe Beautic</div>
-          <div class="shop-tagline">Premium Fashion Collection - Offline Sale</div>
+          <div class="shop-tagline">Premium Fashion Collection - Offline Sale${isHallSell ? ' (Hall Sale)' : ''}</div>
         </div>
 
         <div class="invoice-details">
@@ -171,7 +198,7 @@ console.log("totalGSTBreakdown",totalGSTBreakdown)
             </tr>
           </thead>
           <tbody>
-            ${soldProducts
+            ${displayProducts
               .map((item) => {
                 return `
               <tr>
@@ -228,6 +255,7 @@ console.log("totalGSTBreakdown",totalGSTBreakdown)
         <div class="footer">
           <div class="thank-you">Thank you for your purchase!</div>
           <p>Visit us again for more amazing collections</p>
+          ${isHallSell ? '<p style="font-size: 12px; color: #666; font-style: italic;">* Products are grouped by code and price for hall sale convenience</p>' : ''}
           <p style="font-size: 12px; color: #999;">
             This is a computer generated invoice. For any queries, please contact us.
           </p>

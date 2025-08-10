@@ -33,3 +33,18 @@ export const getShopList = async () => {
     throw new Error("Failed to get shop list");
   }
 };
+
+export const getHallSaleShops = async () => {
+  try {
+    const hallSaleShops = await db.shop.findMany({
+      where: {
+        isHallSell: true
+      }
+    });
+    return hallSaleShops;
+  } catch (error) {
+    console.log("🚀 ~ getHallSaleShops ~ error:", error)
+    console.error(error);
+    throw new Error("Failed to get hall sale shops");
+  }
+};

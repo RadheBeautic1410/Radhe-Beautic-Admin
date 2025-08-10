@@ -358,6 +358,7 @@ function SellPage() {
         totalAmount: getTotalAmount(),
         gstType,
         invoiceNumber: saleData.invoiceNumber || "",
+        isHallSell: false, // Regular offline sales are not hall sales
       });
 
       if (!result.success || !result.pdfBase64) {
