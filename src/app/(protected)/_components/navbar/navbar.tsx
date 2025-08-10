@@ -138,6 +138,17 @@ const routes = [
     ],
     icon: "📜",
   },
+  {
+    name: "Watermark",
+    href: "/watermark",
+    role: [
+      UserRole.ADMIN,
+      UserRole.RESELLER,
+      UserRole.SELLER,
+      UserRole.UPLOADER,
+    ],
+    icon: "💧",
+  },
 ];
 
 const Sidebar = () => {
