@@ -121,11 +121,13 @@ function isSize(size: string) {
 
 export const stockAddition = async (data: any) => {
   const { code, sizes } = data;
-
+  
   // Step 1: Calculate new total count of pieces from sizes
   let newCount = 0;
   for (let i = 0; i < sizes.length; i++) {
-    newCount += sizes[i].quantity;
+    if(sizes[i].quantity > 0){
+      newCount += sizes[i].quantity;
+    }
   }
 
   // Step 2: Fetch existing Kurti
@@ -151,7 +153,7 @@ export const stockAddition = async (data: any) => {
   });
 
   // Step 4: Update category's countTotal using category code
-  if (kurti.category) {
+  if (kurti.category && newCount > 0) {
     await db.category.update({
       where: { code: code.toUpperCase().substring(0, 3) }, // assuming category code is used
       data: {
