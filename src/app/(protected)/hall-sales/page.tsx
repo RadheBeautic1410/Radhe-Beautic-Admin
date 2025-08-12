@@ -28,7 +28,7 @@ import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { generateInvoicePDF } from "@/src/actions/generate-pdf";
-import { getShopList, getUserShop } from "@/src/actions/shop";
+import { getUserShop, getHallSaleShops } from "@/src/actions/shop";
 import { useEffect } from "react";
 
 const getCurrTime = () => {
@@ -47,7 +47,7 @@ interface CartItem {
   availableStock: number;
 }
 type GSTType = "IGST" | "SGST_CGST";
-function SellPage() {
+function HallSalesPage() {
   const [code, setCode] = useState("");
   const [kurti, setKurti] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -74,11 +74,12 @@ function SellPage() {
   useEffect(() => {
     const loadShopsAndUserShop = async () => {
       try {
-        const shopList = await getShopList();
-        setShops(shopList);
-
-        // If user is SELLER or SELLER_MANAGER, get their associated shop
-        if (
+        // For admin users, get only shops with isHallSell = true
+        // For seller managers, get their associated shop
+        if (currentUser?.role === UserRole.ADMIN) {
+          const hallSaleShops = await getHallSaleShops();
+          setShops(hallSaleShops);
+        } else if (
           currentUser?.id &&
           (currentUser.role === UserRole.SELLER ||
             currentUser.role === UserRole.SELLER_MANAGER ||
@@ -88,6 +89,13 @@ function SellPage() {
           if (userShopData) {
             setUserShop(userShopData);
             setSelectedShopId(userShopData.id);
+            // For non-admin users, only show their shop in the list if it's a hall sale shop
+            if (userShopData.isHallSell) {
+              setShops([userShopData]);
+            } else {
+              setShops([]);
+              toast.warning("Your associated shop is not configured for hall sales");
+            }
           }
         }
       } catch (error) {
@@ -261,8 +269,6 @@ function SellPage() {
         return;
       }
 
-
-
       if (!selectedShopId.trim()) {
         if (currentUser?.role === UserRole.ADMIN) {
           toast.error("Please select a shop");
@@ -306,10 +312,11 @@ function SellPage() {
         paymentType: paymentType.trim(),
         gstType: gstType,
         shopId: selectedShopId.trim(),
+        isHallSell: true, // Mark this as a hall sale
       });
 
       const data = res.data.data;
-      console.log("🚀 ~ handleSell ~ data:", data)
+      console.log("🚀 ~ handleSell ~ data:", data);
 
       if (data.error) {
         toast.error(data.error);
@@ -358,7 +365,7 @@ function SellPage() {
         totalAmount: getTotalAmount(),
         gstType,
         invoiceNumber: saleData.invoiceNumber || "",
-        isHallSell: false, // Regular offline sales are not hall sales
+        isHallSell: true, // Hall sales are always hall sales
       });
 
       if (!result.success || !result.pdfBase64) {
@@ -419,7 +426,7 @@ function SellPage() {
     <Card className="rounded-none w-full h-full">
       <CardHeader>
         <p className="text-2xl font-semibold text-center">
-          🛒 Offline Multi-Product Sale System
+          🛒 Offline Hall Sale System
         </p>
       </CardHeader>
       <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
@@ -479,11 +486,11 @@ function SellPage() {
             </div>
             <div>
               <Label htmlFor="shop-select">
-                {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER)
-                  ? "Select Shop *"
-                  : "Shop"}
+                {currentUser?.role === UserRole.ADMIN
+                  ? "Select Hall Sale Shop *"
+                  : "Hall Sale Shop"}
               </Label>
-              {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER) ? (
+              {currentUser?.role === UserRole.ADMIN ? (
                 <select
                   id="shop-select"
                   name="shop-select"
@@ -492,7 +499,7 @@ function SellPage() {
                   value={selectedShopId}
                   onChange={(e) => setSelectedShopId(e.target.value)}
                 >
-                  <option value="">Select Shop</option>
+                  <option value="">Select Hall Sale Shop</option>
                   {shops.map((shop) => (
                     <option key={shop.id} value={shop.id}>
                       {shop.shopName} - {shop.shopLocation}
@@ -501,9 +508,13 @@ function SellPage() {
                 </select>
               ) : (
                 <div className="w-full p-2 border rounded-md bg-gray-50">
-                  {userShop ? (
+                  {userShop && userShop.isHallSell ? (
                     <span className="text-gray-700 font-medium">
                       {userShop.shopName} - {userShop.shopLocation}
+                    </span>
+                  ) : userShop ? (
+                    <span className="text-red-500">
+                      Shop not configured for hall sales
                     </span>
                   ) : (
                     <span className="text-gray-500">No shop associated</span>
@@ -850,18 +861,18 @@ function SellPage() {
   );
 }
 
-const SellerHelp = () => {
+const HallSalesPageWrapper = () => {
   return (
     <>
       <RoleGateForComponent
         allowedRole={[
           UserRole.ADMIN,
-          UserRole.SELLER,
-          UserRole.SHOP_SELLER,
+          // UserRole.SELLER,
+          // UserRole.SHOP_SELLER,
           UserRole.SELLER_MANAGER,
         ]}
       >
-        <SellPage />
+        <HallSalesPage />
       </RoleGateForComponent>
       <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
         <NotAllowedPage />
@@ -870,4 +881,4 @@ const SellerHelp = () => {
   );
 };
 
-export default SellerHelp;
+export default HallSalesPageWrapper;

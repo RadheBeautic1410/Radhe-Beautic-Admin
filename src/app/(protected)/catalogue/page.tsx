@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import {
+import syncCategoryData, {
   categoryAddition,
   clearStockData,
   generateCategoryPDF,
@@ -231,7 +231,7 @@ const ListPage = () => {
       type: "",
       image: "",
       bigPrice: 0,
-      price:0
+      price: 0,
     },
   });
 
@@ -1071,7 +1071,9 @@ const ListPage = () => {
       return { error: "Something went wrong!" };
     }
   };
-
+  const SyncData = async () => {
+    syncCategoryData();
+  }
   const handleSetStockReady = async (
     categoryCode: string
   ): Promise<{ success?: boolean; error?: string }> => {
@@ -1375,6 +1377,14 @@ const ListPage = () => {
               onClick={() => downloadCSV()}
             >
               Download CSV
+            </Button>
+            <Button
+              type="button"
+              className="sm:ml-2"
+              disabled={isGenerating}
+              onClick={() => SyncData()}
+            >
+              Sync
             </Button>
           </div>
         </div>
