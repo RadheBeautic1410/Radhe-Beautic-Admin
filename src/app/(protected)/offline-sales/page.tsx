@@ -18,13 +18,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/src/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/src/components/ui/popover";
+import { Calendar } from "@/src/components/ui/calendar";
 import { UserRole } from "@prisma/client";
 import axios from "axios";
 import {
   Loader2,
   Download,
   Eye,
-  Calendar,
+  Calendar as CalendarIcon,
   ShoppingBag,
   User,
   Phone,
@@ -32,6 +38,7 @@ import {
   FileText,
   Search,
   X,
+  Filter,
 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -40,6 +47,9 @@ import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllo
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { getShopList } from "@/src/actions/shop";
 import { useDebounce } from "@/src/hooks/useDebounce";
+import { DateRange } from "react-day-picker";
+import { format, addDays } from "date-fns";
+import { cn } from "@/src/lib/utils";
 
 interface OfflineSale {
   id: string;
@@ -96,6 +106,13 @@ function OfflineSalesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchType, setSearchType] = useState("customerName");
 
+  // Date range filter states
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: undefined,
+    to: undefined,
+  });
+  const [showDateFilter, setShowDateFilter] = useState(false);
+
   // Debounced search query for API calls
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
@@ -126,7 +143,9 @@ function OfflineSalesPage() {
     page: number = 1,
     shopId: string = "all",
     search: string = "",
-    searchType: string = "customerName"
+    searchType: string = "customerName",
+    startDate?: string,
+    endDate?: string
   ) => {
     try {
       setLoading(true);
@@ -142,6 +161,14 @@ function OfflineSalesPage() {
       if (search.trim()) {
         params.append("search", search.trim());
         params.append("searchType", searchType);
+      }
+
+      if (startDate) {
+        params.append("startDate", startDate);
+      }
+
+      if (endDate) {
+        params.append("endDate", endDate);
       }
 
       const response = await axios.get(`/api/sell/offline-sales?${params}`);
@@ -160,8 +187,10 @@ function OfflineSalesPage() {
   };
 
   useEffect(() => {
-    loadSales(currentPage, selectedShopId, debouncedSearchQuery, searchType);
-  }, [currentPage, selectedShopId, debouncedSearchQuery, searchType]);
+    const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
+    const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
+    loadSales(currentPage, selectedShopId, debouncedSearchQuery, searchType, startDate, endDate);
+  }, [currentPage, selectedShopId, debouncedSearchQuery, searchType, dateRange]);
 
   const handleShopChange = (shopId: string) => {
     setSelectedShopId(shopId);
@@ -179,11 +208,25 @@ function OfflineSalesPage() {
   const handleClearSearch = () => {
     setSearchQuery("");
     setSearchType("customerName");
+    setDateRange({ from: undefined, to: undefined });
     setCurrentPage(1);
   };
 
   const handleSearchTypeChange = (type: string) => {
     setSearchType(type);
+    setCurrentPage(1);
+  };
+
+  const handleDateFilterToggle = () => {
+    setShowDateFilter(!showDateFilter);
+  };
+
+  const handleDateFilterApply = () => {
+    setCurrentPage(1);
+  };
+
+  const handleDateFilterClear = () => {
+    setDateRange({ from: undefined, to: undefined });
     setCurrentPage(1);
   };
 
@@ -315,6 +358,11 @@ function OfflineSalesPage() {
                     | Searching: "{debouncedSearchQuery}" ({searchType})
                   </span>
                 )}
+                {(dateRange?.from || dateRange?.to) && (
+                  <span className="ml-2 text-green-600">
+                    | Date Filter: {dateRange?.from ? format(dateRange.from, "LLL dd, y") : "Any"} - {dateRange?.to ? format(dateRange.to, "LLL dd, y") : "Any"}
+                  </span>
+                )}
               </p>
             </div>
 
@@ -344,65 +392,138 @@ function OfflineSalesPage() {
           </div>
 
           {/* Search Section */}
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div className="flex-1 flex gap-2">
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-1 block">
-                  Search Type:
-                </label>
-                <Select
-                  value={searchType}
-                  onValueChange={handleSearchTypeChange}
-                >
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="customerName">Customer Name</SelectItem>
-                    <SelectItem value="shopName">Shop Name</SelectItem>
-                    <SelectItem value="amount">Amount</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="flex flex-col gap-4">
+            {/* Search Row */}
+            <div className="flex flex-col sm:flex-row gap-4 items-end">
+              <div className="flex-1 flex gap-2">
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-1 block">
+                    Search Type:
+                  </label>
+                  <Select
+                    value={searchType}
+                    onValueChange={handleSearchTypeChange}
+                  >
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="customerName">Customer Name</SelectItem>
+                      <SelectItem value="customerPhone">Customer Phone</SelectItem>
+                      <SelectItem value="invoiceNumber">Invoice Number</SelectItem>
+                      <SelectItem value="shopName">Shop Name</SelectItem>
+                      <SelectItem value="amount">Amount</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-1 block">
-                  Search:
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder={`Search by ${
-                      searchType === "customerName"
-                        ? "customer name"
-                        : searchType === "shopName"
-                        ? "shop name"
-                        : "amount"
-                    }...`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      title="Clear search"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-1 block">
+                    Search:
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder={`Search by ${
+                        searchType === "customerName"
+                          ? "customer name"
+                          : searchType === "customerPhone"
+                          ? "customer phone"
+                          : searchType === "invoiceNumber"
+                          ? "invoice number"
+                          : searchType === "shopName"
+                          ? "shop name"
+                          : "amount"
+                      }...`}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        title="Clear search"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleDateFilterToggle}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  Date Filter
+                </Button>
+                {(searchQuery || dateRange?.from || dateRange?.to) && (
+                  <Button onClick={handleClearSearch} variant="outline">
+                    Clear All
+                  </Button>
+                )}
+              </div>
             </div>
 
-            <div className="flex gap-2">
-              {searchQuery && (
-                <Button onClick={handleClearSearch} variant="outline">
-                  Clear
-                </Button>
-              )}
-            </div>
+            {/* Date Filter Section */}
+            {showDateFilter && (
+              <div className="flex flex-col sm:flex-row gap-4 items-end p-4 bg-gray-50 rounded-lg border">
+                <div className="flex-1">
+                  <label htmlFor="dateRange" className="text-sm font-medium mb-1 block">
+                    Date Range:
+                  </label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                                             <Button
+                         variant="outline"
+                         className={cn(
+                           "w-full justify-start text-left font-normal",
+                           !dateRange && "text-muted-foreground"
+                         )}
+                       >
+                         <CalendarIcon className="mr-2 h-4 w-4" />
+                         {dateRange?.from ? (
+                           dateRange.to ? (
+                             <>
+                               {format(dateRange.from, "LLL dd, y")} -{" "}
+                               {format(dateRange.to, "LLL dd, y")}
+                             </>
+                           ) : (
+                             format(dateRange.from, "LLL dd, y")
+                           )
+                         ) : (
+                           <span>Pick a date range</span>
+                         )}
+                       </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        numberOfMonths={2}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleDateFilterClear}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Clear Range
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -424,10 +545,16 @@ function OfflineSalesPage() {
                 ? `No sales found matching "${debouncedSearchQuery}" for ${
                     searchType === "customerName"
                       ? "customer name"
+                      : searchType === "customerPhone"
+                      ? "customer phone"
+                      : searchType === "invoiceNumber"
+                      ? "invoice number"
                       : searchType === "shopName"
                       ? "shop name"
                       : "amount"
                   }.`
+                : (dateRange?.from || dateRange?.to)
+                ? "No sales found for the selected date range."
                 : selectedShopId && selectedShopId !== "all"
                 ? "No sales found for the selected shop."
                 : "No offline sales have been recorded yet."}
@@ -531,7 +658,7 @@ function OfflineSalesPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <CalendarIcon className="h-4 w-4 text-gray-500" />
                         <span className="text-sm">
                           {formatDate(sale.saleTime)}
                         </span>

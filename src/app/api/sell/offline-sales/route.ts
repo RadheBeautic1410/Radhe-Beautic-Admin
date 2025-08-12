@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
     const shopId = searchParams.get('shopId') || '';
     const search = searchParams.get('search') || '';
     const searchType = searchParams.get('searchType') || 'customerName';
+    const startDate = searchParams.get('startDate') || '';
+    const endDate = searchParams.get('endDate') || '';
 
     const result = await getOfflineSales({
       page,
@@ -25,6 +27,8 @@ export async function GET(request: NextRequest) {
       shopId,
       search,
       searchType,
+      startDate,
+      endDate,
       userId: session.user.id,
       userRole: session.user.role
     });
