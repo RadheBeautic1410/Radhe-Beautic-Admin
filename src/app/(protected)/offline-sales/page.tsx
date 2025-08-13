@@ -187,10 +187,27 @@ function OfflineSalesPage() {
   };
 
   useEffect(() => {
-    const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
-    const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
-    loadSales(currentPage, selectedShopId, debouncedSearchQuery, searchType, startDate, endDate);
-  }, [currentPage, selectedShopId, debouncedSearchQuery, searchType, dateRange]);
+    const startDate = dateRange?.from
+      ? format(dateRange.from, "yyyy-MM-dd")
+      : undefined;
+    const endDate = dateRange?.to
+      ? format(dateRange.to, "yyyy-MM-dd")
+      : undefined;
+    loadSales(
+      currentPage,
+      selectedShopId,
+      debouncedSearchQuery,
+      searchType,
+      startDate,
+      endDate
+    );
+  }, [
+    currentPage,
+    selectedShopId,
+    debouncedSearchQuery,
+    searchType,
+    dateRange,
+  ]);
 
   const handleShopChange = (shopId: string) => {
     setSelectedShopId(shopId);
@@ -360,7 +377,12 @@ function OfflineSalesPage() {
                 )}
                 {(dateRange?.from || dateRange?.to) && (
                   <span className="ml-2 text-green-600">
-                    | Date Filter: {dateRange?.from ? format(dateRange.from, "LLL dd, y") : "Any"} - {dateRange?.to ? format(dateRange.to, "LLL dd, y") : "Any"}
+                    | Date Filter:{" "}
+                    {dateRange?.from
+                      ? format(dateRange.from, "LLL dd, y")
+                      : "Any"}{" "}
+                    -{" "}
+                    {dateRange?.to ? format(dateRange.to, "LLL dd, y") : "Any"}
                   </span>
                 )}
               </p>
@@ -408,9 +430,15 @@ function OfflineSalesPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="customerName">Customer Name</SelectItem>
-                      <SelectItem value="customerPhone">Customer Phone</SelectItem>
-                      <SelectItem value="invoiceNumber">Invoice Number</SelectItem>
+                      <SelectItem value="customerName">
+                        Customer Name
+                      </SelectItem>
+                      <SelectItem value="customerPhone">
+                        Customer Phone
+                      </SelectItem>
+                      <SelectItem value="invoiceNumber">
+                        Invoice Number
+                      </SelectItem>
                       <SelectItem value="shopName">Shop Name</SelectItem>
                       <SelectItem value="amount">Amount</SelectItem>
                     </SelectContent>
@@ -473,32 +501,35 @@ function OfflineSalesPage() {
             {showDateFilter && (
               <div className="flex flex-col sm:flex-row gap-4 items-end p-4 bg-gray-50 rounded-lg border">
                 <div className="flex-1">
-                  <label htmlFor="dateRange" className="text-sm font-medium mb-1 block">
+                  <label
+                    htmlFor="dateRange"
+                    className="text-sm font-medium mb-1 block"
+                  >
                     Date Range:
                   </label>
                   <Popover>
                     <PopoverTrigger asChild>
-                                             <Button
-                         variant="outline"
-                         className={cn(
-                           "w-full justify-start text-left font-normal",
-                           !dateRange && "text-muted-foreground"
-                         )}
-                       >
-                         <CalendarIcon className="mr-2 h-4 w-4" />
-                         {dateRange?.from ? (
-                           dateRange.to ? (
-                             <>
-                               {format(dateRange.from, "LLL dd, y")} -{" "}
-                               {format(dateRange.to, "LLL dd, y")}
-                             </>
-                           ) : (
-                             format(dateRange.from, "LLL dd, y")
-                           )
-                         ) : (
-                           <span>Pick a date range</span>
-                         )}
-                       </Button>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dateRange && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (
+                          dateRange.to ? (
+                            <>
+                              {format(dateRange.from, "LLL dd, y")} -{" "}
+                              {format(dateRange.to, "LLL dd, y")}
+                            </>
+                          ) : (
+                            format(dateRange.from, "LLL dd, y")
+                          )
+                        ) : (
+                          <span>Pick a date range</span>
+                        )}
+                      </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
@@ -553,7 +584,7 @@ function OfflineSalesPage() {
                       ? "shop name"
                       : "amount"
                   }.`
-                : (dateRange?.from || dateRange?.to)
+                : dateRange?.from || dateRange?.to
                 ? "No sales found for the selected date range."
                 : selectedShopId && selectedShopId !== "all"
                 ? "No sales found for the selected shop."
