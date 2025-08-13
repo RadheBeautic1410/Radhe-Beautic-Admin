@@ -452,7 +452,7 @@ export const clearStockData = async (categoryCode: string) => {
 
     const kurtis = await db.kurti.findMany({
       where: {
-        category: category.name,
+        category: category.name.toUpperCase(),
         isDeleted: false,
       },
     });
