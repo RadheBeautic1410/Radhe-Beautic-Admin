@@ -456,6 +456,7 @@ export const deleteCategory = async (data: any) => {
         },
         data: {
           name: deletedCategoryName,
+          isDeleted: true,
         },
       });
 

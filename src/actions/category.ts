@@ -477,7 +477,7 @@ export const clearStockData = async (categoryCode: string) => {
 
     await db.category.update({
       where: {
-        code: categoryCode,
+        code: categoryCode.toUpperCase(),
       },
       data: {
         countTotal: 0,
