@@ -1,164 +1,125 @@
 "use client";
 
-import { RoleGate } from "@/src/components/auth/role-gate";
-import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
-import { UserRole } from "@prisma/client";
 import { useEffect, useState } from "react";
-
-
-import { Table, TableBody, TableCaption, TableHead, TableHeader, TableRow, } from "@/src/components/ui/table"
-
-import { ModeratorRow } from "../_components/request/moderatorRow";
+import { RoleGate } from "@/src/components/auth/role-gate";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
-import PageLoader from "@/src/components/loader";
 import { useCurrentRole } from "@/src/hooks/use-currrent-role";
+import PageLoader from "@/src/components/loader";
+import { UserRole } from "@prisma/client";
+
+import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import { Button } from "@/src/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/src/components/ui/table";
+import { ModeratorRow } from "../_components/request/moderatorRow";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import Link from "next/link";
-import { Button } from "@/src/components/ui/button";
 import { CustomerRow } from "../_components/request/customerRow";
-
-
-
-interface user {
-    id: string;
-    name: string | null;
-    phoneNumber: string | null;
-    emailVerified: Date | null;
-    image: string | null;
-    password: string | null;
-    organization: string | null;
-    isVerified: boolean;
-    verifiedBy: string | null
-    role: UserRole;
-    isTwoFactorEnabled: boolean;
+export interface userProps {
+  id: string;
+  name: string | null;
+  phoneNumber: string | null;
+  emailVerified: Date | null;
+  image: string | null;
+  password: string | null;
+  organization: string | null;
+  isVerified: boolean;
+  verifiedBy: string | null;
+  role: UserRole;
+  isTwoFactorEnabled: boolean;
+  balance: number | null;
 }
-
-
 const ModeratorPage = () => {
+  const [users, setUsers] = useState<userProps[]>([]);
+  const [customers, setCustomers] = useState<userProps[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [tab, setTab] = useState<0 | 1>(0);
 
-    const [users, setUsers] = useState<user[]>([]);
-    const [customers, setCustomers] = useState<user[]>([]);
+  const currentRole = useCurrentRole();
 
-    const [loadingUsers, setLoadingUsers] = useState(true)
+  useEffect(() => {
+    const fetchData = async () => {
+      if (currentRole === UserRole.ADMIN || currentRole === UserRole.MOD) {
+        try {
+          const response = await fetch("/api/users");
+          const result = await response.json();
 
+          let staff: userProps[] = [];
+          let customerList: userProps[] = [];
 
-    const [tabNum, setTabNum] = useState(0);
-    const currentROle = useCurrentRole();
-    useEffect(() => {
-        const fetchData = async () => {
-            if (currentROle === UserRole.ADMIN || currentROle === UserRole.MOD) {
-                try {
-                    const response = await fetch('/api/users'); // Adjust the API endpoint based on your actual setup
-                    const result = await response.json();
-                    console.log(result);
-                    let staffMembers: user[] = [];
-                    let customerList: user[] = [];
-                    for (let i = 0; i < (result.data || []).length; i++) {
-                        if (result.data[i].role === UserRole.USER) {
-                            customerList.push(result.data[i]);
-                        }
-                        else {
-                            staffMembers.push(result.data[i]);
-                        }
-                    }
-                    setUsers(staffMembers); // Use an empty array as a default value if result.data is undefined or null
-                    setCustomers(customerList);
-                } catch (error) {
-                    console.error('Error fetching data:', error);
-                } finally {
-                    setLoadingUsers(false);
-                }
+          for (let u of result.data || []) {
+            if (u.role === UserRole.USER) {
+              customerList.push(u);
             } else {
-                setLoadingUsers(false);
+              staff.push(u);
             }
+          }
+
+          setUsers(staff);
+          setCustomers(customerList);
+        } catch (error) {
+          console.error("Fetch error:", error);
+        } finally {
+          setLoadingUsers(false);
         }
+      } else {
+        setLoadingUsers(false);
+      }
+    };
 
-        if (loadingUsers) {
-            fetchData();
-        }
-    }, [loadingUsers]);
+    if (loadingUsers) fetchData();
+  }, [loadingUsers]);
 
+  const updateUserData = (updatedUser:userProps) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+    );
+    setCustomers((prev) =>
+      prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+    );
+  };
 
-    const updateUserData = (updatedUserData: user) => {
-        setUsers((prevUsers) =>
-            prevUsers.map((user) =>
-                user.id === updatedUserData.id ? { ...updatedUserData } : user
-            )
-        );
-        setCustomers((prevUsers) =>
-            prevUsers.map((user) =>
-                user.id === updatedUserData.id ? { ...updatedUserData } : user
-            )
-        );
-    }
-
-    // const deleteUserData = (deletedUser: user) => {
-    //     setUsers((prevUsers) => {
-    //         // Filter out the deleted user based on its id
-    //         const updatedUsers = prevUsers.filter((user) => user.id !== deletedUser.id);
-    //         return updatedUsers;
-    //     });
-    //     setCustomers((prevUsers) => {
-    //         const updatedUsers = prevUsers.filter((user) => user.id !== deletedUser.id);
-    //         return updatedUsers;
-    //     });
-    // };
-
-
-    return (
-      <>
-        <PageLoader loading={loadingUsers} />
-        <RoleGate allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
-          <Card className="rounded-none w-full h-full">
-            <CardHeader className="bg-secondary rounded-xl">
-              <div className="flex flex-row justify-between items-center ">
-                <div className="flex sm:gap-x-2 max-sm:flex-col max-sm:gap-y-3">
-                  <Button
-                    asChild
-                    className="cursor-pointer"
-                    variant={tabNum === 0 ? "default" : "outline"}
-                    onClick={() => {
-                      if (tabNum !== 0) {
-                        setTabNum(0);
-                      }
-                    }}
-                  >
-                    <a>🧑‍💼 Staff Members</a>
-                  </Button>
-                  <Button
-                    asChild
-                    className="cursor-pointer"
-                    variant={tabNum === 1 ? "default" : "outline"}
-                    onClick={() => {
-                      if (tabNum !== 1) {
-                        setTabNum(1);
-                      }
-                    }}
-                  >
-                    <a>🧑‍💻 Customers</a>
-                  </Button>
-                </div>
+  return (
+    <>
+      <PageLoader loading={loadingUsers} />
+      <RoleGate allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+        <Card className="w-full h-full">
+          <CardHeader className="bg-secondary rounded-xl">
+            <div className="flex justify-between items-center">
+              <div className="flex gap-x-2">
                 <Button
-                  asChild
-                  className="cursor-pointer mt-1"
-                  variant={"outline"}
-                  onClick={() => {
-                    setTabNum(0);
-                    setLoadingUsers(true);
-                  }}
+                  variant={tab === 0 ? "default" : "outline"}
+                  onClick={() => setTab(0)}
                 >
-                  <Link href="/request">⟳ Refresh Page</Link>
+                  🧑‍💼 Staff Members
+                </Button>
+                <Button
+                  variant={tab === 1 ? "default" : "outline"}
+                  onClick={() => setTab(1)}
+                >
+                  🧑‍💻 Customers
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
+              <Button variant="outline" onClick={() => setLoadingUsers(true)}>
+                <Link href="/request">⟳ Refresh</Link>
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            {tab === 0 ? (
               <Table>
-                <TableCaption>End of list</TableCaption>
+                <TableCaption>Staff Members</TableCaption>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-center">Name</TableHead>
                     <TableHead className="text-center">Phone Number</TableHead>
-                    {/* <TableHead className="text-center">Organization</TableHead> */}
                     <TableHead className="text-center">Verified</TableHead>
                     <TableHead className="text-center">Role</TableHead>
                     <RoleGateForComponent
@@ -166,58 +127,70 @@ const ModeratorPage = () => {
                     >
                       <TableHead className="text-center">Verified By</TableHead>
                     </RoleGateForComponent>
-                    {/* <TableHead className="text-center">Action</TableHead> */}
                     <TableHead className="text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tabNum === 0 ? (
-                    <>
-                      {users.map(
-                        (user) =>
-                          user.role !== UserRole.MOD && (
-                            <ModeratorRow
-                              key={user.id}
-                              userData={user}
-                              onUpdateUserData={updateUserData}
-                            />
-                          )
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {customers.map(
-                        (user) =>
-                          user.role !== UserRole.MOD && (
-                            <CustomerRow
-                              key={user.id}
-                              userData={user}
-                              onUpdateUserData={updateUserData}
-                            />
-                          )
-                      )}
-                    </>
-                  )}
+                  {users
+                    .filter((user) => user.role !== UserRole.MOD)
+                    .map((user) => (
+                      <ModeratorRow
+                        key={user.id}
+                        userData={user}
+                        onUpdateUserData={updateUserData}
+                      />
+                    ))}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-        </RoleGate>
-      </>
-    );
+            ) : (
+              <Table>
+                <TableCaption>Customers</TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-center">Name</TableHead>
+                    <TableHead className="text-center">Phone Number</TableHead>
+                    <TableHead className="text-center">Verified</TableHead>
+                    <TableHead className="text-center">Role</TableHead>
+                    <RoleGateForComponent
+                      allowedRole={[UserRole.ADMIN, UserRole.MOD]}
+                    >
+                      <TableHead className="text-center">Verified By</TableHead>
+                    </RoleGateForComponent>
+                    <TableHead className="text-center">Action</TableHead>
+                    <TableHead className="text-center">Balance</TableHead>
+                    <TableHead className="text-center">Add Money</TableHead>
+                    <TableHead className="text-center">Balance History</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {customers.map((user) => (
+                    <CustomerRow
+                      key={user.id}
+                      userData={user}
+                      onUpdateUserData={updateUserData}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </RoleGate>
+    </>
+  );
 };
 
-const ModeratorPage2 = () => {
-    return (
-        <>
-            <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-                <ModeratorPage />
-            </RoleGateForComponent>
-            <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.UPLOADER, UserRole.RESELLER]}>
-                <NotAllowedPage />
-            </RoleGateForComponent>
-        </>
-    );
-}
+const ModeratorPage2 = () => (
+  <>
+    <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+      <ModeratorPage />
+    </RoleGateForComponent>
+    <RoleGateForComponent
+      allowedRole={[UserRole.SELLER, UserRole.UPLOADER, UserRole.RESELLER]}
+    >
+      <NotAllowedPage />
+    </RoleGateForComponent>
+  </>
+);
 
 export default ModeratorPage2;

@@ -71,10 +71,12 @@ model User {
 
   verifiedByUser User? @relation("VerifiedBy", fields: [verifiedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  verifiedUsers User[]    @relation("VerifiedBy")
+  verifiedUsers User[]          @relation("VerifiedBy")
   cart          Cart[]
   orders        Orders[]
   Address       Address[]
+  balance       Float           @default(0)
+  WalletHistory WalletHistory[] @relation(name: "UserWalletHistory")
   shop          Shop?     @relation("ShopOwner")
 }
 
@@ -427,4 +429,21 @@ model Shop {
   owner            User?              @relation("ShopOwner", fields: [ownerId], references: [id])
   OfflineSellBatch OfflineSellBatch[]
   isHallSell       Boolean            @default(false)
+}
+
+model WalletHistory {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String        @db.ObjectId
+  user          User          @relation("UserWalletHistory", fields: [userId], references: [id])
+  amount        Float
+  type          WalletTxnType
+  paymentMethod String
+  createdAt     DateTime      @default(now())
+
+  @@index([userId])
+}
+
+enum WalletTxnType {
+  CREDIT
+  DEBIT
 }
