@@ -3,15 +3,48 @@
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import { Input } from "@/src/components/ui/input";
+import { Label } from "@/src/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/src/components/ui/table";
 import { OfflineSellType, UserRole } from "@prisma/client";
 import axios from "axios";
-import { Loader2, Edit, Save, X, ChevronLeft, FileText } from "lucide-react";
+import {
+  Loader2,
+  Search,
+  ShoppingCart,
+  FileText,
+  Trash2,
+  Plus,
+  Edit,
+  Save,
+  X,
+  Eye,
+  ChevronLeft,
+} from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { useParams, useRouter } from "next/navigation";
 import { PasswordDialog } from "@/src/app/(protected)/_components/PasswordDialog";
 import Link from "next/link";
+
+interface CartItem {
+  id: string;
+  kurti: any;
+  selectedSize: string;
+  quantity: number;
+  sellingPrice: number;
+  availableStock: number;
+}
+
+type GSTType = "IGST" | "SGST_CGST";
 
 interface SaleDetailsPageProps {
   params: {
@@ -25,17 +58,49 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   const [updating, setUpdating] = useState(false);
   const [originalSaleData, setOriginalSaleData] = useState<any>(null);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [removedItems, setRemovedItems] = useState<string[]>([]);
+  const [regeneratingInvoice, setRegeneratingInvoice] = useState(false);
+
+  // Product search and cart states
+  const [code, setCode] = useState("");
+  const [kurti, setKurti] = useState<any>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedSize, setSelectedSize] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [quantity, setQuantity] = useState(1);
 
   // Sale details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [billCreatedBy, setBillCreatedBy] = useState("");
-  const [paymentType, setpaymentType] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState<"COMPLETED" | "PENDING">(
+    "PENDING"
+  );
   const [gstType, setGstType] = useState<"IGST" | "SGST_CGST">("SGST_CGST");
   const [sellType, setSellType] = useState<OfflineSellType>("HALL_SELL_ONLINE");
 
+  // Wallet information
+  const [userBalance, setUserBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+
   const currentUser = useCurrentUser();
   const router = useRouter();
+
+  // Fetch user wallet balance
+  const fetchUserBalance = async (userId: string) => {
+    try {
+      setLoadingBalance(true);
+      const response = await axios.post("/api/wallet/get-balance", { userId });
+      if (response.data.success) {
+        setUserBalance(response.data.data.balance);
+      }
+    } catch (error) {
+      console.error("Error fetching user balance:", error);
+      // Don't show error toast for balance fetch - it's optional information
+    } finally {
+      setLoadingBalance(false);
+    }
+  };
 
   useEffect(() => {
     const loadSaleDetails = async () => {
@@ -50,9 +115,25 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         setCustomerName(saleData.customerName || "");
         setCustomerPhone(saleData.customerPhone || "");
         setBillCreatedBy(saleData.billCreatedBy || "");
-        setpaymentType(saleData.paymentType || "");
+        setPaymentStatus(saleData.paymentStatus || "PENDING");
         setGstType(saleData.gstType || "SGST_CGST");
         setSellType(saleData.sellType || "HALL_SELL_ONLINE");
+
+        // Load existing cart items
+        const existingCartItems = saleData.sales.map((sale: any) => ({
+          id: sale.id,
+          kurti: sale.kurti,
+          selectedSize: sale.kurtiSize,
+          quantity: sale.quantity,
+          sellingPrice: sale.selledPrice,
+          availableStock: sale.availableStock,
+        }));
+        setCart(existingCartItems);
+
+        // Fetch user wallet balance if order ID exists
+        if (saleData.orderId && saleData.order.user) {
+          fetchUserBalance(saleData.order.user.id);
+        }
       } catch (error: any) {
         console.error("Error loading sale details:", error);
         toast.error("Failed to load sale details");
@@ -74,10 +155,25 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         setCustomerName(originalSaleData.customerName || "");
         setCustomerPhone(originalSaleData.customerPhone || "");
         setBillCreatedBy(originalSaleData.billCreatedBy || "");
-        setpaymentType(originalSaleData.paymentType || "");
+        setPaymentStatus(originalSaleData.paymentStatus || "PENDING");
         setGstType(originalSaleData.gstType || "SGST_CGST");
         setSellType(originalSaleData.sellType || "HALL_SELL_ONLINE");
+
+        // Restore original cart items
+        const originalCartItems = originalSaleData.sales.map((sale: any) => ({
+          id: sale.id,
+          kurti: sale.kurti,
+          selectedSize: sale.kurtiSize,
+          quantity: sale.quantity,
+          sellingPrice: sale.selledPrice,
+          availableStock: sale.availableStock,
+        }));
+        setCart(originalCartItems);
+        setRemovedItems([]);
       }
+    } else {
+      // Enter edit mode - clear removed items
+      setRemovedItems([]);
     }
     setIsEditMode(!isEditMode);
   };
@@ -98,8 +194,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         return;
       }
 
-      if (!paymentType.trim()) {
-        toast.error("Payment type is required");
+      if (!paymentStatus) {
+        toast.error("Payment status is required");
         return;
       }
 
@@ -108,10 +204,46 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         billCreatedBy: billCreatedBy.trim(),
-        paymentType: paymentType.trim(),
+        paymentStatus: paymentStatus,
         gstType: gstType,
         sellType: sellType,
       };
+
+      // Add new products if any are in the cart that weren't in the original data
+      const originalSaleIds =
+        originalSaleData?.sales?.map((sale: any) => sale.id) || [];
+      const newProducts = cart
+        .filter((item) => !originalSaleIds.includes(item.id))
+        .map((item) => ({
+          kurtiId: item.kurti.id,
+          kurtiCode: item.kurti.code,
+          selectedSize: item.selectedSize,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+          code: item.kurti.code,
+        }));
+
+      if (newProducts.length > 0) {
+        updateData.newProducts = newProducts;
+      }
+
+      // Add updated items (existing items that have been modified)
+      const updatedItems = cart
+        .filter((item) => originalSaleIds.includes(item.id))
+        .map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+        }));
+
+      if (updatedItems.length > 0) {
+        updateData.updatedItems = updatedItems;
+      }
+
+      // Add removed items if any
+      if (removedItems.length > 0) {
+        updateData.removedItems = removedItems;
+      }
 
       const response = await axios.put(
         `/api/sell/online-sales/${params.id}`,
@@ -121,6 +253,20 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       if (response.data.success) {
         toast.success("Sale updated successfully!");
         setOriginalSaleData(response.data.data);
+
+        // Update cart with the new data from server
+        const updatedCartItems = response.data.data.sales.map((sale: any) => ({
+          id: sale.id,
+          kurti: sale.kurti,
+          selectedSize: sale.kurtiSize,
+          quantity: sale.quantity,
+          sellingPrice: sale.selledPrice,
+          availableStock: sale.availableStock,
+        }));
+        setCart(updatedCartItems);
+
+        // Reset removed items and exit edit mode
+        setRemovedItems([]);
         setIsEditMode(false);
       } else {
         toast.error("Failed to update sale");
@@ -133,6 +279,35 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     }
   };
 
+  const handleFind = async () => {
+    try {
+      setLoading(true);
+      if (code.length < 6) {
+        toast.error("Please enter correct code!!!");
+        return;
+      }
+
+      const res = await axios.post(`/api/kurti/find-kurti`, { code });
+      const data = res.data.data;
+
+      if (data.error) {
+        toast.error(data.error);
+        setKurti(null);
+      } else {
+        setKurti(data.kurti);
+        setSellingPrice("");
+        setSelectedSize("");
+        setQuantity(1);
+        toast.success("Product found!");
+      }
+    } catch (error) {
+      console.error("Error finding product:", error);
+      toast.error("Error finding product");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEditClick = () => {
     setShowPasswordDialog(true);
   };
@@ -141,12 +316,188 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     toggleEditMode();
   };
 
+  const addToCart = () => {
+    if (!kurti) {
+      toast.error("Please find a product first");
+      return;
+    }
+
+    if (!selectedSize) {
+      toast.error("Please select size");
+      return;
+    }
+
+    if (!sellingPrice || parseInt(sellingPrice) <= 0) {
+      toast.error("Please enter valid selling price");
+      return;
+    }
+
+    if (quantity <= 0) {
+      toast.error("Please enter valid quantity");
+      return;
+    }
+
+    const sizeInfo = kurti.sizes.find((sz: any) => sz.size === selectedSize);
+    if (!sizeInfo || sizeInfo.quantity < quantity) {
+      toast.error("Insufficient stock for selected quantity");
+      return;
+    }
+
+    // Check if same product+size already exists in cart
+    const existingItemIndex = cart.findIndex(
+      (item) =>
+        item.kurti.code === kurti.code && item.selectedSize === selectedSize
+    );
+
+    // Create a unique temporary ID for new items (will be replaced with real ID after save)
+    const tempId = `temp-${kurti.code}-${selectedSize}-${Date.now()}`;
+
+    const newItem: CartItem = {
+      id: tempId,
+      kurti,
+      selectedSize,
+      quantity,
+      sellingPrice: parseInt(sellingPrice),
+      availableStock: sizeInfo.quantity,
+    };
+
+    if (existingItemIndex >= 0) {
+      // Update existing item
+      const updatedCart = [...cart];
+      const existingItem = updatedCart[existingItemIndex];
+      const totalQuantity = existingItem.quantity + quantity;
+
+      if (totalQuantity > sizeInfo.quantity) {
+        toast.error("Total quantity exceeds available stock");
+        return;
+      }
+
+      updatedCart[existingItemIndex] = {
+        ...existingItem,
+        quantity: totalQuantity,
+        sellingPrice: parseInt(sellingPrice), // Update price if changed
+      };
+      setCart(updatedCart);
+    } else {
+      // Add new item
+      setCart([...cart, newItem]);
+    }
+
+    // Reset current product selection
+    setCode("");
+    setKurti(null);
+    setSelectedSize("");
+    setSellingPrice("");
+    setQuantity(1);
+
+    toast.success("Product added to cart!");
+  };
+
+  const removeFromCart = async (itemId: string) => {
+    const updatedCart = cart.filter((item) => item.id !== itemId);
+    setCart(updatedCart);
+
+    // For new items (temp IDs), just remove from cart
+    // For existing items, track them for removal on save
+    if (!itemId.startsWith("temp-")) {
+      // This is an existing item that was removed
+      setRemovedItems((prev) => [...prev, itemId]);
+    }
+
+    toast.success("Item removed from cart");
+  };
+
+  const updateCartItemQuantity = async (
+    itemId: string,
+    newQuantity: number
+  ) => {
+    if (newQuantity <= 0) {
+      removeFromCart(itemId);
+      return;
+    }
+
+    const updatedCart = cart.map((item) => {
+      if (item.id === itemId) {
+        if (newQuantity > item.availableStock) {
+          toast.error("Quantity exceeds available stock");
+          return item;
+        }
+        return { ...item, quantity: newQuantity };
+      }
+      return item;
+    });
+    setCart(updatedCart);
+  };
+
+  const updateCartItemPrice = async (itemId: string, newPrice: number) => {
+    if (newPrice <= 0) {
+      toast.error("Please enter valid price");
+      return;
+    }
+
+    const updatedCart = cart.map((item) => {
+      if (item.id === itemId) {
+        return { ...item, sellingPrice: newPrice };
+      }
+      return item;
+    });
+    setCart(updatedCart);
+  };
+
+  const getTotalAmount = () => {
+    return cart.reduce(
+      (total, item) => total + item.sellingPrice * item.quantity,
+      0
+    );
+  };
+
+  const getAvailableSizes = () => {
+    if (!kurti?.sizes) return [];
+    return kurti.sizes.filter((sz: any) => sz.quantity > 0);
+  };
+
   const regenerateInvoice = async () => {
     try {
-      toast.info("Invoice regeneration feature coming soon!");
+      setRegeneratingInvoice(true);
+
+      const response = await axios.post(
+        `/api/sell/online-sales/${params.id}/regenerate-invoice`
+      );
+
+      if (response.data.success) {
+        toast.success("Invoice regenerated successfully!");
+
+        // Update the original sale data with new invoice URL
+        if (originalSaleData) {
+          setOriginalSaleData({
+            ...originalSaleData,
+            invoiceUrl: response.data.invoiceUrl,
+          });
+        }
+
+        // Download the new invoice
+        try {
+          const link = document.createElement("a");
+          link.href = response.data.invoiceUrl;
+          link.download = `invoice-${response.data.batchNumber}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.success("New invoice downloaded!");
+        } catch (error) {
+          console.error("Error downloading invoice:", error);
+          toast.error("Failed to download invoice");
+        }
+      } else {
+        toast.error(response.data.error || "Failed to regenerate invoice");
+      }
     } catch (error: any) {
       console.error("Error regenerating invoice:", error);
-      toast.error("Failed to regenerate invoice");
+      toast.error(
+        error.response?.data?.error || "Failed to regenerate invoice"
+      );
+    } finally {
+      setRegeneratingInvoice(false);
     }
   };
 
@@ -181,10 +532,15 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 </Button>
                 <Button
                   onClick={regenerateInvoice}
+                  disabled={regeneratingInvoice}
                   variant="outline"
                   className="border-green-600 text-green-600 hover:bg-green-50"
                 >
-                  <FileText className="mr-2 h-4 w-4" />
+                  {regeneratingInvoice ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="mr-2 h-4 w-4" />
+                  )}
                   Regenerate Invoice
                 </Button>
               </>
@@ -267,26 +623,20 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium mb-1 block">
-                Customer Name *
-              </label>
-              <input
-                type="text"
+              <Label htmlFor="customer-name">Customer Name *</Label>
+              <Input
+                id="customer-name"
                 placeholder="Enter customer name"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 disabled={!isEditMode}
-                className={`w-full p-2 border rounded-md ${
-                  !isEditMode ? "bg-gray-50" : ""
-                }`}
+                className={!isEditMode ? "bg-gray-50" : ""}
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">
-                Customer Phone (Optional)
-              </label>
-              <input
-                type="text"
+              <Label htmlFor="customer-phone">Customer Phone (Optional)</Label>
+              <Input
+                id="customer-phone"
                 placeholder="Enter customer phone"
                 value={customerPhone}
                 maxLength={10}
@@ -297,49 +647,444 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                   }
                 }}
                 disabled={!isEditMode}
-                className={`w-full p-2 border rounded-md ${
-                  !isEditMode ? "bg-gray-50" : ""
-                }`}
+                className={!isEditMode ? "bg-gray-50" : ""}
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">
-                Payment Type *
-              </label>
+              <Label htmlFor="payment-status">Payment Status *</Label>
               <select
-                value={paymentType}
-                onChange={(e) => setpaymentType(e.target.value)}
+                id="payment-status"
+                value={paymentStatus}
+                onChange={(e) =>
+                  setPaymentStatus(e.target.value as "COMPLETED" | "PENDING")
+                }
                 disabled={!isEditMode}
-                aria-label="Select payment type"
+                aria-label="Select payment status"
                 className={`w-full p-2 border rounded-md ${
                   !isEditMode ? "bg-gray-50" : ""
                 }`}
               >
-                <option value="">Select Payment Type</option>
-                <option value="GPay">GPay</option>
-                <option value="Cash">Cash</option>
-                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="PENDING">⏳ Pending</option>
+                <option value="COMPLETED">✅ Completed</option>
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">
-                Bill Created By *
-              </label>
-              <input
-                type="text"
+              <Label htmlFor="bill-by">Bill Created By *</Label>
+              <Input
+                id="bill-by"
                 placeholder="Enter person name"
                 value={billCreatedBy}
                 onChange={(e) => setBillCreatedBy(e.target.value)}
                 disabled={!isEditMode}
-                className={`w-full p-2 border rounded-md ${
-                  !isEditMode ? "bg-gray-50" : ""
-                }`}
+                className={!isEditMode ? "bg-gray-50" : ""}
               />
             </div>
+
+            {/* Wallet Balance Display */}
+            {originalSaleData?.orderId && (
+              <div>
+                <Label className="text-sm font-medium mb-1 block">
+                  💰 Customer Wallet Balance
+                </Label>
+                <div className="p-2 bg-gray-50 border rounded-md">
+                  {loadingBalance ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm text-gray-600">
+                        Loading balance...
+                      </span>
+                    </div>
+                  ) : userBalance !== null ? (
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-blue-900">
+                        Current Balance:{" "}
+                        <span className="font-bold">₹{userBalance}</span>
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        Order Total: ₹{getTotalAmount()} |
+                        {userBalance >= getTotalAmount() ? (
+                          <span className="text-green-600">
+                            {" "}
+                            ✅ Sufficient Balance
+                          </span>
+                        ) : (
+                          <span className="text-red-600">
+                            {" "}
+                            ❌ Insufficient Balance
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      Unable to fetch balance
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Sale Items Summary */}
+        {/* Search Section - Only show in edit mode */}
+        {isEditMode && (
+          <div className="bg-slate-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3">Find Product</h3>
+            <div className="flex flex-row flex-wrap gap-2 items-end">
+              <div className="flex flex-col flex-wrap">
+                <Label htmlFor="product-code" className="mb-[10px]">
+                  Product Code
+                </Label>
+                <Input
+                  id="product-code"
+                  className="w-[250px] p-2"
+                  placeholder="Enter product code (without size)"
+                  value={code}
+                  onKeyUp={(e) => {
+                    if (e.key === "Enter") {
+                      handleFind();
+                    }
+                  }}
+                  onChange={(e) => {
+                    setCode(e.target.value);
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={handleFind}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {loading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="mr-2 h-4 w-4" />
+                )}
+                Find Product
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Product Details - Only show in edit mode */}
+        {isEditMode && kurti && (
+          <div className="bg-white border rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-3">Product Details</h3>
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-shrink-0">
+                <img
+                  src={kurti.images[0]?.url}
+                  alt={kurti.code}
+                  className="w-64 h-64 object-cover rounded-lg border"
+                />
+              </div>
+              <div className="flex-1 space-y-2">
+                <p className="text-xl font-bold">
+                  Code: {kurti.code.toUpperCase()}
+                </p>
+                <p className="text-lg">Category: {kurti.category}</p>
+                <p className="text-lg">Party: {kurti.party}</p>
+                <p className="text-lg font-semibold text-green-600">
+                  SP: RB{kurti.sellingPrice}
+                </p>
+                {kurti?.isBigPrice && (
+                  <p className="text-lg font-semibold text-green-600">
+                    BSP: RB
+                    {parseInt(kurti.sellingPrice) +
+                      (kurti?.isBigPrice ? kurti?.bigPrice : 0)}
+                  </p>
+                )}
+
+                {/* Size Table */}
+                <div className="mt-4">
+                  <h4 className="font-semibold mb-2">Available Sizes:</h4>
+                  <div className="flex flex-wrap gap-4">
+                    <Table className="border border-collapse max-w-md">
+                      <TableHeader>
+                        <TableRow className="bg-slate-800">
+                          <TableHead className="font-bold border text-white">
+                            SIZE
+                          </TableHead>
+                          <TableHead className="font-bold border text-white">
+                            STOCK
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {kurti.sizes.map((sz: any, i: number) => (
+                          <TableRow
+                            key={i}
+                            className={sz.quantity === 0 ? "opacity-50" : ""}
+                          >
+                            <TableCell className="border">
+                              {sz.size.toUpperCase()}
+                            </TableCell>
+                            <TableCell
+                              className={`border ${
+                                sz.quantity === 0
+                                  ? "text-red-500"
+                                  : "text-green-600"
+                              }`}
+                            >
+                              {sz.quantity}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                {/* Add to Cart Form */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                  <h4 className="font-semibold mb-3 text-yellow-800">
+                    Add to Cart
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div>
+                      <Label htmlFor="size-select">Select Size *</Label>
+                      <select
+                        id="size-select"
+                        name="size-select"
+                        aria-label="Select size"
+                        className="w-full p-2 border rounded-md"
+                        value={selectedSize}
+                        onChange={(e) => setSelectedSize(e.target.value)}
+                      >
+                        <option value="">Select Size</option>
+                        {getAvailableSizes().map((sz: any, i: number) => (
+                          <option key={i} value={sz.size}>
+                            {sz.size.toUpperCase()} (Stock: {sz.quantity})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="quantity">Quantity *</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        min="1"
+                        placeholder="Enter quantity"
+                        value={quantity}
+                        onChange={(e) =>
+                          setQuantity(parseInt(e.target.value) || 1)
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="selling-price">Selling Price *</Label>
+                      <Input
+                        id="selling-price"
+                        type="number"
+                        placeholder="Enter selling price"
+                        value={sellingPrice}
+                        onChange={(e) => setSellingPrice(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        onClick={addToCart}
+                        className="w-full bg-yellow-600 hover:bg-yellow-700"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add to Cart
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Shopping Cart */}
+        {cart.length > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-4 text-green-800">
+              {isEditMode ? "Edit Cart Items" : "Sale Items"} ({cart.length}{" "}
+              items)
+            </h3>
+
+            <div className="overflow-x-auto">
+              <Table className="border border-collapse">
+                <TableHeader>
+                  <TableRow className="bg-green-800">
+                    <TableHead className="font-bold border text-white">
+                      Product
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Size
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Quantity
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Unit Price
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Total
+                    </TableHead>
+                    {isEditMode && (
+                      <TableHead className="font-bold border text-white">
+                        Actions
+                      </TableHead>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cart.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="border">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={item.kurti.images[0]?.url}
+                            alt={item.kurti.code}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                          <div>
+                            <div className="font-semibold">
+                              {item.kurti.code.toUpperCase()}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {item.kurti.category}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="border">
+                        {item.selectedSize.toUpperCase()}
+                      </TableCell>
+                      <TableCell className="border">
+                        {isEditMode ? (
+                          <Input
+                            type="number"
+                            min="1"
+                            max={item.availableStock}
+                            value={item.quantity}
+                            onChange={async (e) => {
+                              await updateCartItemQuantity(
+                                item.id,
+                                parseInt(e.target.value) || 1
+                              );
+                            }}
+                            className="w-20"
+                          />
+                        ) : (
+                          <span>{item.quantity}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="border">
+                        {isEditMode ? (
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.sellingPrice}
+                            onChange={async (e) => {
+                              await updateCartItemPrice(
+                                item.id,
+                                parseInt(e.target.value) || 1
+                              );
+                            }}
+                            className="w-24"
+                          />
+                        ) : (
+                          <span>₹{item.sellingPrice}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="border font-semibold">
+                        ₹{item.sellingPrice * item.quantity}
+                      </TableCell>
+                      {isEditMode && (
+                        <TableCell className="border">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={async () => {
+                              await removeFromCart(item.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-green-300">
+              <div className="text-xl font-bold text-green-800">
+                Total Amount: ₹{getTotalAmount()}
+              </div>
+              {isEditMode && (
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setCart([]);
+                      setCode("");
+                      setKurti(null);
+                      setSelectedSize("");
+                      setSellingPrice("");
+                      setQuantity(1);
+                    }}
+                    disabled={updating}
+                  >
+                    Clear Cart
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Payment Information */}
+        {originalSaleData && (
+          <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
+            <h3 className="text-lg font-semibold mb-3 text-purple-800">
+              💰 Payment Information
+            </h3>
+            <div className="text-sm text-gray-600 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Payment Status:</span>
+                {originalSaleData.paymentStatus === "COMPLETED" ? (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    ✅ Completed
+                  </span>
+                ) : originalSaleData.paymentStatus === "PENDING" ? (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                    ⚠️ Pending
+                  </span>
+                ) : (
+                  <span className="text-gray-500">Not specified</span>
+                )}
+              </div>
+              {originalSaleData.paymentStatus === "COMPLETED" && (
+                <div className="text-green-700">
+                  <p>💳 Payment completed via wallet</p>
+                  <p>💰 Amount deducted: ₹{originalSaleData.totalAmount}</p>
+                </div>
+              )}
+              {originalSaleData.paymentStatus === "PENDING" && (
+                <div className="text-orange-700">
+                  <p>⚠️ Payment is pending</p>
+                  <p>💰 Amount to be paid: ₹{originalSaleData.totalAmount}</p>
+                  <p className="text-xs mt-1">
+                    This order was completed but payment could not be processed
+                    due to insufficient wallet balance.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {originalSaleData && (
           <div className="p-4 rounded-lg bg-green-50 border border-green-200">
             <h3 className="text-lg font-semibold mb-3 text-green-800">
@@ -359,6 +1104,84 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                   {originalSaleData.invoiceNumber.toString().padStart(6, "0")}
                 </p>
               )}
+              {originalSaleData.invoiceUrl && (
+                <div className="mt-2">
+                  <p className="font-medium text-green-700">📄 Invoice:</p>
+                  <a
+                    href={originalSaleData.invoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    View Invoice
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Wallet Transaction History */}
+        {originalSaleData && originalSaleData.paymentStatus === "COMPLETED" && (
+          <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+            <h3 className="text-lg font-semibold mb-3 text-blue-800">
+              🏦 Wallet Transaction Details
+            </h3>
+            <div className="text-sm text-blue-700 space-y-2">
+              <p>
+                <strong>Transaction Type:</strong> DEBIT (Payment for order)
+              </p>
+              <p>
+                <strong>Payment Method:</strong> Wallet
+              </p>
+              <p>
+                <strong>Amount:</strong> ₹{originalSaleData.totalAmount}
+              </p>
+              <p>
+                <strong>Order Reference:</strong> {originalSaleData.batchNumber}
+              </p>
+              <p>
+                <strong>Transaction Date:</strong>{" "}
+                {new Date(originalSaleData.saleTime).toLocaleString()}
+              </p>
+              <div className="mt-3 p-2 bg-blue-100 rounded">
+                <p className="text-xs text-blue-800">
+                  💡 This transaction was automatically processed when the order
+                  was confirmed. The amount was deducted from the customer's
+                  wallet balance.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pending Payment Information */}
+        {originalSaleData && originalSaleData.paymentStatus === "PENDING" && (
+          <div className="p-4 rounded-lg bg-orange-50 border border-orange-200">
+            <h3 className="text-lg font-semibold mb-3 text-orange-800">
+              ⚠️ Pending Payment Information
+            </h3>
+            <div className="text-sm text-orange-700 space-y-2">
+              <p>
+                <strong>Payment Status:</strong> PENDING
+              </p>
+              <p>
+                <strong>Reason:</strong> Insufficient wallet balance at time of
+                order completion
+              </p>
+              <p>
+                <strong>Amount Due:</strong> ₹{originalSaleData.totalAmount}
+              </p>
+              <p>
+                <strong>Order Reference:</strong> {originalSaleData.batchNumber}
+              </p>
+              <div className="mt-3 p-2 bg-orange-100 rounded">
+                <p className="text-xs text-orange-800">
+                  💡 This order was completed successfully but payment could not
+                  be processed due to insufficient wallet balance. The customer
+                  needs to add funds to their wallet to complete the payment.
+                </p>
+              </div>
             </div>
           </div>
         )}

@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const searchType = searchParams.get('searchType') || 'customerName';
     const startDate = searchParams.get('startDate') || '';
     const endDate = searchParams.get('endDate') || '';
+    const paymentStatus = searchParams.get('paymentStatus') || '';
 
     const result = await getOnlineSales({
       page,
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
       searchType,
       startDate,
       endDate,
+      paymentStatus,
       userId: session.user.id,
       userRole: session.user.role
     });

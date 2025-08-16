@@ -61,7 +61,7 @@ interface OnlineSale {
   totalItems: number;
   saleTime: string;
   sellerName: string;
-  paymentType?: string;
+  paymentStatus?: string;
   gstType?: string;
   invoiceUrl?: string;
   sellType: OfflineSellType;
@@ -105,6 +105,9 @@ function OnlineSalesPage() {
     to: undefined,
   });
   const [showDateFilter, setShowDateFilter] = useState(false);
+  
+  // Payment status filter
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
 
   // Debounced search query for API calls
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
@@ -118,7 +121,8 @@ function OnlineSalesPage() {
     search: string = "",
     searchType: string = "customerName",
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    paymentStatus: string = "all"
   ) => {
     try {
       setLoading(true);
@@ -138,6 +142,10 @@ function OnlineSalesPage() {
 
       if (endDate) {
         params.append("endDate", endDate);
+      }
+
+      if (paymentStatus !== "all") {
+        params.append("paymentStatus", paymentStatus);
       }
 
       const response = await axios.get(`/api/sell/online-sales?${params}`);
@@ -167,13 +175,15 @@ function OnlineSalesPage() {
       debouncedSearchQuery,
       searchType,
       startDate,
-      endDate
+      endDate,
+      paymentStatusFilter
     );
   }, [
     currentPage,
     debouncedSearchQuery,
     searchType,
     dateRange,
+    paymentStatusFilter,
   ]);
 
   const handlePageChange = (page: number) => {
@@ -188,6 +198,7 @@ function OnlineSalesPage() {
     setSearchQuery("");
     setSearchType("customerName");
     setDateRange({ from: undefined, to: undefined });
+    setPaymentStatusFilter("all");
     setCurrentPage(1);
   };
 
@@ -337,6 +348,11 @@ function OnlineSalesPage() {
                     | Searching: "{debouncedSearchQuery}" ({searchType})
                   </span>
                 )}
+                {paymentStatusFilter !== "all" && (
+                  <span className="ml-2 text-purple-600">
+                    | Payment Status: {paymentStatusFilter === "COMPLETED" ? "✅ Completed" : "⚠️ Pending"}
+                  </span>
+                )}
                 {(dateRange?.from || dateRange?.to) && (
                   <span className="ml-2 text-green-600">
                     | Date Filter:{" "}
@@ -367,19 +383,20 @@ function OnlineSalesPage() {
                     <SelectTrigger className="w-40">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="customerName">
-                        Customer Name
-                      </SelectItem>
-                      <SelectItem value="customerPhone">
-                        Customer Phone
-                      </SelectItem>
-                      <SelectItem value="invoiceNumber">
-                        Invoice Number
-                      </SelectItem>
-                      <SelectItem value="orderId">Order ID</SelectItem>
-                      <SelectItem value="amount">Amount</SelectItem>
-                    </SelectContent>
+                                      <SelectContent>
+                    <SelectItem value="customerName">
+                      Customer Name
+                    </SelectItem>
+                    <SelectItem value="customerPhone">
+                      Customer Phone
+                    </SelectItem>
+                    <SelectItem value="invoiceNumber">
+                      Invoice Number
+                    </SelectItem>
+                    <SelectItem value="orderId">Order ID</SelectItem>
+                    <SelectItem value="amount">Amount</SelectItem>
+                    <SelectItem value="paymentStatus">Payment Status</SelectItem>
+                  </SelectContent>
                   </Select>
                 </div>
 
@@ -399,7 +416,11 @@ function OnlineSalesPage() {
                           ? "invoice number"
                           : searchType === "orderId"
                           ? "order ID"
-                          : "amount"
+                          : searchType === "amount"
+                          ? "amount"
+                          : searchType === "paymentStatus"
+                          ? "payment status (COMPLETED/PENDING)"
+                          : "customer name"
                       }...`}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -427,7 +448,20 @@ function OnlineSalesPage() {
                   <Filter className="h-4 w-4" />
                   Date Filter
                 </Button>
-                {(searchQuery || dateRange?.from || dateRange?.to) && (
+                <Select
+                  value={paymentStatusFilter}
+                  onValueChange={(value) => setPaymentStatusFilter(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Payment Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="COMPLETED">✅ Completed</SelectItem>
+                    <SelectItem value="PENDING">⚠️ Pending</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(searchQuery || dateRange?.from || dateRange?.to || paymentStatusFilter !== "all") && (
                   <Button onClick={handleClearSearch} variant="outline">
                     Clear All
                   </Button>
@@ -520,7 +554,11 @@ function OnlineSalesPage() {
                       ? "invoice number"
                       : searchType === "orderId"
                       ? "order ID"
-                      : "amount"
+                      : searchType === "amount"
+                      ? "amount"
+                      : searchType === "paymentStatus"
+                      ? "payment status"
+                      : "customer name"
                   }.`
                 : dateRange?.from || dateRange?.to
                 ? "No online sales found for the selected date range."
@@ -536,7 +574,7 @@ function OnlineSalesPage() {
                   <TableHead>Customer</TableHead>
                   <TableHead>Sale Type</TableHead>
                   <TableHead>Sale Details</TableHead>
-                  <TableHead>Payment</TableHead>
+                  <TableHead>Payment Status</TableHead>
                   <TableHead>Date & Time</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -615,7 +653,17 @@ function OnlineSalesPage() {
                     <TableCell>
                       <div className="space-y-1">
                         <div className="text-sm font-medium">
-                          {sale.paymentType || "Not specified"}
+                          {sale.paymentStatus === "COMPLETED" ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 text-nowrap whitespace-nowrap">
+                              ✅ Completed
+                            </span>
+                          ) : sale.paymentStatus === "PENDING" ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 text-nowrap" title="Payment pending due to insufficient wallet balance">
+                              ⚠️ Pending
+                            </span>
+                          ) : (
+                            "Not specified"
+                          )}
                         </div>
                         <div className="text-xs text-gray-500">
                           {sale.gstType || "SGST+CGST"}

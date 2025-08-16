@@ -46,12 +46,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!data.paymentType?.trim()) {
-      return new NextResponse(
-        JSON.stringify({ error: "Payment type is required" }),
-        { status: 400 }
-      );
-    }
+    // Payment type validation removed - now handled automatically through wallet
 
     if (!data.gstType?.trim()) {
       return new NextResponse(

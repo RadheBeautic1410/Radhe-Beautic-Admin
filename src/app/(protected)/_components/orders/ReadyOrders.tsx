@@ -282,7 +282,7 @@ const ReadyOrders = () => {
                 router.push(`/confirm-online-order/${row.original.orderId}`);
               }}
             >
-              Packing Pending
+              Accept Order
             </Button>
           </>
         );

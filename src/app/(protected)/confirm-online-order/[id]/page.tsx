@@ -63,7 +63,7 @@ function SellPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [billCreatedBy, setBillCreatedBy] = useState("");
-  const [paymentType, setpaymentType] = useState("");
+  // Payment type removed - now handled automatically through wallet
 
   // Current product selection
   const [selectedSize, setSelectedSize] = useState("");
@@ -73,6 +73,7 @@ function SellPage() {
   // Order data state
   const [orderData, setOrderData] = useState<any>(null);
   const [orderLoading, setOrderLoading] = useState(true);
+  const [userBalance, setUserBalance] = useState<number | null>(null);
 
   const currentUser = useCurrentUser();
 
@@ -127,6 +128,24 @@ function SellPage() {
     fetchOrderData();
   }, [orderId]);
 
+  // Fetch user balance when order data is available
+  useEffect(() => {
+    if (orderData?.user?.id) {
+      fetchUserBalance(orderData.user.id);
+    }
+  }, [orderData]);
+
+  const fetchUserBalance = async (userId: string) => {
+    try {
+      const response = await axios.post("/api/wallet/get-balance", { userId });
+      if (response.data.success) {
+        setUserBalance(response.data.data.balance);
+      }
+    } catch (error) {
+      console.error("Error fetching user balance:", error);
+    }
+  };
+
   // Populate form fields with order data
   const populateFormWithOrderData = (order: any) => {
     if (!order) return;
@@ -138,8 +157,7 @@ function SellPage() {
     // Set bill created by (you might want to set this to current user or leave empty)
     if (currentUser?.name) setBillCreatedBy(currentUser.name);
 
-    // Set payment type (default to Cash for offline sales)
-    setpaymentType("Cash");
+    // Payment type is now handled automatically through wallet
 
     // Populate cart with order items
     if (order.cart?.CartProduct) {
@@ -352,10 +370,7 @@ function SellPage() {
         toast.error("Please enter bill created by");
         return;
       }
-      if (!paymentType.trim()) {
-        toast.error("Please select payment type");
-        return;
-      }
+      // Payment type validation removed - now handled automatically through wallet
       // if (!shopName.trim()) {
       //   toast.error("Please enter shop name");
       //   return;
@@ -379,7 +394,7 @@ function SellPage() {
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         billCreatedBy: billCreatedBy.trim(),
-        paymentType: paymentType.trim(),
+        // paymentType removed - now handled automatically through wallet
         gstType: gstType,
         orderId: orderId,
         sellType: "HALL_SELL_ONLINE",
@@ -391,7 +406,13 @@ function SellPage() {
       if (data.error) {
         toast.error(data.error);
       } else {
-        toast.success("Sale completed successfully!");
+        // Check payment status and show appropriate message
+        if (data.paymentStatus === "COMPLETED") {
+          toast.success("Sale completed successfully! Payment processed via wallet.");
+        } else {
+          toast.success("Sale completed successfully! Order marked as PENDING due to insufficient wallet balance.");
+        }
+        
         // Generate invoice
         await generateInvoice(data);
 
@@ -480,7 +501,7 @@ function SellPage() {
     setCustomerName("");
     setCustomerPhone("");
     setBillCreatedBy("");
-    setpaymentType("");
+    // Payment type reset removed
     setGstType("SGST_CGST");
     setSelectedSize("");
     setSellingPrice("");
@@ -493,7 +514,7 @@ function SellPage() {
     setCustomerName("");
     setCustomerPhone("");
     setBillCreatedBy("");
-    setpaymentType("");
+    // Payment type reset removed
     toast.success("Order data cleared. You can now start fresh.");
   };
 
@@ -573,6 +594,30 @@ function SellPage() {
       <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
         <div className="bg-purple-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-3">GST Configuration</h3>
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              💳 <strong>Payment Method:</strong> Orders will be automatically paid using the customer's wallet balance.
+              <br />
+              📊 <strong>Balance Check:</strong> The system will verify sufficient funds before confirming the order.
+            </p>
+            {userBalance !== null && (
+              <div className="mt-3 p-2 bg-white border border-blue-300 rounded">
+                <p className="text-sm font-medium text-blue-900">
+                  💰 Customer Wallet Balance: <span className="font-bold">₹{userBalance}</span>
+                </p>
+                {cart.length > 0 && (
+                  <p className="text-xs text-blue-700 mt-1">
+                    Order Total: ₹{getTotalAmount()} | 
+                    {userBalance >= getTotalAmount() ? (
+                      <span className="text-green-600"> ✅ Sufficient Balance - Payment will be completed</span>
+                    ) : (
+                      <span className="text-orange-600"> ⚠️ Insufficient Balance - Order will be marked as PENDING</span>
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
           <div className="flex gap-4">
             <label className="flex items-center gap-2">
               <input
@@ -698,22 +743,7 @@ function SellPage() {
                 }}
               />
             </div>
-            <div>
-              <Label htmlFor="payment-type">Payment Type *</Label>
-              <select
-                id="payment-type"
-                name="payment-type"
-                aria-label="Select payment type"
-                className="w-full p-2 border rounded-md"
-                value={paymentType}
-                onChange={(e) => setpaymentType(e.target.value)}
-              >
-                <option value="">Select Payment Type</option>
-                <option value="GPay">GPay</option>
-                <option value="Cash">Cash</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-              </select>
-            </div>
+            {/* Payment Type removed - now handled automatically through wallet */}
 
             <div>
               <Label htmlFor="bill-by">Bill Created By *</Label>
@@ -1024,7 +1054,8 @@ function SellPage() {
                   type="button"
                   onClick={handleSell}
                   disabled={selling || cart.length === 0}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  title=""
                 >
                   {selling ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1043,6 +1074,20 @@ function SellPage() {
                 </Button>
               </div>
             </div>
+            
+            {/* Payment Status Information */}
+            {cart.length > 0 && userBalance !== null && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">💡 Payment Information:</p>
+                  {userBalance >= getTotalAmount() ? (
+                    <p>✅ <strong>Sufficient Balance:</strong> Payment will be automatically completed and amount deducted from wallet.</p>
+                  ) : (
+                    <p>⚠️ <strong>Insufficient Balance:</strong> Order will be completed but marked as PENDING. No amount will be deducted from wallet.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
