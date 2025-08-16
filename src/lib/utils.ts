@@ -1,8 +1,9 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { OfflineSellType, OnlineSellType } from "@prisma/client";
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 // Shared invoice generation utility
@@ -18,22 +19,22 @@ export const generateInvoiceHTML = (
   totalAmount: number,
   gstType: "IGST" | "SGST_CGST" = "SGST_CGST",
   invoiceNumber: string = "",
-  isHallSell: boolean = false
+  sellType: OfflineSellType | OnlineSellType = "SHOP_SELL_OFFLINE"
 ) => {
   const currentDate = new Date().toLocaleDateString("en-IN");
   const currentTime = new Date().toLocaleTimeString("en-IN");
   const GST_RATE = 5; // Total GST (2.5% SGST + 2.5% CGST)
 
   const calculateGSTBreakdown = (totalPriceWithGST: number) => {
-      if (!totalPriceWithGST || isNaN(totalPriceWithGST)) {
-    return {
-      basePrice: 0,
-      igst: 0,
-      sgst: 0,
-      cgst: 0,
-      totalGST: 0,
-    };
-  }
+    if (!totalPriceWithGST || isNaN(totalPriceWithGST)) {
+      return {
+        basePrice: 0,
+        igst: 0,
+        sgst: 0,
+        cgst: 0,
+        totalGST: 0,
+      };
+    }
     const basePrice = totalPriceWithGST / (1 + GST_RATE / 100);
     const totalGSTAmount = totalPriceWithGST - basePrice;
 
@@ -60,9 +61,9 @@ export const generateInvoiceHTML = (
 
   // Group products by code and price for hall sales
   let displayProducts = soldProducts;
-  if (isHallSell) {
+  if (sellType === "HALL_SELL_OFFLINE") {
     const groupedProducts = new Map();
-    
+
     soldProducts.forEach((item) => {
       const key = `${item.kurti.code}-${item.unitPrice}`;
       if (groupedProducts.has(key)) {
@@ -80,33 +81,36 @@ export const generateInvoiceHTML = (
         });
       }
     });
-    
+
     displayProducts = Array.from(groupedProducts.values());
   }
 
   const totalGSTBreakdown = soldProducts.reduce(
-  (acc, item) => {
-const selledPrice = item.sale?.selledPrice ??
-  item.unitPrice ??
-  (typeof item.sellingPrice === "number" ? item.sellingPrice : parseFloat(item.sellingPrice || "0"));
+    (acc, item) => {
+      const selledPrice =
+        item.sale?.selledPrice ??
+        item.unitPrice ??
+        (typeof item.sellingPrice === "number"
+          ? item.sellingPrice
+          : parseFloat(item.sellingPrice || "0"));
 
-    const quantity = Number(item.quantity) || 0;
+      const quantity = Number(item.quantity) || 0;
 
-    const itemTotal = selledPrice * quantity;
-    const breakdown = calculateGSTBreakdown(itemTotal);
+      const itemTotal = selledPrice * quantity;
+      const breakdown = calculateGSTBreakdown(itemTotal);
 
-    return {
-      basePrice: acc.basePrice + breakdown.basePrice,
-      igst: acc.igst + breakdown.igst,
-      sgst: acc.sgst + breakdown.sgst,
-      cgst: acc.cgst + breakdown.cgst,
-      totalGST: acc.totalGST + breakdown.totalGST,
-    };
-  },
-  { basePrice: 0, igst: 0, sgst: 0, cgst: 0, totalGST: 0 }
-);
+      return {
+        basePrice: acc.basePrice + breakdown.basePrice,
+        igst: acc.igst + breakdown.igst,
+        sgst: acc.sgst + breakdown.sgst,
+        cgst: acc.cgst + breakdown.cgst,
+        totalGST: acc.totalGST + breakdown.totalGST,
+      };
+    },
+    { basePrice: 0, igst: 0, sgst: 0, cgst: 0, totalGST: 0 }
+  );
 
-console.log("totalGSTBreakdown",totalGSTBreakdown)
+  console.log("totalGSTBreakdown", totalGSTBreakdown);
 
   return `
     <!DOCTYPE html>
@@ -160,20 +164,30 @@ console.log("totalGSTBreakdown",totalGSTBreakdown)
       <div class="invoice-container">
         <div class="header">
           <div class="shop-name">Radhe Beautic</div>
-          <div class="shop-tagline">Premium Fashion Collection - Offline Sale${isHallSell ? ' (Hall Sale)' : ''}</div>
+          <div class="shop-tagline">Premium Fashion Collection - Offline Sale${
+            sellType === "HALL_SELL_OFFLINE" || sellType === "HALL_SELL_ONLINE"
+              ? " (Hall Sale)"
+              : ""
+          }</div>
         </div>
 
         <div class="invoice-details">
           <div class="info-block">
             <h3>Invoice Details</h3>
-            <div class="info-row"><span class="info-label">Invoice #:</span> ${invoiceNumber || batchNumber}</div>
+            <div class="info-row"><span class="info-label">Invoice #:</span> ${
+              invoiceNumber || batchNumber
+            }</div>
             <div class="info-row"><span class="info-label">Batch #:</span> ${batchNumber}</div>
             <div class="info-row"><span class="info-label">Date:</span> ${currentDate}</div>
             <div class="info-row"><span class="info-label">Time:</span> ${currentTime}</div>
             <div class="info-row"><span class="info-label">Seller:</span> ${
               currentUser?.name || "N/A"
             }</div>
-            <div class="info-row"><span class="info-label">Location:</span> ${selectedLocation}</div>
+            ${
+              selectedLocation
+                ? `<div class="info-row"><span class="info-label">Location:</span> ${selectedLocation}</div>`
+                : ""
+            }
             <div class="info-row"><span class="info-label">Bill By:</span> ${billCreatedBy}</div>
           </div>
           <div class="info-block">
@@ -208,7 +222,7 @@ console.log("totalGSTBreakdown",totalGSTBreakdown)
                 <td>${item.kurti.hsnCode || "N/A"}</td>
                 <td>${item.quantity}</td>
                 <td>₹${item.unitPrice.toFixed(2).toString()}</td>
-                <td>₹${item.totalPrice.toFixed(2).toString()}</td>
+                <td>₹${item.totalPrice?.toFixed(2)?.toString() || "0"}</td>
               </tr>
               `;
               })
@@ -240,22 +254,30 @@ console.log("totalGSTBreakdown",totalGSTBreakdown)
             }
             <tr style="border-top: 2px solid #333;">
               <td colspan="4" style="text-align: right; font-weight: bold; font-size: 18px;">Total Amount:</td>
-              <td style="font-weight: bold; font-size: 18px;">₹${(typeof totalAmount === 'string' ? parseFloat(totalAmount) : (totalAmount || 0)).toFixed(
-                2
-              )}</td>
+              <td style="font-weight: bold; font-size: 18px;">₹${(typeof totalAmount ===
+              "string"
+                ? parseFloat(totalAmount)
+                : totalAmount || 0
+              ).toFixed(2)}</td>
             </tr>
           </tbody>
         </table>
 
         <div class="total-section">
-          <div class="total-amount">Total Amount Payable: ₹${(typeof totalAmount === 'string' ? parseFloat(totalAmount) : (totalAmount || 0)).toFixed(
-            2
-          )}</div>
+          <div class="total-amount">Total Amount Payable: ₹${(typeof totalAmount ===
+          "string"
+            ? parseFloat(totalAmount)
+            : totalAmount || 0
+          ).toFixed(2)}</div>
         </div>
         <div class="footer">
           <div class="thank-you">Thank you for your purchase!</div>
           <p>Visit us again for more amazing collections</p>
-          ${isHallSell ? '<p style="font-size: 12px; color: #666; font-style: italic;">* Products are grouped by code and price for hall sale convenience</p>' : ''}
+          ${
+            sellType === "HALL_SELL_ONLINE" || sellType === "HALL_SELL_OFFLINE"
+              ? '<p style="font-size: 12px; color: #666; font-style: italic;">* Products are grouped by code and price for hall sale convenience</p>'
+              : ""
+          }
           <p style="font-size: 12px; color: #999;">
             This is a computer generated invoice. For any queries, please contact us.
           </p>

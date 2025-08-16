@@ -94,7 +94,7 @@ export async function PUT(
       billCreatedBy, 
       paymentType, 
       gstType,
-      isHallSell,
+      sellType,
       newProducts, // Array of new products to add
       updatedItems, // Array of existing items to update
       removedItems // Array of item IDs to remove
@@ -199,7 +199,7 @@ export async function PUT(
           billCreatedBy: billCreatedBy.trim(),
           paymentType: paymentType?.trim() || null,
           gstType: gstType || "SGST_CGST",
-          isHallSell: isHallSell || false,
+          sellType: sellType || "SHOP_SELL_OFFLINE",
         },
       });
 

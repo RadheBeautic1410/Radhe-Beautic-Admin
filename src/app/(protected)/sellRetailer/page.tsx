@@ -306,6 +306,7 @@ function SellPage() {
         paymentType: paymentType.trim(),
         gstType: gstType,
         shopId: selectedShopId.trim(),
+        sellType: "SHOP_SELL_OFFLINE",
       });
 
       const data = res.data.data;
@@ -358,7 +359,7 @@ function SellPage() {
         totalAmount: getTotalAmount(),
         gstType,
         invoiceNumber: saleData.invoiceNumber || "",
-        isHallSell: false, // Regular offline sales are not hall sales
+        sellType: "SHOP_SELL_OFFLINE", // Regular offline sales are not hall sales
       });
 
       if (!result.success || !result.pdfBase64) {

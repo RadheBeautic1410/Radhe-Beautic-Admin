@@ -34,24 +34,23 @@ import {
   ShoppingBag,
   User,
   Phone,
-  Building,
   FileText,
   Search,
   X,
   Filter,
+  Globe,
 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
-import { getShopList } from "@/src/actions/shop";
 import { useDebounce } from "@/src/hooks/useDebounce";
 import { DateRange } from "react-day-picker";
 import { format, addDays } from "date-fns";
 import { cn } from "@/src/lib/utils";
 
-interface OfflineSale {
+interface OnlineSale {
   id: string;
   batchNumber: string;
   invoiceNumber?: number;
@@ -66,16 +65,13 @@ interface OfflineSale {
   gstType?: string;
   invoiceUrl?: string;
   sellType: OfflineSellType;
-  shop?: {
-    id: string;
-    shopName: string;
-    shopLocation: string;
-  };
+  orderId?: string;
   sales: Array<{
     id: string;
     code: string;
     kurtiSize: string;
     selledPrice?: number;
+    quantity?: number;
     kurti: {
       code: string;
       category: string;
@@ -86,21 +82,18 @@ interface OfflineSale {
 }
 
 interface SalesData {
-  sales: OfflineSale[];
+  sales: OnlineSale[];
   total: number;
   totalPages: number;
   currentPage: number;
 }
 
-function OfflineSalesPage() {
-  const [sales, setSales] = useState<OfflineSale[]>([]);
+function OnlineSalesPage() {
+  const [sales, setSales] = useState<OnlineSale[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
-  const [selectedShopId, setSelectedShopId] = useState("all");
-  const [shops, setShops] = useState<any[]>([]);
-  const [shopsLoading, setShopsLoading] = useState(false);
 
   // Search states
   const [searchQuery, setSearchQuery] = useState("");
@@ -119,29 +112,9 @@ function OfflineSalesPage() {
   const currentUser = useCurrentUser();
   const router = useRouter();
 
-  // Load shops for admin
-  useEffect(() => {
-    const loadShops = async () => {
-      if (currentUser?.role === UserRole.ADMIN) {
-        try {
-          setShopsLoading(true);
-          const shopList = await getShopList();
-          setShops(shopList);
-        } catch (error) {
-          console.error("Error loading shops:", error);
-          toast.error("Failed to load shops");
-        } finally {
-          setShopsLoading(false);
-        }
-      }
-    };
-    loadShops();
-  }, [currentUser]);
-
   // Load sales data
   const loadSales = async (
     page: number = 1,
-    shopId: string = "all",
     search: string = "",
     searchType: string = "customerName",
     startDate?: string,
@@ -153,10 +126,6 @@ function OfflineSalesPage() {
         page: page.toString(),
         limit: "20",
       });
-
-      if (shopId && shopId !== "all") {
-        params.append("shopId", shopId);
-      }
 
       if (search.trim()) {
         params.append("search", search.trim());
@@ -171,7 +140,7 @@ function OfflineSalesPage() {
         params.append("endDate", endDate);
       }
 
-      const response = await axios.get(`/api/sell/offline-sales?${params}`);
+      const response = await axios.get(`/api/sell/online-sales?${params}`);
       const data: SalesData = response.data.data;
 
       setSales(data.sales);
@@ -195,7 +164,6 @@ function OfflineSalesPage() {
       : undefined;
     loadSales(
       currentPage,
-      selectedShopId,
       debouncedSearchQuery,
       searchType,
       startDate,
@@ -203,16 +171,10 @@ function OfflineSalesPage() {
     );
   }, [
     currentPage,
-    selectedShopId,
     debouncedSearchQuery,
     searchType,
     dateRange,
   ]);
-
-  const handleShopChange = (shopId: string) => {
-    setSelectedShopId(shopId);
-    setCurrentPage(1); // Reset to first page when changing shop
-  };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -366,7 +328,7 @@ function OfflineSalesPage() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-semibold">
-                📊 Offline Sales History
+                🌐 Online Sales History
               </h1>
               <p className="text-gray-600 mt-1">
                 Total Sales: {total} | Page {currentPage} of {totalPages}
@@ -387,30 +349,6 @@ function OfflineSalesPage() {
                 )}
               </p>
             </div>
-
-            {/* Shop Filter for Admin */}
-            {currentUser?.role === UserRole.ADMIN && shops.length > 0 && (
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Filter by Shop:</label>
-                <Select
-                  value={selectedShopId}
-                  onValueChange={handleShopChange}
-                  disabled={shopsLoading}
-                >
-                  <SelectTrigger className="w-64">
-                    <SelectValue placeholder="All Shops" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Shops</SelectItem>
-                    {shops.map((shop) => (
-                      <SelectItem key={shop.id} value={shop.id}>
-                        {shop.shopName} - {shop.shopLocation}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
 
           {/* Search Section */}
@@ -439,7 +377,7 @@ function OfflineSalesPage() {
                       <SelectItem value="invoiceNumber">
                         Invoice Number
                       </SelectItem>
-                      <SelectItem value="shopName">Shop Name</SelectItem>
+                      <SelectItem value="orderId">Order ID</SelectItem>
                       <SelectItem value="amount">Amount</SelectItem>
                     </SelectContent>
                   </Select>
@@ -459,8 +397,8 @@ function OfflineSalesPage() {
                           ? "customer phone"
                           : searchType === "invoiceNumber"
                           ? "invoice number"
-                          : searchType === "shopName"
-                          ? "shop name"
+                          : searchType === "orderId"
+                          ? "order ID"
                           : "amount"
                       }...`}
                       value={searchQuery}
@@ -567,28 +505,26 @@ function OfflineSalesPage() {
           </div>
         ) : sales.length === 0 ? (
           <div className="text-center py-8">
-            <ShoppingBag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No sales found
+              No online sales found
             </h3>
             <p className="text-gray-500">
               {debouncedSearchQuery.trim()
-                ? `No sales found matching "${debouncedSearchQuery}" for ${
+                ? `No online sales found matching "${debouncedSearchQuery}" for ${
                     searchType === "customerName"
                       ? "customer name"
                       : searchType === "customerPhone"
                       ? "customer phone"
                       : searchType === "invoiceNumber"
                       ? "invoice number"
-                      : searchType === "shopName"
-                      ? "shop name"
+                      : searchType === "orderId"
+                      ? "order ID"
                       : "amount"
                   }.`
                 : dateRange?.from || dateRange?.to
-                ? "No sales found for the selected date range."
-                : selectedShopId && selectedShopId !== "all"
-                ? "No sales found for the selected shop."
-                : "No offline sales have been recorded yet."}
+                ? "No online sales found for the selected date range."
+                : "No online sales have been recorded yet."}
             </p>
           </div>
         ) : (
@@ -598,7 +534,7 @@ function OfflineSalesPage() {
                 <TableRow>
                   <TableHead>Invoice Number</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Shop</TableHead>
+                  <TableHead>Sale Type</TableHead>
                   <TableHead>Sale Details</TableHead>
                   <TableHead>Payment</TableHead>
                   <TableHead>Date & Time</TableHead>
@@ -610,7 +546,6 @@ function OfflineSalesPage() {
                   <TableRow
                     key={sale.id}
                     className={
-                      sale.sellType === "HALL_SELL_OFFLINE" ||
                       sale.sellType === "HALL_SELL_ONLINE"
                         ? "bg-blue-50 hover:bg-blue-100"
                         : ""
@@ -640,30 +575,26 @@ function OfflineSalesPage() {
                         <div className="text-sm text-gray-500">
                           Bill by: {sale.billCreatedBy}
                         </div>
+                        {sale.orderId && (
+                          <div className="text-sm text-blue-600">
+                            Order: {sale.orderId}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      {sale.shop ? (
-                        <div className="space-y-1">
-                          {sale.sellType === "HALL_SELL_OFFLINE" ||
-                          sale.sellType === "HALL_SELL_ONLINE" && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              Hall Sale
-                            </span>
-                          )}
-                          <div className="flex items-center gap-1">
-                            <Building className="h-4 w-4 text-gray-500" />
-                            <span className="font-medium">
-                              {sale.shop.shopName}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            {sale.shop.shopLocation}
-                          </div>
+                      <div className="space-y-1">
+                        {sale.sellType === "HALL_SELL_ONLINE" && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Hall Sale
+                          </span>
+                        )}
+                        <div className="text-sm text-gray-600">
+                          {sale.sellType === "HALL_SELL_ONLINE" 
+                            ? "Hall Sell Online" 
+                            : "Online Sale"}
                         </div>
-                      ) : (
-                        <span className="text-gray-500">No shop assigned</span>
-                      )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
@@ -721,7 +652,7 @@ function OfflineSalesPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            router.push(`/offline-sales/${sale.id}`);
+                            router.push(`/online-sales/${sale.id}`);
                           }}
                           title="View Details"
                         >
@@ -742,7 +673,7 @@ function OfflineSalesPage() {
   );
 }
 
-const OfflineSalesPageWrapper = () => {
+const OnlineSalesPageWrapper = () => {
   return (
     <>
       <RoleGateForComponent
@@ -753,7 +684,7 @@ const OfflineSalesPageWrapper = () => {
           UserRole.SELLER_MANAGER,
         ]}
       >
-        <OfflineSalesPage />
+        <OnlineSalesPage />
       </RoleGateForComponent>
       <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
         <NotAllowedPage />
@@ -762,4 +693,4 @@ const OfflineSalesPageWrapper = () => {
   );
 };
 
-export default OfflineSalesPageWrapper;
+export default OnlineSalesPageWrapper;
