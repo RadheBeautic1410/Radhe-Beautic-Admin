@@ -24,6 +24,7 @@ import TopMonthlySellingKurti from "@/src/app/(protected)/_components/analytics/
 import AvailableKurtiSizes from "@/src/app/(protected)/_components/analytics/awailableKurtiSizes";
 import PartyWiseSales from "../_components/analytics/partyWiseCount";
 import TopSoldKurti from "../_components/analytics/topSoldKurti";
+import KurtiReports from "../_components/analytics/kurtiReports";
 
 const AnalyticsPage = () => {
 
@@ -62,6 +63,7 @@ const AnalyticsPage = () => {
                 <PartyWiseSales />
                 <TopMonthlySellingKurti />
                 <AvailableKurtiSizes />
+                <KurtiReports />
             </Card>
         </>
     );
