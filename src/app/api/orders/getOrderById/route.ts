@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
                 status: 200,
             });
     } catch (error: any) {
+        console.log("🚀 ~ POST ~ error:", error)
         return new NextResponse(JSON.stringify({ success: false, message: error.message }), {
             status: 404
         });

@@ -8,6 +8,8 @@ export interface OfflineSalesFilters {
   shopId?: string;
   search?: string;
   searchType?: string;
+  startDate?: string;
+  endDate?: string;
   userId?: string;
   userRole?: string;
 }
@@ -27,6 +29,8 @@ export const getOfflineSales = async (filters: OfflineSalesFilters): Promise<Off
       shopId = "",
       search = "",
       searchType = "customerName",
+      startDate = "",
+      endDate = "",
       userId,
       userRole
     } = filters;
@@ -60,6 +64,22 @@ export const getOfflineSales = async (filters: OfflineSalesFilters): Promise<Off
       }
     }
 
+    // Add date range filters
+    if (startDate || endDate) {
+      whereClause.saleTime = {};
+      
+      if (startDate) {
+        whereClause.saleTime.gte = new Date(startDate);
+      }
+      
+      if (endDate) {
+        // Set end date to end of day
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        whereClause.saleTime.lte = endDateTime;
+      }
+    }
+
     // Add search filters
     if (search.trim()) {
       const searchTerm = search.trim();
@@ -70,6 +90,18 @@ export const getOfflineSales = async (filters: OfflineSalesFilters): Promise<Off
             contains: searchTerm,
             mode: 'insensitive'
           };
+          break;
+        case 'customerPhone':
+          whereClause.customerPhone = {
+            contains: searchTerm,
+            mode: 'insensitive'
+          };
+          break;
+        case 'invoiceNumber':
+          const invoiceNum = parseInt(searchTerm);
+          if (!isNaN(invoiceNum)) {
+            whereClause.invoiceNumber = invoiceNum;
+          }
           break;
         case 'shopName':
           whereClause.shop = {

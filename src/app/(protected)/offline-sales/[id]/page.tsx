@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/src/components/ui/table";
-import { UserRole } from "@prisma/client";
+import { OfflineSellType, UserRole } from "@prisma/client";
 import axios from "axios";
 import {
   Loader2,
@@ -38,6 +38,8 @@ import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PasswordDialog } from "@/src/app/(protected)/_components/PasswordDialog";
 import Link from "next/link";
+import { Select, SelectValue, SelectTrigger } from "@/src/components/ui/select";
+import { SelectContent, SelectItem } from "@/components/ui/select";
 
 const getCurrTime = () => {
   const currentTime = new Date();
@@ -91,6 +93,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   const [selectedSize, setSelectedSize] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [sellType, setSellType] =
+    useState<OfflineSellType>("SHOP_SELL_OFFLINE");
 
   // Password dialog state
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -116,7 +120,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         setpaymentType(saleData.paymentType || "");
         setGstType(saleData.gstType || "SGST_CGST");
         setSelectedShopId(saleData.shopId || "");
-        setIsHallSell(saleData.isHallSell || false);
+        setSellType(saleData.sellType || "SHOP_SELL_OFFLINE");
 
         console.log("response", response);
         console.log("saleData.sales", response.data.data);
@@ -186,7 +190,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         setpaymentType(originalSaleData.paymentType || "");
         setGstType(originalSaleData.gstType || "SGST_CGST");
         setSelectedShopId(originalSaleData.shopId || "");
-        setIsHallSell(originalSaleData.isHallSell || false);
+        setSellType(originalSaleData.sellType || "SHOP_SELL_OFFLINE");
 
         // Restore original cart items
         const originalCartItems = originalSaleData.sales.map((sale: any) => ({
@@ -235,7 +239,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         billCreatedBy: billCreatedBy.trim(),
         paymentType: paymentType.trim(),
         gstType: gstType,
-        isHallSell: isHallSell,
+        sellType: sellType,
       };
 
       // Add new products if any are in the cart that weren't in the original data
@@ -552,6 +556,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         paymentType: paymentType.trim(),
         gstType: gstType,
         shopId: selectedShopId.trim(),
+        sellType: sellType,
       });
 
       const data = res.data.data;
@@ -604,7 +609,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         totalAmount: getTotalAmount(),
         gstType,
         invoiceNumber: saleData.invoiceNumber || "",
-        isHallSell: isHallSell, // Pass the hall sale status
+        sellType: saleData.sellType, // Pass the hall sale status
       });
 
       if (!result.success || !result.pdfBase64) {
@@ -818,27 +823,42 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         {/* Customer Details Section */}
         <div
           className={`p-4 rounded-lg ${
-            isHallSell ? "bg-blue-50 border-2 border-blue-200" : "bg-blue-50"
+            sellType === "HALL_SELL_OFFLINE" || sellType === "HALL_SELL_ONLINE"
+              ? "bg-blue-50 border-2 border-blue-200"
+              : "bg-blue-50"
           }`}
         >
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-lg font-semibold">Customer Details</h3>
             <div className="flex items-center gap-2">
-              {isHallSell && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  Hall Sale
-                </span>
-              )}
+              {sellType === "HALL_SELL_OFFLINE" ||
+                (sellType === "HALL_SELL_ONLINE" && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    Hall Sale
+                  </span>
+                ))}
               {isEditMode && (
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={isHallSell}
-                    onChange={(e) => setIsHallSell(e.target.checked)}
-                    className="rounded"
-                  />
-                  <span>Mark as Hall Sale</span>
-                </label>
+                <Select
+                  value={sellType}
+                  onValueChange={(value) =>
+                    setSellType(value as OfflineSellType)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Sell Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={OfflineSellType.HALL_SELL_OFFLINE}>
+                      Hallsell offline
+                    </SelectItem>
+                    <SelectItem value={OfflineSellType.HALL_SELL_ONLINE}>
+                      Hallsell online
+                    </SelectItem>
+                    <SelectItem value={OfflineSellType.SHOP_SELL_OFFLINE}>
+                      Shop sell offline
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               )}
             </div>
           </div>

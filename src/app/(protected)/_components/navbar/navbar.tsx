@@ -99,6 +99,12 @@ const routes = [
     icon: "🏪",
   },
   {
+    name: "Online Sales",
+    href: "/online-sales",
+    role: [UserRole.ADMIN],
+    icon: "🌐",
+  },
+  {
     name: "Orders",
     href: "/orders",
     role: [UserRole.ADMIN],
