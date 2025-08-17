@@ -739,7 +739,9 @@ export const updateOnlineSaleWithWalletAndCart = async (
                 }
                 existingSize.quantity -= product.quantity;
                 console.log(
-                  `Reduced size ${product.selectedSize} quantity from ${existingSize.quantity + product.quantity} to ${existingSize.quantity}`
+                  `Reduced size ${product.selectedSize} quantity from ${
+                    existingSize.quantity + product.quantity
+                  } to ${existingSize.quantity}`
                 );
               } else {
                 throw new Error(
@@ -755,7 +757,9 @@ export const updateOnlineSaleWithWalletAndCart = async (
 
               if (existingReservedSizeIndex !== -1) {
                 // Reserved size exists, reduce quantity
-                const existingReservedSize = updatedReservedSizes[existingReservedSizeIndex] as any;
+                const existingReservedSize = updatedReservedSizes[
+                  existingReservedSizeIndex
+                ] as any;
                 if (existingReservedSize.quantity < product.quantity) {
                   throw new Error(
                     `Insufficient reserved stock for kurti ${product.kurtiId}, size ${product.selectedSize}. Available: ${existingReservedSize.quantity}, Requested: ${product.quantity}`
@@ -763,7 +767,11 @@ export const updateOnlineSaleWithWalletAndCart = async (
                 }
                 existingReservedSize.quantity -= product.quantity;
                 console.log(
-                  `Reduced reserved size ${product.selectedSize} quantity from ${existingReservedSize.quantity + product.quantity} to ${existingReservedSize.quantity}`
+                  `Reduced reserved size ${
+                    product.selectedSize
+                  } quantity from ${
+                    existingReservedSize.quantity + product.quantity
+                  } to ${existingReservedSize.quantity}`
                 );
               } else {
                 throw new Error(
@@ -774,7 +782,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
               // Update the kurti with reduced stock
               await tx.kurti.update({
                 where: { id: product.kurtiId },
-                data: { 
+                data: {
                   sizes: updatedSizes as any,
                   reservedSizes: updatedReservedSizes as any,
                   countOfPiece: (kurti.countOfPiece || 0) - product.quantity,
@@ -785,7 +793,9 @@ export const updateOnlineSaleWithWalletAndCart = async (
                 `Successfully reduced stock for kurti ${product.kurtiId}, size ${product.selectedSize}`
               );
             } else {
-              throw new Error(`Kurti ${product.kurtiId} not found for stock reduction`);
+              throw new Error(
+                `Kurti ${product.kurtiId} not found for stock reduction`
+              );
             }
 
             // Create the online sell record
@@ -941,6 +951,15 @@ export const updateOnlineSaleWithWalletAndCart = async (
             invoiceUrl: invoiceUrl,
           },
         });
+
+        if (result.orderId) {
+          await db.orders.update({
+            where: { orderId: result.orderId },
+            data: {
+              total: result.totalAmount,
+            },
+          });
+        }
 
         console.log(`Invoice uploaded to Firebase: ${invoiceUrl}`);
       } catch (error) {
