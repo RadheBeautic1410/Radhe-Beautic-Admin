@@ -102,46 +102,46 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     }
   };
 
-  useEffect(() => {
-    const loadSaleDetails = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(`/api/sell/online-sales/${params.id}`);
+  const loadSaleDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`/api/sell/online-sales/${params.id}`);
 
-        const saleData = response.data.data;
-        setOriginalSaleData(saleData);
+      const saleData = response.data.data;
+      setOriginalSaleData(saleData);
 
-        // Populate form fields with existing data
-        setCustomerName(saleData.customerName || "");
-        setCustomerPhone(saleData.customerPhone || "");
-        setBillCreatedBy(saleData.billCreatedBy || "");
-        setPaymentStatus(saleData.paymentStatus || "PENDING");
-        setGstType(saleData.gstType || "SGST_CGST");
-        setSellType(saleData.sellType || "HALL_SELL_ONLINE");
+      // Populate form fields with existing data
+      setCustomerName(saleData.customerName || "");
+      setCustomerPhone(saleData.customerPhone || "");
+      setBillCreatedBy(saleData.billCreatedBy || "");
+      setPaymentStatus(saleData.paymentStatus || "PENDING");
+      setGstType(saleData.gstType || "SGST_CGST");
+      setSellType(saleData.sellType || "HALL_SELL_ONLINE");
 
-        // Load existing cart items
-        const existingCartItems = saleData.sales.map((sale: any) => ({
-          id: sale.id,
-          kurti: sale.kurti,
-          selectedSize: sale.kurtiSize,
-          quantity: sale.quantity,
-          sellingPrice: sale.selledPrice,
-          availableStock: sale.availableStock,
-        }));
-        setCart(existingCartItems);
+      // Load existing cart items
+      const existingCartItems = saleData.sales.map((sale: any) => ({
+        id: sale.id,
+        kurti: sale.kurti,
+        selectedSize: sale.kurtiSize,
+        quantity: sale.quantity,
+        sellingPrice: sale.selledPrice,
+        availableStock: sale.availableStock,
+      }));
+      setCart(existingCartItems);
 
-        // Fetch user wallet balance if order ID exists
-        if (saleData.orderId && saleData.order.user) {
-          fetchUserBalance(saleData.order.user.id);
-        }
-      } catch (error: any) {
-        console.error("Error loading sale details:", error);
-        toast.error("Failed to load sale details");
-      } finally {
-        setLoading(false);
+      // Fetch user wallet balance if order ID exists
+      if (saleData.orderId && saleData.order.user) {
+        fetchUserBalance(saleData.order.user.id);
       }
-    };
+    } catch (error: any) {
+      console.error("Error loading sale details:", error);
+      toast.error("Failed to load sale details");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (params.id) {
       loadSaleDetails();
     }
@@ -207,6 +207,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         paymentStatus: paymentStatus,
         gstType: gstType,
         sellType: sellType,
+        orderId: originalSaleData.orderId,
       };
 
       // Add new products if any are in the cart that weren't in the original data
@@ -254,6 +255,19 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         toast.success("Sale updated successfully!");
         setOriginalSaleData(response.data.data);
 
+        try {
+          const link = document.createElement("a");
+          link.href = response.data.data.invoiceUrl;
+          link.download = `invoice-${response.data.batchNumber}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.success("New invoice downloaded!");
+        } catch (error) {
+          console.error("Error downloading invoice:", error);
+          toast.error("Failed to download invoice");
+        }
+
         // Update cart with the new data from server
         const updatedCartItems = response.data.data.sales.map((sale: any) => ({
           id: sale.id,
@@ -264,6 +278,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           availableStock: sale.availableStock,
         }));
         setCart(updatedCartItems);
+
+        await loadSaleDetails();
 
         // Reset removed items and exit edit mode
         setRemovedItems([]);
@@ -451,6 +467,35 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     );
   };
 
+  const getAmountToDeduct = () => {
+    // Calculate amount for new items (temp items) that will be charged
+    const newItemsAmount = cart
+      .filter((item) => item.id.includes("temp"))
+      .reduce((total, item) => total + item.sellingPrice * item.quantity, 0);
+
+    // Calculate amount for removed items that will be refunded
+    // Only consider refunds if payment status is COMPLETED
+    const removedItemsAmount =
+      originalSaleData?.paymentStatus === "COMPLETED"
+        ? removedItems.reduce((total, removedItemId) => {
+            // Find the original item data from originalSaleData
+            const originalItem = originalSaleData?.sales?.find(
+              (sale: any) => sale.id === removedItemId
+            );
+            if (originalItem) {
+              return (
+                total +
+                (originalItem.selledPrice || 0) * (originalItem.quantity || 1)
+              );
+            }
+            return total;
+          }, 0)
+        : 0;
+
+    // Net amount to deduct = new items - removed items
+    return newItemsAmount - removedItemsAmount;
+  };
+
   const getAvailableSizes = () => {
     if (!kurti?.sizes) return [];
     return kurti.sizes.filter((sz: any) => sz.quantity > 0);
@@ -478,7 +523,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         // Download the new invoice
         try {
           const link = document.createElement("a");
-          link.href = response.data.invoiceUrl;
+          link.href = response.data.data.invoiceUrl;
+          console.log("🚀 ~ regenerateInvoice ~ link:", link);
           link.download = `invoice-${response.data.batchNumber}.pdf`;
           document.body.appendChild(link);
           link.click();
@@ -701,18 +747,26 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                         <span className="font-bold">₹{userBalance}</span>
                       </p>
                       <p className="text-xs text-blue-700">
-                        Order Total: ₹{getTotalAmount()} |
-                        {userBalance >= getTotalAmount() ? (
-                          <span className="text-green-600">
+                        Order Total: ₹{getTotalAmount()} | Amount to Deduct: ₹
+                        {getAmountToDeduct()}
+                        {originalSaleData?.paymentStatus === "PENDING" && (
+                          <span className="text-orange-600">
                             {" "}
-                            ✅ Sufficient Balance
-                          </span>
-                        ) : (
-                          <span className="text-red-600">
-                            {" "}
-                            ❌ Insufficient Balance
+                            ⚠️ Payment Pending
                           </span>
                         )}
+                        {originalSaleData?.paymentStatus === "COMPLETED" &&
+                          (userBalance >= getAmountToDeduct() ? (
+                            <span className="text-green-600">
+                              {" "}
+                              ✅ Sufficient Balance
+                            </span>
+                          ) : (
+                            <span className="text-red-600">
+                              {" "}
+                              ❌ Insufficient Balance
+                            </span>
+                          ))}
                       </p>
                     </div>
                   ) : (

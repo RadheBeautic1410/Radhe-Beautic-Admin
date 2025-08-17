@@ -2,7 +2,10 @@
 
 import { db } from "@/src/lib/db";
 import { generateInvoicePDF } from "@/src/actions/generate-pdf";
-import { uploadInvoicePDFToFirebase, deleteInvoiceFromFirebase } from "@/src/lib/firebase/firebase";
+import {
+  uploadInvoicePDFToFirebase,
+  deleteInvoiceFromFirebase,
+} from "@/src/lib/firebase/firebase";
 import { generatePDFFromHTML } from "@/src/lib/puppeteer";
 import { generateInvoiceHTML } from "@/src/lib/utils";
 
@@ -265,8 +268,7 @@ export const updateOnlineSale = async (id: string, updateData: any) => {
 
 export const updateOnlineSaleWithWalletAndCart = async (
   id: string,
-  updateData: any,
-  currentUser: any
+  updateData: any
 ) => {
   try {
     const {
@@ -281,6 +283,13 @@ export const updateOnlineSaleWithWalletAndCart = async (
       removedItems = [],
       orderId,
     } = updateData;
+
+    const currentOrder = await db.orders.findUnique({
+      where: { orderId },
+      include: {
+        user: true,
+      },
+    });
 
     const result = await db.$transaction(
       async (tx) => {
@@ -333,41 +342,84 @@ export const updateOnlineSaleWithWalletAndCart = async (
           0
         );
 
+        // let productTotal = 0;
+        // if (currentSale.paymentStatus === "PENDING") {
+        //   currentSale.sales.forEach((sale: any) => {
+        //     productTotal += sale.selledPrice * sale.quantity;
+        //   });
+        // }
+
+        console.log(
+          "🚀 ~ updateOnlineSaleWithWalletAndCart ~ currentSale.sales:",
+          currentSale.sales
+        );
         // Calculate final total
         const finalTotal = updatedTotal + newProductsTotal + unchangedTotal;
+        console.log(
+          "🚀 ~ updateOnlineSaleWithWalletAndCart ~ unchangedTotal:",
+          unchangedTotal
+        );
+        console.log(
+          "🚀 ~ updateOnlineSaleWithWalletAndCart ~ updatedTotal:",
+          updatedTotal
+        );
+        console.log(
+          "🚀 ~ updateOnlineSaleWithWalletAndCart ~ newProductsTotal:",
+          newProductsTotal
+        );
 
-        // Check if user has sufficient balance for new products
+        // Calculate amount to settle based on payment status transition
+        let amountToSettle = 0;
         let hasSufficientBalance = true;
         let finalPaymentStatus = paymentStatus;
 
-        if (newProductsTotal > 0 && currentUser) {
+        if (currentOrder?.user) {
           const user = await tx.user.findUnique({
-            where: { id: currentUser.id },
+            where: { id: currentOrder.user.id },
             select: { balance: true },
           });
 
-          console.log(
-            `User balance check: User ID: ${currentUser.id}, Balance: ${user?.balance}, Required: ${newProductsTotal}`
-          );
-
-          if (!user || user.balance < newProductsTotal) {
+          if (!user) {
             hasSufficientBalance = false;
             finalPaymentStatus = "PENDING";
-            console.log(
-              `Insufficient balance. User balance: ${user?.balance}, Required: ${newProductsTotal}`
-            );
+            console.log(`User not found. Keeping payment status as PENDING.`);
           } else {
-            // If balance is sufficient and current status is PENDING, update to COMPLETED
+            // Determine amount to settle based on payment status transition
             if (currentSale.paymentStatus === "PENDING") {
-              finalPaymentStatus = "COMPLETED";
+              // If transitioning from PENDING to COMPLETED, deduct the entire final total
+              amountToSettle = finalTotal;
               console.log(
-                `Updating status from PENDING to COMPLETED for user ${currentUser.id}`
+                `Payment status transition: PENDING -> COMPLETED. Amount to settle: ${amountToSettle}`
+              );
+            } else if (currentSale.paymentStatus === "COMPLETED") {
+              // If already COMPLETED, only handle new products and refunds
+              amountToSettle = newProductsTotal;
+              console.log(
+                `Payment status: COMPLETED -> COMPLETED. New products amount: ${amountToSettle}`
               );
             }
-            console.log(
-              `Sufficient balance. Will deduct ${newProductsTotal} from wallet.`
-            );
+
+            // Check if user has sufficient balance
+            if (amountToSettle > 0 && user.balance < amountToSettle) {
+              hasSufficientBalance = false;
+              finalPaymentStatus = "PENDING";
+              console.log(
+                `Insufficient balance. User balance: ${user.balance}, Required: ${amountToSettle}`
+              );
+            } else if (amountToSettle > 0) {
+              finalPaymentStatus = "COMPLETED";
+              console.log(
+                `Sufficient balance. Will settle amount: ${amountToSettle}`
+              );
+            }
           }
+        } else {
+          // If no user associated with order, keep status as PENDING
+          finalPaymentStatus = "PENDING";
+          hasSufficientBalance = false;
+          console.log(
+            `No user associated with order. Keeping payment status as PENDING.`
+          );
         }
 
         // Update the main sale record
@@ -386,17 +438,267 @@ export const updateOnlineSaleWithWalletAndCart = async (
           },
         });
 
-        // Remove items if any
+        // Calculate refund amount for removed items (only if payment was completed)
+        let refundAmount = 0;
+        if (
+          removedItems.length > 0 &&
+          currentSale.paymentStatus === "COMPLETED"
+        ) {
+          for (const removedItemId of removedItems) {
+            const removedItem = currentSale.sales.find(
+              (sale) => sale.id === removedItemId
+            );
+            if (removedItem) {
+              refundAmount +=
+                (removedItem.selledPrice || 0) * (removedItem.quantity || 1);
+            }
+          }
+        }
+
+        // Remove items if any and restore stock
         if (removedItems.length > 0) {
+          // First, get the items to be removed to restore their stock
+          const itemsToRemove = currentSale.sales.filter((sale) =>
+            removedItems.includes(sale.id)
+          );
+
+          // Restore stock for each removed item
+          for (const removedItem of itemsToRemove) {
+            if (
+              removedItem.kurtiId &&
+              removedItem.kurtiSize &&
+              removedItem.quantity
+            ) {
+              console.log(
+                `Restoring stock for kurti ${removedItem.kurtiId}, size ${removedItem.kurtiSize}, quantity ${removedItem.quantity}`
+              );
+
+              // Get the current kurti to update its sizes and reservedSizes
+              const kurti = await tx.kurti.findUnique({
+                where: { id: removedItem.kurtiId },
+                select: {
+                  sizes: true,
+                  reservedSizes: true,
+                  countOfPiece: true,
+                },
+              });
+
+              if (kurti) {
+                // Update the sizes array to add back the quantity
+                const updatedSizes = [...kurti.sizes];
+                const existingSizeIndex = updatedSizes.findIndex(
+                  (sz: any) => sz.size === removedItem.kurtiSize
+                );
+
+                if (existingSizeIndex !== -1) {
+                  // Size exists, increment quantity
+                  const existingSize = updatedSizes[existingSizeIndex] as any;
+                  existingSize.quantity += removedItem.quantity;
+                  console.log(
+                    `Updated existing size ${removedItem.kurtiSize} quantity to ${existingSize.quantity}`
+                  );
+                } else {
+                  // Size doesn't exist, add new size entry
+                  updatedSizes.push({
+                    size: removedItem.kurtiSize,
+                    quantity: removedItem.quantity,
+                  });
+                  console.log(
+                    `Added new size ${removedItem.kurtiSize} with quantity ${removedItem.quantity}`
+                  );
+                }
+
+                // Update the reservedSizes array to add back the quantity
+                const updatedReservedSizes = [...kurti.reservedSizes];
+                const existingReservedSizeIndex =
+                  updatedReservedSizes.findIndex(
+                    (sz: any) => sz.size === removedItem.kurtiSize
+                  );
+
+                if (existingReservedSizeIndex !== -1) {
+                  // Reserved size exists, increment quantity
+                  const existingReservedSize = updatedReservedSizes[
+                    existingReservedSizeIndex
+                  ] as any;
+                  existingReservedSize.quantity += removedItem.quantity;
+                  console.log(
+                    `Updated existing reserved size ${removedItem.kurtiSize} quantity to ${existingReservedSize.quantity}`
+                  );
+                } else {
+                  // Reserved size doesn't exist, add new size entry
+                  updatedReservedSizes.push({
+                    size: removedItem.kurtiSize,
+                    quantity: removedItem.quantity,
+                  });
+                  console.log(
+                    `Added new reserved size ${removedItem.kurtiSize} with quantity ${removedItem.quantity}`
+                  );
+                }
+
+                // Update the kurti with restored stock
+                await tx.kurti.update({
+                  where: { id: removedItem.kurtiId },
+                  data: {
+                    sizes: updatedSizes as any,
+                    reservedSizes: updatedReservedSizes as any,
+                    countOfPiece:
+                      (kurti.countOfPiece || 0) + removedItem.quantity,
+                  },
+                });
+
+                console.log(
+                  `Successfully restored stock for kurti ${removedItem.kurtiId}, size ${removedItem.kurtiSize}`
+                );
+              } else {
+                console.log(
+                  `Kurti ${removedItem.kurtiId} not found for stock restoration`
+                );
+              }
+            }
+          }
+
+          // Now delete the online sell records
           await tx.onlineSell.deleteMany({
             where: {
               id: { in: removedItems },
             },
           });
+
+          // Refund to wallet only if payment was completed and items were removed
+          if (
+            refundAmount > 0 &&
+            currentOrder?.user &&
+            currentSale.paymentStatus === "COMPLETED"
+          ) {
+            console.log(
+              `Refunding ${refundAmount} to wallet for user ${currentOrder.user.id}`
+            );
+
+            // Add to wallet within the transaction
+            await tx.user.update({
+              where: { id: currentOrder.user.id },
+              data: {
+                balance: {
+                  increment: refundAmount,
+                },
+              },
+            });
+
+            // Create wallet history entry for refund within the transaction
+            await tx.walletHistory.create({
+              data: {
+                userId: currentOrder.user.id,
+                amount: refundAmount,
+                type: "CREDIT",
+                paymentMethod: "wallet",
+                onlineSellBatchId: id,
+              },
+            });
+
+            console.log(`Successfully refunded ${refundAmount} to wallet`);
+
+            // Verify the refund by checking updated balance
+            const updatedUser = await tx.user.findUnique({
+              where: { id: currentOrder.user.id },
+              select: { balance: true },
+            });
+            console.log(
+              `Updated user balance after refund: ${updatedUser?.balance}`
+            );
+          } else if (
+            removedItems.length > 0 &&
+            currentSale.paymentStatus === "PENDING"
+          ) {
+            console.log(
+              `No refund needed for removed items as payment status is PENDING`
+            );
+          }
         }
 
-        // Update existing items if any
+        // Update existing items if any and adjust stock
         for (const item of updatedItems) {
+          // Get the original item to calculate quantity difference
+          const originalItem = currentSale.sales.find(
+            (sale) => sale.id === item.id
+          );
+
+          if (originalItem && (originalItem.quantity || 0) !== item.quantity) {
+            const quantityDifference =
+              item.quantity - (originalItem.quantity || 0);
+            console.log(
+              `Quantity changed for item ${item.id}: ${originalItem.quantity} -> ${item.quantity} (difference: ${quantityDifference})`
+            );
+
+            if (quantityDifference !== 0) {
+              // Get the current kurti to update its stock
+              const kurti = await tx.kurti.findUnique({
+                where: { id: originalItem.kurtiId },
+                select: {
+                  sizes: true,
+                  reservedSizes: true,
+                  countOfPiece: true,
+                },
+              });
+
+              if (kurti) {
+                // Update the sizes array
+                const updatedSizes = [...kurti.sizes];
+                const existingSizeIndex = updatedSizes.findIndex(
+                  (sz: any) => sz.size === originalItem.kurtiSize
+                );
+
+                if (existingSizeIndex !== -1) {
+                  // Size exists, adjust quantity
+                  const existingSize = updatedSizes[existingSizeIndex] as any;
+                  existingSize.quantity -= quantityDifference; // Subtract because we're reducing the sold quantity
+                  console.log(
+                    `Updated size ${originalItem.kurtiSize} quantity from ${
+                      existingSize.quantity + quantityDifference
+                    } to ${existingSize.quantity}`
+                  );
+                }
+
+                // Update the reservedSizes array
+                const updatedReservedSizes = [...kurti.reservedSizes];
+                const existingReservedSizeIndex =
+                  updatedReservedSizes.findIndex(
+                    (sz: any) => sz.size === originalItem.kurtiSize
+                  );
+
+                if (existingReservedSizeIndex !== -1) {
+                  // Reserved size exists, adjust quantity
+                  const existingReservedSize = updatedReservedSizes[
+                    existingReservedSizeIndex
+                  ] as any;
+                  existingReservedSize.quantity -= quantityDifference; // Subtract because we're reducing the sold quantity
+                  console.log(
+                    `Updated reserved size ${
+                      originalItem.kurtiSize
+                    } quantity from ${
+                      existingReservedSize.quantity + quantityDifference
+                    } to ${existingReservedSize.quantity}`
+                  );
+                }
+
+                // Update the kurti with adjusted stock
+                await tx.kurti.update({
+                  where: { id: originalItem.kurtiId },
+                  data: {
+                    sizes: updatedSizes as any,
+                    reservedSizes: updatedReservedSizes as any,
+                    countOfPiece:
+                      (kurti.countOfPiece || 0) - quantityDifference,
+                  },
+                });
+
+                console.log(
+                  `Successfully adjusted stock for kurti ${originalItem.kurtiId}, size ${originalItem.kurtiSize}`
+                );
+              }
+            }
+          }
+
+          // Update the online sell record
           await tx.onlineSell.update({
             where: { id: item.id },
             data: {
@@ -406,10 +708,87 @@ export const updateOnlineSaleWithWalletAndCart = async (
           });
         }
 
-        // Add new products if any
+        // Add new products if any and reduce stock
         const newSaleItems = [];
         if (newProducts.length > 0) {
           for (const product of newProducts) {
+            console.log(
+              `Adding new product: kurti ${product.kurtiId}, size ${product.selectedSize}, quantity ${product.quantity}`
+            );
+
+            // Get the current kurti to update its stock
+            const kurti = await tx.kurti.findUnique({
+              where: { id: product.kurtiId },
+              select: { sizes: true, reservedSizes: true, countOfPiece: true },
+            });
+
+            if (kurti) {
+              // Update the sizes array to reduce stock
+              const updatedSizes = [...kurti.sizes];
+              const existingSizeIndex = updatedSizes.findIndex(
+                (sz: any) => sz.size === product.selectedSize
+              );
+
+              if (existingSizeIndex !== -1) {
+                // Size exists, reduce quantity
+                const existingSize = updatedSizes[existingSizeIndex] as any;
+                if (existingSize.quantity < product.quantity) {
+                  throw new Error(
+                    `Insufficient stock for kurti ${product.kurtiId}, size ${product.selectedSize}. Available: ${existingSize.quantity}, Requested: ${product.quantity}`
+                  );
+                }
+                existingSize.quantity -= product.quantity;
+                console.log(
+                  `Reduced size ${product.selectedSize} quantity from ${existingSize.quantity + product.quantity} to ${existingSize.quantity}`
+                );
+              } else {
+                throw new Error(
+                  `Size ${product.selectedSize} not found for kurti ${product.kurtiId}`
+                );
+              }
+
+              // Update the reservedSizes array to reduce stock
+              const updatedReservedSizes = [...kurti.reservedSizes];
+              const existingReservedSizeIndex = updatedReservedSizes.findIndex(
+                (sz: any) => sz.size === product.selectedSize
+              );
+
+              if (existingReservedSizeIndex !== -1) {
+                // Reserved size exists, reduce quantity
+                const existingReservedSize = updatedReservedSizes[existingReservedSizeIndex] as any;
+                if (existingReservedSize.quantity < product.quantity) {
+                  throw new Error(
+                    `Insufficient reserved stock for kurti ${product.kurtiId}, size ${product.selectedSize}. Available: ${existingReservedSize.quantity}, Requested: ${product.quantity}`
+                  );
+                }
+                existingReservedSize.quantity -= product.quantity;
+                console.log(
+                  `Reduced reserved size ${product.selectedSize} quantity from ${existingReservedSize.quantity + product.quantity} to ${existingReservedSize.quantity}`
+                );
+              } else {
+                throw new Error(
+                  `Reserved size ${product.selectedSize} not found for kurti ${product.kurtiId}`
+                );
+              }
+
+              // Update the kurti with reduced stock
+              await tx.kurti.update({
+                where: { id: product.kurtiId },
+                data: { 
+                  sizes: updatedSizes as any,
+                  reservedSizes: updatedReservedSizes as any,
+                  countOfPiece: (kurti.countOfPiece || 0) - product.quantity,
+                },
+              });
+
+              console.log(
+                `Successfully reduced stock for kurti ${product.kurtiId}, size ${product.selectedSize}`
+              );
+            } else {
+              throw new Error(`Kurti ${product.kurtiId} not found for stock reduction`);
+            }
+
+            // Create the online sell record
             const newSale = await tx.onlineSell.create({
               data: {
                 kurtiId: product.kurtiId,
@@ -423,56 +802,49 @@ export const updateOnlineSaleWithWalletAndCart = async (
             });
             newSaleItems.push(newSale);
           }
+        }
 
-          // Deduct from wallet if balance is sufficient and new products were added
-          if (hasSufficientBalance && currentUser && newProductsTotal > 0) {
-            console.log(
-              `Deducting ${newProductsTotal} from wallet for user ${currentUser.id}`
-            );
+        // Handle wallet settlement based on amountToSettle (moved outside new products block)
+        if (hasSufficientBalance && currentOrder?.user && amountToSettle > 0) {
+          console.log(
+            `Settling amount ${amountToSettle} from wallet for user ${currentOrder.user.id}`
+          );
 
-            // Deduct from wallet within the transaction
-            await tx.user.update({
-              where: { id: currentUser.id },
-              data: {
-                balance: {
-                  decrement: newProductsTotal,
-                },
+          // Deduct from wallet within the transaction
+          await tx.user.update({
+            where: { id: currentOrder.user.id },
+            data: {
+              balance: {
+                decrement: amountToSettle,
               },
-            });
+            },
+          });
 
-            // Create wallet history entry within the transaction
-            await tx.walletHistory.create({
-              data: {
-                userId: currentUser.id,
-                amount: newProductsTotal,
-                type: "DEBIT",
-                paymentMethod: "wallet",
-                onlineSellBatchId: id,
-              },
-            });
+          // Create wallet history entry within the transaction
+          await tx.walletHistory.create({
+            data: {
+              userId: currentOrder.user.id,
+              amount: amountToSettle,
+              type: "DEBIT",
+              paymentMethod: "wallet",
+              onlineSellBatchId: id,
+            },
+          });
 
-            console.log(
-              `Successfully deducted ${newProductsTotal} from wallet`
-            );
+          console.log(
+            `Successfully settled amount ${amountToSettle} from wallet`
+          );
 
-            // Verify the deduction by checking updated balance
-            const updatedUser = await tx.user.findUnique({
-              where: { id: currentUser.id },
-              select: { balance: true },
-            });
-            console.log(`Updated user balance: ${updatedUser?.balance}`);
-
-            // If deduction was successful and status was PENDING, update to COMPLETED
-            if (currentSale.paymentStatus === "PENDING") {
-              await tx.onlineSellBatch.update({
-                where: { id },
-                data: {
-                  paymentStatus: "COMPLETED",
-                },
-              });
-              console.log(`Updated payment status to COMPLETED for sale ${id}`);
-            }
-          }
+          // Verify the deduction by checking updated balance
+          const updatedUser = await tx.user.findUnique({
+            where: { id: currentOrder.user.id },
+            select: { balance: true },
+          });
+          console.log(`Updated user balance: ${updatedUser?.balance}`);
+        } else if (amountToSettle > 0) {
+          console.log(
+            `No settlement needed. Payment status remains PENDING due to insufficient balance or no user.`
+          );
         }
 
         // Update cart products if orderId is provided
@@ -521,6 +893,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
 
     // Generate and save invoice PDF to Firebase
     if (result) {
+      console.log("🚀 ~ updateOnlineSaleWithWalletAndCart ~ result:", result);
       try {
         // Delete old invoice from Firebase if it exists
         if (result.invoiceUrl && result.batchNumber) {
@@ -533,6 +906,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
           quantity: sale.quantity,
           kurtiSize: sale.kurtiSize,
           unitPrice: sale.selledPrice,
+          totalPrice: sale.selledPrice ?? 0 * (sale.quantity || 1),
         }));
 
         // Generate invoice HTML
@@ -543,7 +917,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
           result.customerPhone || "",
           "", // No shop location for online sales
           result.billCreatedBy,
-          currentUser,
+          currentOrder?.user,
           soldProducts,
           result.totalAmount,
           (result.gstType as "IGST" | "SGST_CGST") || "SGST_CGST",
@@ -570,7 +944,10 @@ export const updateOnlineSaleWithWalletAndCart = async (
 
         console.log(`Invoice uploaded to Firebase: ${invoiceUrl}`);
       } catch (error) {
-        console.error("Error generating or uploading invoice to Firebase:", error);
+        console.error(
+          "Error generating or uploading invoice to Firebase:",
+          error
+        );
         // Don't fail the entire transaction if PDF generation fails
       }
     }
@@ -991,7 +1368,9 @@ export const completePendingOrderPayment = async (
         },
       });
 
-      console.log(`Invoice regenerated and uploaded to Firebase: ${invoiceUrl}`);
+      console.log(
+        `Invoice regenerated and uploaded to Firebase: ${invoiceUrl}`
+      );
     } catch (invoiceError) {
       console.error("Error regenerating invoice:", invoiceError);
       // Don't fail the payment completion if invoice regeneration fails
@@ -1046,7 +1425,12 @@ export const regenerateOnlineSaleInvoice = async (
       quantity: sale.quantity || 1,
       kurtiSize: sale.kurtiSize,
       unitPrice: sale.selledPrice || 0,
+      totalPrice: sale.selledPrice ?? 0 * (sale.quantity || 1),
     }));
+    console.log(
+      "🚀 ~ regenerateOnlineSaleInvoice ~ soldProducts:",
+      soldProducts
+    );
 
     // Generate invoice HTML
     const invoiceHTML = generateInvoiceHTML(
@@ -1086,7 +1470,8 @@ export const regenerateOnlineSaleInvoice = async (
   } catch (error) {
     console.error("Error regenerating online sale invoice:", error);
     return {
-      error: error instanceof Error ? error.message : "Failed to regenerate invoice",
+      error:
+        error instanceof Error ? error.message : "Failed to regenerate invoice",
     };
   }
 };

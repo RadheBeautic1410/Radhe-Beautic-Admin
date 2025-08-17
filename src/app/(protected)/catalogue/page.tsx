@@ -1073,7 +1073,7 @@ const ListPage = () => {
   };
   const SyncData = async () => {
     syncCategoryData();
-  }
+  };
   const handleSetStockReady = async (
     categoryCode: string
   ): Promise<{ success?: boolean; error?: string }> => {
@@ -1779,6 +1779,8 @@ const CatalogueListHelper = () => {
         UserRole.UPLOADER,
         UserRole.SELLER,
         UserRole.RESELLER,
+        UserRole.SELLER_MANAGER,
+        UserRole.SHOP_SELLER,
       ]}
     >
       <ListPage />

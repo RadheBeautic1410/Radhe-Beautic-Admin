@@ -48,7 +48,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const result = await updateOnlineSaleWithWalletAndCart(id, body, session.user);
+  const result = await updateOnlineSaleWithWalletAndCart(id, body);
 
     return new NextResponse(JSON.stringify({
       success: true,

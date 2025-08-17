@@ -61,7 +61,7 @@ export const generateInvoiceHTML = (
 
   // Group products by code and price for hall sales
   let displayProducts = soldProducts;
-  if (sellType === "HALL_SELL_OFFLINE") {
+  if (sellType === "HALL_SELL_OFFLINE" || sellType === "HALL_SELL_ONLINE") {
     const groupedProducts = new Map();
 
     soldProducts.forEach((item) => {

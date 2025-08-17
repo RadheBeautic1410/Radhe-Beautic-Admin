@@ -18,6 +18,7 @@ export async function POST(
 
     // Regenerate invoice
     const result = await regenerateOnlineSaleInvoice(id, session.user);
+    console.log("🚀 ~ POST ~ result:", result)
 
     if (result.error) {
       return new NextResponse(JSON.stringify({
@@ -30,6 +31,7 @@ export async function POST(
       success: true,
       data: {
         invoiceUrl: result.invoiceUrl,
+        
         message: 'Invoice regenerated successfully'
       }
     }), { status: 200 });

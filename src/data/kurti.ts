@@ -1952,6 +1952,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               where: { orderId: orderId },
               data: {
                 status: OrderStatus.TRACKINGPENDING,
+                total: totalOrderAmount,
               },
             });
 
