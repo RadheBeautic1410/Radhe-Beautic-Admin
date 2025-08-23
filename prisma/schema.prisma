@@ -39,6 +39,22 @@ enum CartStatus {
   ORDERED
 }
 
+enum OfflineSellType {
+  HALL_SELL_OFFLINE
+  SHOP_SELL_OFFLINE
+  HALL_SELL_ONLINE
+}
+
+enum OnlineSellType {
+  HALL_SELL_ONLINE
+  SHOP_SELL_ONLINE
+}
+
+enum PaymentStatus {
+  COMPLETED
+  PENDING
+}
+
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   name          String?
@@ -60,11 +76,13 @@ model User {
 
   verifiedByUser User? @relation("VerifiedBy", fields: [verifiedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  verifiedUsers User[]    @relation("VerifiedBy")
+  verifiedUsers User[]          @relation("VerifiedBy")
   cart          Cart[]
   orders        Orders[]
   Address       Address[]
-  shop          Shop?     @relation("ShopOwner")
+  balance       Float           @default(0)
+  WalletHistory WalletHistory[] @relation(name: "UserWalletHistory")
+  shop          Shop?           @relation("ShopOwner")
 }
 
 model VerificationToken {
@@ -150,6 +168,7 @@ model Prices {
   Kurti         Kurti[]
   Sell          Sell[]
   OfflineSell   OfflineSell[]
+  OnlineSell    OnlineSell[]
 }
 
 model Kurti {
@@ -176,6 +195,7 @@ model Kurti {
   MovedKurtiHistory MovedKurtiHistory[]
   TopSoldKurti      TopSoldKurti?
   OfflineSell       OfflineSell[]
+  OnlineSell        OnlineSell[]
 }
 
 model Sell {
@@ -229,8 +249,8 @@ model SaleBatch {
 }
 
 model OfflineSellBatch {
-  id            String        @id @default(auto()) @map("_id") @db.ObjectId
-  batchNumber   String        @unique
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  batchNumber   String          @unique
   customerName  String
   customerPhone String?
   billCreatedBy String
@@ -240,15 +260,18 @@ model OfflineSellBatch {
   sellerName    String
   invoiceNumber Int?
   invoiceUrl    String?
-  isHallSell    Boolean       @default(false)
-  sales         OfflineSell[] @relation("OfflineBatchSales")
-  shopId        String?       @db.ObjectId
-  shop          Shop?         @relation(fields: [shopId], references: [id])
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  sellType      OfflineSellType @default(SHOP_SELL_OFFLINE)
+  sales         OfflineSell[]   @relation("OfflineBatchSales")
+  shopId        String?         @db.ObjectId
+  shop          Shop?           @relation(fields: [shopId], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   paymentType   String?
   gstType       String?
+  Orders        Orders?         @relation(fields: [ordersId], references: [id])
+  ordersId      String?         @db.ObjectId
+  WalletHistory WalletHistory[]
 
   @@map("offline_sale_batches")
 }
@@ -266,6 +289,53 @@ model OfflineSell {
   updatedAt     DateTime         @updatedAt
   pricesId      String?          @db.ObjectId
   prices        Prices?          @relation(fields: [pricesId], references: [id], onDelete: NoAction)
+  shopLocation  String?
+  customerName  String?
+  customerPhone String?
+  quantity      Int?
+  selledPrice   Int?
+}
+
+model OnlineSellBatch {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  batchNumber   String         @unique
+  customerName  String
+  customerPhone String?
+  billCreatedBy String
+  totalAmount   Int
+  totalItems    Int
+  saleTime      DateTime
+  sellerName    String
+  invoiceNumber Int?
+  invoiceUrl    String?
+  sellType      OnlineSellType @default(HALL_SELL_ONLINE)
+  sales         OnlineSell[]   @relation("OnlineBatchSales")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  paymentStatus PaymentStatus  @default(PENDING)
+  gstType       String?
+
+  orderId       String?
+  order         Orders?         @relation(fields: [orderId], references: [orderId])
+  WalletHistory WalletHistory[]
+
+  @@map("online_sale_batches")
+}
+
+model OnlineSell {
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  sellTime      DateTime
+  code          String
+  kurtiSize     String
+  kurtiId       String          @db.ObjectId
+  kurti         Kurti           @relation(fields: [kurtiId], references: [id])
+  batchId       String          @db.ObjectId
+  batch         OnlineSellBatch @relation("OnlineBatchSales", fields: [batchId], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  pricesId      String?         @db.ObjectId
+  prices        Prices?         @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   shopLocation  String?
   customerName  String?
   customerPhone String?
@@ -301,22 +371,24 @@ model CartProduct {
 }
 
 model Orders {
-  id               String      @id @default(auto()) @map("_id") @db.ObjectId
-  orderId          String      @unique
-  cart             Cart        @relation(fields: [cartId], references: [id])
-  cartId           String      @db.ObjectId
-  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId           String      @db.ObjectId
-  date             DateTime    @default(now())
+  id               String             @id @default(auto()) @map("_id") @db.ObjectId
+  orderId          String             @unique
+  cart             Cart               @relation(fields: [cartId], references: [id])
+  cartId           String             @db.ObjectId
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String             @db.ObjectId
+  date             DateTime           @default(now())
   trackingIdImages Json[]
-  status           OrderStatus @default(PENDING)
+  status           OrderStatus        @default(PENDING)
   total            Int
-  shippingAddress  Address     @relation(fields: [addressId], references: [id])
-  shippingCharge   Int         @default(0)
-  addressId        String      @db.ObjectId
+  shippingAddress  Address            @relation(fields: [addressId], references: [id])
+  shippingCharge   Int                @default(0)
+  addressId        String             @db.ObjectId
   trackingId       String?
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  OfflineSellBatch OfflineSellBatch[]
+  OnlineSellBatch  OnlineSellBatch[]
 }
 
 model Address {
@@ -364,4 +436,27 @@ model Shop {
   owner            User?              @relation("ShopOwner", fields: [ownerId], references: [id])
   OfflineSellBatch OfflineSellBatch[]
   isHallSell       Boolean            @default(false)
+}
+
+model WalletHistory {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String        @db.ObjectId
+  user          User          @relation("UserWalletHistory", fields: [userId], references: [id])
+  amount        Float
+  type          WalletTxnType
+  paymentMethod String
+
+  onlineSellBatchId  String?           @db.ObjectId
+  offlineSellBatchId String?           @db.ObjectId
+  offlineSellBatch   OfflineSellBatch? @relation(fields: [offlineSellBatchId], references: [id], onDelete: Cascade)
+  onlineSellBatch    OnlineSellBatch?  @relation(fields: [onlineSellBatchId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum WalletTxnType {
+  CREDIT
+  DEBIT
 }

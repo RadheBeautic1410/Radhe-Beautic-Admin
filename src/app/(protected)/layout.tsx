@@ -47,7 +47,7 @@ const queryClient = new QueryClient();
 const ProtectedLayout = ({ children }: ProtectedLayoutProps) => {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="h-screen w-full flex bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400 to-blue-800 overflow-hidden">
+      <div className="w-full flex bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400 to-blue-800">
         <Sidebar />
         <main className="flex-1 overflow-y-auto">
           <div className="h-full">

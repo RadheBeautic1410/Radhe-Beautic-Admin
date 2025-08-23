@@ -147,7 +147,7 @@ const ImageUpload2 = React.forwardRef(
       try {
         setCompressionInProgress(true);
         const compressedFile = await imageCompression(file, {
-          maxSizeMB: 1,
+          maxSizeMB: 3,
           maxWidthOrHeight: 1920,
           useWebWorker: true,
         });

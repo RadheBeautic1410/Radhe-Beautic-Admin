@@ -28,8 +28,9 @@ import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { generateInvoicePDF } from "@/src/actions/generate-pdf";
-import { getUserShop, getHallSaleShops } from "@/src/actions/shop";
+import { getShopList, getUserShop } from "@/src/actions/shop";
 import { useEffect } from "react";
+import { useParams } from "next/navigation";
 
 const getCurrTime = () => {
   const currentTime = new Date();
@@ -47,7 +48,11 @@ interface CartItem {
   availableStock: number;
 }
 type GSTType = "IGST" | "SGST_CGST";
-function HallSalesPage() {
+function SellPage() {
+  const params = useParams();
+
+  const { id: orderId } = params;
+
   const [code, setCode] = useState("");
   const [kurti, setKurti] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -58,53 +63,145 @@ function HallSalesPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [billCreatedBy, setBillCreatedBy] = useState("");
-  const [selectedShopId, setSelectedShopId] = useState("");
-  const [shops, setShops] = useState<any[]>([]);
-  const [paymentType, setpaymentType] = useState("");
-  const [userShop, setUserShop] = useState<any>(null);
+  // Payment type removed - now handled automatically through wallet
 
   // Current product selection
   const [selectedSize, setSelectedSize] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [quantity, setQuantity] = useState(1);
 
+  // Order data state
+  const [orderData, setOrderData] = useState<any>(null);
+  const [orderLoading, setOrderLoading] = useState(true);
+  const [userBalance, setUserBalance] = useState<number | null>(null);
+
   const currentUser = useCurrentUser();
 
-  // Load shops and user's shop on component mount
-  useEffect(() => {
-    const loadShopsAndUserShop = async () => {
-      try {
-        // For admin users, get only shops with isHallSell = true
-        // For seller managers, get their associated shop
-        if (currentUser?.role === UserRole.ADMIN) {
-          const hallSaleShops = await getHallSaleShops();
-          setShops(hallSaleShops);
-        } else if (
-          currentUser?.id &&
-          (currentUser.role === UserRole.SELLER ||
-            currentUser.role === UserRole.SELLER_MANAGER ||
-            currentUser.role === UserRole.SHOP_SELLER)
-        ) {
-          const userShopData = await getUserShop(currentUser.id);
-          if (userShopData) {
-            setUserShop(userShopData);
-            setSelectedShopId(userShopData.id);
-            // For non-admin users, only show their shop in the list if it's a hall sale shop
-            if (userShopData.isHallSell) {
-              setShops([userShopData]);
-            } else {
-              setShops([]);
-              toast.warning("Your associated shop is not configured for hall sales");
-            }
+  // Fetch order data function
+  const fetchOrderData = async () => {
+    if (!orderId) return;
+
+    try {
+      setOrderLoading(true);
+      // Try to fetch order with different statuses
+      const statuses = [
+        "PENDING",
+        "PROCESSING",
+        "SHIPPED",
+        "TRACKINGPENDING",
+        "DELIVERED",
+      ];
+      let orderFound = false;
+
+      for (const status of statuses) {
+        try {
+          const response = await axios.post("/api/orders/getOrderById", {
+            orderId: orderId,
+            status: status,
+          });
+
+          if (response.data.success && response.data.data) {
+            setOrderData(response.data.data);
+            populateFormWithOrderData(response.data.data);
+            orderFound = true;
+            break;
           }
+        } catch (error) {
+          console.log(`Order not found with status: ${status}`);
         }
-      } catch (error) {
-        console.error("Error loading shops:", error);
-        toast.error("Failed to load shops");
       }
-    };
-    loadShopsAndUserShop();
-  }, [currentUser]);
+
+      if (!orderFound) {
+        setOrderData(null);
+      }
+    } catch (error) {
+      console.error("Error fetching order:", error);
+      toast.error("Failed to fetch order details");
+      setOrderData(null);
+    } finally {
+      setOrderLoading(false);
+    }
+  };
+
+  // Fetch order data when component mounts
+  useEffect(() => {
+    fetchOrderData();
+  }, [orderId]);
+
+  // Fetch user balance when order data is available
+  useEffect(() => {
+    if (orderData?.user?.id) {
+      fetchUserBalance(orderData.user.id);
+    }
+  }, [orderData]);
+
+  const fetchUserBalance = async (userId: string) => {
+    try {
+      const response = await axios.post("/api/wallet/get-balance", { userId });
+      if (response.data.success) {
+        setUserBalance(response.data.data.balance);
+      }
+    } catch (error) {
+      console.error("Error fetching user balance:", error);
+    }
+  };
+
+  // Populate form fields with order data
+  const populateFormWithOrderData = (order: any) => {
+    if (!order) return;
+
+    // Set customer details
+    if (order.user?.name) setCustomerName(order.user.name);
+    if (order.user?.phoneNumber) setCustomerPhone(order.user.phoneNumber);
+
+    // Set bill created by (you might want to set this to current user or leave empty)
+    if (currentUser?.name) setBillCreatedBy(currentUser.name);
+
+    // Payment type is now handled automatically through wallet
+
+    // Populate cart with order items
+    if (order.cart?.CartProduct) {
+      const orderItems: CartItem[] = order.cart.CartProduct.map(
+        (cartProduct: any) => {
+          const kurti = cartProduct.kurti;
+
+          // Get sizes from the cart product (these are the sizes that were ordered)
+          const orderedSizes = cartProduct.sizes || [];
+
+          // Create cart items for each ordered size
+          const items: CartItem[] = [];
+
+          orderedSizes.forEach((sizeInfo: any) => {
+            if (sizeInfo.quantity > 0) {
+              // Find the corresponding size in kurti.sizes to get current stock
+              const currentSize = kurti.sizes?.find(
+                (sz: any) => sz.size === sizeInfo.size
+              );
+
+              if (currentSize && currentSize.quantity > 0) {
+                items.push({
+                  id: `${kurti.code}-${
+                    sizeInfo.size
+                  }-${Date.now()}-${Math.random()}`,
+                  kurti: kurti,
+                  selectedSize: sizeInfo.size,
+                  quantity: sizeInfo.quantity,
+                  sellingPrice: kurti.sellingPrice || 0,
+                  availableStock: currentSize.quantity,
+                });
+              }
+            }
+          });
+
+          return items;
+        }
+      )
+        .flat()
+        .filter(Boolean);
+
+      setCart(orderItems);
+    }
+  };
 
   const handleFind = async () => {
     try {
@@ -269,23 +366,11 @@ function HallSalesPage() {
         return;
       }
 
-      if (!selectedShopId.trim()) {
-        if (currentUser?.role === UserRole.ADMIN) {
-          toast.error("Please select a shop");
-        } else {
-          toast.error("No shop associated with your account");
-        }
-        return;
-      }
-
       if (!billCreatedBy.trim()) {
         toast.error("Please enter bill created by");
         return;
       }
-      if (!paymentType.trim()) {
-        toast.error("Please select payment type");
-        return;
-      }
+      // Payment type validation removed - now handled automatically through wallet
       // if (!shopName.trim()) {
       //   toast.error("Please enter shop name");
       //   return;
@@ -302,17 +387,17 @@ function HallSalesPage() {
         sellingPrice: item.sellingPrice,
       }));
 
-      const res = await axios.post(`/api/sell/offline-retailer`, {
+      const res = await axios.post(`/api/sell/confirm-offline-order`, {
         products,
         currentUser,
         currentTime: currentTime,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         billCreatedBy: billCreatedBy.trim(),
-        paymentType: paymentType.trim(),
+        // paymentType removed - now handled automatically through wallet
         gstType: gstType,
-        shopId: selectedShopId.trim(),
-        sellType: "HALL_SELL_OFFLINE", // Mark this as a hall sale
+        orderId: orderId,
+        sellType: "HALL_SELL_ONLINE",
       });
 
       const data = res.data.data;
@@ -321,7 +406,13 @@ function HallSalesPage() {
       if (data.error) {
         toast.error(data.error);
       } else {
-        toast.success("Sale completed successfully!");
+        // Check payment status and show appropriate message
+        if (data.paymentStatus === "COMPLETED") {
+          toast.success("Sale completed successfully! Payment processed via wallet.");
+        } else {
+          toast.success("Sale completed successfully! Order marked as PENDING due to insufficient wallet balance.");
+        }
+        
         // Generate invoice
         await generateInvoice(data);
 
@@ -347,9 +438,15 @@ function HallSalesPage() {
         kurti: item.kurti,
         size: item.selectedSize,
         quantity: item.quantity,
-        selledPrice: item.sellingPrice,
-        unitPrice: item.sellingPrice,
-        totalPrice: item.sellingPrice * item.quantity,
+        selledPrice: item.sellingPrice
+          ? parseFloat(item.sellingPrice?.toString())
+          : 0,
+        unitPrice: item.sellingPrice
+          ? parseFloat(item.sellingPrice?.toString())
+          : 0,
+        totalPrice: item.sellingPrice
+          ? parseFloat(item.sellingPrice?.toString()) * item.quantity
+          : 0,
       }));
 
       // Call the server action for PDF generation
@@ -358,14 +455,14 @@ function HallSalesPage() {
         batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
         customerName,
         customerPhone,
-        selectedLocation: userShop?.shopLocation || "",
+        selectedLocation: "",
         billCreatedBy,
         currentUser,
         soldProducts,
         totalAmount: getTotalAmount(),
         gstType,
         invoiceNumber: saleData.invoiceNumber || "",
-        sellType: "HALL_SELL_OFFLINE", // Hall sales are always hall sales
+        sellType: "HALL_SELL_ONLINE", // Regular offline sales are not hall sales
       });
 
       if (!result.success || !result.pdfBase64) {
@@ -403,18 +500,22 @@ function HallSalesPage() {
     setCart([]);
     setCustomerName("");
     setCustomerPhone("");
-    // Reset shop based on user role
-    if (currentUser?.role === UserRole.ADMIN) {
-      setSelectedShopId("");
-    } else if (userShop) {
-      setSelectedShopId(userShop.id);
-    }
     setBillCreatedBy("");
-    setpaymentType("");
+    // Payment type reset removed
     setGstType("SGST_CGST");
     setSelectedSize("");
     setSellingPrice("");
     setQuantity(1);
+  };
+
+  const clearOrderData = () => {
+    setOrderData(null);
+    setCart([]);
+    setCustomerName("");
+    setCustomerPhone("");
+    setBillCreatedBy("");
+    // Payment type reset removed
+    toast.success("Order data cleared. You can now start fresh.");
   };
 
   const getAvailableSizes = () => {
@@ -422,16 +523,101 @@ function HallSalesPage() {
     return kurti.sizes.filter((sz: any) => sz.quantity > 0);
   };
 
+  // Show loading state while fetching order
+  if (orderLoading) {
+    return (
+      <Card className="rounded-none w-full h-full">
+        <CardHeader>
+          <p className="text-2xl font-semibold text-center">
+            🛒 Confirm Online Order
+          </p>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-64">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Loading order details...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show error state if order not found
+  if (!orderData) {
+    return (
+      <Card className="rounded-none w-full h-full">
+        <CardHeader>
+          <p className="text-2xl font-semibold text-center">
+            🛒 Confirm Online Order
+          </p>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="text-red-500 text-xl mb-4">❌ Order Not Found</div>
+            <div className="text-gray-600 mb-4">
+              The order with ID <strong>{orderId}</strong> could not be found.
+            </div>
+            <div className="text-sm text-gray-500 mb-6">
+              Please check the order ID and try again.
+            </div>
+            <Button
+              onClick={fetchOrderData}
+              disabled={orderLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {orderLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="mr-2 h-4 w-4" />
+              )}
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="rounded-none w-full h-full">
       <CardHeader>
         <p className="text-2xl font-semibold text-center">
-          🛒 Offline Hall Sale System
+          🛒 Confirm Online Order
         </p>
+        {orderData && (
+          <div className="text-center text-sm text-gray-600">
+            Order ID: {orderData.orderId} | Status: {orderData.status} | Date:{" "}
+            {new Date(orderData.date).toLocaleDateString()}
+          </div>
+        )}
       </CardHeader>
       <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
         <div className="bg-purple-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-3">GST Configuration</h3>
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              💳 <strong>Payment Method:</strong> Orders will be automatically paid using the customer's wallet balance.
+              <br />
+              📊 <strong>Balance Check:</strong> The system will verify sufficient funds before confirming the order.
+            </p>
+            {userBalance !== null && (
+              <div className="mt-3 p-2 bg-white border border-blue-300 rounded">
+                <p className="text-sm font-medium text-blue-900">
+                  💰 Customer Wallet Balance: <span className="font-bold">₹{userBalance}</span>
+                </p>
+                {cart.length > 0 && (
+                  <p className="text-xs text-blue-700 mt-1">
+                    Order Total: ₹{getTotalAmount()} | 
+                    {userBalance >= getTotalAmount() ? (
+                      <span className="text-green-600"> ✅ Sufficient Balance - Payment will be completed</span>
+                    ) : (
+                      <span className="text-orange-600"> ⚠️ Insufficient Balance - Order will be marked as PENDING</span>
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
           <div className="flex gap-4">
             <label className="flex items-center gap-2">
               <input
@@ -455,9 +641,82 @@ function HallSalesPage() {
             </label>
           </div>
         </div>
+
+        {/* Order Details Section */}
+        {orderData && (
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-semibold text-green-800">
+                Order Information
+              </h3>
+              <Button
+                onClick={clearOrderData}
+                variant="outline"
+                size="sm"
+                className="text-red-600 border-red-300 hover:bg-red-50"
+              >
+                Clear Order Data
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <Label className="text-sm font-medium text-green-700">
+                  Order ID
+                </Label>
+                <div className="text-lg font-semibold text-green-800">
+                  {orderData.orderId}
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-green-700">
+                  Order Status
+                </Label>
+                <div className="text-lg font-semibold text-green-800">
+                  {orderData.status}
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-green-700">
+                  Order Date
+                </Label>
+                <div className="text-lg font-semibold text-green-800">
+                  {new Date(orderData.date).toLocaleDateString()}
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-green-700">
+                  Total Amount
+                </Label>
+                <div className="text-lg font-semibold text-green-800">
+                  ₹{getTotalAmount()}
+                </div>
+              </div>
+            </div>
+            {orderData.shippingAddress && (
+              <div className="mt-4">
+                <Label className="text-sm font-medium text-green-700">
+                  Shipping Address
+                </Label>
+                <div className="text-sm text-green-800 mt-1">
+                  {orderData.shippingAddress.address}
+                  {orderData.shippingAddress.zipCode &&
+                    `, ${orderData.shippingAddress.zipCode}`}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Customer Details Section */}
         <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-semibold">Customer Details</h3>
+            {orderData && (
+              <div className="text-sm text-blue-700 bg-blue-100 px-3 py-1 rounded-full">
+                👤 Pre-filled from order
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="customer-name">Customer Name *</Label>
@@ -484,61 +743,7 @@ function HallSalesPage() {
                 }}
               />
             </div>
-            <div>
-              <Label htmlFor="shop-select">
-                {currentUser?.role === UserRole.ADMIN
-                  ? "Select Hall Sale Shop *"
-                  : "Hall Sale Shop"}
-              </Label>
-              {currentUser?.role === UserRole.ADMIN ? (
-                <select
-                  id="shop-select"
-                  name="shop-select"
-                  aria-label="Select shop"
-                  className="w-full p-2 border rounded-md"
-                  value={selectedShopId}
-                  onChange={(e) => setSelectedShopId(e.target.value)}
-                >
-                  <option value="">Select Hall Sale Shop</option>
-                  {shops.map((shop) => (
-                    <option key={shop.id} value={shop.id}>
-                      {shop.shopName} - {shop.shopLocation}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="w-full p-2 border rounded-md bg-gray-50">
-                  {userShop && userShop.isHallSell ? (
-                    <span className="text-gray-700 font-medium">
-                      {userShop.shopName} - {userShop.shopLocation}
-                    </span>
-                  ) : userShop ? (
-                    <span className="text-red-500">
-                      Shop not configured for hall sales
-                    </span>
-                  ) : (
-                    <span className="text-gray-500">No shop associated</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="payment-type">Payment Type *</Label>
-              <select
-                id="payment-type"
-                name="payment-type"
-                aria-label="Select payment type"
-                className="w-full p-2 border rounded-md"
-                value={paymentType}
-                onChange={(e) => setpaymentType(e.target.value)}
-              >
-                <option value="">Select Payment Type</option>
-                <option value="GPay">GPay</option>
-                <option value="Cash">Cash</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-              </select>
-            </div>
+            {/* Payment Type removed - now handled automatically through wallet */}
 
             <div>
               <Label htmlFor="bill-by">Bill Created By *</Label>
@@ -554,7 +759,14 @@ function HallSalesPage() {
 
         {/* Search Section */}
         <div className="bg-slate-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Find Product</h3>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-semibold">Find Product</h3>
+            {orderData && cart.length > 0 && (
+              <div className="text-sm text-slate-700 bg-slate-100 px-3 py-1 rounded-full">
+                🛒 Cart pre-populated from order
+              </div>
+            )}
+          </div>
           <div className="flex flex-row flex-wrap gap-2 items-end">
             <div className="flex flex-col flex-wrap">
               <Label htmlFor="product-code" className="mb-[10px]">
@@ -727,9 +939,16 @@ function HallSalesPage() {
         {/* Shopping Cart */}
         {cart.length > 0 && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold mb-4 text-green-800">
-              Shopping Cart ({cart.length} items)
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-green-800">
+                Shopping Cart ({cart.length} items)
+              </h3>
+              {orderData && (
+                <div className="text-sm text-green-700 bg-green-100 px-3 py-1 rounded-full">
+                  📋 Pre-populated from order
+                </div>
+              )}
+            </div>
 
             <div className="overflow-x-auto">
               <Table className="border border-collapse">
@@ -835,7 +1054,8 @@ function HallSalesPage() {
                   type="button"
                   onClick={handleSell}
                   disabled={selling || cart.length === 0}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  title=""
                 >
                   {selling ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -854,6 +1074,20 @@ function HallSalesPage() {
                 </Button>
               </div>
             </div>
+            
+            {/* Payment Status Information */}
+            {cart.length > 0 && userBalance !== null && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">💡 Payment Information:</p>
+                  {userBalance >= getTotalAmount() ? (
+                    <p>✅ <strong>Sufficient Balance:</strong> Payment will be automatically completed and amount deducted from wallet.</p>
+                  ) : (
+                    <p>⚠️ <strong>Insufficient Balance:</strong> Order will be completed but marked as PENDING. No amount will be deducted from wallet.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
@@ -861,18 +1095,18 @@ function HallSalesPage() {
   );
 }
 
-const HallSalesPageWrapper = () => {
+const SellerHelp = () => {
   return (
     <>
       <RoleGateForComponent
         allowedRole={[
           UserRole.ADMIN,
-          // UserRole.SELLER,
-          // UserRole.SHOP_SELLER,
+          UserRole.SELLER,
+          UserRole.SHOP_SELLER,
           UserRole.SELLER_MANAGER,
         ]}
       >
-        <HallSalesPage />
+        <SellPage />
       </RoleGateForComponent>
       <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
         <NotAllowedPage />
@@ -881,4 +1115,4 @@ const HallSalesPageWrapper = () => {
   );
 };
 
-export default HallSalesPageWrapper;
+export default SellerHelp;

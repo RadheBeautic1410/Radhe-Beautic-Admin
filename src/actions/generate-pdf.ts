@@ -2,6 +2,7 @@
 
 import { generatePDFFromHTML } from "@/src/lib/puppeteer";
 import { generateInvoiceHTML } from "@/src/lib/utils";
+import { OfflineSellType, OnlineSellType } from "@prisma/client";
 
 export const generateInvoicePDF = async (data: {
   saleData: any;
@@ -15,7 +16,7 @@ export const generateInvoicePDF = async (data: {
   totalAmount: number;
   gstType: "IGST" | "SGST_CGST";
   invoiceNumber: string;
-  isHallSell?: boolean;
+  sellType: OfflineSellType | OnlineSellType;
 }): Promise<{ success: boolean; pdfBase64?: string; error?: string }> => {
   try {
     const {
@@ -30,7 +31,7 @@ export const generateInvoicePDF = async (data: {
       totalAmount,
       gstType,
       invoiceNumber,
-      isHallSell
+      sellType
     } = data;
 
     // Debug logging
@@ -62,7 +63,7 @@ export const generateInvoicePDF = async (data: {
       totalAmount,
       gstType || "SGST_CGST",
       invoiceNumber,
-      isHallSell || false
+      sellType
     );
 
     // Generate PDF from HTML

@@ -28,25 +28,12 @@ import {
   Eye,
   ChevronLeft,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
-import { generateInvoicePDF } from "@/src/actions/generate-pdf";
-import { getShopList, getUserShop } from "@/src/actions/shop";
-import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PasswordDialog } from "@/src/app/(protected)/_components/PasswordDialog";
 import Link from "next/link";
-import { Select, SelectValue, SelectTrigger } from "@/src/components/ui/select";
-import { SelectContent, SelectItem } from "@/components/ui/select";
-
-const getCurrTime = () => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-  return ISTTime;
-};
 
 interface CartItem {
   id: string;
@@ -56,6 +43,7 @@ interface CartItem {
   sellingPrice: number;
   availableStock: number;
 }
+
 type GSTType = "IGST" | "SGST_CGST";
 
 interface SaleDetailsPageProps {
@@ -65,119 +53,99 @@ interface SaleDetailsPageProps {
 }
 
 function SaleDetailsPage({ params }: SaleDetailsPageProps) {
-  const [code, setCode] = useState("");
-  const [kurti, setKurti] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [selling, setSelling] = useState(false);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [gstType, setGstType] = useState<GSTType>("SGST_CGST");
-
-  // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [originalSaleData, setOriginalSaleData] = useState<any>(null);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [removedItems, setRemovedItems] = useState<string[]>([]);
   const [regeneratingInvoice, setRegeneratingInvoice] = useState(false);
+
+  // Product search and cart states
+  const [code, setCode] = useState("");
+  const [kurti, setKurti] = useState<any>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedSize, setSelectedSize] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [quantity, setQuantity] = useState(1);
 
   // Sale details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [billCreatedBy, setBillCreatedBy] = useState("");
-  const [selectedShopId, setSelectedShopId] = useState("");
-  const [shops, setShops] = useState<any[]>([]);
-  const [paymentType, setpaymentType] = useState("");
-  const [userShop, setUserShop] = useState<any>(null);
-  const [isHallSell, setIsHallSell] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<"COMPLETED" | "PENDING">(
+    "PENDING"
+  );
+  const [gstType, setGstType] = useState<"IGST" | "SGST_CGST">("SGST_CGST");
+  const [sellType, setSellType] = useState<OfflineSellType>("HALL_SELL_ONLINE");
 
-  // Current product selection
-  const [selectedSize, setSelectedSize] = useState("");
-  const [sellingPrice, setSellingPrice] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [sellType, setSellType] =
-    useState<OfflineSellType>("SHOP_SELL_OFFLINE");
-
-  // Password dialog state
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  // Wallet information
+  const [userBalance, setUserBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
 
   const currentUser = useCurrentUser();
   const router = useRouter();
 
-  useEffect(() => {
-    const loadSaleDetails = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(
-          `/api/sell/offline-sales/${params.id}`
-        );
-
-        const saleData = response.data.data;
-        setOriginalSaleData(saleData);
-
-        // Populate form fields with existing data
-        setCustomerName(saleData.customerName || "");
-        setCustomerPhone(saleData.customerPhone || "");
-        setBillCreatedBy(saleData.billCreatedBy || "");
-        setpaymentType(saleData.paymentType || "");
-        setGstType(saleData.gstType || "SGST_CGST");
-        setSelectedShopId(saleData.shopId || "");
-        setSellType(saleData.sellType || "SHOP_SELL_OFFLINE");
-
-        console.log("response", response);
-        console.log("saleData.sales", response.data.data);
-
-        // Load existing cart items
-        const existingCartItems = saleData.sales.map((sale: any) => ({
-          id: sale.id,
-          kurti: sale.kurti,
-          selectedSize: sale.kurtiSize,
-          quantity: sale.quantity,
-          sellingPrice: sale.selledPrice,
-          availableStock: sale.availableStock,
-        }));
-        setCart(existingCartItems);
-      } catch (error: any) {
-        console.error("Error loading sale details:", error);
-        toast.error("Failed to load sale details");
-      } finally {
-        setLoading(false);
+  // Fetch user wallet balance
+  const fetchUserBalance = async (userId: string) => {
+    try {
+      setLoadingBalance(true);
+      const response = await axios.post("/api/wallet/get-balance", { userId });
+      if (response.data.success) {
+        setUserBalance(response.data.data.balance);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching user balance:", error);
+      // Don't show error toast for balance fetch - it's optional information
+    } finally {
+      setLoadingBalance(false);
+    }
+  };
 
+  const loadSaleDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`/api/sell/online-sales/${params.id}`);
+
+      const saleData = response.data.data;
+      setOriginalSaleData(saleData);
+
+      // Populate form fields with existing data
+      setCustomerName(saleData.customerName || "");
+      setCustomerPhone(saleData.customerPhone || "");
+      setBillCreatedBy(saleData.billCreatedBy || "");
+      setPaymentStatus(saleData.paymentStatus || "PENDING");
+      setGstType(saleData.gstType || "SGST_CGST");
+      setSellType(saleData.sellType || "HALL_SELL_ONLINE");
+
+      // Load existing cart items
+      const existingCartItems = saleData.sales.map((sale: any) => ({
+        id: sale.id,
+        kurti: sale.kurti,
+        selectedSize: sale.kurtiSize,
+        quantity: sale.quantity,
+        sellingPrice: sale.selledPrice,
+        availableStock: sale.availableStock,
+      }));
+      setCart(existingCartItems);
+
+      // Fetch user wallet balance if order ID exists
+      if (saleData.orderId && saleData.order.user) {
+        fetchUserBalance(saleData.order.user.id);
+      }
+    } catch (error: any) {
+      console.error("Error loading sale details:", error);
+      toast.error("Failed to load sale details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (params.id) {
       loadSaleDetails();
     }
   }, [params.id]);
-
-  // Load shops and user's shop on component mount
-  useEffect(() => {
-    const loadShopsAndUserShop = async () => {
-      try {
-        const shopList = await getShopList();
-        setShops(shopList);
-
-        // If user is SELLER or SELLER_MANAGER, get their associated shop
-        if (
-          currentUser?.id &&
-          (currentUser.role === UserRole.SELLER ||
-            currentUser.role === UserRole.SELLER_MANAGER ||
-            currentUser.role === UserRole.SHOP_SELLER)
-        ) {
-          const userShopData = await getUserShop(currentUser.id);
-          if (userShopData) {
-            setUserShop(userShopData);
-            // Only set shop if not already set from sale data
-            if (!selectedShopId) {
-              setSelectedShopId(userShopData.id);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error loading shops:", error);
-        toast.error("Failed to load shops");
-      }
-    };
-    loadShopsAndUserShop();
-  }, [currentUser, selectedShopId]);
 
   // Toggle edit mode
   const toggleEditMode = () => {
@@ -187,10 +155,9 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         setCustomerName(originalSaleData.customerName || "");
         setCustomerPhone(originalSaleData.customerPhone || "");
         setBillCreatedBy(originalSaleData.billCreatedBy || "");
-        setpaymentType(originalSaleData.paymentType || "");
+        setPaymentStatus(originalSaleData.paymentStatus || "PENDING");
         setGstType(originalSaleData.gstType || "SGST_CGST");
-        setSelectedShopId(originalSaleData.shopId || "");
-        setSellType(originalSaleData.sellType || "SHOP_SELL_OFFLINE");
+        setSellType(originalSaleData.sellType || "HALL_SELL_ONLINE");
 
         // Restore original cart items
         const originalCartItems = originalSaleData.sales.map((sale: any) => ({
@@ -227,8 +194,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         return;
       }
 
-      if (!paymentType.trim()) {
-        toast.error("Payment type is required");
+      if (!paymentStatus) {
+        toast.error("Payment status is required");
         return;
       }
 
@@ -237,9 +204,10 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         billCreatedBy: billCreatedBy.trim(),
-        paymentType: paymentType.trim(),
+        paymentStatus: paymentStatus,
         gstType: gstType,
         sellType: sellType,
+        orderId: originalSaleData.orderId,
       };
 
       // Add new products if any are in the cart that weren't in the original data
@@ -279,13 +247,26 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       }
 
       const response = await axios.put(
-        `/api/sell/offline-sales/${params.id}`,
+        `/api/sell/online-sales/${params.id}`,
         updateData
       );
 
       if (response.data.success) {
         toast.success("Sale updated successfully!");
         setOriginalSaleData(response.data.data);
+
+        try {
+          const link = document.createElement("a");
+          link.href = response.data.data.invoiceUrl;
+          link.download = `invoice-${response.data.batchNumber}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.success("New invoice downloaded!");
+        } catch (error) {
+          console.error("Error downloading invoice:", error);
+          toast.error("Failed to download invoice");
+        }
 
         // Update cart with the new data from server
         const updatedCartItems = response.data.data.sales.map((sale: any) => ({
@@ -298,24 +279,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         }));
         setCart(updatedCartItems);
 
-        // Handle invoice regeneration
-        if (response.data.invoiceRegenerated && response.data.newInvoiceUrl) {
-          toast.success("Invoice regenerated successfully!");
-
-          // Download the new invoice
-          try {
-            const link = document.createElement("a");
-            link.href = response.data.newInvoiceUrl;
-            link.download = `invoice-${response.data.data.batchNumber}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            toast.success("New invoice downloaded!");
-          } catch (error) {
-            console.error("Error downloading invoice:", error);
-            toast.error("Failed to download invoice");
-          }
-        }
+        await loadSaleDetails();
 
         // Reset removed items and exit edit mode
         setRemovedItems([]);
@@ -503,162 +467,38 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     );
   };
 
-  const handleSell = async () => {
-    try {
-      setSelling(true);
+  const getAmountToDeduct = () => {
+    // Calculate amount for new items (temp items) that will be charged
+    const newItemsAmount = cart
+      .filter((item) => item.id.includes("temp"))
+      .reduce((total, item) => total + item.sellingPrice * item.quantity, 0);
 
-      if (cart.length === 0) {
-        toast.error("Please add products to cart");
-        return;
-      }
+    // Calculate amount for removed items that will be refunded
+    // Only consider refunds if payment status is COMPLETED
+    const removedItemsAmount =
+      originalSaleData?.paymentStatus === "COMPLETED"
+        ? removedItems.reduce((total, removedItemId) => {
+            // Find the original item data from originalSaleData
+            const originalItem = originalSaleData?.sales?.find(
+              (sale: any) => sale.id === removedItemId
+            );
+            if (originalItem) {
+              return (
+                total +
+                (originalItem.selledPrice || 0) * (originalItem.quantity || 1)
+              );
+            }
+            return total;
+          }, 0)
+        : 0;
 
-      if (!customerName.trim()) {
-        toast.error("Please enter customer name");
-        return;
-      }
-
-      if (!selectedShopId.trim()) {
-        if (currentUser?.role === UserRole.ADMIN) {
-          toast.error("Please select a shop");
-        } else {
-          toast.error("No shop associated with your account");
-        }
-        return;
-      }
-
-      if (!billCreatedBy.trim()) {
-        toast.error("Please enter bill created by");
-        return;
-      }
-      if (!paymentType.trim()) {
-        toast.error("Please select payment type");
-        return;
-      }
-
-      const currentTime = getCurrTime();
-
-      // Prepare products data for API
-      const products = cart.map((item) => ({
-        code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
-        kurti: item.kurti,
-        selectedSize: item.selectedSize,
-        quantity: item.quantity,
-        sellingPrice: item.sellingPrice,
-      }));
-
-      const res = await axios.post(`/api/sell/offline-retailer`, {
-        products,
-        currentUser,
-        currentTime: currentTime,
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        billCreatedBy: billCreatedBy.trim(),
-        paymentType: paymentType.trim(),
-        gstType: gstType,
-        shopId: selectedShopId.trim(),
-        sellType: sellType,
-      });
-
-      const data = res.data.data;
-      console.log("🚀 ~ handleSell ~ data:", data);
-
-      if (data.error) {
-        toast.error(data.error);
-      } else {
-        toast.success("Sale completed successfully!");
-        // Generate invoice
-        await generateInvoice(data);
-
-        // Show invoice URL if available
-        if (data.batchNumber) {
-          toast.success(`Invoice saved with batch number: ${data.batchNumber}`);
-        }
-
-        resetForm();
-      }
-    } catch (error) {
-      console.error("Error selling products:", error);
-      toast.error("Error processing sale");
-    } finally {
-      setSelling(false);
-    }
+    // Net amount to deduct = new items - removed items
+    return newItemsAmount - removedItemsAmount;
   };
 
-  const generateInvoice = async (saleData: any) => {
-    try {
-      // Convert cart items to the format expected by the shared utility
-      const soldProducts = cart.map((item) => ({
-        kurti: item.kurti,
-        size: item.selectedSize,
-        quantity: item.quantity,
-        selledPrice: item.sellingPrice,
-        unitPrice: item.sellingPrice,
-        totalPrice: item.sellingPrice * item.quantity,
-      }));
-
-      // Call the server action for PDF generation
-      const result = await generateInvoicePDF({
-        saleData,
-        batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
-        customerName,
-        customerPhone,
-        selectedLocation: userShop?.shopLocation || "",
-        billCreatedBy,
-        currentUser,
-        soldProducts,
-        totalAmount: getTotalAmount(),
-        gstType,
-        invoiceNumber: saleData.invoiceNumber || "",
-        sellType: saleData.sellType, // Pass the hall sale status
-      });
-
-      if (!result.success || !result.pdfBase64) {
-        throw new Error(result.error || "Failed to generate PDF");
-      }
-
-      // Convert base64 string to Blob and trigger download
-      const binaryString = atob(result.pdfBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `invoice-${
-        saleData.batchNumber || `OFFLINE-INV-${Date.now()}`
-      }.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success("Invoice PDF downloaded successfully!");
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast.error("Failed to generate PDF invoice");
-    }
-  };
-
-  const resetForm = () => {
-    setCode("");
-    setKurti(null);
-    setCart([]);
-    setCustomerName("");
-    setCustomerPhone("");
-    // Reset shop based on user role
-    if (currentUser?.role === UserRole.ADMIN) {
-      setSelectedShopId("");
-    } else if (userShop) {
-      setSelectedShopId(userShop.id);
-    }
-    setBillCreatedBy("");
-    setpaymentType("");
-    setGstType("SGST_CGST");
-    setSelectedSize("");
-    setSellingPrice("");
-    setQuantity(1);
+  const getAvailableSizes = () => {
+    if (!kurti?.sizes) return [];
+    return kurti.sizes.filter((sz: any) => sz.quantity > 0);
   };
 
   const regenerateInvoice = async () => {
@@ -666,17 +506,26 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       setRegeneratingInvoice(true);
 
       const response = await axios.post(
-        `/api/sell/offline-sales/${params.id}/regenerate-invoice`
+        `/api/sell/online-sales/${params.id}/regenerate-invoice`
       );
 
       if (response.data.success) {
         toast.success("Invoice regenerated successfully!");
 
+        // Update the original sale data with new invoice URL
+        if (originalSaleData) {
+          setOriginalSaleData({
+            ...originalSaleData,
+            invoiceUrl: response.data.invoiceUrl,
+          });
+        }
+
         // Download the new invoice
         try {
           const link = document.createElement("a");
-          link.href = response.data.invoiceUrl;
-          link.download = `invoice-${originalSaleData.batchNumber}.pdf`;
+          link.href = response.data.data.invoiceUrl;
+          console.log("🚀 ~ regenerateInvoice ~ link:", link);
+          link.download = `invoice-${response.data.batchNumber}.pdf`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -698,11 +547,6 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     }
   };
 
-  const getAvailableSizes = () => {
-    if (!kurti?.sizes) return [];
-    return kurti.sizes.filter((sz: any) => sz.quantity > 0);
-  };
-
   if (loading) {
     return (
       <Card className="rounded-none w-full h-full">
@@ -718,11 +562,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     <Card className="rounded-none w-full h-full">
       <CardHeader>
         <div className="flex justify-between items-center">
-          {/* <p className="text-2xl font-semibold text-center">
-            {isEditMode ? "✏️ Edit Offline Sale" : "👁️ View Offline Sale"}
-          </p>
-           */}
-          <Link href="/offline-sales" className="flex items-center gap-2">
+          <Link href="/online-sales" className="flex items-center gap-2">
             <ChevronLeft className="h-4 w-4" />
             <span>Back</span>
           </Link>
@@ -786,12 +626,12 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           }`}
         >
           <h3 className="text-lg font-semibold mb-3">
-            {isEditMode ? "🔄 Edit Mode Active" : "📋 Sale Information"}
+            {isEditMode ? "🔄 Edit Mode Active" : "📋 Online Sale Information"}
           </h3>
           {isEditMode && (
             <p className="text-sm text-yellow-700 mb-3">
-              You are currently editing this sale. Make your changes and click
-              "Save Changes" to update.
+              You are currently editing this online sale. Make your changes and
+              click "Save Changes" to update.
             </p>
           )}
           <div className="flex gap-4">
@@ -801,7 +641,9 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 name="gstType"
                 value="SGST_CGST"
                 checked={gstType === "SGST_CGST"}
-                onChange={(e) => setGstType(e.target.value as GSTType)}
+                onChange={(e) =>
+                  setGstType(e.target.value as "IGST" | "SGST_CGST")
+                }
                 disabled={!isEditMode}
               />
               <span>SGST + CGST (2.5% + 2.5%)</span>
@@ -812,7 +654,9 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 name="gstType"
                 value="IGST"
                 checked={gstType === "IGST"}
-                onChange={(e) => setGstType(e.target.value as GSTType)}
+                onChange={(e) =>
+                  setGstType(e.target.value as "IGST" | "SGST_CGST")
+                }
                 disabled={!isEditMode}
               />
               <span>IGST (5%)</span>
@@ -821,47 +665,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         </div>
 
         {/* Customer Details Section */}
-        <div
-          className={`p-4 rounded-lg ${
-            sellType === "HALL_SELL_OFFLINE" || sellType === "HALL_SELL_ONLINE"
-              ? "bg-blue-50 border-2 border-blue-200"
-              : "bg-blue-50"
-          }`}
-        >
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-semibold">Customer Details</h3>
-            <div className="flex items-center gap-2">
-              {sellType === "HALL_SELL_OFFLINE" ||
-                (sellType === "HALL_SELL_ONLINE" && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    Hall Sale
-                  </span>
-                ))}
-              {isEditMode && (
-                <Select
-                  value={sellType}
-                  onValueChange={(value) =>
-                    setSellType(value as OfflineSellType)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Sell Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={OfflineSellType.HALL_SELL_OFFLINE}>
-                      Hallsell offline
-                    </SelectItem>
-                    <SelectItem value={OfflineSellType.HALL_SELL_ONLINE}>
-                      Hallsell online
-                    </SelectItem>
-                    <SelectItem value={OfflineSellType.SHOP_SELL_OFFLINE}>
-                      Shop sell offline
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          </div>
+        <div className="p-4 rounded-lg bg-blue-50">
+          <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="customer-name">Customer Name *</Label>
@@ -883,7 +688,6 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 maxLength={10}
                 onChange={(e) => {
                   const input = e.target.value;
-                  // Only allow digits
                   if (/^\d*$/.test(input)) {
                     setCustomerPhone(input);
                   }
@@ -893,63 +697,23 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
               />
             </div>
             <div>
-              <Label htmlFor="shop-select">
-                {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER)
-                  ? "Select Shop *"
-                  : "Shop"}
-              </Label>
-              {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER) ? (
-                <select
-                  id="shop-select"
-                  name="shop-select"
-                  aria-label="Select shop"
-                  className={`w-full p-2 border rounded-md ${
-                    !isEditMode ? "bg-gray-50" : ""
-                  }`}
-                  value={selectedShopId}
-                  onChange={(e) => setSelectedShopId(e.target.value)}
-                  disabled={!isEditMode}
-                >
-                  <option value="">Select Shop</option>
-                  {shops.map((shop) => (
-                    <option key={shop.id} value={shop.id}>
-                      {shop.shopName} - {shop.shopLocation}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="w-full p-2 border rounded-md bg-gray-50">
-                  {userShop ? (
-                    <span className="text-gray-700 font-medium">
-                      {userShop.shopName} - {userShop.shopLocation}
-                    </span>
-                  ) : (
-                    <span className="text-gray-500">No shop associated</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="payment-type">Payment Type *</Label>
+              <Label htmlFor="payment-status">Payment Status *</Label>
               <select
-                id="payment-type"
-                name="payment-type"
-                aria-label="Select payment type"
+                id="payment-status"
+                value={paymentStatus}
+                onChange={(e) =>
+                  setPaymentStatus(e.target.value as "COMPLETED" | "PENDING")
+                }
+                disabled={!isEditMode}
+                aria-label="Select payment status"
                 className={`w-full p-2 border rounded-md ${
                   !isEditMode ? "bg-gray-50" : ""
                 }`}
-                value={paymentType}
-                onChange={(e) => setpaymentType(e.target.value)}
-                disabled={!isEditMode}
               >
-                <option value="">Select Payment Type</option>
-                <option value="GPay">GPay</option>
-                <option value="Cash">Cash</option>
-                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="PENDING">⏳ Pending</option>
+                <option value="COMPLETED">✅ Completed</option>
               </select>
             </div>
-
             <div>
               <Label htmlFor="bill-by">Bill Created By *</Label>
               <Input
@@ -961,6 +725,58 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 className={!isEditMode ? "bg-gray-50" : ""}
               />
             </div>
+
+            {/* Wallet Balance Display */}
+            {originalSaleData?.orderId && (
+              <div>
+                <Label className="text-sm font-medium mb-1 block">
+                  💰 Customer Wallet Balance
+                </Label>
+                <div className="p-2 bg-gray-50 border rounded-md">
+                  {loadingBalance ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm text-gray-600">
+                        Loading balance...
+                      </span>
+                    </div>
+                  ) : userBalance !== null ? (
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-blue-900">
+                        Current Balance:{" "}
+                        <span className="font-bold">₹{userBalance}</span>
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        Order Total: ₹{getTotalAmount()} | Amount to Deduct: ₹
+                        {getAmountToDeduct()}
+                        {originalSaleData?.paymentStatus === "PENDING" && (
+                          <span className="text-orange-600">
+                            {" "}
+                            ⚠️ Payment Pending
+                          </span>
+                        )}
+                        {originalSaleData?.paymentStatus === "COMPLETED" &&
+                          (userBalance >= getAmountToDeduct() ? (
+                            <span className="text-green-600">
+                              {" "}
+                              ✅ Sufficient Balance
+                            </span>
+                          ) : (
+                            <span className="text-red-600">
+                              {" "}
+                              ❌ Insufficient Balance
+                            </span>
+                          ))}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      Unable to fetch balance
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1272,12 +1088,154 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                       setSellingPrice("");
                       setQuantity(1);
                     }}
-                    disabled={selling}
+                    disabled={updating}
                   >
                     Clear Cart
                   </Button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Payment Information */}
+        {originalSaleData && (
+          <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
+            <h3 className="text-lg font-semibold mb-3 text-purple-800">
+              💰 Payment Information
+            </h3>
+            <div className="text-sm text-gray-600 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Payment Status:</span>
+                {originalSaleData.paymentStatus === "COMPLETED" ? (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    ✅ Completed
+                  </span>
+                ) : originalSaleData.paymentStatus === "PENDING" ? (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                    ⚠️ Pending
+                  </span>
+                ) : (
+                  <span className="text-gray-500">Not specified</span>
+                )}
+              </div>
+              {originalSaleData.paymentStatus === "COMPLETED" && (
+                <div className="text-green-700">
+                  <p>💳 Payment completed via wallet</p>
+                  <p>💰 Amount deducted: ₹{originalSaleData.totalAmount}</p>
+                </div>
+              )}
+              {originalSaleData.paymentStatus === "PENDING" && (
+                <div className="text-orange-700">
+                  <p>⚠️ Payment is pending</p>
+                  <p>💰 Amount to be paid: ₹{originalSaleData.totalAmount}</p>
+                  <p className="text-xs mt-1">
+                    This order was completed but payment could not be processed
+                    due to insufficient wallet balance.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {originalSaleData && (
+          <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+            <h3 className="text-lg font-semibold mb-3 text-green-800">
+              Sale Items ({originalSaleData.sales?.length || 0} items)
+            </h3>
+            <div className="text-sm text-gray-600">
+              <p>Total Amount: ₹{originalSaleData.totalAmount}</p>
+              <p>Total Items: {originalSaleData.totalItems}</p>
+              <p>
+                Sale Time:{" "}
+                {new Date(originalSaleData.saleTime).toLocaleString()}
+              </p>
+              <p>Batch Number: {originalSaleData.batchNumber}</p>
+              {originalSaleData.invoiceNumber && (
+                <p>
+                  Invoice Number: INV-
+                  {originalSaleData.invoiceNumber.toString().padStart(6, "0")}
+                </p>
+              )}
+              {originalSaleData.invoiceUrl && (
+                <div className="mt-2">
+                  <p className="font-medium text-green-700">📄 Invoice:</p>
+                  <a
+                    href={originalSaleData.invoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    View Invoice
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Wallet Transaction History */}
+        {originalSaleData && originalSaleData.paymentStatus === "COMPLETED" && (
+          <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+            <h3 className="text-lg font-semibold mb-3 text-blue-800">
+              🏦 Wallet Transaction Details
+            </h3>
+            <div className="text-sm text-blue-700 space-y-2">
+              <p>
+                <strong>Transaction Type:</strong> DEBIT (Payment for order)
+              </p>
+              <p>
+                <strong>Payment Method:</strong> Wallet
+              </p>
+              <p>
+                <strong>Amount:</strong> ₹{originalSaleData.totalAmount}
+              </p>
+              <p>
+                <strong>Order Reference:</strong> {originalSaleData.batchNumber}
+              </p>
+              <p>
+                <strong>Transaction Date:</strong>{" "}
+                {new Date(originalSaleData.saleTime).toLocaleString()}
+              </p>
+              <div className="mt-3 p-2 bg-blue-100 rounded">
+                <p className="text-xs text-blue-800">
+                  💡 This transaction was automatically processed when the order
+                  was confirmed. The amount was deducted from the customer's
+                  wallet balance.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pending Payment Information */}
+        {originalSaleData && originalSaleData.paymentStatus === "PENDING" && (
+          <div className="p-4 rounded-lg bg-orange-50 border border-orange-200">
+            <h3 className="text-lg font-semibold mb-3 text-orange-800">
+              ⚠️ Pending Payment Information
+            </h3>
+            <div className="text-sm text-orange-700 space-y-2">
+              <p>
+                <strong>Payment Status:</strong> PENDING
+              </p>
+              <p>
+                <strong>Reason:</strong> Insufficient wallet balance at time of
+                order completion
+              </p>
+              <p>
+                <strong>Amount Due:</strong> ₹{originalSaleData.totalAmount}
+              </p>
+              <p>
+                <strong>Order Reference:</strong> {originalSaleData.batchNumber}
+              </p>
+              <div className="mt-3 p-2 bg-orange-100 rounded">
+                <p className="text-xs text-orange-800">
+                  💡 This order was completed successfully but payment could not
+                  be processed due to insufficient wallet balance. The customer
+                  needs to add funds to their wallet to complete the payment.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -1288,7 +1246,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           onClose={() => setShowPasswordDialog(false)}
           onSuccess={handlePasswordSuccess}
           title="Enable Edit Mode"
-          description="Please enter the password to enable edit mode for this offline sale."
+          description="Please enter the password to enable edit mode for this online sale."
         />
       </CardContent>
     </Card>
