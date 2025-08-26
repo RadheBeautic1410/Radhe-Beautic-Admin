@@ -1072,7 +1072,16 @@ const ListPage = () => {
     }
   };
   const SyncData = async () => {
-    syncCategoryData();
+    startTransition(async () => {
+      try {
+        const res = await syncCategoryData();
+        if (res?.success) {
+          toast.success("Stock ready successfully!");
+        }
+      } catch (err) {
+        toast.error("Sync failed.");
+      }
+    });
   };
   const handleSetStockReady = async (
     categoryCode: string
@@ -1384,7 +1393,7 @@ const ListPage = () => {
               disabled={isGenerating}
               onClick={() => SyncData()}
             >
-              Sync
+             {isPending ? "Syncing..." : "Sync"}
             </Button>
           </div>
         </div>
