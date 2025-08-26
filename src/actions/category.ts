@@ -109,7 +109,7 @@ export const categoryDelete = async (id: string) => {
 };
 
 export const updateTotalItem = async (code: string, total: number) => {
-  console.log("code and total ---------------",code, total);
+  console.log("code and total ---------------", code, total);
   const result = await db.category.update({
     where: { code: code },
     data: {
@@ -122,7 +122,7 @@ export const updateTotalItem = async (code: string, total: number) => {
 };
 
 export const updateTotalPiece = async (code: string, total: number) => {
-  console.log("code and total in piece---------------",code, total);
+  console.log("code and total in piece---------------", code, total);
   const result = await db.category.update({
     where: { code: code },
     data: {
@@ -401,29 +401,53 @@ export async function generateMultipleCategoryPDFs(categoryCodes: string[]) {
 
 export const getCategoryOverallStates = async () => {
   try {
-    const categories = await db.category.findMany({
+
+    const rows = await db.category.findMany({
+      where: { isDeleted: false },
+      select: {
+        countTotal: true,
+        sellingPrice: true,
+        totalItems: true,
+      },
+    });
+
+    const multipliedSum = rows.reduce(
+      (acc, row) => acc + (row.countTotal ?? 0) * (row.sellingPrice ?? 0),
+      0
+    );
+
+    const sums = await db.category.aggregate({
+      _sum: {
+        countTotal: true,
+        totalItems: true,
+      },
       where: {
         isDeleted: false,
       },
     });
 
-    let totalItems = 0;
-    let totalPices = 0;
-    let totalStockPrice = 0;
+    const countTotalSum = sums._sum.countTotal ?? 0;
+    const totalItemsSum = sums._sum.totalItems ?? 0;
 
-    for (let index = 0; index < categories.length; index++) {
-      const item = categories[index];
-      totalItems = totalItems + item.totalItems;
-      totalPices = totalPices + item.countTotal;
-      if (item.sellingPrice && item.countTotal && item.totalItems) {
-        totalStockPrice = totalStockPrice + item?.totalItems * item.sellingPrice;
-      }
-    }
+    // console.log("🚀 ~ getCategoryOverallStates ~ data:", data)
+
+    // let totalItems = 0;
+    // let totalPices = 0;
+    // let totalStockPrice = 0;
+
+    // for (let index = 0; index < categories.length; index++) {
+    //   const item = categories[index];
+    //   totalItems = totalItems + item.totalItems;
+    //   totalPices = totalPices + item.countTotal;
+    //   if (item.sellingPrice && item.countTotal && item.totalItems) {
+    //     totalStockPrice = totalStockPrice + item?.totalItems * item.sellingPrice;
+    //   }
+    // }
 
     return {
-      totalItems,
-      totalPices,
-      totalStockPrice,
+      totalItems: totalItemsSum,
+      totalPices: countTotalSum,
+      totalStockPrice: multipliedSum,
     };
   } catch (error) {
     console.error("Error fetching states:", error);
@@ -539,7 +563,7 @@ export const setStockReady = async (categoryCode: string) => {
       error: "Failed to set stock ready",
     };
   }
-}
+};
 type SizeObject = {
   size?: string;
   quantity?: number;
@@ -632,3 +656,4 @@ export default async function syncCategoryData() {
 
   return { success: true, message: "All categories updated successfully!" };
 }
+
