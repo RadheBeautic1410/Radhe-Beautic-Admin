@@ -25,6 +25,7 @@ import AvailableKurtiSizes from "@/src/app/(protected)/_components/analytics/awa
 import PartyWiseSales from "../_components/analytics/partyWiseCount";
 import TopSoldKurti from "../_components/analytics/topSoldKurti";
 import KurtiReports from "../_components/analytics/kurtiReports";
+import KurtiOnlineReports from "../_components/analytics/kurtiOnlineReports";
 
 const AnalyticsPage = () => {
 
@@ -64,6 +65,7 @@ const AnalyticsPage = () => {
                 <TopMonthlySellingKurti />
                 <AvailableKurtiSizes />
                 <KurtiReports />
+                <KurtiOnlineReports/>
             </Card>
         </>
     );

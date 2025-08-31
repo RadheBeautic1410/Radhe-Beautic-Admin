@@ -465,7 +465,7 @@ export const clearStockData = async (categoryCode: string) => {
 
     await db.kurti.updateMany({
       where: {
-        category: category.name,
+        category: category.name.toUpperCase(),
       },
       data: {
         sizes: [],

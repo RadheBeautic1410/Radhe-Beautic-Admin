@@ -34,9 +34,12 @@ const Dashboard = () => {
       );
       const data = await res.json();
       console.log("Fetched top kurtis:", data);
-      setTopKurtis(data);
+
+      // Ensure it's always an array
+      setTopKurtis(Array.isArray(data) ? data : data.kurtis || []);
     } catch (error) {
       console.error("Error fetching kurtis:", error);
+      setTopKurtis([]); // fallback
     } finally {
       setLoading(false);
     }
@@ -96,32 +99,21 @@ const Dashboard = () => {
                   <th className="border px-4 py-2">Sold</th>
                 </tr>
               </thead>
-              <tbody>
-                {[...topKurtis]
+              {Array.isArray(topKurtis) && topKurtis.length > 0 ? (
+                [...topKurtis]
                   .sort((a, b) => b.soldCount - a.soldCount)
                   .map((kurti, index) => (
                     <tr key={kurti.id} className="hover:bg-gray-50">
-                      <td className="border px-4 py-2 text-center">
-                        {index + 1}
-                      </td>
-                      <td className="border px-4 py-2 text-center">
-                        {kurti.code}
-                      </td>
-                      <td className="border px-4 py-2 text-center">
-                        {kurti.party}
-                      </td>
-                      <td className="border px-4 py-2 text-center">
-                        {kurti.category}
-                      </td>
-                      <td className="border px-4 py-2 text-center">
-                        ₹{kurti.sellingPrice}
-                      </td>
-                      <td className="border px-4 py-2 text-center">
-                        {kurti.soldCount}
-                      </td>
+                      ...
                     </tr>
-                  ))}
-              </tbody>
+                  ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="text-center py-4">
+                    No data available
+                  </td>
+                </tr>
+              )}
             </table>
           </div>
         )}
