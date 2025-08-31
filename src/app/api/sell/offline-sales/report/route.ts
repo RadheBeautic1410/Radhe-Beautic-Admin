@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
-import { getOnlineSales } from "@/src/data/online-sales";
+import { getOfflineSalesReport } from "@/src/data/offline-sales";
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,14 +21,14 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate') || '';
     const paymentStatus = searchParams.get('paymentStatus') || '';
 
-    const result = await getOnlineSales({
+    const result = await getOfflineSalesReport({
       page,
       limit,
       search,
       searchType, 
       startDate,
       endDate,
-      paymentStatus,
+    //   paymentStatus,
       userId: session.user.id,
       userRole: session.user.role
     });
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     }), { status: 200 });
 
   } catch (error: any) {
-    console.error('Online sales API Error:', error);
+    console.error('Offline sales API Error:', error);
     return new NextResponse(
       JSON.stringify({ error: error.message || "Internal server error" }),
       { status: 500 }

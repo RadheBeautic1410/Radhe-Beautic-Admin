@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
-import { getOnlineSales } from "@/src/data/online-sales";
+import { getOnlineSalesReport } from "@/src/data/online-sales";
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate') || '';
     const paymentStatus = searchParams.get('paymentStatus') || '';
 
-    const result = await getOnlineSales({
+    const result = await getOnlineSalesReport({
       page,
       limit,
       search,

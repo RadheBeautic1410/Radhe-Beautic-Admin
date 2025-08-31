@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Filter } from "lucide-react";
+import { Calendar as CalendarIcon, Filter, X } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -13,7 +13,7 @@ import { Calendar } from "@/src/components/ui/calendar";
 import { Button } from "@/src/components/ui/button";
 import { cn } from "@/src/lib/utils";
 
-export default function KurtiReports() {
+export default function KurtiOnlineReports() {
   const [reports, setReports] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -42,10 +42,9 @@ export default function KurtiReports() {
           params.append("endDate", format(dateRange.to, "yyyy-MM-dd"));
         }
 
-        const res = await fetch(`/api/sell/offline-sales/report?${params}`);
+        const res = await fetch(`/api/sell/online-sales/report?${params}`);
         const data = await res.json();
-        console.log("Offine data", data.data);
-
+        console.log("Fetched Kurti Online Reports:", data);
         setReports(data?.data);
       } catch (err) {
         console.error("Error fetching Kurti Reports:", err);
@@ -57,16 +56,22 @@ export default function KurtiReports() {
   }, [page, dateRange]);
 
   // ✅ Apply search filter
-  const filteredReports =
-    reports?.report?.filter((item: any) => {
-      if (!searchTerm.trim()) return true;
-      const term = searchTerm.toLowerCase();
-      return (
-        item.kurtiCode.toLowerCase().includes(term) ||
-        String(item.selledPrice).toLowerCase().includes(term) ||
-        String(item.sellingPrice).toLowerCase().includes(term)
-      );
-    }) || [];
+  const filteredReports = reports?.report?.filter((item: any) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      item.kurtiCode.toLowerCase().includes(term) ||
+      String(item.selledPrice).includes(term) ||
+      String(item.sellingPrice).includes(term)
+    );
+  });
+
+  // ✅ Total profit (already provided by API, but you can recalc)
+  const totalProfit =
+    filteredReports?.reduce(
+      (acc: number, item: any) => acc + (item.selledPrice - item.sellingPrice),
+      0
+    ) ?? 0;
 
   if (loading) {
     return (
@@ -86,7 +91,7 @@ export default function KurtiReports() {
 
   return (
     <div className="w-full max-w-5xl mx-auto p-6 space-y-6">
-      <h2 className="text-2xl font-semibold mb-4">Kurti Offline Reports</h2>
+      <h2 className="text-2xl font-semibold mb-4">Kurti Online Reports</h2>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4 mb-4">
@@ -94,7 +99,7 @@ export default function KurtiReports() {
         <div className="flex-1 min-w-[200px]">
           <input
             type="text"
-            placeholder="Search by Kurti code, price..."
+            placeholder="Search by Kurti code or price..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="border px-3 py-1 rounded w-full"
@@ -116,9 +121,7 @@ export default function KurtiReports() {
       {showDateFilter && (
         <div className="flex flex-col sm:flex-row gap-4 items-end p-4 bg-gray-50 rounded-lg border">
           <div className="flex-1">
-            <label className="text-sm font-medium mb-1 block">
-              Date Range:
-            </label>
+            <label className="text-sm font-medium mb-1 block">Date Range:</label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -184,13 +187,7 @@ export default function KurtiReports() {
               <td className="p-2 border">{item.kurtiCode}</td>
               <td className="p-2 border">{item.selledPrice}</td>
               <td className="p-2 border">{item.sellingPrice}</td>
-              <td
-                className={`p-2 border ${
-                  item.difference >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {item.difference}
-              </td>
+              <td className="p-2 border">{item.difference}</td>
             </tr>
           ))}
         </tbody>
@@ -198,7 +195,7 @@ export default function KurtiReports() {
 
       {/* ✅ Total Profit Display */}
       <div className="mt-4 p-3 border rounded bg-green-50 text-green-700 font-semibold">
-        Total Profit: {reports?.totalProfit ?? 0}
+        Total Profit: {totalProfit}
       </div>
 
       {/* Pagination */}
@@ -211,11 +208,11 @@ export default function KurtiReports() {
           Previous
         </button>
         <span className="text-sm font-semibold text-gray-700">
-          Page {reports?.currentPage}
+          Page {reports.currentPage} / {reports.totalPages}
         </span>
         <button
           onClick={() => setPage((prev) => prev + 1)}
-          disabled={page >= reports?.totalPages}
+          disabled={page >= reports.totalPages}
           className="px-4 py-1 border rounded text-sm hover:bg-gray-100 disabled:opacity-50"
         >
           Next
