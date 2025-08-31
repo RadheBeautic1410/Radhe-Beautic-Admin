@@ -149,6 +149,135 @@ export const getOnlineSales = async (
     throw new Error("Failed to fetch online sales");
   }
 };
+export const getOnlineSalesReport = async (
+  filters: OnlineSalesFilters
+): Promise<any> => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      search = "",
+      searchType = "customerName",
+      startDate = "",
+      endDate = "",
+      paymentStatus = "",
+    } = filters;
+
+    const skip = (page - 1) * limit;
+
+    let whereClause: any = {};
+
+    // 📅 Date filters
+    if (startDate || endDate) {
+      whereClause.saleTime = {};
+      if (startDate) whereClause.saleTime.gte = new Date(startDate);
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        whereClause.saleTime.lte = endDateTime;
+      }
+    }
+
+    // 💳 Payment filter
+    if (paymentStatus && paymentStatus !== "all") {
+      whereClause.paymentStatus = paymentStatus.toUpperCase() as any;
+    }
+
+    // 🔍 Search filters
+    if (search.trim()) {
+      const searchTerm = search.trim();
+      switch (searchType) {
+        case "customerName":
+          whereClause.customerName = { contains: searchTerm, mode: "insensitive" };
+          break;
+        case "customerPhone":
+          whereClause.customerPhone = { contains: searchTerm, mode: "insensitive" };
+          break;
+        case "invoiceNumber":
+          whereClause.invoiceNumber = parseInt(searchTerm) || 0;
+          break;
+        case "orderId":
+          whereClause.orderId = { contains: searchTerm, mode: "insensitive" };
+          break;
+        case "amount":
+          whereClause.totalAmount = parseInt(searchTerm) || 0;
+          break;
+        case "paymentStatus":
+          whereClause.paymentStatus = searchTerm.toUpperCase() as any;
+          break;
+      }
+    }
+
+    // 📊 Count
+    const total = await db.onlineSellBatch.count({ where: whereClause });
+
+    // 📦 Fetch sales
+    const batches = await db.onlineSellBatch.findMany({
+      where: whereClause,
+      include: {
+        sales: {
+          include: {
+            kurti: true, // brings sellingPrice
+          },
+        },
+        order: {
+        //   include: {
+        //     adress: true, // so we can get shop location
+        //   },
+        },
+      },
+      orderBy: { saleTime: "desc" },
+      skip,
+      take: limit,
+    });
+
+    // 🧮 Prepare report
+    const report = batches.flatMap((batch) =>
+      batch.sales.map((s) => {
+        const sellingPrice = parseFloat(s.kurti.sellingPrice);
+        const selledPrice = s.selledPrice || 0;
+        const difference = (s.selledPrice || 0) - sellingPrice;
+
+        return {
+          kurtiCode: s.kurti.code,
+          sellingPrice,
+          selledPrice,
+          difference,
+        //   shopLocation: batch.order?.address?.location ?? "N/A", // <-- adjust field in Address
+        };
+      })
+    );
+
+    // 💰 Total profit (ignores filters)
+    const allSales = await db.onlineSellBatch.findMany({
+      include: {
+        sales: { include: { kurti: true } },
+      },
+    });
+
+    const totalProfit = allSales.reduce((sum, batch) => {
+      return (
+        sum +
+        batch.sales.reduce((sSum, s) => {
+          const sellingPrice = parseFloat(s.kurti.sellingPrice);
+          const selledPrice = s.selledPrice ?? 0; // <-- adjust
+          return sSum + (selledPrice - sellingPrice);
+        }, 0)
+      );
+    }, 0);
+
+    return {
+      report,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      totalProfit,
+    };
+  } catch (error) {
+    console.error("Error generating online sales report:", error);
+    throw new Error("Failed to generate report");
+  }
+};
 
 export const getOnlineSaleById = async (id: string) => {
   try {

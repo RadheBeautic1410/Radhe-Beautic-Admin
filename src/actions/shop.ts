@@ -48,3 +48,4 @@ export const getHallSaleShops = async () => {
     throw new Error("Failed to get hall sale shops");
   }
 };
+
