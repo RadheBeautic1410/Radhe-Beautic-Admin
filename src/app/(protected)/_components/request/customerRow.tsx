@@ -3,9 +3,7 @@
 import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
-
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { TableCell, TableRow } from "@/src/components/ui/table";
@@ -51,6 +49,7 @@ interface userProps {
   verifiedBy: string | null;
   balance: number | null;
   role: UserRole;
+  groupName: string | null; // 👈 added field
   isTwoFactorEnabled: boolean;
 }
 
@@ -62,6 +61,7 @@ interface moderatorRowProps {
 const editSchema = z.object({
   isVerified: z.boolean(),
   role: z.nativeEnum(UserRole),
+  groupName: z.enum(["group1", "group2", "group3"]), // 👈 added here
 });
 
 const addMoneySchema = z.object({
@@ -76,12 +76,18 @@ export const CustomerRow = ({
   const { id } = userData;
   const [isPending, startTransition] = useTransition();
 
-  // Form for editing user (verification + role)
+  // Form for editing user (verification + role + group)
   const editForm = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
     defaultValues: {
       isVerified: userData.isVerified,
       role: userData.role,
+      groupName:
+        userData.groupName === "group1" ||
+        userData.groupName === "group2" ||
+        userData.groupName === "group3"
+          ? userData.groupName
+          : "group1", // 👈 default fallback
     },
   });
 
@@ -140,8 +146,8 @@ export const CustomerRow = ({
         }
 
         toast.success(data.success || "Money added successfully!");
-        moneyForm.reset(); // optional: reset form after success
-        closeDialog(); // ✅ close the dialog
+        moneyForm.reset();
+        closeDialog();
       } catch (err) {
         toast.error("Something went wrong while adding money.");
         console.error("API Error:", err);
@@ -150,7 +156,6 @@ export const CustomerRow = ({
   };
 
   const [balance, setBalance] = useState<number | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -205,6 +210,7 @@ export const CustomerRow = ({
               className="space-y-6"
               onSubmit={editForm.handleSubmit(handleEditSubmit)}
             >
+              {/* Verified Switch */}
               <FormField
                 control={editForm.control}
                 name="isVerified"
@@ -222,6 +228,7 @@ export const CustomerRow = ({
                 )}
               />
 
+              {/* Role Select */}
               <FormField
                 control={editForm.control}
                 name="role"
@@ -249,6 +256,34 @@ export const CustomerRow = ({
                 )}
               />
 
+              {/* Group Select 👇 */}
+              <FormField
+                control={editForm.control}
+                name="groupName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Group</FormLabel>
+                    <Select
+                      disabled={isPending}
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a group" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="group1">Group 1</SelectItem>
+                        <SelectItem value="group2">Group 2</SelectItem>
+                        <SelectItem value="group3">Group 3</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <Button type="submit" disabled={isPending}>
                 Save Changes
               </Button>
@@ -256,6 +291,7 @@ export const CustomerRow = ({
           </Form>
         </DialogDemo>
       </TableCell>
+
       <TableCell className="text-center">{userData.balance}</TableCell>
 
       {/* Add Money Dialog */}
@@ -330,6 +366,8 @@ export const CustomerRow = ({
           )}
         </DialogDemo>
       </TableCell>
+      <TableCell className="text-center">{userData.groupName ?? "-"}</TableCell>
+
       <TableCell className="text-center">
         <Link href={`/balance-history/${id}`}>
           <Button variant="outline">Balance History</Button>
