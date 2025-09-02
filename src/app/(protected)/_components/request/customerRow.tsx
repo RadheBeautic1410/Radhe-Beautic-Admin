@@ -38,6 +38,7 @@ import { IoMdCheckmark } from "react-icons/io";
 import { ImCross } from "react-icons/im";
 import Link from "next/link";
 import { moderatorUpdate } from "@/src/actions/moderator";
+import { EyeIcon } from "lucide-react";
 
 interface userProps {
   id: string;
@@ -173,7 +174,9 @@ export const CustomerRow = ({
 
   return (
     <TableRow key={userData.id}>
-      <TableCell className="text-center font-medium">{userData.name}</TableCell>
+      <TableCell className="text-center font-medium">
+        <Link href={`/request/customer/${userData.id}`}>{userData.name}</Link>
+      </TableCell>
       <TableCell className="text-center">{userData.phoneNumber}</TableCell>
       <TableCell className="text-center">
         <div className="flex justify-center">
@@ -333,6 +336,11 @@ export const CustomerRow = ({
       <TableCell className="text-center">
         <Link href={`/balance-history/${id}`}>
           <Button variant="outline">Balance History</Button>
+        </Link>
+      </TableCell>
+      <TableCell>
+        <Link href={`/request/customer/${userData.id}`}>
+          <EyeIcon />
         </Link>
       </TableCell>
     </TableRow>

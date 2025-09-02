@@ -313,7 +313,7 @@ model OnlineSellBatch {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
-  paymentStatus PaymentStatus  @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
   gstType       String?
 
   orderId       String?
@@ -371,22 +371,23 @@ model CartProduct {
 }
 
 model Orders {
-  id               String             @id @default(auto()) @map("_id") @db.ObjectId
-  orderId          String             @unique
-  cart             Cart               @relation(fields: [cartId], references: [id])
-  cartId           String             @db.ObjectId
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId           String             @db.ObjectId
-  date             DateTime           @default(now())
+  id               String      @id @default(auto()) @map("_id") @db.ObjectId
+  orderId          String      @unique
+  cart             Cart        @relation(fields: [cartId], references: [id])
+  cartId           String      @db.ObjectId
+  userId           String      @db.ObjectId
+  date             DateTime    @default(now())
   trackingIdImages Json[]
-  status           OrderStatus        @default(PENDING)
+  status           OrderStatus @default(PENDING)
   total            Int
-  shippingAddress  Address            @relation(fields: [addressId], references: [id])
-  shippingCharge   Int                @default(0)
-  addressId        String             @db.ObjectId
+  shippingAddress  Address     @relation(fields: [addressId], references: [id])
+  shippingCharge   Int         @default(0)
+  addressId        String      @db.ObjectId
   trackingId       String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  user             User?              @relation(fields: [userId], references: [id])
   OfflineSellBatch OfflineSellBatch[]
   OnlineSellBatch  OnlineSellBatch[]
 }
