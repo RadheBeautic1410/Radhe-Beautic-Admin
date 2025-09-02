@@ -68,7 +68,7 @@ model User {
 
   verifiedBy String?   @db.ObjectId
   verifiedAt DateTime?
-
+  groupName String?  @default("")
   role UserRole @default(USER)
 
   isTwoFactorEnabled    Boolean                @default(false)
