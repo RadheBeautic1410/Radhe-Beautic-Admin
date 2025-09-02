@@ -21,6 +21,9 @@ import { ModeratorRow } from "../_components/request/moderatorRow";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import Link from "next/link";
 import { CustomerRow } from "../_components/request/customerRow";
+import { Input } from "@/src/components/ui/input"; // Add Input for search
+import { Search } from "lucide-react";
+
 export interface userProps {
   id: string;
   name: string | null;
@@ -34,12 +37,16 @@ export interface userProps {
   role: UserRole;
   isTwoFactorEnabled: boolean;
   balance: number | null;
+  groupName: string | null; 
+
 }
+
 const ModeratorPage = () => {
   const [users, setUsers] = useState<userProps[]>([]);
   const [customers, setCustomers] = useState<userProps[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [tab, setTab] = useState<0 | 1>(0);
+  const [search, setSearch] = useState("");
 
   const currentRole = useCurrentRole();
 
@@ -76,7 +83,7 @@ const ModeratorPage = () => {
     if (loadingUsers) fetchData();
   }, [loadingUsers]);
 
-  const updateUserData = (updatedUser:userProps) => {
+  const updateUserData = (updatedUser: userProps) => {
     setUsers((prev) =>
       prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))
     );
@@ -85,14 +92,30 @@ const ModeratorPage = () => {
     );
   };
 
+  // 🔍 Filtered lists
+  const filteredUsers = users.filter((user) =>
+  [user.name, user.phoneNumber, user.groupName]
+    .some((field) =>
+      field?.toLowerCase().includes(search.toLowerCase())
+    )
+);
+
+const filteredCustomers = customers.filter((user) =>
+  [user.name, user.phoneNumber, user.groupName]
+    .some((field) =>
+      field?.toLowerCase().includes(search.toLowerCase())
+    )
+);
+
   return (
     <>
       <PageLoader loading={loadingUsers} />
       <RoleGate allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
         <Card className="w-full h-full">
           <CardHeader className="bg-secondary rounded-xl">
-            <div className="flex justify-between items-center">
-              <div className="flex gap-x-2">
+            <div className="grid grid-cols-2 items-center gap-4">
+              {/* Left side - Tabs */}
+              <div className="flex gap-2">
                 <Button
                   variant={tab === 0 ? "default" : "outline"}
                   onClick={() => setTab(0)}
@@ -106,9 +129,22 @@ const ModeratorPage = () => {
                   🧑‍💻 Customers
                 </Button>
               </div>
-              <Button variant="outline" onClick={() => setLoadingUsers(true)}>
-                <Link href="/request">⟳ Refresh</Link>
-              </Button>
+
+              {/* Right side - Search + Refresh */}
+              <div className="flex justify-end gap-3 items-center">
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Search by name or phone or group..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10 pr-4 rounded-2xl shadow-sm border focus:ring-2 focus:ring-primary focus:border-primary transition"
+                  />
+                </div>
+                <Button variant="outline" onClick={() => setLoadingUsers(true)}>
+                  <Link href="/request">⟳ Refresh</Link>
+                </Button>
+              </div>
             </div>
           </CardHeader>
 
@@ -131,7 +167,7 @@ const ModeratorPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users
+                  {filteredUsers
                     .filter((user) => user.role !== UserRole.MOD)
                     .map((user) => (
                       <ModeratorRow
@@ -159,11 +195,15 @@ const ModeratorPage = () => {
                     <TableHead className="text-center">Action</TableHead>
                     <TableHead className="text-center">Balance</TableHead>
                     <TableHead className="text-center">Add Money</TableHead>
-                    <TableHead className="text-center">Balance History</TableHead>
+                    <TableHead className="text-center">Group Name</TableHead>
+
+                    <TableHead className="text-center">
+                      Balance History
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {customers.map((user) => (
+                  {filteredCustomers.map((user) => (
                     <CustomerRow
                       key={user.id}
                       userData={user}

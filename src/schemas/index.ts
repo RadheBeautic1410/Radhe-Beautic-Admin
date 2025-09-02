@@ -47,6 +47,8 @@ export const stockUpdateSchema = z.object({
 export const SettingSchema = z.object({
     password: z.optional(z.string().min(6)),
     newPassword: z.optional(z.string().min(6)),
+      qrCode: z.any().optional(), // Add this line to include qrCode
+
 })
     .refine((data) => {
         if (data.password && !data.newPassword) {

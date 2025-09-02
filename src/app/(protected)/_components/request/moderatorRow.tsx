@@ -225,7 +225,6 @@ export const ModeratorRow = ({
           </Form>
         </DialogDemo>
       </TableCell>
-      
     </TableRow>
   );
 };

@@ -287,3 +287,90 @@ export const generateInvoiceHTML = (
     </html>
   `;
 };
+
+export const generateAddressInfoHtml = ({orderId,date,quantity,group,name,address,mobileNo}:{
+  orderId: string;
+  date: string;
+  quantity: number;
+  group: string;
+  name: string;
+  address: string;
+  mobileNo: string;
+}) => {
+  return  `
+  <div class="ship-label">
+    <div class="row title">
+      <span>Order ID:</span>
+      <strong>${orderId}</strong>
+    </div>
+
+    <div class="grid">
+      <div><span>Date:</span> <strong>${date}</strong></div>
+      <div><span>Quantity:</span> <strong>${quantity}</strong></div>
+    </div>
+
+    <div class="row">
+      <span>Code Name:</span>
+      <strong>${group}</strong>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Shipping Address:</div>
+      <div class="addr-line"><span>Name -</span> <strong>${name}</strong></div>
+      <div class="addr-line"><span>Mo. no. -</span> <strong>${mobileNo}</strong></div>
+      <div class="addr-block">${address}</div>
+    </div>
+
+    <!-- Optional QR: place an <img class="qr" src="data:image/png;base64,..." /> here -->
+  </div>
+
+  <style>
+    .ship-label{
+      width: 80mm;               /* good for thermal/label printers */
+      max-width: 360px;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      line-height: 1.35;
+      color: #000;
+      padding: 10px 12px;
+      box-sizing: border-box;
+      border: 1px solid #000;
+      border-radius: 4px;
+    }
+    .row{ display:flex; gap:6px; margin: 6px 0; align-items: baseline; }
+    .title{ font-size: 18px; margin-top: 2px; }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 12px;
+      margin: 6px 0;
+    }
+    .section{ margin-top: 8px; }
+    .section-title{
+      font-weight: 700;
+      margin-bottom: 4px;
+      border-top: 1px dashed #000;
+      padding-top: 6px;
+    }
+    .addr-line{ margin: 2px 0; }
+    .addr-block{
+      margin-top: 4px;
+      white-space: pre-wrap;   /* keeps your line breaks */
+    }
+    .qr{
+      display:block;
+      margin: 10px auto 0;
+      width: 120px;
+      height: 120px;
+      object-fit: contain;
+    }
+
+    /* Print tweaks */
+    @media print{
+      .ship-label{ border: none; padding: 0; width: 80mm; }
+      @page{ margin: 6mm; }
+    }
+    span{ opacity: 0.9; }
+  </style>
+  `;
+};

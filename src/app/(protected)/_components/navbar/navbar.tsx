@@ -149,9 +149,9 @@ const routes = [
     href: "/watermark",
     role: [
       UserRole.ADMIN,
-      UserRole.RESELLER,
-      UserRole.SELLER,
-      UserRole.UPLOADER,
+      // UserRole.RESELLER,
+      // UserRole.SELLER,
+      // UserRole.UPLOADER,
     ],
     icon: "💧",
   },

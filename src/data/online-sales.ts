@@ -127,7 +127,13 @@ export const getOnlineSales = async (
             kurti: true,
           },
         },
-        order: true,
+        order: {
+          include: {
+            shippingAddress: {
+              select: { id: true, address: true, zipCode: true },
+            },
+          },
+        },
       },
       orderBy: {
         saleTime: "desc",
@@ -188,10 +194,16 @@ export const getOnlineSalesReport = async (
       const searchTerm = search.trim();
       switch (searchType) {
         case "customerName":
-          whereClause.customerName = { contains: searchTerm, mode: "insensitive" };
+          whereClause.customerName = {
+            contains: searchTerm,
+            mode: "insensitive",
+          };
           break;
         case "customerPhone":
-          whereClause.customerPhone = { contains: searchTerm, mode: "insensitive" };
+          whereClause.customerPhone = {
+            contains: searchTerm,
+            mode: "insensitive",
+          };
           break;
         case "invoiceNumber":
           whereClause.invoiceNumber = parseInt(searchTerm) || 0;
@@ -221,9 +233,9 @@ export const getOnlineSalesReport = async (
           },
         },
         order: {
-        //   include: {
-        //     adress: true, // so we can get shop location
-        //   },
+          //   include: {
+          //     adress: true, // so we can get shop location
+          //   },
         },
       },
       orderBy: { saleTime: "desc" },
@@ -243,7 +255,7 @@ export const getOnlineSalesReport = async (
           sellingPrice,
           selledPrice,
           difference,
-        //   shopLocation: batch.order?.address?.location ?? "N/A", // <-- adjust field in Address
+          //   shopLocation: batch.order?.address?.location ?? "N/A", // <-- adjust field in Address
         };
       })
     );
