@@ -1,7 +1,7 @@
 "use server";
 
-import { generatePDFFromHTML } from "@/src/lib/puppeteer";
-import { generateInvoiceHTML } from "@/src/lib/utils";
+import { generatePDFFromHTML, generateSmallPDFFromHTML } from "@/src/lib/puppeteer";
+import { generateAddressInfoHtml, generateInvoiceHTML } from "@/src/lib/utils";
 import { OfflineSellType, OnlineSellType } from "@prisma/client";
 
 export const generateInvoicePDF = async (data: {
@@ -31,7 +31,7 @@ export const generateInvoicePDF = async (data: {
       totalAmount,
       gstType,
       invoiceNumber,
-      sellType
+      sellType,
     } = data;
 
     // Debug logging
@@ -70,17 +70,54 @@ export const generateInvoicePDF = async (data: {
     const pdfBuffer = await generatePDFFromHTML(invoiceHTML);
 
     // Convert Buffer to base64 string for serialization
-    const pdfBase64 = pdfBuffer.toString('base64');
+    const pdfBase64 = pdfBuffer.toString("base64");
 
     return {
       success: true,
-      pdfBase64
+      pdfBase64,
     };
   } catch (error) {
-    console.error('Error generating PDF:', error);
+    console.error("Error generating PDF:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to generate PDF'
+      error: error instanceof Error ? error.message : "Failed to generate PDF",
     };
   }
-}; 
+};
+
+export const generateAddressInfo = async ({
+  orderId,
+  date,
+  quantity,
+  group,
+  name,
+  address,
+  mobileNo,
+}: {
+  orderId: string;
+  date: string;
+  quantity: number;
+  group: string;
+  name: string;
+  address: string;
+  mobileNo: string;
+}) => {
+  const invoiceHTML = generateAddressInfoHtml({
+    orderId,
+    date,
+    quantity,
+    group,
+    name,
+    address,
+    mobileNo,
+  });
+  const pdfBuffer = await generateSmallPDFFromHTML(invoiceHTML);
+
+  // Convert Buffer to base64 string for serialization
+  const pdfBase64 = pdfBuffer.toString("base64");
+
+  return {
+    success: true,
+    pdfBase64,
+  };
+};

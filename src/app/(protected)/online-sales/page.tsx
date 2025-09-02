@@ -39,6 +39,7 @@ import {
   X,
   Filter,
   Globe,
+  FileDownIcon,
 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -48,7 +49,9 @@ import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { useDebounce } from "@/src/hooks/useDebounce";
 import { DateRange } from "react-day-picker";
 import { format, addDays } from "date-fns";
-import { cn } from "@/src/lib/utils";
+import { cn, generateAddressInfoHtml } from "@/src/lib/utils";
+import { date } from "zod";
+import { generateAddressInfo } from "@/src/actions/generate-pdf";
 
 interface OnlineSale {
   id: string;
@@ -150,7 +153,7 @@ function OnlineSalesPage() {
 
       const response = await axios.get(`/api/sell/online-sales?${params}`);
       const data: SalesData = response.data.data;
-
+      console.log("its data", data);
       setSales(data.sales);
       setTotal(data.total);
       setTotalPages(data.totalPages);
@@ -255,7 +258,53 @@ function OnlineSalesPage() {
       toast.error("Failed to download invoice");
     }
   };
+  const generateAddressPDF = async (orderId: string) => {
+    try {
+      
+    const findOrder = sales.find((sale) => sale.orderId === orderId);
+    console.log("findOrder",findOrder);
+     
+    const currentDate = new Date().toLocaleDateString();
+    const reqData = {
+      orderId : orderId,
+      date : currentDate,
+      quantity: 1,
+      group: "ABC",
+      name: findOrder?.customerName!,
+      address: findOrder?.order?.shippingAddress.address!,
+      mobileNo: findOrder?.customerPhone!,
+    }
+    console.log("reqData",reqData);
+    
+    const result = await generateAddressInfo(reqData);
+    console.log("result",result);
+    
+    if (!result.success || !result.pdfBase64) {
+        throw new Error(result.error || "Failed to generate PDF");
+      }
 
+      // Convert base64 string to Blob and trigger download
+      const binaryString = atob(result.pdfBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${
+        `Address-INV-${Date.now()}`
+      }.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      
+    }
+  }
   const renderPagination = () => {
     const pages = [];
     const maxVisiblePages = 5;
@@ -680,6 +729,18 @@ function OnlineSalesPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              generateAddressPDF(
+                                sale.orderId
+                              )
+                            }
+                            title="Download Address"
+                          >
+                            <FileDownIcon className="h-4 w-4" />
+                          </Button>
                         {sale.invoiceUrl && (
                           <Button
                             size="sm"
