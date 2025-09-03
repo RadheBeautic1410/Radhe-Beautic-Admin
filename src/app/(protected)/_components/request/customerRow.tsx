@@ -266,27 +266,19 @@ export const CustomerRow = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Group</FormLabel>
-                    <Select
-                      disabled={isPending}
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a group" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="group1">Group 1</SelectItem>
-                        <SelectItem value="group2">Group 2</SelectItem>
-                        <SelectItem value="group3">Group 3</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <input
+                        type="text"
+                        placeholder="Enter group name"
+                        className="w-full rounded-md border px-3 py-2"
+                        {...field}
+                        disabled={isPending}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
               <Button type="submit" disabled={isPending}>
                 Save Changes
               </Button>
