@@ -52,7 +52,16 @@ import { format, addDays } from "date-fns";
 import { cn, generateAddressInfoHtml } from "@/src/lib/utils";
 import { date } from "zod";
 import { generateAddressInfo } from "@/src/actions/generate-pdf";
-
+interface ShippingAddress {
+  address: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+}
+interface Order {
+  shippingAddress: ShippingAddress;
+}
 interface OnlineSale {
   id: string;
   batchNumber: string;
@@ -69,6 +78,7 @@ interface OnlineSale {
   invoiceUrl?: string;
   sellType: OfflineSellType;
   orderId?: string;
+  order?: Order;
   sales: Array<{
     id: string;
     code: string;
@@ -280,7 +290,7 @@ function OnlineSalesPage() {
     console.log("result",result);
     
     if (!result.success || !result.pdfBase64) {
-        throw new Error(result.error || "Failed to generate PDF");
+        throw new Error( "Failed to generate PDF");
       }
 
       // Convert base64 string to Blob and trigger download
@@ -734,7 +744,7 @@ function OnlineSalesPage() {
                             variant="outline"
                             onClick={() =>
                               generateAddressPDF(
-                                sale.orderId
+                                sale.orderId!
                               )
                             }
                             title="Download Address"
