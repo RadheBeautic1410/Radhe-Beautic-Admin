@@ -1631,7 +1631,7 @@ export const regenerateOnlineSaleInvoice = async (
     console.error("Error regenerating online sale invoice:", error);
     return {
       error:
-        error instanceof Error ? error.message : "Failed to regenerate invoice",
+        error instanceof Error ? error.message : "Failed to regenerate invoice 5",
     };
   }
 };

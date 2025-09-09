@@ -2241,7 +2241,7 @@ export const regenerateOfflineSaleInvoice = async (
     };
   } catch (error) {
     console.error("Error regenerating invoice:", error);
-    return { error: "Failed to regenerate invoice" };
+    return { error: "Failed to regenerate invoice 3" };
   }
 };
 
@@ -2626,6 +2626,6 @@ export const regenerateOnlineSaleInvoice = async (
     };
   } catch (error) {
     console.error("Error regenerating online sale invoice:", error);
-    return { error: "Failed to regenerate invoice" };
+    return { error: "Failed to regenerate invoice 4" };
   }
 };

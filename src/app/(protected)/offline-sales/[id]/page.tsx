@@ -687,12 +687,12 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         }
       } else {
         console.error("Error regenerating invoice:", response.data.error);
-        toast.error(response.data.error || "Failed to regenerate invoice");
+        toast.error(response.data.error || "Failed to regenerate invoice 1");
       }
     } catch (error: any) {
       console.error("Error regenerating invoice:", error);
       toast.error(
-        error.response?.data?.error || "Failed to regenerate invoice"
+        error.response?.data?.error || "Failed to regenerate invoice 2"
       );
     } finally {
       setRegeneratingInvoice(false);
