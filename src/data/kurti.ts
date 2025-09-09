@@ -2241,7 +2241,7 @@ export const regenerateOfflineSaleInvoice = async (
     };
   } catch (error) {
     console.error("Error regenerating invoice:", error);
-    return { error: "Failed to regenerate invoice 3" };
+    return { error: error };
   }
 };
 
