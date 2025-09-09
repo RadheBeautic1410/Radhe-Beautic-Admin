@@ -686,6 +686,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           toast.error("Failed to download invoice");
         }
       } else {
+        console.error("Error regenerating invoice:", response.data.error);
         toast.error(response.data.error || "Failed to regenerate invoice");
       }
     } catch (error: any) {
