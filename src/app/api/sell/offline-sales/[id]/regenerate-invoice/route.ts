@@ -29,12 +29,14 @@ export async function POST(
     console.log("Manual invoice regeneration requested for sale:", id);
 
     const result = await regenerateOfflineSaleInvoice(id, session.user);
-
+    console.log("its pdf generate result", result);
+    
     if (result.error) {
-      return new NextResponse(
-        JSON.stringify({ error: result.error }),
-        { status: 400 }
-      );
+      console.log("Invoice regeneration error:", result.error);
+
+      return new NextResponse(JSON.stringify({ error: result.error }), {
+        status: 400,
+      });
     }
 
     return new NextResponse(
@@ -53,4 +55,4 @@ export async function POST(
       { status: 500 }
     );
   }
-} 
+}
