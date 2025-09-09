@@ -51,7 +51,7 @@ export async function POST(
   } catch (error: any) {
     console.error("Invoice regeneration API Error:", error);
     return new NextResponse(
-      JSON.stringify({ error: error.message || "Internal server error" }),
+      JSON.stringify({ error: error.message || "Internal server error",errors:error }),
       { status: 500 }
     );
   }
