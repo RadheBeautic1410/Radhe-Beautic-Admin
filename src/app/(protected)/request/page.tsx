@@ -6,7 +6,6 @@ import { RoleGateForComponent } from "@/src/components/auth/role-gate-component"
 import { useCurrentRole } from "@/src/hooks/use-currrent-role";
 import PageLoader from "@/src/components/loader";
 import { UserRole } from "@prisma/client";
-
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import {

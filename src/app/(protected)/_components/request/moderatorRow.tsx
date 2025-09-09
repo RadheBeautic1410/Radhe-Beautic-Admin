@@ -15,7 +15,6 @@ import {
   FormControl,
   FormItem,
   FormLabel,
-  FormDescription,
   FormMessage,
 } from "@/src/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -28,13 +27,10 @@ import {
   SelectValue,
 } from "@/src/components/ui/select";
 import { Switch } from "@/src/components/ui/switch";
-import { ModeratorUpdateSchema } from "@/src/schemas";
 import { moderatorUpdate } from "@/src/actions/moderator";
 import { ImCross } from "react-icons/im";
 import { IoMdCheckmark } from "react-icons/io";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
-import { userDelete } from "@/src/actions/user";
-import { DialogFooter } from "@/src/components/ui/dialog";
 import { VerifierDetail } from "./verifierDetail";
 
 interface userProps {
@@ -50,6 +46,7 @@ interface userProps {
   role: UserRole;
   isTwoFactorEnabled: boolean;
   balance: number | null;
+  groupName: string | null;
 }
 
 interface moderatorRowProps {
