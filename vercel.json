@@ -3,6 +3,14 @@
     "src/app/api/sell/offline-sales/[id]/regenerate-invoice/route.ts": {
       "memory": 1536,
       "maxDuration": 60
+    },
+    "src/app/api/sell/offline-retailer/route.ts": {
+      "memory": 1536,
+      "maxDuration": 60
+    },
+    "src/app/api/sell/offline-sales/route.ts": {
+      "memory": 1536,
+      "maxDuration": 60
     }
 
   }
