@@ -1,8 +1,8 @@
 {
   "functions": {
-    "src/app/api/sell/offline-sales/[id]/regenerate-invoice/route.ts": {
-      "maxDuration": 60,
-      "memory": 1024
+    "api/sell/offline-sales/**": {
+      "memory": 1536,
+      "maxDuration": 60
     }
   }
 }

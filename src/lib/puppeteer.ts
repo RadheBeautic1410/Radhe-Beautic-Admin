@@ -1,5 +1,6 @@
 // import puppeteer from 'puppeteer';
 
+
 // export const generatePDFFromHTML = async (htmlContent: string): Promise<Buffer> => {
 //   let browser;
 //   try {
@@ -38,8 +39,7 @@
 //       await browser.close();
 //     }
 //   }
-// }; 
-
+// };
 
 // export const generateSmallPDFFromHTML = async (htmlContent: string): Promise<Buffer> => {
 //   let browser;
@@ -82,25 +82,79 @@
 //   }
 // };
 
-import chromium from "chrome-aws-lambda";
-import puppeteer from "puppeteer-core";
+// import chromium from "chrome-aws-lambda";
+// import puppeteer from "puppeteer-core";
 
-async function launchBrowser() {
-  const executablePath = await chromium.executablePath;
+// async function launchBrowser() {
+//   const executablePath = await chromium.executablePath;
 
-  return puppeteer.launch({
-    args: chromium.args,
-    executablePath: await chromium.executablePath,
-    headless: chromium.headless,
-  });
-}
+//   return puppeteer.launch({
+//     args: chromium.args,
+//     executablePath: await chromium.executablePath,
+//     headless: chromium.headless,
+//   });
+// }
+
+// export const generatePDFFromHTML = async (htmlContent: string): Promise<Buffer> => {
+//   let browser;
+//   try {
+//     browser = await launchBrowser();
+//     const page = await browser.newPage();
+
+//     await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+
+//     const pdfBuffer = await page.pdf({
+//       format: "a4",
+//       printBackground: true,
+//       margin: { top: "20px", right: "20px", bottom: "20px", left: "20px" },
+//     });
+
+//     return Buffer.from(pdfBuffer);
+//   } catch (error) {
+//     console.error("Error generating PDF:", error);
+//     throw new Error("Failed to generate PDF from HTML");
+//   } finally {
+//     if (browser) {
+//       await browser.close();
+//     }
+//   }
+// };
+
+// export const generateSmallPDFFromHTML = async (htmlContent: string): Promise<Buffer> => {
+//   let browser;
+//   try {
+//     browser = await launchBrowser();
+//     const page = await browser.newPage();
+
+//     await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+
+//     const pdfBuffer = await page.pdf({
+//       width: "4in",
+//       height: "6in",
+//       printBackground: true,
+//       margin: { top: "5mm", right: "5mm", bottom: "5mm", left: "5mm" },
+//     });
+
+//     return Buffer.from(pdfBuffer);
+//   } catch (error) {
+//     console.error("Error generating small PDF:", error);
+//     throw new Error("Failed to generate small PDF from HTML");
+//   } finally {
+//     if (browser) {
+//       await browser.close();
+//     }
+//   }
+// };
+
+
+import type { Browser } from "puppeteer-core";
+import { launchBrowser } from "./launchBrowser";
 
 export const generatePDFFromHTML = async (htmlContent: string): Promise<Buffer> => {
-  let browser;
+  let browser: Browser | undefined;
   try {
     browser = await launchBrowser();
     const page = await browser.newPage();
-
     await page.setContent(htmlContent, { waitUntil: "networkidle0" });
 
     const pdfBuffer = await page.pdf({
@@ -110,38 +164,9 @@ export const generatePDFFromHTML = async (htmlContent: string): Promise<Buffer> 
     });
 
     return Buffer.from(pdfBuffer);
-  } catch (error) {
-    console.error("Error generating PDF:", error);
-    throw new Error("Failed to generate PDF from HTML");
   } finally {
-    if (browser) {
-      await browser.close();
-    }
+    if (browser) await browser.close();
   }
 };
 
-export const generateSmallPDFFromHTML = async (htmlContent: string): Promise<Buffer> => {
-  let browser;
-  try {
-    browser = await launchBrowser();
-    const page = await browser.newPage();
 
-    await page.setContent(htmlContent, { waitUntil: "networkidle0" });
-
-    const pdfBuffer = await page.pdf({
-      width: "4in",
-      height: "6in",
-      printBackground: true,
-      margin: { top: "5mm", right: "5mm", bottom: "5mm", left: "5mm" },
-    });
-
-    return Buffer.from(pdfBuffer);
-  } catch (error) {
-    console.error("Error generating small PDF:", error);
-    throw new Error("Failed to generate small PDF from HTML");
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
-  }
-};
