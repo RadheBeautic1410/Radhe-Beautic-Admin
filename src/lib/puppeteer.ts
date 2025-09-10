@@ -1,6 +1,5 @@
 // import puppeteer from 'puppeteer';
 
-
 // export const generatePDFFromHTML = async (htmlContent: string): Promise<Buffer> => {
 //   let browser;
 //   try {
@@ -146,11 +145,12 @@
 //   }
 // };
 
-
 import type { Browser } from "puppeteer-core";
 import { launchBrowser } from "./launchBrowser";
 
-export const generatePDFFromHTML = async (htmlContent: string): Promise<Buffer> => {
+export const generatePDFFromHTML = async (
+  htmlContent: string
+): Promise<Buffer> => {
   let browser: Browser | undefined;
   try {
     browser = await launchBrowser();
@@ -169,4 +169,29 @@ export const generatePDFFromHTML = async (htmlContent: string): Promise<Buffer> 
   }
 };
 
+export const generateSmallPDFFromHTML = async (
+  htmlContent: string
+): Promise<Buffer> => {
+  let browser: Browser | undefined;
 
+  try {
+    browser = await launchBrowser();
+    const page = await browser.newPage();
+
+    await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+
+    const pdfBuffer = await page.pdf({
+      width: "4in",
+      height: "6in",
+      printBackground: true,
+      margin: { top: "5mm", right: "5mm", bottom: "5mm", left: "5mm" },
+    });
+
+    return Buffer.from(pdfBuffer);
+  } catch (error) {
+    console.error("Error generating small PDF:", error);
+    throw new Error("Failed to generate small PDF from HTML");
+  } finally {
+    if (browser) await browser.close();
+  }
+};

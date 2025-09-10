@@ -1,5 +1,4 @@
 import { db } from "@/src/lib/db";
-import { error } from "console";
 import {
   uploadInvoicePDFToFirebase,
   deleteInvoiceFromFirebase,
