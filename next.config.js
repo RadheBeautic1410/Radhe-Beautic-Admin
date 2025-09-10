@@ -34,6 +34,15 @@ const nextConfig = {
       },
     ],
   },
+  webpack: (config) => {
+    // 🚀 Ignore all .map files (like Browser.js.map from chrome-aws-lambda)
+    config.module.rules.push({
+      test: /\.map$/,
+      type: "asset/source",
+    });
+
+    return config;
+  },
 }
 
-module.exports = nextConfig
+module.exports = nextConfig;
