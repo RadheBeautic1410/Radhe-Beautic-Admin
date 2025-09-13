@@ -260,7 +260,7 @@ export const generateInvoiceHTML = (
             `
             }
             <tr style="border-top: 2px solid #333;">
-              <td colspan="4" style="text-align: right; font-weight: bold; font-size: 18px;">Total Amount:</td>
+              <td colspan="4" style="text-align: right; font-weight: bold; font-size: 18px;">Subtotal:</td>
               <td style="font-weight: bold; font-size: 18px;">₹${(typeof totalAmount ===
               "string"
                 ? parseFloat(totalAmount)
@@ -274,21 +274,41 @@ export const generateInvoiceHTML = (
               <td colspan="4" style="text-align: right; font-weight: bold;">Shipping Charge:</td>
               <td style="font-weight: bold;">₹${Number(shippingCharge).toFixed(2)}</td>
             </tr>
+            <tr style="border-top: 2px solid #333;">
+              <td colspan="4" style="text-align: right; font-weight: bold; font-size: 18px;">Total Amount:</td>
+              <td style="font-weight: bold; font-size: 18px;">₹${((typeof totalAmount ===
+              "string"
+                ? parseFloat(totalAmount)
+                : totalAmount || 0) + Number(shippingCharge || 0)).toFixed(2)}</td>
+            </tr>
             `
-                : ""
+                : `
+            <tr style="border-top: 2px solid #333;">
+              <td colspan="4" style="text-align: right; font-weight: bold; font-size: 18px;">Total Amount:</td>
+              <td style="font-weight: bold; font-size: 18px;">₹${(typeof totalAmount ===
+              "string"
+                ? parseFloat(totalAmount)
+                : totalAmount || 0
+              ).toFixed(2)}</td>
+            </tr>
+            `
             }
           </tbody>
         </table>
 
         <div class="total-section">
-          <div class="total-amount">Total Amount Payable: ₹${(typeof totalAmount ===
+          <div class="total-amount">Total Amount Payable: ₹${((typeof totalAmount ===
           "string"
             ? parseFloat(totalAmount)
-            : totalAmount || 0
-          ).toFixed(2)}</div>
+            : totalAmount || 0) + Number(shippingCharge || 0)).toFixed(2)}</div>
         </div>
         <div class="footer">
           <div class="thank-you">Thank you for your purchase!</div>
+          ${
+            trackingId && trackingId.trim() !== ""
+              ? `<p style="font-size: 14px; color: #333; font-weight: bold;">Tracking ID: ${trackingId}</p>`
+              : ""
+          }
           <p>Visit us again for more amazing collections</p>
           ${
             sellType === "HALL_SELL_ONLINE" || sellType === "HALL_SELL_OFFLINE"

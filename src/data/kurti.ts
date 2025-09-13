@@ -2553,13 +2553,18 @@ export const regenerateOnlineSaleInvoice = async (
   currentUser: any
 ) => {
   try {
-    // Get the existing batch with all sales data
+    // Get the existing batch with all sales data and order information
     const existingBatch = await db.onlineSellBatch.findUnique({
       where: { id: batchId },
       include: {
         sales: {
           include: {
             kurti: true,
+          },
+        },
+        order: {
+          include: {
+            shippingAddress: true,
           },
         },
       },
@@ -2579,12 +2584,16 @@ export const regenerateOnlineSaleInvoice = async (
       totalPrice: (sale.selledPrice || 0) * (sale.quantity || 1),
     }));
 
+    // Get shipping information from the order
+    const shippingCharge = existingBatch.order?.shippingCharge || 0;
+    const trackingId = existingBatch.order?.trackingId || "";
+
     // Delete old invoice from Firebase if it exists
     if (existingBatch.invoiceUrl) {
       await deleteInvoiceFromFirebase(existingBatch.batchNumber);
     }
 
-    // Generate new invoice HTML
+    // Generate new invoice HTML with shipping information
     const invoiceHTML = generateInvoiceHTML(
       existingBatch,
       existingBatch.batchNumber,
@@ -2597,7 +2606,9 @@ export const regenerateOnlineSaleInvoice = async (
       existingBatch.totalAmount,
       existingBatch.gstType === "IGST" ? "IGST" : "SGST_CGST",
       existingBatch.invoiceNumber?.toString() || "",
-      existingBatch.sellType || "HALL_SELL_ONLINE"
+      existingBatch.sellType || "HALL_SELL_ONLINE",
+      shippingCharge,
+      trackingId
     );
 
     // Generate PDF from HTML using Puppeteer

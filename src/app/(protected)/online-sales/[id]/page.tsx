@@ -1098,6 +1098,47 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           </div>
         )}
 
+        {/* Shipping Information */}
+        {originalSaleData?.order && (
+          <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+            <h3 className="text-lg font-semibold mb-3 text-blue-800">
+              🚚 Shipping Information
+            </h3>
+            <div className="text-sm text-gray-600 space-y-2">
+              {originalSaleData.order.shippingCharge > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Shipping Charge:</span>
+                  <span className="font-bold text-blue-700">
+                    ₹{originalSaleData.order.shippingCharge}
+                  </span>
+                </div>
+              )}
+              {originalSaleData.order.trackingId && (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Tracking ID:</span>
+                  <span className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">
+                    {originalSaleData.order.trackingId}
+                  </span>
+                </div>
+              )}
+              {originalSaleData.order.shippingAddress && (
+                <div className="mt-3">
+                  <span className="font-medium">Shipping Address:</span>
+                  <div className="mt-1 p-2 bg-blue-100 rounded text-blue-800">
+                    <p>{originalSaleData.order.shippingAddress.address}</p>
+                    {originalSaleData.order.shippingAddress.zipCode && (
+                      <p>ZIP: {originalSaleData.order.shippingAddress.zipCode}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {!originalSaleData.order.shippingCharge && !originalSaleData.order.trackingId && (
+                <p className="text-gray-500 italic">No shipping information available</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Payment Information */}
         {originalSaleData && (
           <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
@@ -1123,12 +1164,18 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                 <div className="text-green-700">
                   <p>💳 Payment completed via wallet</p>
                   <p>💰 Amount deducted: ₹{originalSaleData.totalAmount}</p>
+                  {originalSaleData.order?.shippingCharge > 0 && (
+                    <p>🚚 Shipping charge: ₹{originalSaleData.order.shippingCharge}</p>
+                  )}
                 </div>
               )}
               {originalSaleData.paymentStatus === "PENDING" && (
                 <div className="text-orange-700">
                   <p>⚠️ Payment is pending</p>
                   <p>💰 Amount to be paid: ₹{originalSaleData.totalAmount}</p>
+                  {originalSaleData.order?.shippingCharge > 0 && (
+                    <p>🚚 Shipping charge: ₹{originalSaleData.order.shippingCharge}</p>
+                  )}
                   <p className="text-xs mt-1">
                     This order was completed but payment could not be processed
                     due to insufficient wallet balance.
@@ -1145,7 +1192,13 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
               Sale Items ({originalSaleData.sales?.length || 0} items)
             </h3>
             <div className="text-sm text-gray-600">
-              <p>Total Amount: ₹{originalSaleData.totalAmount}</p>
+              <p>Subtotal: ₹{originalSaleData.totalAmount}</p>
+              {originalSaleData.order?.shippingCharge > 0 && (
+                <p>Shipping Charge: ₹{originalSaleData.order.shippingCharge}</p>
+              )}
+              <p className="font-bold text-green-700">
+                Total Amount: ₹{originalSaleData.totalAmount + (originalSaleData.order?.shippingCharge || 0)}
+              </p>
               <p>Total Items: {originalSaleData.totalItems}</p>
               <p>
                 Sale Time:{" "}

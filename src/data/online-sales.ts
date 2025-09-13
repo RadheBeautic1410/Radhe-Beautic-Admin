@@ -304,6 +304,7 @@ export const getOnlineSaleById = async (id: string) => {
         order: {
           include: {
             user: true,
+            shippingAddress: true,
           },
         },
       },
@@ -1060,7 +1061,11 @@ export const updateOnlineSaleWithWalletAndCart = async (
           totalPrice: sale.selledPrice ?? 0 * (sale.quantity || 1),
         }));
 
-        // Generate invoice HTML
+        // Get shipping information from the order
+        const shippingCharge = currentOrder?.shippingCharge || 0;
+        const trackingId = currentOrder?.trackingId || "";
+
+        // Generate invoice HTML with shipping information
         const invoiceHTML = generateInvoiceHTML(
           result,
           result.batchNumber,
@@ -1073,7 +1078,9 @@ export const updateOnlineSaleWithWalletAndCart = async (
           result.totalAmount,
           (result.gstType as "IGST" | "SGST_CGST") || "SGST_CGST",
           result.invoiceNumber?.toString() || "",
-          result.sellType
+          result.sellType,
+          shippingCharge,
+          trackingId
         );
 
         // Generate PDF from HTML
@@ -1409,6 +1416,11 @@ export const completePendingOrderPayment = async (
             kurti: true,
           },
         },
+        order: {
+          include: {
+            shippingAddress: true,
+          },
+        },
       },
     });
 
@@ -1495,7 +1507,11 @@ export const completePendingOrderPayment = async (
         unitPrice: sale.selledPrice || 0,
       }));
 
-      // Generate invoice HTML
+      // Get shipping information from the order
+      const shippingCharge = currentSale.order?.shippingCharge || 0;
+      const trackingId = currentSale.order?.trackingId || "";
+
+      // Generate invoice HTML with shipping information
       const invoiceHTML = generateInvoiceHTML(
         currentSale,
         currentSale.batchNumber,
@@ -1508,7 +1524,9 @@ export const completePendingOrderPayment = async (
         currentSale.totalAmount,
         (currentSale.gstType as "IGST" | "SGST_CGST") || "SGST_CGST",
         currentSale.invoiceNumber?.toString() || "",
-        currentSale.sellType
+        currentSale.sellType,
+        shippingCharge,
+        trackingId
       );
 
       // Generate PDF from HTML
@@ -1557,13 +1575,18 @@ export const regenerateOnlineSaleInvoice = async (
   currentUser: any
 ) => {
   try {
-    // Get the existing batch with all sales data
+    // Get the existing batch with all sales data and order information
     const existingBatch = await db.onlineSellBatch.findUnique({
       where: { id: batchId },
       include: {
         sales: {
           include: {
             kurti: true,
+          },
+        },
+        order: {
+          include: {
+            shippingAddress: true,
           },
         },
       },
@@ -1592,7 +1615,11 @@ export const regenerateOnlineSaleInvoice = async (
       soldProducts
     );
 
-    // Generate invoice HTML
+    // Get shipping information from the order
+    const shippingCharge = existingBatch.order?.shippingCharge || 0;
+    const trackingId = existingBatch.order?.trackingId || "";
+
+    // Generate invoice HTML with shipping information
     const invoiceHTML = generateInvoiceHTML(
       existingBatch,
       existingBatch.batchNumber,
@@ -1605,7 +1632,9 @@ export const regenerateOnlineSaleInvoice = async (
       existingBatch.totalAmount,
       (existingBatch.gstType as "IGST" | "SGST_CGST") || "SGST_CGST",
       existingBatch.invoiceNumber?.toString() || "",
-      existingBatch.sellType
+      existingBatch.sellType,
+      shippingCharge,
+      trackingId
     );
 
     // Generate PDF from HTML
