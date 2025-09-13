@@ -17,6 +17,8 @@ export const generateInvoicePDF = async (data: {
   gstType: "IGST" | "SGST_CGST";
   invoiceNumber: string;
   sellType: OfflineSellType | OnlineSellType;
+  shippingCharge?: number;
+  trackingId?: string;
 }): Promise<{ success: boolean; pdfBase64?: string; error?: string }> => {
   try {
     const {
@@ -63,7 +65,9 @@ export const generateInvoicePDF = async (data: {
       totalAmount,
       gstType || "SGST_CGST",
       invoiceNumber,
-      sellType
+      sellType,
+      data.shippingCharge,
+      data.trackingId
     );
 
     // Generate PDF from HTML

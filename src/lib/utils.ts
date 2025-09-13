@@ -19,7 +19,9 @@ export const generateInvoiceHTML = (
   totalAmount: number,
   gstType: "IGST" | "SGST_CGST" = "SGST_CGST",
   invoiceNumber: string = "",
-  sellType: OfflineSellType | OnlineSellType = "SHOP_SELL_OFFLINE"
+  sellType: OfflineSellType | OnlineSellType = "SHOP_SELL_OFFLINE",
+  shippingCharge?: number,
+  trackingId?: string
 ) => {
   const currentDate = new Date().toLocaleDateString("en-IN");
   const currentTime = new Date().toLocaleTimeString("en-IN");
@@ -189,6 +191,11 @@ export const generateInvoiceHTML = (
                 : ""
             }
             <div class="info-row"><span class="info-label">Bill By:</span> ${billCreatedBy}</div>
+            ${
+              trackingId
+                ? `<div class="info-row"><span class="info-label">Tracking ID:</span> ${trackingId}</div>`
+                : ""
+            }
           </div>
           <div class="info-block">
             <h3>Customer Details</h3>
@@ -260,6 +267,16 @@ export const generateInvoiceHTML = (
                 : totalAmount || 0
               ).toFixed(2)}</td>
             </tr>
+            ${
+              shippingCharge && shippingCharge > 0
+                ? `
+            <tr>
+              <td colspan="4" style="text-align: right; font-weight: bold;">Shipping Charge:</td>
+              <td style="font-weight: bold;">₹${Number(shippingCharge).toFixed(2)}</td>
+            </tr>
+            `
+                : ""
+            }
           </tbody>
         </table>
 

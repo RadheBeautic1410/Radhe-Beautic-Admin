@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { generateInvoicePDF } from "@/src/actions/generate-pdf";
+import { shippedOrder } from "@/src/actions/order";
 import { getShopList, getUserShop } from "@/src/actions/shop";
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
@@ -74,6 +75,8 @@ function SellPage() {
   const [orderData, setOrderData] = useState<any>(null);
   const [orderLoading, setOrderLoading] = useState(true);
   const [userBalance, setUserBalance] = useState<number | null>(null);
+  const [trackingId, setTrackingId] = useState("");
+  const [shippingCharge, setShippingCharge] = useState<number>(0);
 
   const currentUser = useCurrentUser();
 
@@ -378,6 +381,11 @@ function SellPage() {
 
       const currentTime = getCurrTime();
 
+      if (trackingId.trim().length === 0 || shippingCharge <= 0) {
+        toast.error("Enter valid tracking id and shipping charge");
+        return;
+      }
+
       // Prepare products data for API
       const products = cart.map((item) => ({
         code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
@@ -413,8 +421,21 @@ function SellPage() {
           toast.success("Sale completed successfully! Order marked as PENDING due to insufficient wallet balance.");
         }
         
-        // Generate invoice
-        await generateInvoice(data);
+        // Mark order shipped with tracking and shipping charge
+        try {
+          const shipRes: any = await shippedOrder(orderId, trackingId, shippingCharge);
+          if (shipRes?.error) {
+            toast.error(shipRes.error);
+          } else {
+            toast.success("Order marked as SHIPPED");
+          }
+        } catch (e) {
+          console.error(e);
+          toast.error("Failed to mark order as shipped");
+        }
+
+        // Generate invoice including shipping details
+        await generateInvoice({ ...data, trackingId, shippingCharge });
 
         // Show invoice URL if available
         if (data.batchNumber) {
@@ -459,11 +480,13 @@ function SellPage() {
         billCreatedBy,
         currentUser,
         soldProducts,
-        totalAmount: getTotalAmount(),
+        totalAmount: getTotalAmount() + (saleData?.shippingCharge || 0),
         gstType,
         invoiceNumber: saleData.invoiceNumber || "",
         sellType: "HALL_SELL_ONLINE", // Regular offline sales are not hall sales
-      });
+        shippingCharge: saleData?.shippingCharge || 0,
+        trackingId: saleData?.trackingId || trackingId,
+      } as any);
 
       if (!result.success || !result.pdfBase64) {
         throw new Error(result.error || "Failed to generate PDF");
@@ -701,6 +724,26 @@ function SellPage() {
                   {orderData.shippingAddress.address}
                   {orderData.shippingAddress.zipCode &&
                     `, ${orderData.shippingAddress.zipCode}`}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <Label className="text-sm font-medium text-green-700">Tracking ID *</Label>
+                    <Input
+                      placeholder="Enter tracking id"
+                      value={trackingId}
+                      onChange={(e) => setTrackingId(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-green-700">Shipping Charge *</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Enter shipping charge"
+                      value={shippingCharge}
+                      onChange={(e) => setShippingCharge(parseInt(e.target.value || "0"))}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -1047,7 +1090,7 @@ function SellPage() {
 
             <div className="flex justify-between items-center mt-4 pt-4 border-t border-green-300">
               <div className="text-xl font-bold text-green-800">
-                Total Amount: ₹{getTotalAmount()}
+                Total Amount: ₹{getTotalAmount()} {shippingCharge > 0 ? `+ Shipping ₹${shippingCharge}` : ""}
               </div>
               <div className="flex gap-3">
                 <Button
