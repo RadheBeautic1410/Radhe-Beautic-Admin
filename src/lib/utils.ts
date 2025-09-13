@@ -154,7 +154,7 @@ export const generateInvoiceHTML = (
           text-align: right;
         }
         .total-amount { font-size: 24px; font-weight: bold; color: #e74c3c; }
-        .footer { margin-top: 20px; text-align: center; color: #666; font-size: 14px; border-top: 1px solid #ddd; padding-top: 20px; }
+        .footer { text-align: center; color: #666; font-size: 14px; border-top: 1px solid #ddd; padding-top: 20px; }
         .thank-you { font-size: 18px; color: #27ae60; font-weight: bold; margin-bottom: 10px; }
         @media print {
           body { background: white; }
