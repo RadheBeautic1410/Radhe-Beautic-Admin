@@ -147,7 +147,7 @@ export const generateInvoiceHTML = (
         th { background: #34495e; color: white; }
         tr:nth-child(even) { background: #f9f9f9; }
         .total-section {
-          margin-top: 30px;
+          margin-top: 16px;
           background: #f8f9fa;
           padding: 20px;
           border-radius: 8px;
