@@ -83,6 +83,7 @@ model User {
   balance       Float           @default(0)
   WalletHistory WalletHistory[] @relation(name: "UserWalletHistory")
   shop          Shop?           @relation("ShopOwner")
+  ShippingChangeLog ShippingChangeLog[]
 }
 
 model VerificationToken {
@@ -390,6 +391,7 @@ model Orders {
   user             User?              @relation(fields: [userId], references: [id])
   OfflineSellBatch OfflineSellBatch[]
   OnlineSellBatch  OnlineSellBatch[]
+  ShippingChangeLog ShippingChangeLog[]
 }
 
 model Address {
@@ -460,4 +462,21 @@ model WalletHistory {
 enum WalletTxnType {
   CREDIT
   DEBIT
+}
+
+model ShippingChangeLog {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId           String   @db.ObjectId
+  order             Orders   @relation(fields: [orderId], references: [id])
+  previousTrackingId String?
+  newTrackingId     String?
+  previousShippingCharge Int?
+  newShippingCharge Int?
+  changedBy         String   @db.ObjectId
+  changedByUser     User     @relation(fields: [changedBy], references: [id])
+  changeReason      String?  // Optional reason for the change
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("shipping_change_logs")
 }

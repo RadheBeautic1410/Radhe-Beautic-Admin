@@ -83,6 +83,15 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   const [userBalance, setUserBalance] = useState<number | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
 
+  // Shipping editing states
+  const [editingShipping, setEditingShipping] = useState(false);
+  const [shippingTrackingId, setShippingTrackingId] = useState("");
+  const [shippingCharge, setShippingCharge] = useState(0);
+  const [changeReason, setChangeReason] = useState("");
+  const [updatingShipping, setUpdatingShipping] = useState(false);
+  const [shippingHistory, setShippingHistory] = useState<any[]>([]);
+  const [showShippingHistory, setShowShippingHistory] = useState(false);
+
   const currentUser = useCurrentUser();
   const router = useRouter();
 
@@ -117,6 +126,12 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       setPaymentStatus(saleData.paymentStatus || "PENDING");
       setGstType(saleData.gstType || "SGST_CGST");
       setSellType(saleData.sellType || "HALL_SELL_ONLINE");
+
+      // Load shipping information
+      if (saleData.order) {
+        setShippingTrackingId(saleData.order.trackingId || "");
+        setShippingCharge(saleData.order.shippingCharge || 0);
+      }
 
       // Load existing cart items
       const existingCartItems = saleData.sales.map((sale: any) => ({
@@ -544,6 +559,70 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       );
     } finally {
       setRegeneratingInvoice(false);
+    }
+  };
+
+  const updateShippingInformation = async () => {
+    try {
+      setUpdatingShipping(true);
+
+      const response = await axios.put(
+        `/api/sell/online-sales/${params.id}/update-shipping`,
+        {
+          trackingId: shippingTrackingId,
+          shippingCharge: shippingCharge,
+          changeReason: changeReason,
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Shipping information updated successfully!");
+        
+        // Update the original sale data
+        if (originalSaleData) {
+          setOriginalSaleData({
+            ...originalSaleData,
+            order: {
+              ...originalSaleData.order,
+              trackingId: response.data.data.trackingId,
+              shippingCharge: response.data.data.shippingCharge,
+            },
+          });
+        }
+
+        // Reset form
+        setEditingShipping(false);
+        setChangeReason("");
+      } else {
+        toast.error(response.data.error || "Failed to update shipping information");
+      }
+    } catch (error: any) {
+      console.error("Error updating shipping information:", error);
+      toast.error(
+        error.response?.data?.error || "Failed to update shipping information"
+      );
+    } finally {
+      setUpdatingShipping(false);
+    }
+  };
+
+  const fetchShippingHistory = async () => {
+    try {
+      const response = await axios.get(
+        `/api/sell/online-sales/${params.id}/shipping-history`
+      );
+
+      if (response.data.success) {
+        setShippingHistory(response.data.data);
+        setShowShippingHistory(true);
+      } else {
+        toast.error(response.data.error || "Failed to fetch shipping history");
+      }
+    } catch (error: any) {
+      console.error("Error fetching shipping history:", error);
+      toast.error(
+        error.response?.data?.error || "Failed to fetch shipping history"
+      );
     }
   };
 
@@ -1101,41 +1180,126 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         {/* Shipping Information */}
         {originalSaleData?.order && (
           <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-            <h3 className="text-lg font-semibold mb-3 text-blue-800">
-              🚚 Shipping Information
-            </h3>
-            <div className="text-sm text-gray-600 space-y-2">
-              {originalSaleData.order.shippingCharge > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Shipping Charge:</span>
-                  <span className="font-bold text-blue-700">
-                    ₹{originalSaleData.order.shippingCharge}
-                  </span>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-semibold text-blue-800">
+                🚚 Shipping Information
+              </h3>
+              {currentUser?.role === "ADMIN" && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={fetchShippingHistory}
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-600 border-blue-300 hover:bg-blue-100"
+                  >
+                    📋 History
+                  </Button>
+                  <Button
+                    onClick={() => setEditingShipping(!editingShipping)}
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-600 border-blue-300 hover:bg-blue-100"
+                  >
+                    {editingShipping ? "❌ Cancel" : "✏️ Edit"}
+                  </Button>
                 </div>
-              )}
-              {originalSaleData.order.trackingId && (
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Tracking ID:</span>
-                  <span className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">
-                    {originalSaleData.order.trackingId}
-                  </span>
-                </div>
-              )}
-              {originalSaleData.order.shippingAddress && (
-                <div className="mt-3">
-                  <span className="font-medium">Shipping Address:</span>
-                  <div className="mt-1 p-2 bg-blue-100 rounded text-blue-800">
-                    <p>{originalSaleData.order.shippingAddress.address}</p>
-                    {originalSaleData.order.shippingAddress.zipCode && (
-                      <p>ZIP: {originalSaleData.order.shippingAddress.zipCode}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-              {!originalSaleData.order.shippingCharge && !originalSaleData.order.trackingId && (
-                <p className="text-gray-500 italic">No shipping information available</p>
               )}
             </div>
+
+            {editingShipping && currentUser?.role === "ADMIN" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="tracking-id">Tracking ID</Label>
+                    <Input
+                      id="tracking-id"
+                      placeholder="Enter tracking ID"
+                      value={shippingTrackingId}
+                      onChange={(e) => setShippingTrackingId(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="shipping-charge">Shipping Charge (₹)</Label>
+                    <Input
+                      id="shipping-charge"
+                      type="number"
+                      placeholder="Enter shipping charge"
+                      value={shippingCharge}
+                      onChange={(e) => setShippingCharge(parseInt(e.target.value) || 0)}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="change-reason">Reason for Change (Optional)</Label>
+                  <Input
+                    id="change-reason"
+                    placeholder="Enter reason for change"
+                    value={changeReason}
+                    onChange={(e) => setChangeReason(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={updateShippingInformation}
+                    disabled={updatingShipping}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {updatingShipping ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
+                    Update Shipping
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setEditingShipping(false);
+                      setChangeReason("");
+                    }}
+                    variant="outline"
+                    disabled={updatingShipping}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-600 space-y-2">
+                {originalSaleData.order.shippingCharge > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Shipping Charge:</span>
+                    <span className="font-bold text-blue-700">
+                      ₹{originalSaleData.order.shippingCharge}
+                    </span>
+                  </div>
+                )}
+                {originalSaleData.order.trackingId && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Tracking ID:</span>
+                    <span className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">
+                      {originalSaleData.order.trackingId}
+                    </span>
+                  </div>
+                )}
+                {originalSaleData.order.shippingAddress && (
+                  <div className="mt-3">
+                    <span className="font-medium">Shipping Address:</span>
+                    <div className="mt-1 p-2 bg-blue-100 rounded text-blue-800">
+                      <p>{originalSaleData.order.shippingAddress.address}</p>
+                      {originalSaleData.order.shippingAddress.zipCode && (
+                        <p>ZIP: {originalSaleData.order.shippingAddress.zipCode}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {!originalSaleData.order.shippingCharge && !originalSaleData.order.trackingId && (
+                  <p className="text-gray-500 italic">No shipping information available</p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1301,6 +1465,85 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           title="Enable Edit Mode"
           description="Please enter the password to enable edit mode for this online sale."
         />
+
+        {/* Shipping History Dialog */}
+        {showShippingHistory && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">📋 Shipping Change History</h3>
+                <Button
+                  onClick={() => setShowShippingHistory(false)}
+                  variant="outline"
+                  size="sm"
+                >
+                  ✕ Close
+                </Button>
+              </div>
+              
+              {shippingHistory.length > 0 ? (
+                <div className="space-y-4">
+                  {shippingHistory.map((change, index) => (
+                    <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="font-semibold text-sm text-gray-700 mb-2">Tracking ID Changes</h4>
+                          <div className="space-y-1">
+                            <p className="text-sm">
+                              <span className="font-medium">From:</span> 
+                              <span className="ml-2 px-2 py-1 bg-gray-200 rounded text-xs">
+                                {change.previousTrackingId || "None"}
+                              </span>
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-medium">To:</span> 
+                              <span className="ml-2 px-2 py-1 bg-blue-100 rounded text-xs">
+                                {change.newTrackingId || "None"}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-sm text-gray-700 mb-2">Shipping Charge Changes</h4>
+                          <div className="space-y-1">
+                            <p className="text-sm">
+                              <span className="font-medium">From:</span> 
+                              <span className="ml-2 font-semibold">₹{change.previousShippingCharge || 0}</span>
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-medium">To:</span> 
+                              <span className="ml-2 font-semibold text-green-600">₹{change.newShippingCharge || 0}</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex justify-between items-center text-xs text-gray-600">
+                          <div>
+                            <p><span className="font-medium">Changed by:</span> {change.changedByUser?.name || change.changedByUser?.phoneNumber} ({change.changedByUser?.role})</p>
+                            <p><span className="font-medium">Date:</span> {new Date(change.createdAt).toLocaleString()}</p>
+                          </div>
+                        </div>
+                        {change.changeReason && (
+                          <div className="mt-2">
+                            <p className="text-xs">
+                              <span className="font-medium">Reason:</span> {change.changeReason}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No shipping changes recorded yet.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
