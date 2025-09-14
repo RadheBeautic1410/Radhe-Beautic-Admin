@@ -31,13 +31,47 @@ export const kurtiAddition = async (data: any) => {
   dataWithTime["lastUpdatedTime"] = currTime;
   dataWithTime["reservedSizes"] = [];
   console.log(dataWithTime);
+
+  // Check if the selected category has prices set
+  const categoryData = await db.category.findUnique({
+    where: {
+      normalizedLowerCase: category.toLowerCase(),
+    },
+  });
+
+  // If category has no sellingPrice or actualPrice, use user-entered values
+  let finalSellingPrice = data.sellingPrice;
+  let finalActualPrice = data.actualPrice;
+
+  if (categoryData) {
+    // If category has no sellingPrice, use user-entered sellingPrice
+    if (!categoryData.sellingPrice || categoryData.sellingPrice === 0) {
+      finalSellingPrice = data.sellingPrice;
+    } else {
+      // Use category's sellingPrice if available
+      finalSellingPrice = categoryData.sellingPrice.toString();
+    }
+
+    // If category has no actualPrice, use user-entered actualPrice
+    if (!categoryData.actualPrice || categoryData.actualPrice === 0) {
+      finalActualPrice = data.actualPrice;
+    } else {
+      // Use category's actualPrice if available
+      finalActualPrice = categoryData.actualPrice.toString();
+    }
+  }
+
+  // Update the data with final prices
+  dataWithTime["sellingPrice"] = finalSellingPrice;
+  dataWithTime["actualPrice"] = finalActualPrice;
+
   let obj = {
-    sellingPrice1: parseInt(data.sellingPrice || "0"),
-    sellingPrice2: parseInt(data.sellingPrice || "0"),
-    sellingPrice3: parseInt(data.sellingPrice || "0"),
-    actualPrice1: parseInt(data.actualPrice || "0"),
-    actualPrice2: parseInt(data.actualPrice || "0"),
-    actualPrice3: parseInt(data.actualPrice || "0"),
+    sellingPrice1: parseInt(finalSellingPrice || "0"),
+    sellingPrice2: parseInt(finalSellingPrice || "0"),
+    sellingPrice3: parseInt(finalSellingPrice || "0"),
+    actualPrice1: parseInt(finalActualPrice || "0"),
+    actualPrice2: parseInt(finalActualPrice || "0"),
+    actualPrice3: parseInt(finalActualPrice || "0"),
   };
   const price = await db.prices.create({
     data: obj,
