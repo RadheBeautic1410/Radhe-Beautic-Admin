@@ -158,7 +158,15 @@ export const categoryUpdate = async (
   const user = await currentUser();
   const role = await currentRole();
 
-  const { name, type, image, bigPrice, walletDiscount } = data;
+  const {
+    name,
+    type,
+    image,
+    bigPrice,
+    walletDiscount,
+    sellingPrice,
+    actualPrice,
+  } = data;
 
   if (name.length === 0) {
     return { error: "Category Can't be empty" };
@@ -185,6 +193,8 @@ export const categoryUpdate = async (
         name,
         type: type.toUpperCase(),
         image: image ?? existingCategory.image,
+        actualPrice: actualPrice ?? existingCategory.actualPrice,
+        sellingPrice: sellingPrice ?? existingCategory.sellingPrice,
         bigPrice: bigPrice ?? existingCategory.bigPrice,
         walletDiscount: walletDiscount ?? existingCategory.walletDiscount,
       },

@@ -85,6 +85,8 @@ const EditCategoryModal = ({
         name: values.name,
         type: values.type || "",
         image: values.image,
+        sellingPrice: values.sellingPrice,
+        actualPrice: values.actualPrice,
         bigPrice: values.bigPrice, // Include bigPrice in the update
         walletDiscount: values.walletDiscount || 0,
       })
