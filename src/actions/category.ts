@@ -22,6 +22,8 @@ interface categoryAddtionProps {
   type: string;
   image?: string;
   price?: number | null;
+  actualPrice?: number | null;
+  sellingPrice?: number | null;
   bigPrice?: number | null;
   walletDiscount?: number;
 }
@@ -30,7 +32,8 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
   const user = await currentUser();
   const role = await currentRole();
 
-  const { name, type, image, bigPrice, price } = data;
+  const { name, type, image, actualPrice, sellingPrice, bigPrice, price } =
+    data;
   if (name.length === 0) {
     return { error: "Category Can't be empty" };
   }
@@ -81,7 +84,8 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
       code,
       type: type.toUpperCase(),
       image: image || "",
-      sellingPrice: price || 0,
+      actualPrice: actualPrice || 0,
+      sellingPrice: sellingPrice || 0,
       bigPrice: bigPrice || 0,
     },
   });
@@ -401,7 +405,6 @@ export async function generateMultipleCategoryPDFs(categoryCodes: string[]) {
 
 export const getCategoryOverallStates = async () => {
   try {
-
     const rows = await db.category.findMany({
       where: { isDeleted: false },
       select: {
@@ -589,7 +592,7 @@ type SizeObject = {
 
 //     for (const kurti of kurtis) {
 //       // sizes field is Json[], as per your schema, parse and sum
-//       const sizes = kurti.sizes as SizeObject[] | null; 
+//       const sizes = kurti.sizes as SizeObject[] | null;
 //       if (sizes && Array.isArray(sizes)) {
 //         for (const sizeObject of sizes) {
 //           if (sizeObject?.quantity !== -1 && typeof sizeObject.quantity == "number") {
@@ -637,7 +640,10 @@ export default async function syncCategoryData() {
         const sizes = kurti.sizes as { quantity: number }[] | null;
         if (sizes) {
           for (const sizeObject of sizes) {
-            if (sizeObject?.quantity !== -1 && typeof sizeObject.quantity === "number") {
+            if (
+              sizeObject?.quantity !== -1 &&
+              typeof sizeObject.quantity === "number"
+            ) {
               countTotal += sizeObject.quantity;
             }
           }
@@ -646,7 +652,7 @@ export default async function syncCategoryData() {
 
       await db.category.update({
         where: { id: category.id },
-        data: { 
+        data: {
           totalItems,
           countTotal,
         },
@@ -656,4 +662,3 @@ export default async function syncCategoryData() {
 
   return { success: true, message: "All categories updated successfully!" };
 }
-

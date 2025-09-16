@@ -66,6 +66,8 @@ const EditCategoryModal = ({
       name: category.name,
       type: category.type || "",
       image: category.image || "/images/no-image.png",
+      sellingPrice: category.sellingPrice || undefined,
+      actualPrice: category.actualPrice || undefined,
       bigPrice: category.bigPrice || undefined,
       walletDiscount: category.walletDiscount || undefined,
     },
@@ -137,6 +139,8 @@ const EditCategoryModal = ({
         name: category.name,
         type: category.type || "",
         image: category.image || "/images/no-image.png",
+        actualPrice: category.actualPrice,
+        sellingPrice: category.sellingPrice,
         bigPrice: category.bigPrice || 0,
         walletDiscount: category.walletDiscount || 0,
       });
@@ -201,6 +205,56 @@ const EditCategoryModal = ({
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="actualPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Actual Price (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      disabled={isPending}
+                      placeholder="Enter actual price"
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value ? parseFloat(value) : undefined);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="sellingPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Selling Price (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      disabled={isPending}
+                      placeholder="Enter selling price"
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value ? parseFloat(value) : undefined);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="bigPrice"

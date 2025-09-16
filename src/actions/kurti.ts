@@ -249,15 +249,16 @@ export const categoryChange = async (data: any) => {
     category,
     bigPrice
   );
-  // its category change JK30005 CR70028 [ { size: 'XL', quantity: 10 } ] true CR7 0
+
   // Total pieces in selected sizes
   const pieceCount = selectedSizes.reduce(
     (sum: number, size: any) => sum + (size?.quantity || 0),
     0
   );
+
   if (isPartialMove) {
     console.log("its inside partial move");
-    
+
     // Decrease countTotal from old category
     await db.category.update({
       where: { code: code.substring(0, 3) },
@@ -265,27 +266,29 @@ export const categoryChange = async (data: any) => {
         countTotal: { decrement: pieceCount - selectedSizes.length },
       },
     });
+
     // Increase countTotal from new category
     await db.category.update({
       where: { code: newCode.substring(0, 3) },
       data: {
-        countTotal: { increment: pieceCount - selectedSizes.length},
+        countTotal: { increment: pieceCount - selectedSizes.length },
       },
     });
   } else {
-        console.log("its outside partial move");
+    console.log("its outside partial move");
+
     await db.category.update({
       where: { code: code.substring(0, 3) },
       data: {
-        countTotal: { decrement: pieceCount - selectedSizes.length},
+        countTotal: { decrement: pieceCount - selectedSizes.length },
         totalItems: { decrement: 1 },
       },
     });
-    // Increase countTotal from new category
+
     await db.category.update({
       where: { code: newCode.substring(0, 3) },
       data: {
-        countTotal: { increment: pieceCount - selectedSizes.length},
+        countTotal: { increment: pieceCount - selectedSizes.length },
         totalItems: { increment: 1 },
       },
     });
@@ -293,7 +296,6 @@ export const categoryChange = async (data: any) => {
 
   const sanitizeForPrisma = (obj: any) => {
     const sanitized = { ...obj };
-
     const jsonArrayFields = ["sizes", "reservedSizes", "images"];
 
     jsonArrayFields.forEach((field) => {
@@ -307,172 +309,172 @@ export const categoryChange = async (data: any) => {
     return sanitized;
   };
 
-  const ret = await db.$transaction(async (transaction) => {
-    const oldKurti = await transaction.kurti.findUnique({
-      where: { code, isDeleted: false },
-    });
+  const ret = await db.$transaction(
+    async (transaction) => {
+      const oldKurti = await transaction.kurti.findUnique({
+        where: { code, isDeleted: false },
+      });
 
-    if (!oldKurti) {
-      return { error: "Kurti Not found" };
-    }
+      if (!oldKurti) {
+        return { error: "Kurti Not found" };
+      }
 
-    // Check if target category exists and needs bigPrice update
-    const targetCategory = await transaction.category.findUnique({
-      where: { normalizedLowerCase: category.toLowerCase() },
-    });
-
-    if (!targetCategory) {
-      return { error: "Target category not found" };
-    }
-
-    // Update category bigPrice if needed
-    if (oldKurti.isBigPrice && !targetCategory.bigPrice && bigPrice) {
-      await transaction.category.update({
+      // Check if target category exists and needs bigPrice update
+      const targetCategory = await transaction.category.findUnique({
         where: { normalizedLowerCase: category.toLowerCase() },
-        data: { bigPrice: bigPrice },
-      });
-    }
-
-    let newKurti;
-
-    if (isPartialMove && selectedSizes.length > 0) {
-      const selectedSizesSet = selectedSizes.map((s: any) =>
-        s.size.toUpperCase()
-      );
-      const remainingSizes = oldKurti.sizes.filter(
-        (size: any) => !selectedSizesSet.includes(size.size.toUpperCase())
-      );
-
-      const validRemainingSizes = Array.isArray(remainingSizes)
-        ? remainingSizes.filter((size) => size !== null)
-        : [];
-
-      await transaction.kurti.update({
-        where: { code },
-        data: {
-          sizes: validRemainingSizes,
-          lastUpdatedTime: currTime,
-        },
       });
 
-      await transaction.movedKurtiHistory.create({
-        data: {
-          fromCategory: oldKurti.category,
-          toCategory: category,
-          oldKurtiCode: code,
-          newKurtiCode: newCode,
-          sizes: selectedSizes,
-          kurti: {
-            connect: { code },
+      if (!targetCategory) {
+        return { error: "Target category not found" };
+      }
+
+      // Update category bigPrice if needed
+      if (oldKurti.isBigPrice && !targetCategory.bigPrice && bigPrice) {
+        await transaction.category.update({
+          where: { normalizedLowerCase: category.toLowerCase() },
+          data: { bigPrice: bigPrice },
+        });
+      }
+
+      let newKurti;
+
+      if (isPartialMove && selectedSizes.length > 0) {
+        const selectedSizesSet = selectedSizes.map((s: any) =>
+          s.size.toUpperCase()
+        );
+        const remainingSizes = oldKurti.sizes.filter(
+          (size: any) => !selectedSizesSet.includes(size.size.toUpperCase())
+        );
+
+        const validRemainingSizes = Array.isArray(remainingSizes)
+          ? remainingSizes.filter((size) => size !== null)
+          : [];
+
+        await transaction.kurti.update({
+          where: { code },
+          data: {
+            sizes: validRemainingSizes,
+            lastUpdatedTime: currTime,
           },
-        },
-      });
+        });
 
-      // Filter out null values from selectedSizes
-      const validSelectedSizes = Array.isArray(selectedSizes)
-        ? selectedSizes.filter((size) => size !== null)
-        : [];
-
-      // Create new kurti with selected sizes
-      const newKurtiData = {
-        ...oldKurti,
-        category: category,
-        code: newCode,
-        sizes: validSelectedSizes,
-        lastUpdatedTime: currTime,
-      };
-
-      delete (newKurtiData as any)?.id;
-
-      // Filter out null values from all JSON fields
-      const sanitizedData = sanitizeForPrisma({
-        ...newKurtiData,
-        sizes: validSelectedSizes,
-      });
-
-      newKurti = await transaction.kurti.create({
-        data: sanitizedData,
-      });
-
-      // Update category count for new category
-      await transaction.category.update({
-        where: { normalizedLowerCase: category.toLowerCase() },
-        data: {
-          countTotal: { increment: 1 },
-        },
-      });
-    } else {
-      // Full move - move entire kurti
-
-      // Mark old kurti as deleted
-      await transaction.kurti.update({
-        where: { code },
-        data: {
-          isDeleted: true,
-          lastUpdatedTime: currTime,
-        },
-      });
-
-      // Create new kurti with all data
-      const newKurtiData = {
-        ...oldKurti,
-        category: category,
-        code: newCode,
-        lastUpdatedTime: currTime,
-      };
-
-      delete (newKurtiData as any)?.id;
-
-      const sanitizedData = sanitizeForPrisma(newKurtiData);
-
-      newKurti = await transaction.kurti.create({
-        data: sanitizedData,
-      });
-
-      await transaction.category.update({
-        where: { normalizedLowerCase: category.toLowerCase() },
-        data: {
-          countTotal: { increment: 1 },
-        },
-      });
-
-      await transaction.movedKurtiHistory.create({
-        data: {
-          fromCategory: oldKurti.category,
-          toCategory: category,
-          oldKurtiCode: code,
-          newKurtiCode: newCode,
-          sizes: sanitizedData.sizes,
-          kurti: {
-            connect: { code },
+        await transaction.movedKurtiHistory.create({
+          data: {
+            fromCategory: oldKurti.category,
+            toCategory: category,
+            oldKurtiCode: code,
+            newKurtiCode: newCode,
+            sizes: selectedSizes,
+            kurti: {
+              connect: { code },
+            },
           },
-        },
+        });
+
+        const validSelectedSizes = Array.isArray(selectedSizes)
+          ? selectedSizes.filter((size) => size !== null)
+          : [];
+
+        const newKurtiData = {
+          ...oldKurti,
+          category: category,
+          code: newCode,
+          sizes: validSelectedSizes,
+          lastUpdatedTime: currTime,
+        };
+
+        delete (newKurtiData as any)?.id;
+
+        const sanitizedData = sanitizeForPrisma({
+          ...newKurtiData,
+          sizes: validSelectedSizes,
+        });
+
+        newKurti = await transaction.kurti.create({
+          data: sanitizedData,
+        });
+
+        await transaction.category.update({
+          where: { normalizedLowerCase: category.toLowerCase() },
+          data: {
+            countTotal: { increment: 1 },
+          },
+        });
+      } else {
+        // Full move
+        await transaction.kurti.update({
+          where: { code },
+          data: {
+            isDeleted: true,
+            lastUpdatedTime: currTime,
+          },
+        });
+
+        const newKurtiData = {
+          ...oldKurti,
+          category: category,
+          code: newCode,
+          lastUpdatedTime: currTime,
+        };
+
+        delete (newKurtiData as any)?.id;
+
+        const sanitizedData = sanitizeForPrisma(newKurtiData);
+
+        newKurti = await transaction.kurti.create({
+          data: sanitizedData,
+        });
+
+        await transaction.category.update({
+          where: { normalizedLowerCase: category.toLowerCase() },
+          data: {
+            countTotal: { increment: 1 },
+          },
+        });
+
+        await transaction.movedKurtiHistory.create({
+          data: {
+            fromCategory: oldKurti.category,
+            toCategory: category,
+            oldKurtiCode: code,
+            newKurtiCode: newCode,
+            sizes: sanitizedData.sizes,
+            kurti: {
+              connect: { code },
+            },
+          },
+        });
+
+        await transaction.category.update({
+          where: { normalizedLowerCase: oldKurti.category.toLowerCase() },
+          data: {
+            countTotal: { decrement: 1 },
+          },
+        });
+      }
+
+      const dbKurtiFetch = await transaction.kurti.findUnique({
+        where: { code: newCode },
       });
 
-      await transaction.category.update({
-        where: { normalizedLowerCase: oldKurti.category.toLowerCase() },
-        data: {
-          countTotal: { decrement: 1 },
-        },
-      });
+      return {
+        success: isPartialMove
+          ? "Selected sizes moved successfully!"
+          : "Category changed successfully!",
+        code: dbKurtiFetch?.code,
+        category: dbKurtiFetch?.category,
+        data: dbKurtiFetch,
+      };
+    },
+    {
+      timeout: 15000, // ⬅️ Added 15s transaction timeout
+      maxWait: 5000,
     }
-
-    const dbKurtiFetch = await transaction.kurti.findUnique({
-      where: { code: newCode },
-    });
-
-    return {
-      success: isPartialMove
-        ? "Selected sizes moved successfully!"
-        : "Category changed successfully!",
-      code: dbKurtiFetch?.code,
-      category: dbKurtiFetch?.category,
-      data: dbKurtiFetch,
-    };
-  });
+  );
 
   return ret;
 };
+
 export const deleteCategory = async (data: any) => {
   const { category } = data;
 

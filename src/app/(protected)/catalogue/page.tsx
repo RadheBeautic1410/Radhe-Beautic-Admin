@@ -230,6 +230,8 @@ const ListPage = () => {
       name: "",
       type: "",
       image: "",
+      sellingPrice: 0,
+      actualPrice: 0,
       bigPrice: 0,
       price: 0,
     },
@@ -300,6 +302,12 @@ const ListPage = () => {
           price: values.price,
           bigPrice: values.bigPrice
             ? parseFloat(values.bigPrice?.toString())
+            : null,
+          actualPrice: values.actualPrice
+            ? parseFloat(values.actualPrice?.toString())
+            : null,
+          sellingPrice: values.sellingPrice
+            ? parseFloat(values.sellingPrice?.toString())
             : null,
         })
           .then((data) => {
@@ -1296,7 +1304,7 @@ const ListPage = () => {
                 dialogDescription="Give category name and click add category"
               >
                 <Form {...form}>
-                  <form className="space-y-6">
+                  <form className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
                     <FormField
                       control={form.control}
                       name="name"
@@ -1325,6 +1333,42 @@ const ListPage = () => {
                               {...field}
                               disabled={isPending}
                               placeholder="Enter category type"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="actualPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Actual price</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              disabled={isPending}
+                              placeholder="Enter price of big size"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="sellingPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Selling price</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              disabled={isPending}
+                              placeholder="Enter price of big size"
                             />
                           </FormControl>
                           <FormMessage />
@@ -1393,7 +1437,7 @@ const ListPage = () => {
               disabled={isGenerating}
               onClick={() => SyncData()}
             >
-             {isPending ? "Syncing..." : "Sync"}
+              {isPending ? "Syncing..." : "Sync"}
             </Button>
           </div>
         </div>
