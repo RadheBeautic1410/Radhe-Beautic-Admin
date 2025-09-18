@@ -155,6 +155,17 @@ const routes = [
     ],
     icon: "💧",
   },
+    {
+    name: "Wallet Request",
+    href: "/wallet-request",
+    role: [
+      UserRole.ADMIN,
+      // UserRole.RESELLER,
+      // UserRole.SELLER,
+      // UserRole.UPLOADER,
+    ],
+    icon: "💰",
+  },
 ];
 
 const Sidebar = () => {
