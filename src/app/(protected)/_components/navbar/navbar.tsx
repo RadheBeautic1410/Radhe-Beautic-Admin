@@ -157,9 +157,9 @@ const routes = [
     href: "/wallet-request",
     role: [
       UserRole.ADMIN,
-      UserRole.SELLER_MANAGER,
       // UserRole.RESELLER,
       // UserRole.SELLER,
+      // UserRole.UPLOADER,
     ],
     icon: "💰",
   },
