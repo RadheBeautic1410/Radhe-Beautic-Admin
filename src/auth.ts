@@ -38,6 +38,7 @@ if (user?.id) {
             console.log(existingUser?.isVerified)
             // prevent signin without email verification
             // if (!existingUser?.emailVerified) return false;
+            
 
             if (!existingUser?.isVerified) return false; // for verification
 
