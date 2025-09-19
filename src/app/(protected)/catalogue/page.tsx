@@ -126,7 +126,7 @@ const SORT_TYPES = {
   PRICE_LOW_TO_HIGH: "PRICE_LOW_TO_HIGH",
 } as const;
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 150;
 const KURTI_ITEMS_PER_PAGE = 12;
 
 type SearchTypeValue = (typeof SEARCH_TYPES)[keyof typeof SEARCH_TYPES];
