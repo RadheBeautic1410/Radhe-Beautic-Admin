@@ -3,9 +3,9 @@ import {
   uploadInvoicePDFToFirebase,
   deleteInvoiceFromFirebase,
 } from "@/src/lib/firebase/firebase";
-import { generateInvoiceHTML } from "@/src/lib/utils";
-import { generatePDFFromHTML } from "@/src/lib/puppeteer";
+import { generateInvoicePDF } from "@/src/actions/generate-pdf";
 import { OfflineSellType, OnlineSellType, OrderStatus } from "@prisma/client";
+import { Buffer } from 'buffer';
 
 export const getCurrTime = async () => {
   const currentTime = new Date();
@@ -1560,8 +1560,8 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
 
       // Generate and upload invoice to Firebase
       try {
-        const invoiceHTML = generateInvoiceHTML(
-          data,
+        const result = await generateInvoicePDF({
+          saleData: data,
           batchNumber,
           customerName,
           customerPhone,
@@ -1570,15 +1570,17 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
           currentUser,
           soldProducts,
           totalAmount,
-          gstType || "SGST_CGST",
-          invoiceNumber.toString(),
+          gstType: gstType || "SGST_CGST",
+          invoiceNumber: invoiceNumber.toString(),
           sellType
-        );
+        });
 
-        console.log(data);
+        if (!result.success || !result.pdfBase64) {
+          throw new Error(result.error || "Failed to generate PDF");
+        }
 
-        // Generate PDF from HTML using Puppeteer
-        const pdfBuffer = await generatePDFFromHTML(invoiceHTML);
+        // Convert base64 string to Buffer
+        const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
 
         // Upload PDF to Firebase
         const invoiceUrl = await uploadInvoicePDFToFirebase(
@@ -2103,22 +2105,26 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
         0
       );
 
-      const invoiceHTML = generateInvoiceHTML(
-        data,
+      const result = await generateInvoicePDF({
+        saleData: data,
         batchNumber,
         customerName,
         customerPhone,
         selectedLocation,
         billCreatedBy,
         currentUser,
-        soldProductsForInvoice,
+        soldProducts: soldProductsForInvoice,
         totalAmount,
-        gstType || "SGST_CGST",
-        invoiceNumber.toString(),
+        gstType: gstType || "SGST_CGST",
+        invoiceNumber: invoiceNumber.toString(),
         sellType
-      );
+      });
 
-      const pdfBuffer = await generatePDFFromHTML(invoiceHTML);
+      if (!result.success || !result.pdfBase64) {
+        throw new Error(result.error || "Failed to generate PDF");
+      }
+
+      const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
       const invoiceUrl = await uploadInvoicePDFToFirebase(
         pdfBuffer,
         batchNumber
@@ -2199,24 +2205,28 @@ export const regenerateOfflineSaleInvoice = async (
       await deleteInvoiceFromFirebase(existingBatch.batchNumber);
     }
 
-    // Generate new invoice HTML
-    const invoiceHTML = generateInvoiceHTML(
-      existingBatch,
-      existingBatch.batchNumber,
-      existingBatch.customerName,
-      existingBatch.customerPhone || "",
-      existingBatch.shop?.shopLocation || "",
-      existingBatch.billCreatedBy,
+    // Generate PDF using the backend API
+    const result = await generateInvoicePDF({
+      saleData: existingBatch,
+      batchNumber: existingBatch.batchNumber,
+      customerName: existingBatch.customerName,
+      customerPhone: existingBatch.customerPhone || "",
+      selectedLocation: existingBatch.shop?.shopLocation || "",
+      billCreatedBy: existingBatch.billCreatedBy,
       currentUser,
       soldProducts,
-      existingBatch.totalAmount,
-      existingBatch.gstType === "IGST" ? "IGST" : "SGST_CGST",
-      existingBatch.invoiceNumber?.toString() || "",
-      existingBatch.sellType || "SHOP_SELL_OFFLINE"
-    );
+      totalAmount: existingBatch.totalAmount,
+      gstType: existingBatch.gstType === "IGST" ? "IGST" : "SGST_CGST",
+      invoiceNumber: existingBatch.invoiceNumber?.toString() || "",
+      sellType: existingBatch.sellType || "SHOP_SELL_OFFLINE"
+    });
 
-    // Generate PDF from HTML using Puppeteer
-    const pdfBuffer = await generatePDFFromHTML(invoiceHTML);
+    if (!result.success || !result.pdfBase64) {
+      throw new Error(result.error || "Failed to generate PDF");
+    }
+
+    // Convert base64 string to Buffer
+    const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
 
     // Upload new PDF to Firebase
     const newInvoiceUrl = await uploadInvoicePDFToFirebase(
@@ -2458,23 +2468,26 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
           totalPrice: (sale.selledPrice || 0) * (sale.quantity || 0),
         }));
 
-        const invoiceHTML = generateInvoiceHTML(
-          data,
-          existingBatch.batchNumber,
+        const result = await generateInvoicePDF({
+          saleData: data,
+          batchNumber: existingBatch.batchNumber,
           customerName,
           customerPhone,
           selectedLocation,
           billCreatedBy,
           currentUser,
-          allSoldProducts,
-          newTotalAmount,
-          gstType || "SGST_CGST",
-          existingBatch.invoiceNumber?.toString() || "",
-          existingBatch.sellType || "SHOP_SELL_OFFLINE"
-        );
+          soldProducts: allSoldProducts,
+          totalAmount: newTotalAmount,
+          gstType: gstType || "SGST_CGST",
+          invoiceNumber: existingBatch.invoiceNumber?.toString() || "",
+          sellType: existingBatch.sellType || "SHOP_SELL_OFFLINE"
+        });
 
-        // Generate PDF from HTML using Puppeteer
-        const pdfBuffer = await generatePDFFromHTML(invoiceHTML);
+        if (!result.success || !result.pdfBase64) {
+          throw new Error(result.error || "Failed to generate PDF");
+        }
+
+        const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
 
         // Upload PDF to Firebase
         const invoiceUrl = await uploadInvoicePDFToFirebase(
@@ -2593,26 +2606,29 @@ export const regenerateOnlineSaleInvoice = async (
       await deleteInvoiceFromFirebase(existingBatch.batchNumber);
     }
 
-    // Generate new invoice HTML with shipping information
-    const invoiceHTML = generateInvoiceHTML(
-      existingBatch,
-      existingBatch.batchNumber,
-      existingBatch.customerName,
-      existingBatch.customerPhone || "",
-      "", // No shop location for online sales
-      existingBatch.billCreatedBy,
+    // Generate PDF using the backend API
+    const result = await generateInvoicePDF({
+      saleData: existingBatch,
+      batchNumber: existingBatch.batchNumber,
+      customerName: existingBatch.customerName,
+      customerPhone: existingBatch.customerPhone || "",
+      selectedLocation: "", // No shop location for online sales
+      billCreatedBy: existingBatch.billCreatedBy,
       currentUser,
       soldProducts,
-      existingBatch.totalAmount,
-      existingBatch.gstType === "IGST" ? "IGST" : "SGST_CGST",
-      existingBatch.invoiceNumber?.toString() || "",
-      existingBatch.sellType || "HALL_SELL_ONLINE",
+      totalAmount: existingBatch.totalAmount,
+      gstType: existingBatch.gstType === "IGST" ? "IGST" : "SGST_CGST",
+      invoiceNumber: existingBatch.invoiceNumber?.toString() || "",
+      sellType: existingBatch.sellType || "HALL_SELL_ONLINE",
       shippingCharge,
       trackingId
-    );
+    });
 
-    // Generate PDF from HTML using Puppeteer
-    const pdfBuffer = await generatePDFFromHTML(invoiceHTML);
+    if (!result.success || !result.pdfBase64) {
+      throw new Error(result.error || "Failed to generate PDF");
+    }
+
+    const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
 
     // Upload new PDF to Firebase
     const newInvoiceUrl = await uploadInvoicePDFToFirebase(

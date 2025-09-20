@@ -6,8 +6,7 @@ import {
   uploadInvoicePDFToFirebase,
   deleteInvoiceFromFirebase,
 } from "@/src/lib/firebase/firebase";
-import { generatePDFFromHTML } from "@/src/lib/puppeteer";
-import { generateInvoiceHTML } from "@/src/lib/utils";
+import { Buffer } from 'buffer';
 
 export interface OnlineSalesFilters {
   page?: number;
@@ -1065,26 +1064,30 @@ export const updateOnlineSaleWithWalletAndCart = async (
         const shippingCharge = currentOrder?.shippingCharge || 0;
         const trackingId = currentOrder?.trackingId || "";
 
-        // Generate invoice HTML with shipping information
-        const invoiceHTML = generateInvoiceHTML(
-          result,
-          result.batchNumber,
-          result.customerName,
-          result.customerPhone || "",
-          "", // No shop location for online sales
-          result.billCreatedBy,
-          currentOrder?.user,
+        // Generate PDF using the backend API
+        const pdfResult = await generateInvoicePDF({
+          saleData: result,
+          batchNumber: result.batchNumber,
+          customerName: result.customerName,
+          customerPhone: result.customerPhone || "",
+          selectedLocation: "", // No shop location for online sales
+          billCreatedBy: result.billCreatedBy,
+          currentUser: currentOrder?.user,
           soldProducts,
-          result.totalAmount,
-          (result.gstType as "IGST" | "SGST_CGST") || "SGST_CGST",
-          result.invoiceNumber?.toString() || "",
-          result.sellType,
+          totalAmount: result.totalAmount,
+          gstType: (result.gstType as "IGST" | "SGST_CGST") || "SGST_CGST",
+          invoiceNumber: result.invoiceNumber?.toString() || "",
+          sellType: result.sellType,
           shippingCharge,
           trackingId
-        );
+        });
 
-        // Generate PDF from HTML
-        const pdfBuffer = await generatePDFFromHTML(invoiceHTML);
+        if (!pdfResult.success || !pdfResult.pdfBase64) {
+          throw new Error(pdfResult.error || "Failed to generate PDF");
+        }
+
+        // Convert base64 string to Buffer
+        const pdfBuffer = Buffer.from(pdfResult.pdfBase64, 'base64');
 
         // Upload PDF to Firebase
         const invoiceUrl = await uploadInvoicePDFToFirebase(
@@ -1511,26 +1514,29 @@ export const completePendingOrderPayment = async (
       const shippingCharge = currentSale.order?.shippingCharge || 0;
       const trackingId = currentSale.order?.trackingId || "";
 
-      // Generate invoice HTML with shipping information
-      const invoiceHTML = generateInvoiceHTML(
-        currentSale,
-        currentSale.batchNumber,
-        currentSale.customerName,
-        currentSale.customerPhone || "",
-        "", // No shop location for online sales
-        currentSale.billCreatedBy,
-        { id: userId }, // currentUser
+      // Generate PDF using the backend API
+      const result = await generateInvoicePDF({
+        saleData: currentSale,
+        batchNumber: currentSale.batchNumber,
+        customerName: currentSale.customerName,
+        customerPhone: currentSale.customerPhone || "",
+        selectedLocation: "", // No shop location for online sales
+        billCreatedBy: currentSale.billCreatedBy,
+        currentUser: { id: userId },
         soldProducts,
-        currentSale.totalAmount,
-        (currentSale.gstType as "IGST" | "SGST_CGST") || "SGST_CGST",
-        currentSale.invoiceNumber?.toString() || "",
-        currentSale.sellType,
+        totalAmount: currentSale.totalAmount,
+        gstType: (currentSale.gstType as "IGST" | "SGST_CGST") || "SGST_CGST",
+        invoiceNumber: currentSale.invoiceNumber?.toString() || "",
+        sellType: currentSale.sellType,
         shippingCharge,
         trackingId
-      );
+      });
 
-      // Generate PDF from HTML
-      const pdfBuffer = await generatePDFFromHTML(invoiceHTML);
+      if (!result.success || !result.pdfBase64) {
+        throw new Error(result.error || "Failed to generate PDF");
+      }
+
+      const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
 
       // Upload PDF to Firebase
       const invoiceUrl = await uploadInvoicePDFToFirebase(
@@ -1619,26 +1625,29 @@ export const regenerateOnlineSaleInvoice = async (
     const shippingCharge = existingBatch.order?.shippingCharge || 0;
     const trackingId = existingBatch.order?.trackingId || "";
 
-    // Generate invoice HTML with shipping information
-    const invoiceHTML = generateInvoiceHTML(
-      existingBatch,
-      existingBatch.batchNumber,
-      existingBatch.customerName,
-      existingBatch.customerPhone || "",
-      "", // No shop location for online sales
-      existingBatch.billCreatedBy,
+    // Generate PDF using the backend API
+    const result = await generateInvoicePDF({
+      saleData: existingBatch,
+      batchNumber: existingBatch.batchNumber,
+      customerName: existingBatch.customerName,
+      customerPhone: existingBatch.customerPhone || "",
+      selectedLocation: "", // No shop location for online sales
+      billCreatedBy: existingBatch.billCreatedBy,
       currentUser,
       soldProducts,
-      existingBatch.totalAmount,
-      (existingBatch.gstType as "IGST" | "SGST_CGST") || "SGST_CGST",
-      existingBatch.invoiceNumber?.toString() || "",
-      existingBatch.sellType,
+      totalAmount: existingBatch.totalAmount,
+      gstType: (existingBatch.gstType as "IGST" | "SGST_CGST") || "SGST_CGST",
+      invoiceNumber: existingBatch.invoiceNumber?.toString() || "",
+      sellType: existingBatch.sellType,
       shippingCharge,
       trackingId
-    );
+    });
 
-    // Generate PDF from HTML
-    const pdfBuffer = await generatePDFFromHTML(invoiceHTML);
+    if (!result.success || !result.pdfBase64) {
+      throw new Error(result.error || "Failed to generate PDF");
+    }
+
+    const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
 
     // Upload PDF to Firebase
     const invoiceUrl = await uploadInvoicePDFToFirebase(
