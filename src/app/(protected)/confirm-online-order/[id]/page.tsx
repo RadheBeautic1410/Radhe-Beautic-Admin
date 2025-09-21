@@ -503,7 +503,7 @@ function SellPage() {
       const link = document.createElement("a");
       link.href = url;
       link.download = `invoice-${
-        saleData.batchNumber || `OFFLINE-INV-${Date.now()}`
+        saleData.batchNumber || `ONLINE-INV-${Date.now()}`
       }.pdf`;
       document.body.appendChild(link);
       link.click();
