@@ -245,45 +245,75 @@ async function sendMediaMessage(to: string, file: any, caption: string) {
   return { messageId: result.messages[0].id };
 }
 
-// Helper function to upload media
 async function uploadMedia(file: any) {
-  const whatsappFormData = new FormData();
+  try {
+    // Get file data as buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBuffer = Buffer.from(arrayBuffer);
+    
+    // Use fetch with multipart/form-data
+    const boundary = `----formdata-${Date.now()}`;
+    
+    // Manually construct multipart form data
+    const formDataParts = [];
+    
+    // Add messaging_product field
+    formDataParts.push(`--${boundary}`);
+    formDataParts.push(`Content-Disposition: form-data; name="messaging_product"`);
+    formDataParts.push('');
+    formDataParts.push('whatsapp');
+    
+    // Add type field
+    formDataParts.push(`--${boundary}`);
+    formDataParts.push(`Content-Disposition: form-data; name="type"`);
+    formDataParts.push('');
+    formDataParts.push(file.type);
+    
+    // Add file field
+    formDataParts.push(`--${boundary}`);
+    formDataParts.push(`Content-Disposition: form-data; name="file"; filename="${file.name}"`);
+    formDataParts.push(`Content-Type: ${file.type}`);
+    formDataParts.push('');
+    
+    // Create the complete body
+    const textPart = formDataParts.join('\r\n') + '\r\n';
+    const endBoundary = `\r\n--${boundary}--\r\n`;
+    
+    // Combine text and binary data
+    const textBuffer = Buffer.from(textPart, 'utf8');
+    const endBuffer = Buffer.from(endBoundary, 'utf8');
+    const body = Buffer.concat([textBuffer, fileBuffer, endBuffer]);
 
-  // Convert file to buffer and create readable stream
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const stream = new Readable();
-  stream.push(buffer);
-  stream.push(null);
+    const response = await fetch(
+      `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/media`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+        },
+        body: body,
+      }
+    );
 
-  whatsappFormData.append("file", stream, {
-    filename: file.name,
-    contentType: file.type,
-  });
-  whatsappFormData.append("messaging_product", "whatsapp");
-  whatsappFormData.append("type", file.type);
+    const result = await response.json();
+    
+    console.log("Media upload response:", JSON.stringify(result, null, 2));
+    console.log("Media upload status:", response.status);
 
-  const response = await fetch(
-    `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/media`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
-        ...whatsappFormData.getHeaders(),
-      },
-      body: whatsappFormData as unknown as BodyInit,
+    if (!response.ok) {
+      console.error("Media upload error:", result);
+      throw new Error(result.error?.message || "Failed to upload media");
     }
-  );
 
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.error?.message || "Failed to upload media");
+    return result.id;
+  } catch (error: any) {
+    console.error("Upload media error:", error);
+    throw new Error(`Media upload failed: ${error.message}`);
   }
-
-  return result.id;
 }
 
-// Helper function to determine media type
+
 function getMediaType(mimeType: string) {
   if (mimeType.startsWith("image/")) {
     return "image";
