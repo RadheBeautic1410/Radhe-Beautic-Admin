@@ -23,28 +23,36 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const type = formData.get("type"); // 'text', 'media', or 'template'
-    const to: string = formData.get("to") as string;
+    const rawTo: string = formData.get("to") as string;
     const message: string = formData.get("message") as string;
     const templateName: string = formData.get("templateName") as string;
     const templateLanguage: string = formData.get("templateLanguage") as string || "en_US";
 
-    if (!to) {
+    if (!rawTo) {
       return NextResponse.json(
         { success: false, error: "Phone number is required" },
         { status: 400 }
       );
     }
 
-    // Validate phone number format (should be in E.164 format: +1234567890)
+    // Normalize to E.164 if a 10-digit Indian number is provided
+    const tenDigitRegex = /^\d{10}$/;
+    const normalizedTo = rawTo.startsWith("+")
+      ? rawTo
+      : tenDigitRegex.test(rawTo)
+        ? `+91${rawTo}`
+        : rawTo;
+
+    // Validate phone number format (E.164: +1234567890)
     const phoneRegex = /^\+[1-9]\d{1,14}$/;
-    if (!phoneRegex.test(to)) {
+    if (!phoneRegex.test(normalizedTo)) {
       return NextResponse.json(
         { success: false, error: "Phone number must be in E.164 format (e.g., +1234567890)" },
         { status: 400 }
       );
     }
 
-    console.log("Sending WhatsApp message to:", to);
+    console.log("Sending WhatsApp message to:", normalizedTo);
     console.log("Message type:", type);
 
     // For text and media messages, warn about 24-hour window
@@ -65,7 +73,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      result = await sendTextMessage(to, message);
+      result = await sendTextMessage(normalizedTo, message);
     } else if (type === "media") {
       // Handle media message
       const file = formData.get("file");
@@ -78,7 +86,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      result = await sendMediaMessage(to, file, caption);
+      result = await sendMediaMessage(normalizedTo, file, caption);
     } else if (type === "template") {
       // Handle template message
       if (!templateName) {
@@ -88,7 +96,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      result = await sendTemplateMessage(to, templateName, templateLanguage);
+      result = await sendTemplateMessage(normalizedTo, templateName, templateLanguage);
     } else {
       return NextResponse.json(
         { success: false, error: 'Invalid type. Use "text", "media", or "template"' },
@@ -123,7 +131,7 @@ async function sendTextMessage(to: string, message: string) {
       body: JSON.stringify({
         messaging_product: "whatsapp",
         recipient_type: "individual",
-        to: to,
+        to: to?.includes("+") ? to : `+91${to}`,
         type: "text",
         text: {
           body: message,
@@ -163,7 +171,7 @@ async function sendTemplateMessage(to: string, templateName: string, languageCod
       body: JSON.stringify({
         messaging_product: "whatsapp",
         recipient_type: "individual",
-        to: to,
+        to: to?.includes("+") ? to : `+91${to}`,
         type: "template",
         template: {
           name: templateName,
@@ -220,7 +228,7 @@ async function sendMediaMessage(to: string, file: any, caption: string) {
       body: JSON.stringify({
         messaging_product: "whatsapp",
         recipient_type: "individual",
-        to: to,
+        to: to.includes("+") ? to : `+91${to}`,
         type: mediaType,
         [mediaType]: mediaObject,
       }),
@@ -299,7 +307,7 @@ async function uploadMedia(file: any) {
     const result = await response.json();
     
     console.log("Media upload response:", JSON.stringify(result, null, 2));
-    console.log("Media upload status:", response.status);
+    console.log("Media upload status:", response);
 
     if (!response.ok) {
       console.error("Media upload error:", result);

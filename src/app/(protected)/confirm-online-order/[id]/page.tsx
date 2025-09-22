@@ -452,70 +452,104 @@ function SellPage() {
     }
   };
 
-  const generateInvoice = async (saleData: any) => {
-    try {
-      // Convert cart items to the format expected by the shared utility
-      const soldProducts = cart.map((item) => ({
-        kurti: item.kurti,
-        size: item.selectedSize,
-        quantity: item.quantity,
-        selledPrice: item.sellingPrice
-          ? parseFloat(item.sellingPrice?.toString())
-          : 0,
-        unitPrice: item.sellingPrice
-          ? parseFloat(item.sellingPrice?.toString())
-          : 0,
-        totalPrice: item.sellingPrice
-          ? parseFloat(item.sellingPrice?.toString()) * item.quantity
-          : 0,
-      }));
+const generateInvoice = async (saleData: any) => {
+  try {
+    const soldProducts = cart.map((item) => ({
+      kurti: item.kurti,
+      size: item.selectedSize,
+      quantity: item.quantity,
+      selledPrice: item.sellingPrice
+        ? parseFloat(item.sellingPrice?.toString())
+        : 0,
+      unitPrice: item.sellingPrice
+        ? parseFloat(item.sellingPrice?.toString())
+        : 0,
+      totalPrice: item.sellingPrice
+        ? parseFloat(item.sellingPrice?.toString()) * item.quantity
+        : 0,
+    }));
 
-      // Call the server action for PDF generation
-      const result = await generateInvoicePDF({
-        saleData,
-        batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
-        customerName,
-        customerPhone,
-        selectedLocation: "",
-        billCreatedBy,
-        currentUser,
-        soldProducts,
-        totalAmount: getTotalAmount() + (saleData?.shippingCharge || 0),
-        gstType,
-        invoiceNumber: saleData.invoiceNumber || "",
-        sellType: "HALL_SELL_ONLINE", // Regular offline sales are not hall sales
-        shippingCharge: saleData?.shippingCharge || 0,
-        trackingId: saleData?.trackingId || trackingId,
-      } as any);
+    const result = await generateInvoicePDF({
+      saleData,
+      batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
+      customerName,
+      customerPhone,
+      selectedLocation: "",
+      billCreatedBy,
+      currentUser,
+      soldProducts,
+      totalAmount: getTotalAmount() + (saleData?.shippingCharge || 0),
+      gstType,
+      invoiceNumber: saleData.invoiceNumber || "",
+      sellType: "HALL_SELL_ONLINE",
+      shippingCharge: saleData?.shippingCharge || 0,
+      trackingId: saleData?.trackingId || trackingId,
+    } as any);
 
-      if (!result.success || !result.pdfBase64) {
-        throw new Error(result.error || "Failed to generate PDF");
-      }
-
-      // Convert base64 string to Blob and trigger download
-      const binaryString = atob(result.pdfBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `invoice-${
-        saleData.batchNumber || `ONLINE-INV-${Date.now()}`
-      }.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success("Invoice PDF downloaded successfully!");
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast.error("Failed to generate PDF invoice");
+    if (!result.success || !result.pdfBase64) {
+      throw new Error(result.error || "Failed to generate PDF");
     }
-  };
+
+    // Convert base64 string to Blob (PDF)
+    const binaryString = atob(result.pdfBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: "application/pdf" });
+
+    // Trigger download
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `invoice-${
+      saleData.batchNumber || `ONLINE-INV-${Date.now()}`
+    }.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast.success("Invoice PDF downloaded successfully!");
+
+    // Send to WhatsApp API
+    // Create a File object from the Blob to simulate file upload
+    const pdfFile = new File(
+      [blob],
+      `invoice-${saleData.batchNumber || `ONLINE-INV-${Date.now()}`}.pdf`,
+      {
+        type: "application/pdf",
+      }
+    );
+
+    const formData = new FormData();
+    formData.append("type", "media"); // as per your API example
+    formData.append("to", customerPhone); // or the target WhatsApp number
+    formData.append("file", pdfFile);
+    formData.append("caption", "Here is your PDF document");
+
+    // Call your WhatsApp send API endpoint
+    const response = await fetch("http://localhost:3000/api/whatsapp", {
+      method: "POST",
+      body: formData,
+    });
+
+    const whatsappResult = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        whatsappResult.error || "Failed to send invoice to WhatsApp"
+      );
+    }
+
+    toast.success("Invoice PDF sent via WhatsApp!");
+
+  } catch (error) {
+    console.error("Error generating PDF or sending WhatsApp message:", error);
+    toast.error("Failed to generate or send invoice PDF");
+  }
+};
+
 
   const resetForm = () => {
     setCode("");

@@ -1,12 +1,8 @@
 "use client";
 
 import { UserRole } from "@prisma/client";
-
-
 import { FormError } from "@/src/components/form-error";
-import { useCurrentRole } from "@/src/hooks/use-currrent-role";
-
-
+import { useSession } from "next-auth/react";
 
 interface RoleGateProps {
     children: React.ReactNode;
@@ -17,10 +13,11 @@ export const RoleGateForComponent = ({
     children,
     allowedRole,
 }: RoleGateProps) => {
-    const role = useCurrentRole();
-    if (!role) {
-        return (<></>)
-    }
+    const { status, data } = useSession();
+    const role = data?.user?.role;
+    // While session is loading on client nav, render nothing to avoid flicker
+    if (status === "loading") return <></>;
+    if (!role) return <></>;
     
     if (!allowedRole.includes(role)) {
         // console.log(role, allowedRole);
