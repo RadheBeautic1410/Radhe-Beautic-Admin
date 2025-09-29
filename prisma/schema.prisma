@@ -495,3 +495,9 @@ model WalletRequest {
   image       String
   paymentType String
 }
+
+model QRCodeImage {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  image_url String
+  is_active Boolean
+}
