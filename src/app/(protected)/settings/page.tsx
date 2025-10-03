@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
 import { removeImage, uploadImage } from "@/src/lib/upload";
+import QRCodeManager from "@/src/components/qr-code-manager";
 
 const SettingsPage = () => {
   const user = useCurrentUser();
@@ -253,6 +254,28 @@ const SettingsPage = () => {
       <Card className="w-full p-6">
         <div className="w-full max-w-7xl mx-auto space-y-6">
           <h2 className="text-2xl font-semibold mb-4">New Release Kurtis</h2>
+                        <div
+                          className="absolute top-2.5 right-3 cursor-pointer"
+                          onClick={() =>
+                            setPasswordType(
+                              passwordType === "password" ? "text" : "password"
+                            )
+                          }
+                        >
+                          {passwordType === "text" ? (
+                            <FaRegEye />
+                          ) : (
+                            <FaRegEyeSlash />
+                          )}
+                        </div>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+            </div>
 
           {loading ? (
             <p>Loading...</p>
@@ -418,6 +441,17 @@ const SettingsPage = () => {
         </div>
       </Card>
     </>
+            <Button disabled={isPending} type="submit">
+              Update
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+    
+    {/* QR Code Manager */}
+    <QRCodeManager />
+    </div>
   );
 };
 

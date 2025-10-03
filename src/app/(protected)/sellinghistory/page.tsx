@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react'
 import PageLoader from "@/src/components/loader";
 import { Card, CardContent, CardHeader } from '@/src/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
+import { Input } from '@/src/components/ui/input';
 import { RoleGateForComponent } from '@/src/components/auth/role-gate-component';
 import { UserRole } from '@prisma/client';
 import NotAllowedPage from '../_components/errorPages/NotAllowedPage';
@@ -34,6 +35,7 @@ const headerCells = [
 function SellingHistory() {
     const [loader, setLoader] = useState(true);
     const [sellData, setSellData] = useState<any[]>([]);
+    const [search, setSearch] = useState<string>("");
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -53,6 +55,14 @@ function SellingHistory() {
         fetchData();
     }, []);
 
+    const filteredData = sellData.filter((obj) => {
+        if (!search) return true;
+        const q = search.toLowerCase();
+        const name = String(obj.sellerName || "").toLowerCase();
+        const code = String(obj.code || "").toLowerCase();
+        return name.includes(q) || code.includes(q);
+    });
+
     return (
       <>
         <PageLoader loading={loader} />
@@ -67,6 +77,14 @@ function SellingHistory() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by name or code"
+                    className="max-w-md"
+                  />
+                </div>
                 <Table>
                   <TableHeader>
                     <TableRow className="text-black">
@@ -83,8 +101,8 @@ function SellingHistory() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sellData &&
-                      sellData.map((obj, idx) => {
+                    {filteredData &&
+                      filteredData.map((obj, idx) => {
                         let isoString = obj.sellTime;
                         let [date, time] = isoString.split("T");
                         let [hours, minutes, seconds] = time.split(":");
@@ -108,7 +126,7 @@ function SellingHistory() {
                         return (
                           <TableRow key={obj.id}>
                             <TableCell className="text-center">
-                              {sellData.length - idx}
+                              {filteredData.length - idx}
                             </TableCell>
                             <TableCell className="text-center">
                               {/* {format(new Date(timeIn24HourFormat), 'h:mm aa')} */}
