@@ -194,121 +194,177 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   };
 
   // Save changes
-  const handleSaveChanges = async () => {
-    try {
-      setUpdating(true);
+const handleSaveChanges = async () => {
+  try {
+    setUpdating(true);
 
-      // Validate required fields
-      if (!customerName.trim()) {
-        toast.error("Customer name is required");
-        return;
+    // Validate required fields
+    if (!customerName.trim()) {
+      toast.error("Customer name is required");
+      return;
+    }
+
+    if (!billCreatedBy.trim()) {
+      toast.error("Bill created by is required");
+      return;
+    }
+
+    if (!paymentStatus) {
+      toast.error("Payment status is required");
+      return;
+    }
+
+    // Prepare data for API call
+    const updateData: any = {
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      billCreatedBy: billCreatedBy.trim(),
+      paymentStatus: paymentStatus,
+      gstType: gstType,
+      sellType: sellType,
+      orderId: originalSaleData.orderId,
+    };
+
+    // Add new products if any are in the cart that weren't in the original data
+    const originalSaleIds =
+      originalSaleData?.sales?.map((sale: any) => sale.id) || [];
+    const newProducts = cart
+      .filter((item) => !originalSaleIds.includes(item.id))
+      .map((item) => ({
+        kurtiId: item.kurti.id,
+        kurtiCode: item.kurti.code,
+        selectedSize: item.selectedSize,
+        quantity: item.quantity,
+        sellingPrice: item.sellingPrice,
+        code: item.kurti.code,
+      }));
+
+    if (newProducts.length > 0) {
+      updateData.newProducts = newProducts;
+    }
+
+    // Add updated items (existing items that have been modified)
+    const updatedItems = cart
+      .filter((item) => originalSaleIds.includes(item.id))
+      .map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+        sellingPrice: item.sellingPrice,
+      }));
+
+    if (updatedItems.length > 0) {
+      updateData.updatedItems = updatedItems;
+    }
+
+    // Add removed items if any
+    if (removedItems.length > 0) {
+      updateData.removedItems = removedItems;
+    }
+
+    const response = await axios.put(
+      `/api/sell/online-sales/${params.id}`,
+      updateData
+    );
+
+    if (response.data.success) {
+      toast.success("Sale updated successfully!");
+      setOriginalSaleData(response.data.data);
+
+      // Download the updated invoice
+      try {
+        const link = document.createElement("a");
+        link.href = response.data.data.invoiceUrl;
+        link.download = `invoice-${response.data.batchNumber}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("New invoice downloaded!");
+      } catch (error) {
+        console.error("Error downloading invoice:", error);
+        toast.error("Failed to download invoice");
       }
 
-      if (!billCreatedBy.trim()) {
-        toast.error("Bill created by is required");
-        return;
-      }
+      // Send updated invoice to WhatsApp
+      try {
+        // First, fetch the updated PDF file from the URL
+        const pdfResponse = await fetch(response.data.data.invoiceUrl);
 
-      if (!paymentStatus) {
-        toast.error("Payment status is required");
-        return;
-      }
-
-      // Prepare data for API call
-      const updateData: any = {
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        billCreatedBy: billCreatedBy.trim(),
-        paymentStatus: paymentStatus,
-        gstType: gstType,
-        sellType: sellType,
-        orderId: originalSaleData.orderId,
-      };
-
-      // Add new products if any are in the cart that weren't in the original data
-      const originalSaleIds =
-        originalSaleData?.sales?.map((sale: any) => sale.id) || [];
-      const newProducts = cart
-        .filter((item) => !originalSaleIds.includes(item.id))
-        .map((item) => ({
-          kurtiId: item.kurti.id,
-          kurtiCode: item.kurti.code,
-          selectedSize: item.selectedSize,
-          quantity: item.quantity,
-          sellingPrice: item.sellingPrice,
-          code: item.kurti.code,
-        }));
-
-      if (newProducts.length > 0) {
-        updateData.newProducts = newProducts;
-      }
-
-      // Add updated items (existing items that have been modified)
-      const updatedItems = cart
-        .filter((item) => originalSaleIds.includes(item.id))
-        .map((item) => ({
-          id: item.id,
-          quantity: item.quantity,
-          sellingPrice: item.sellingPrice,
-        }));
-
-      if (updatedItems.length > 0) {
-        updateData.updatedItems = updatedItems;
-      }
-
-      // Add removed items if any
-      if (removedItems.length > 0) {
-        updateData.removedItems = removedItems;
-      }
-
-      const response = await axios.put(
-        `/api/sell/online-sales/${params.id}`,
-        updateData
-      );
-
-      if (response.data.success) {
-        toast.success("Sale updated successfully!");
-        setOriginalSaleData(response.data.data);
-
-        try {
-          const link = document.createElement("a");
-          link.href = response.data.data.invoiceUrl;
-          link.download = `invoice-${response.data.batchNumber}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          toast.success("New invoice downloaded!");
-        } catch (error) {
-          console.error("Error downloading invoice:", error);
-          toast.error("Failed to download invoice");
+        if (!pdfResponse.ok) {
+          throw new Error("Failed to fetch updated PDF from server");
         }
 
-        // Update cart with the new data from server
-        const updatedCartItems = response.data.data.sales.map((sale: any) => ({
-          id: sale.id,
-          kurti: sale.kurti,
-          selectedSize: sale.kurtiSize,
-          quantity: sale.quantity,
-          sellingPrice: sale.selledPrice,
-          availableStock: sale.availableStock,
-        }));
-        setCart(updatedCartItems);
+        // Convert response to blob
+        const pdfBlob = await pdfResponse.blob();
 
-        await loadSaleDetails();
+        // Create a File object from the blob
+        const pdfFile = new File(
+          [pdfBlob],
+          `invoice-${response.data.batchNumber}.pdf`,
+          {
+            type: "application/pdf",
+          }
+        );
 
-        // Reset removed items and exit edit mode
-        setRemovedItems([]);
-        setIsEditMode(false);
-      } else {
-        toast.error("Failed to update sale");
+        // Prepare FormData for WhatsApp API
+        const formData = new FormData();
+        formData.append("type", "media");
+        formData.append("to", customerPhone.trim()); // Use the updated customer phone
+        formData.append("file", pdfFile);
+        formData.append("caption", "Here is your updated invoice PDF");
+
+        // Send to WhatsApp API
+        const whatsappResponse = await fetch(
+          "http://localhost:3000/api/whatsapp",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+        const whatsappResult = await whatsappResponse.json();
+
+        if (!whatsappResponse.ok) {
+          throw new Error(
+            whatsappResult.error || "Failed to send updated invoice to WhatsApp"
+          );
+        }
+
+        toast.success("Updated invoice sent via WhatsApp!");
+      } catch (whatsappError) {
+        console.error(
+          "Error sending updated invoice to WhatsApp:",
+          whatsappError
+        );
+        toast.error("Failed to send updated invoice via WhatsApp");
+        // Don't throw here - we still want the update to be considered successful
       }
-    } catch (error: any) {
-      console.error("Error updating sale:", error);
-      toast.error(error.response?.data?.error || "Failed to update sale");
-    } finally {
-      setUpdating(false);
+
+      // Update cart with the new data from server
+      const updatedCartItems = response.data.data.sales.map((sale: any) => ({
+        id: sale.id,
+        kurti: sale.kurti,
+        selectedSize: sale.kurtiSize,
+        quantity: sale.quantity,
+        sellingPrice: sale.selledPrice,
+        availableStock: sale.availableStock,
+      }));
+      setCart(updatedCartItems);
+
+      await loadSaleDetails();
+
+      // Reset removed items and exit edit mode
+      setRemovedItems([]);
+      setIsEditMode(false);
+    } else {
+      toast.error("Failed to update sale");
     }
-  };
+  } catch (error: any) {
+    console.error("Error updating sale:", error);
+    toast.error(error.response?.data?.error || "Failed to update sale");
+  } finally {
+    setUpdating(false);
+  }
+};
 
   const handleFind = async () => {
     try {
@@ -516,51 +572,102 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     return kurti.sizes.filter((sz: any) => sz.quantity > 0);
   };
 
-  const regenerateInvoice = async () => {
-    try {
-      setRegeneratingInvoice(true);
+const regenerateInvoice = async () => {
+  try {
+    setRegeneratingInvoice(true);
 
-      const response = await axios.post(
-        `/api/sell/online-sales/${params.id}/regenerate-invoice`
-      );
+    const response = await axios.post(
+      `/api/sell/online-sales/${params.id}/regenerate-invoice`
+    );
 
-      if (response.data.success) {
-        toast.success("Invoice regenerated successfully!");
+    if (response.data.success) {
+      toast.success("Invoice regenerated successfully!");
 
-        // Update the original sale data with new invoice URL
-        if (originalSaleData) {
-          setOriginalSaleData({
-            ...originalSaleData,
-            invoiceUrl: response.data.invoiceUrl,
-          });
-        }
-
-        // Download the new invoice
-        try {
-          const link = document.createElement("a");
-          link.href = response.data.data.invoiceUrl;
-          console.log("🚀 ~ regenerateInvoice ~ link:", link);
-          link.download = `invoice-${response.data.batchNumber}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          toast.success("New invoice downloaded!");
-        } catch (error) {
-          console.error("Error downloading invoice:", error);
-          toast.error("Failed to download invoice");
-        }
-      } else {
-        toast.error(response.data.error || "Failed to regenerate invoice");
+      // Update the original sale data with new invoice URL
+      if (originalSaleData) {
+        setOriginalSaleData({
+          ...originalSaleData,
+          invoiceUrl: response.data.invoiceUrl,
+        });
       }
-    } catch (error: any) {
-      console.error("Error regenerating invoice:", error);
-      toast.error(
-        error.response?.data?.error || "Failed to regenerate invoice"
-      );
-    } finally {
-      setRegeneratingInvoice(false);
+
+      // Download the new invoice
+      try {
+        const link = document.createElement("a");
+        link.href = response.data.data.invoiceUrl;
+        console.log("🚀 ~ regenerateInvoice ~ link:", link);
+        link.download = `invoice-${response.data.batchNumber}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("New invoice downloaded!");
+      } catch (error) {
+        console.error("Error downloading invoice:", error);
+        toast.error("Failed to download invoice");
+      }
+
+      // Send PDF to WhatsApp
+      try {
+        // First, fetch the PDF file from the URL
+        const pdfResponse = await fetch(response.data.data.invoiceUrl);
+
+        if (!pdfResponse.ok) {
+          throw new Error("Failed to fetch PDF from server");
+        }
+
+        // Convert response to blob
+        const pdfBlob = await pdfResponse.blob();
+
+        // Create a File object from the blob
+        const pdfFile = new File(
+          [pdfBlob],
+          `invoice-${response.data.batchNumber}.pdf`,
+          {
+            type: "application/pdf",
+          }
+        );
+
+        // Prepare FormData for WhatsApp API
+        const formData = new FormData();
+        formData.append("type", "media");
+        formData.append("to", customerPhone); // Make sure this variable is available
+        formData.append("file", pdfFile);
+        formData.append("caption", "Here is your regenerated invoice PDF");
+
+        // Send to WhatsApp API
+        const whatsappResponse = await fetch(
+          "http://localhost:3000/api/whatsapp",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+        const whatsappResult = await whatsappResponse.json();
+
+        if (!whatsappResponse.ok) {
+          throw new Error(
+            whatsappResult.error || "Failed to send invoice to WhatsApp"
+          );
+        }
+
+        toast.success("Invoice PDF sent via WhatsApp!");
+      } catch (whatsappError) {
+        console.error("Error sending invoice to WhatsApp:", whatsappError);
+        toast.error("Failed to send invoice via WhatsApp");
+        // Don't throw here - we still want the regeneration to be considered successful
+      }
+    } else {
+      toast.error(response.data.error || "Failed to regenerate invoice");
     }
-  };
+  } catch (error: any) {
+    console.error("Error regenerating invoice:", error);
+    toast.error(error.response?.data?.error || "Failed to regenerate invoice");
+  } finally {
+    setRegeneratingInvoice(false);
+  }
+};
+
 
   const updateShippingInformation = async () => {
     try {

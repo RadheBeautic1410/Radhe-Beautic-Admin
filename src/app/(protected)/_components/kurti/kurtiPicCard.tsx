@@ -169,6 +169,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     rightText: string,
     leftText: string
   ): Promise<Blob> => {
+    
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -245,7 +246,9 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
 
               finalCanvas.toBlob(
                 (blob) => {
-                  document.body.removeChild(tempContainer);
+                  if (tempContainer && tempContainer.parentNode) {
+                    document.body.removeChild(tempContainer);
+                  }
                   if (blob) {
                     resolve(blob);
                   } else {
@@ -258,13 +261,17 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                 0.95 // Higher quality
               );
             } catch (error) {
-              document.body.removeChild(tempContainer);
+              if (tempContainer && tempContainer.parentNode) {
+                document.body.removeChild(tempContainer);
+              }
               reject(error);
             }
           };
 
           tempImg.onerror = () => {
-            document.body.removeChild(tempContainer);
+            if (tempContainer && tempContainer.parentNode) {
+              document.body.removeChild(tempContainer);
+            }
             reject(new Error("Failed to load temporary image"));
           };
         } catch (error) {
@@ -426,7 +433,9 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
           link.download = filename;
           document.body.appendChild(link);
           link.click();
-          document.body.removeChild(link);
+          if (link.parentNode) {
+            document.body.removeChild(link);
+          }
 
           URL.revokeObjectURL(url);
 
@@ -565,7 +574,9 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
           link.download = filename;
           document.body.appendChild(link);
           link.click();
-          document.body.removeChild(link);
+          if (link.parentNode) {
+            document.body.removeChild(link);
+          }
 
           URL.revokeObjectURL(url);
 

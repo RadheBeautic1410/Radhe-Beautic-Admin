@@ -24,6 +24,7 @@ import { FormError } from "@/src/components/form-error";
 import { FormSuccess } from "@/src/components/form-success";
 import { Label } from "@/src/components/ui/label";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa6";
+import QRCodeManager from "@/src/components/qr-code-manager";
 
 const SettingsPage = () => {
   const user = useCurrentUser();
@@ -62,11 +63,12 @@ const SettingsPage = () => {
     }
     const [passwordType, setPasswordType] = useState('password');
   return (
-    <Card className="rounded-none w-full h-full">
-      <CardHeader>
-        <p className="text-2xl font-semibold text-center">⚙️ Settings</p>
-      </CardHeader>
-      <CardContent>
+    <div className="space-y-6">
+      <Card className="rounded-none w-full">
+        <CardHeader>
+          <p className="text-2xl font-semibold text-center">⚙️ Settings</p>
+        </CardHeader>
+        <CardContent>
           <Label className="space-y-2">Name</Label>
           <Input
             className="space-y-2"
@@ -157,27 +159,6 @@ const SettingsPage = () => {
                 )}
               />
 
-              {/* Payment QR Code Upload */}
-              <FormField
-                control={form.control}
-                name="qrCode"
-                render={({ field: { onChange } }) => (
-                  <FormItem>
-                    <FormLabel>Payment QR Code</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        disabled={isPending}
-                        onChange={(e) => {
-                          onChange(e.target.files?.[0]); // save file in form state
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
 
             <FormError message={error} />
@@ -190,6 +171,10 @@ const SettingsPage = () => {
         </Form>
       </CardContent>
     </Card>
+    
+    {/* QR Code Manager */}
+    <QRCodeManager />
+    </div>
   );
 };
 

@@ -11,9 +11,8 @@ export const publicRoutes = [
     "/search",
     "/api/forms",
     "/api/organizations",
+    "/api/whatsapp",
 ]
-
-
 
 /* 
 * An array of routes that are used for authentication
