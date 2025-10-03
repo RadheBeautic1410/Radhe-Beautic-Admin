@@ -495,3 +495,14 @@ model WalletRequest {
   image       String
   paymentType String
 }
+
+model NewReleseSetting {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  imageUrl   String // public Firebase download URL
+  imagePath  String
+  title      String
+  startPrice Int
+  endPrice   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
