@@ -41,9 +41,8 @@ const routes = [
     href: "/sell",
     role: [
       UserRole.ADMIN,
+      UserRole.UPLOADER,
       UserRole.SELLER,
-      UserRole.SHOP_SELLER,
-      UserRole.SELLER_MANAGER,
     ],
     icon: "💰",
   },
@@ -52,9 +51,7 @@ const routes = [
     href: "/sellRetailer",
     role: [
       UserRole.ADMIN,
-      UserRole.SELLER,
       UserRole.SHOP_SELLER,
-      UserRole.SELLER_MANAGER,
     ],
     icon: "🏬",
   },
@@ -63,7 +60,6 @@ const routes = [
     href: "/hall-sales",
     role: [
       UserRole.ADMIN,
-      UserRole.SELLER,
       // UserRole.SHOP_SELLER,
       UserRole.SELLER_MANAGER,
     ],
@@ -72,7 +68,7 @@ const routes = [
   {
     name: "Add Stock",
     href: "/addstock",
-    role: [UserRole.ADMIN],
+    role: [UserRole.ADMIN,UserRole.UPLOADER,UserRole.SELLER,],
     icon: "📦",
   },
   {
@@ -84,7 +80,7 @@ const routes = [
   {
     name: "Selling History",
     href: "/sellinghistory",
-    role: [UserRole.ADMIN],
+    role: [UserRole.ADMIN,UserRole.SELLER,],
     icon: "📊",
   },
   {
@@ -92,7 +88,6 @@ const routes = [
     href: "/offline-sales",
     role: [
       UserRole.ADMIN,
-      UserRole.SELLER,
       UserRole.SHOP_SELLER,
       UserRole.SELLER_MANAGER,
     ],
@@ -101,25 +96,25 @@ const routes = [
   {
     name: "Online Sales",
     href: "/online-sales",
-    role: [UserRole.ADMIN],
+    role: [UserRole.ADMIN,UserRole.SELLER_MANAGER,],
     icon: "🌐",
   },
   {
     name: "Orders",
     href: "/orders",
-    role: [UserRole.ADMIN],
+    role: [UserRole.ADMIN,UserRole.SELLER_MANAGER,],
     icon: "🛒",
   },
   {
     name: "Analytics",
     href: "/analytics",
-    role: [UserRole.ADMIN],
+    role: [UserRole.ADMIN,UserRole.SELLER_MANAGER,],
     icon: "📈",
   },
   {
     name: "Dashboard",
     href: "/dashboard",
-    role: [UserRole.ADMIN],
+    role: [UserRole.ADMIN,UserRole.SELLER_MANAGER,],
     icon: "📊",
   },
   {
@@ -130,6 +125,7 @@ const routes = [
       UserRole.RESELLER,
       UserRole.SELLER,
       UserRole.UPLOADER,
+      UserRole.SELLER_MANAGER,
     ],
     icon: "⚙️",
   },
@@ -139,8 +135,10 @@ const routes = [
     role: [
       UserRole.ADMIN,
       UserRole.RESELLER,
+      UserRole.SHOP_SELLER,
       UserRole.SELLER,
       UserRole.UPLOADER,
+      UserRole.SELLER_MANAGER,
     ],
     icon: "📜",
   },
@@ -149,11 +147,21 @@ const routes = [
     href: "/watermark",
     role: [
       UserRole.ADMIN,
+      UserRole.UPLOADER,
       // UserRole.RESELLER,
-      // UserRole.SELLER,
-      // UserRole.UPLOADER,
     ],
     icon: "💧",
+  },
+    {
+    name: "Wallet Request",
+    href: "/wallet-request",
+    role: [
+      UserRole.ADMIN,
+      UserRole.SELLER_MANAGER,
+      // UserRole.RESELLER,
+      // UserRole.SELLER,
+    ],
+    icon: "💰",
   },
 ];
 

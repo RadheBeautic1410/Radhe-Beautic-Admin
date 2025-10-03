@@ -68,22 +68,23 @@ model User {
 
   verifiedBy String?   @db.ObjectId
   verifiedAt DateTime?
-  groupName String?  @default("")
-  role UserRole @default(USER)
+  groupName  String?   @default("")
+  role       UserRole  @default(USER)
 
   isTwoFactorEnabled    Boolean                @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
 
   verifiedByUser User? @relation("VerifiedBy", fields: [verifiedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  verifiedUsers User[]          @relation("VerifiedBy")
-  cart          Cart[]
-  orders        Orders[]
-  Address       Address[]
-  balance       Float           @default(0)
-  WalletHistory WalletHistory[] @relation(name: "UserWalletHistory")
-  shop          Shop?           @relation("ShopOwner")
+  verifiedUsers     User[]              @relation("VerifiedBy")
+  cart              Cart[]
+  orders            Orders[]
+  Address           Address[]
+  balance           Float               @default(0)
+  WalletHistory     WalletHistory[]     @relation(name: "UserWalletHistory")
+  shop              Shop?               @relation("ShopOwner")
   ShippingChangeLog ShippingChangeLog[]
+  WalletRequest     WalletRequest[]
 }
 
 model VerificationToken {
@@ -388,9 +389,9 @@ model Orders {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  user             User?              @relation(fields: [userId], references: [id])
-  OfflineSellBatch OfflineSellBatch[]
-  OnlineSellBatch  OnlineSellBatch[]
+  user              User?               @relation(fields: [userId], references: [id])
+  OfflineSellBatch  OfflineSellBatch[]
+  OnlineSellBatch   OnlineSellBatch[]
   ShippingChangeLog ShippingChangeLog[]
 }
 
@@ -465,18 +466,49 @@ enum WalletTxnType {
 }
 
 model ShippingChangeLog {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  orderId           String   @db.ObjectId
-  order             Orders   @relation(fields: [orderId], references: [id])
-  previousTrackingId String?
-  newTrackingId     String?
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId                String   @db.ObjectId
+  order                  Orders   @relation(fields: [orderId], references: [id])
+  previousTrackingId     String?
+  newTrackingId          String?
   previousShippingCharge Int?
-  newShippingCharge Int?
-  changedBy         String   @db.ObjectId
-  changedByUser     User     @relation(fields: [changedBy], references: [id])
-  changeReason      String?  // Optional reason for the change
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  newShippingCharge      Int?
+  changedBy              String   @db.ObjectId
+  changedByUser          User     @relation(fields: [changedBy], references: [id])
+  changeReason           String? // Optional reason for the change
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   @@map("shipping_change_logs")
+}
+
+model WalletRequest {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  resellerId  String    @db.ObjectId
+  reseller    User      @relation(fields: [resellerId], references: [id], onDelete: Cascade)
+  amount      Float
+  status      Status    @default(PENDING)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  approvedBy  String?   @db.ObjectId
+  approvedAt  DateTime?
+  image       String
+  paymentType String
+}
+
+model NewReleseSetting {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  imageUrl   String // public Firebase download URL
+  imagePath  String
+  title      String
+  startPrice Int
+  endPrice   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  }
+  
+model QRCodeImage {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  image_url String
+  is_active Boolean
 }

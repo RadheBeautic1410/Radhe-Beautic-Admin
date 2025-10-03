@@ -28,7 +28,7 @@ export default {
                     const user = await getUserByPhoneNumber(phoneNumber);
                     if (!user || !user.password) return null;
 
-                    const passwordsMatch = password;
+                    const passwordsMatch = password === user.password;
 
                     if (passwordsMatch) return user;
 

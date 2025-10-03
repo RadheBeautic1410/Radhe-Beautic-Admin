@@ -41,6 +41,12 @@ const nextConfig = {
       type: "asset/source",
     });
 
+    // Add buffer polyfill for server-side usage
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      buffer: require.resolve('buffer'),
+    };
+
     return config;
   },
 }
