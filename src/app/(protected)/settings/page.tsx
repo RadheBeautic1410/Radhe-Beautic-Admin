@@ -117,8 +117,8 @@ const SettingsPage = () => {
   };
   const [passwordType, setPasswordType] = useState("password");
   return (
-    <div className="space-y-6">
-      <Card className="rounded-none w-full">
+    <>
+      <Card className="rounded-none w-full h-full">
         <CardHeader>
           <p className="text-2xl font-semibold text-center">⚙️ Settings</p>
         </CardHeader>
