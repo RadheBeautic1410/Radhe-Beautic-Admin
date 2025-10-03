@@ -148,6 +148,7 @@ model Category {
   code                String? @unique
   name                String
   type                String?
+  kurtiType           String?
   image               String?
   countTotal          Int     @default(0)
   totalItems          Int     @default(0)

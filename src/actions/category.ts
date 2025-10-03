@@ -26,6 +26,7 @@ interface categoryAddtionProps {
   sellingPrice?: number | null;
   bigPrice?: number | null;
   walletDiscount?: number;
+  kurtiType?: string;
 }
 
 export const categoryAddition = async (data: categoryAddtionProps) => {
@@ -87,6 +88,7 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
       actualPrice: actualPrice || 0,
       sellingPrice: sellingPrice || 0,
       bigPrice: bigPrice || 0,
+      kurtiType: data.kurtiType || null,
     },
   });
 
@@ -197,6 +199,7 @@ export const categoryUpdate = async (
         sellingPrice: sellingPrice ?? existingCategory.sellingPrice,
         bigPrice: bigPrice ?? existingCategory.bigPrice,
         walletDiscount: walletDiscount ?? existingCategory.walletDiscount,
+        kurtiType: data.kurtiType ?? existingCategory.kurtiType,
       },
     });
 

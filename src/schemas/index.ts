@@ -28,6 +28,9 @@ export const categoryAddSchema = z.object({
   type: z.string().min(1, {
     message: "Type is required",
   }),
+  kurtiType: z.string().min(1, {
+    message: "Kurti Type is required",
+  }),
   image: z.optional(
     z.string().url({
       message: "Image must be a valid URL",
@@ -190,4 +193,5 @@ export const categoryEditSchema = z.object({
   sellingPrice: z.number().optional(),
   actualPrice: z.number().optional(),
   walletDiscount: z.number().min(0, "Discount must be zero or more").optional(),
+  kurtiType: z.string(),
 });

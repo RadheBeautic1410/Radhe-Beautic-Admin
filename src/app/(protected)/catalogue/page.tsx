@@ -229,6 +229,7 @@ const ListPage = () => {
     defaultValues: {
       name: "",
       type: "",
+      kurtiType: "",
       image: "",
       sellingPrice: 0,
       actualPrice: 0,
@@ -309,6 +310,7 @@ const ListPage = () => {
           sellingPrice: values.sellingPrice
             ? parseFloat(values.sellingPrice?.toString())
             : null,
+          kurtiType: values.kurtiType,
         })
           .then((data) => {
             if (data.error) {
@@ -1339,6 +1341,44 @@ const ListPage = () => {
                         </FormItem>
                       )}
                     />
+                    <FormField
+                      control={form.control}
+                      name="kurtiType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Kurti Type</FormLabel>
+                          <FormControl>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              disabled={isPending}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select kurti type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="anarkali">
+                                  Anarkali
+                                </SelectItem>
+                                <SelectItem value="straight">
+                                  Straight
+                                </SelectItem>
+                                <SelectItem value="a-line">A-Line</SelectItem>
+                                <SelectItem value="shirt">
+                                  Shirt Style
+                                </SelectItem>
+                                <SelectItem value="jacket">
+                                  Jacket Style
+                                </SelectItem>
+                                <SelectItem value="layered">Layered</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={form.control}
                       name="actualPrice"
