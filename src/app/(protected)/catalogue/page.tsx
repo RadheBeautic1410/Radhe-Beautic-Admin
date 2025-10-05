@@ -151,6 +151,18 @@ const ListPage = () => {
     totalPices: 0,
     totalStockPrice: 0,
   });
+  const kurtiTypes = [
+    { key: "roundedPair", value: "Rounded Pair" },
+    { key: "straightPair", value: "Straight Pair" },
+    { key: "plazzaPair", value: "Plazza Pair" },
+    { key: "sararaPair", value: "Sarara Pair" },
+    { key: "straight", value: "Straight" },
+    { key: "codeSet", value: "Code-Set" },
+    { key: "tunique", value: "Tunique" },
+    { key: "gaune", value: "Gaune" },
+    { key: "aLineKurtiPant", value: "A-Line Kurti Pant" },
+    { key: "roundedKurtiPant", value: "Round & Kurti Pant" },
+  ];
 
   const usingDesignSearch = searchType === SEARCH_TYPES.DESIGN;
 
@@ -1357,20 +1369,32 @@ const ListPage = () => {
                                 <SelectValue placeholder="Select kurti type" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="anarkali">
-                                  Anarkali
+                                <SelectItem value="roundedPair">
+                                  Rounded Pair
+                                </SelectItem>
+                                <SelectItem value="straightPair">
+                                  Straight Pair
+                                </SelectItem>
+                                <SelectItem value="plazzaPair">
+                                  Plazza Pair
+                                </SelectItem>
+                                <SelectItem value="sararaPair">
+                                  Sarara Pair
                                 </SelectItem>
                                 <SelectItem value="straight">
                                   Straight
                                 </SelectItem>
-                                <SelectItem value="a-line">A-Line</SelectItem>
-                                <SelectItem value="shirt">
-                                  Shirt Style
+                                <SelectItem value="codeSet">
+                                  Code-Set
                                 </SelectItem>
-                                <SelectItem value="jacket">
-                                  Jacket Style
+                                <SelectItem value="tunique">Tunique</SelectItem>
+                                <SelectItem value="gaune">Gaune</SelectItem>
+                                <SelectItem value="aLineKurtiPant">
+                                  A-Line Kurti Pant
                                 </SelectItem>
-                                <SelectItem value="layered">Layered</SelectItem>
+                                <SelectItem value="roundedKurtiPant">
+                                  Round & Kurti Pant
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           </FormControl>
@@ -1636,6 +1660,9 @@ const ListPage = () => {
                         <TableHead className="text-center font-bold text-base">
                           Type
                         </TableHead>
+                        <TableHead className="text-center font-bold text-base">
+                          Kurti Type
+                        </TableHead>
                         <RoleGateForComponent
                           allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
                         >
@@ -1700,6 +1727,11 @@ const ListPage = () => {
                           initialType={cat.type}
                         /> */}
                           </TableCell>
+                          <TableCell className="text-center font-bold">
+                            {kurtiTypes.find((kt) => kt.key === cat.kurtiType)
+                              ?.value || ""}
+                          </TableCell>
+
                           <RoleGateForComponent
                             allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
                           >

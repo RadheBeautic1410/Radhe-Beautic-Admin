@@ -5,6 +5,7 @@ interface Category {
   name: string;
   count: number;
   type: string;
+  kurtiType?: string;
   countTotal: number;
   totalItems: number;
   sellingPrice: number;
