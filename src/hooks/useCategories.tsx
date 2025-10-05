@@ -5,6 +5,7 @@ interface Category {
   name: string;
   count: number;
   type: string;
+  kurtiType?: string;
   countTotal: number;
   totalItems: number;
   sellingPrice: number;
@@ -28,6 +29,7 @@ export function useCategories({
   search = "",
   searchType = "category",
   sort = "PRICE_HIGH_TO_LOW",
+  kurtiType = "",
 }) {
   const [data, setData] = useState<Category[]>([]);
   const [pagination, setPagination] = useState<
@@ -45,6 +47,7 @@ export function useCategories({
       search,
       searchType,
       sort,
+      kurtiType,
     });
     fetch(`/api/category?${params}`)
       .then((res) => res.json())
@@ -57,7 +60,7 @@ export function useCategories({
         setError(err.message || "Unknown error");
         setLoading(false);
       });
-  }, [page, limit, search, searchType, sort]);
+  }, [page, limit, search, searchType, sort, kurtiType]);
 
   const setCategoryData = (data: Category[]) => {
     setData(data);

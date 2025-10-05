@@ -140,6 +140,7 @@ const ListPage = () => {
   const [sortType, setSortType] = useState<string>(
     SORT_TYPES.PRICE_HIGH_TO_LOW
   );
+  const [kurtiTypeFilter, setKurtiTypeFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   const [downloadLoading, setDownloadLoading] = useState(false);
@@ -151,6 +152,18 @@ const ListPage = () => {
     totalPices: 0,
     totalStockPrice: 0,
   });
+  const kurtiTypes = [
+    { key: "roundedPair", value: "Rounded Pair" },
+    { key: "straightPair", value: "Straight Pair" },
+    { key: "plazzaPair", value: "Plazza Pair" },
+    { key: "sararaPair", value: "Sarara Pair" },
+    { key: "straight", value: "Straight" },
+    { key: "codeSet", value: "Code-Set" },
+    { key: "tunique", value: "Tunique" },
+    { key: "gaune", value: "Gaune" },
+    { key: "aLineKurtiPant", value: "A-Line Kurti Pant" },
+    { key: "roundedKurtiPant", value: "Round & Kurti Pant" },
+  ];
 
   const usingDesignSearch = searchType === SEARCH_TYPES.DESIGN;
 
@@ -191,6 +204,7 @@ const ListPage = () => {
     search: !usingDesignSearch ? debounceSeaerchValue : "",
     searchType: searchType,
     sort: sortType,
+    kurtiType: kurtiTypeFilter === "all" ? "" : kurtiTypeFilter,
   });
 
   const ImageModal = ({
@@ -229,6 +243,7 @@ const ListPage = () => {
     defaultValues: {
       name: "",
       type: "",
+      kurtiType: "",
       image: "",
       sellingPrice: 0,
       actualPrice: 0,
@@ -252,6 +267,11 @@ const ListPage = () => {
 
   const handleSortChange = useCallback((newSortType: string) => {
     setSortType(newSortType);
+    setCurrentPage(1);
+  }, []);
+
+  const handleKurtiTypeChange = useCallback((newKurtiType: string) => {
+    setKurtiTypeFilter(newKurtiType);
     setCurrentPage(1);
   }, []);
 
@@ -309,6 +329,7 @@ const ListPage = () => {
           sellingPrice: values.sellingPrice
             ? parseFloat(values.sellingPrice?.toString())
             : null,
+          kurtiType: values.kurtiType,
         })
           .then((data) => {
             if (data.error) {
@@ -1341,6 +1362,56 @@ const ListPage = () => {
                     />
                     <FormField
                       control={form.control}
+                      name="kurtiType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Kurti Type</FormLabel>
+                          <FormControl>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              disabled={isPending}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select kurti type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="roundedPair">
+                                  Rounded Pair
+                                </SelectItem>
+                                <SelectItem value="straightPair">
+                                  Straight Pair
+                                </SelectItem>
+                                <SelectItem value="plazzaPair">
+                                  Plazza Pair
+                                </SelectItem>
+                                <SelectItem value="sararaPair">
+                                  Sarara Pair
+                                </SelectItem>
+                                <SelectItem value="straight">
+                                  Straight
+                                </SelectItem>
+                                <SelectItem value="codeSet">
+                                  Code-Set
+                                </SelectItem>
+                                <SelectItem value="tunique">Tunique</SelectItem>
+                                <SelectItem value="gaune">Gaune</SelectItem>
+                                <SelectItem value="aLineKurtiPant">
+                                  A-Line Kurti Pant
+                                </SelectItem>
+                                <SelectItem value="roundedKurtiPant">
+                                  Round & Kurti Pant
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
                       name="actualPrice"
                       render={({ field }) => (
                         <FormItem>
@@ -1445,7 +1516,7 @@ const ListPage = () => {
       <CardContent>
         <div className="pb-2">
           <div className="flex flex-col sm:flex-row justify-center mb-2 gap-4">
-            <div className="sm:w-[30%]">
+            <div className="sm:w-[25%]">
               <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
                 Select search type
               </h2>
@@ -1468,7 +1539,7 @@ const ListPage = () => {
               </Select>
             </div>
 
-            <div className="sm:w-[30%]">
+            <div className="sm:w-[25%]">
               <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
                 Select sort type
               </h2>
@@ -1490,7 +1561,25 @@ const ListPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="sm:w-[30%] mt-auto">
+            <div className="sm:w-[25%]">
+              <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
+                Filter by Kurti Type
+              </h2>
+              <Select onValueChange={handleKurtiTypeChange} value={kurtiTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Kurti Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Kurti Types</SelectItem>
+                  {kurtiTypes.map((kurtiType) => (
+                    <SelectItem key={kurtiType.key} value={kurtiType.key}>
+                      {kurtiType.value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:w-[25%] mt-auto">
               <SearchBar
                 value={searchValue}
                 onChange={handleSearch}
@@ -1596,6 +1685,9 @@ const ListPage = () => {
                         <TableHead className="text-center font-bold text-base">
                           Type
                         </TableHead>
+                        <TableHead className="text-center font-bold text-base">
+                          Kurti Type
+                        </TableHead>
                         <RoleGateForComponent
                           allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
                         >
@@ -1660,6 +1752,11 @@ const ListPage = () => {
                           initialType={cat.type}
                         /> */}
                           </TableCell>
+                          <TableCell className="text-center font-bold">
+                            {kurtiTypes.find((kt) => kt.key === cat.kurtiType)
+                              ?.value || ""}
+                          </TableCell>
+
                           <RoleGateForComponent
                             allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
                           >

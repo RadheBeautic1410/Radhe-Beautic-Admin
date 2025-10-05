@@ -26,12 +26,20 @@ import { Button } from "@/src/components/ui/button";
 import ImageUpload2 from "../upload/imageUpload2";
 import { categoryEditSchema } from "@/src/schemas";
 import { categoryUpdate } from "@/src/actions/category";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Category {
   id: string;
   name: string;
   count: number;
   type: string;
+  kurtiType?: string;
   countTotal: number;
   totalItems: number;
   sellingPrice: number;
@@ -70,6 +78,7 @@ const EditCategoryModal = ({
       actualPrice: category.actualPrice || undefined,
       bigPrice: category.bigPrice || undefined,
       walletDiscount: category.walletDiscount || undefined,
+      kurtiType: category.kurtiType || "",
     },
   });
 
@@ -81,6 +90,8 @@ const EditCategoryModal = ({
 
   const handleSubmit = (values: z.infer<typeof categoryEditSchema>) => {
     startTransition(() => {
+      console.log("values", values);
+
       categoryUpdate(category.id, {
         name: values.name,
         type: values.type || "",
@@ -89,6 +100,7 @@ const EditCategoryModal = ({
         actualPrice: values.actualPrice,
         bigPrice: values.bigPrice, // Include bigPrice in the update
         walletDiscount: values.walletDiscount || 0,
+        kurtiType: values.kurtiType,
       })
         .then((data) => {
           console.log("🚀 ~ .then ~ data:", data);
@@ -206,7 +218,39 @@ const EditCategoryModal = ({
                 </FormItem>
               )}
             />
-
+            <FormField
+              control={form.control}
+              name="kurtiType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Kurti Type</FormLabel>
+                  <FormControl>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={isPending}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select kurti type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="roundedPair">Rounded Pair</SelectItem>
+                        <SelectItem value="straightPair">Straight Pair</SelectItem>
+                        <SelectItem value="plazzaPair">Plazza Pair</SelectItem>
+                        <SelectItem value="sararaPair">Sarara Pair</SelectItem>
+                        <SelectItem value="straight">Straight</SelectItem>
+                        <SelectItem value="codeSet">Code-Set</SelectItem>
+                        <SelectItem value="tunique">Tunique</SelectItem>
+                        <SelectItem value="gaune">Gaune</SelectItem>
+                        <SelectItem value="aLineKurtiPant">A-Line Kurti Pant</SelectItem>
+                        <SelectItem value="roundedKurtiPant">Round & Kurti Pant</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="actualPrice"
