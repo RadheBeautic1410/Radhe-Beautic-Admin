@@ -140,6 +140,7 @@ const ListPage = () => {
   const [sortType, setSortType] = useState<string>(
     SORT_TYPES.PRICE_HIGH_TO_LOW
   );
+  const [kurtiTypeFilter, setKurtiTypeFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   const [downloadLoading, setDownloadLoading] = useState(false);
@@ -203,6 +204,7 @@ const ListPage = () => {
     search: !usingDesignSearch ? debounceSeaerchValue : "",
     searchType: searchType,
     sort: sortType,
+    kurtiType: kurtiTypeFilter === "all" ? "" : kurtiTypeFilter,
   });
 
   const ImageModal = ({
@@ -265,6 +267,11 @@ const ListPage = () => {
 
   const handleSortChange = useCallback((newSortType: string) => {
     setSortType(newSortType);
+    setCurrentPage(1);
+  }, []);
+
+  const handleKurtiTypeChange = useCallback((newKurtiType: string) => {
+    setKurtiTypeFilter(newKurtiType);
     setCurrentPage(1);
   }, []);
 
@@ -1509,7 +1516,7 @@ const ListPage = () => {
       <CardContent>
         <div className="pb-2">
           <div className="flex flex-col sm:flex-row justify-center mb-2 gap-4">
-            <div className="sm:w-[30%]">
+            <div className="sm:w-[25%]">
               <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
                 Select search type
               </h2>
@@ -1532,7 +1539,7 @@ const ListPage = () => {
               </Select>
             </div>
 
-            <div className="sm:w-[30%]">
+            <div className="sm:w-[25%]">
               <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
                 Select sort type
               </h2>
@@ -1554,7 +1561,25 @@ const ListPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="sm:w-[30%] mt-auto">
+            <div className="sm:w-[25%]">
+              <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
+                Filter by Kurti Type
+              </h2>
+              <Select onValueChange={handleKurtiTypeChange} value={kurtiTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Kurti Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Kurti Types</SelectItem>
+                  {kurtiTypes.map((kurtiType) => (
+                    <SelectItem key={kurtiType.key} value={kurtiType.key}>
+                      {kurtiType.value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:w-[25%] mt-auto">
               <SearchBar
                 value={searchValue}
                 onChange={handleSearch}
