@@ -9,6 +9,7 @@ interface Category {
   name: string;
   // count: number;
   type: string;
+  kurtiType?: string;
   countTotal: number;
   totalItems: number;
   sellingPrice: number;
@@ -17,6 +18,7 @@ interface Category {
   bigPrice?: number;
   walletDiscount?: number;
   code?: string;
+  isStockReady?: boolean;
 }
 
 // export async function GET(request: Request) {
@@ -49,6 +51,9 @@ export async function GET(req: NextRequest) {
     // Sort
     const sortType = searchParams.get("sort") ?? "PRICE_HIGH_TO_LOW"; // or NAME, PIECE_COUNT, PRICE_LOW_TO_HIGH
 
+    // Kurti Type Filter
+    const kurtiType = searchParams.get("kurtiType")?.trim() ?? "";
+
     // Build Prisma filter
     let where: any = { isDeleted: false };
     if (search) {
@@ -59,6 +64,11 @@ export async function GET(req: NextRequest) {
       } else if (searchType === "type") {
         where.type = { contains: search, mode: "insensitive" };
       }
+    }
+
+    // Add kurti type filter
+    if (kurtiType) {
+      where.kurtiType = kurtiType;
     }
 
     // Sorting mapping
@@ -113,6 +123,7 @@ function generateCSV(data: any): string {
   const headers: (keyof Category)[] = [
     "name",
     "type",
+    "kurtiType",
     "countTotal",
     "totalItems",
     "sellingPrice",
