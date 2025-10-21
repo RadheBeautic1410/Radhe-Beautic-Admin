@@ -86,7 +86,7 @@ export const kurtiAddition = async (data: any) => {
     },
     data: {
       countTotal: {
-        increment:data.countOfPiece,
+        increment: data.countOfPiece,
       },
       totalItems: {
         increment: 1,
@@ -155,11 +155,11 @@ function isSize(size: string) {
 
 export const stockAddition = async (data: any) => {
   const { code, sizes } = data;
-  
+
   // Step 1: Calculate new total count of pieces from sizes
   let newCount = 0;
   for (let i = 0; i < sizes.length; i++) {
-    if(sizes[i].quantity > 0){
+    if (sizes[i].quantity > 0) {
       newCount += sizes[i].quantity;
     }
   }
@@ -764,6 +764,20 @@ export const toggleKurtiBigPrice = async (
       isBigPrice: isBigPrice,
       bigPrice: isBigPrice ? category.bigPrice : null,
       lastUpdatedTime: currTime,
+    },
+  });
+
+  const updateKurtiPrices = await db.prices.update({
+    where: {
+      id: existingKurti.pricesId!,
+    },
+    data: {
+      sellingPrice2: isBigPrice
+        ? (category.sellingPrice || 0) + category.bigPrice
+        : category.sellingPrice || 0,
+      sellingPrice3: isBigPrice
+        ? (category.sellingPrice || 0) + category.bigPrice
+        : category.sellingPrice || 0,
     },
   });
 
