@@ -217,20 +217,17 @@ const Sidebar = () => {
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="p-4 border-b border-white/20">
+          <div className="border-b border-white/20">
             <div className="flex items-center justify-between">
               {!isCollapsed && (
                 <Link href="/" className="flex items-center gap-2">
                   <Image
-                    src="/images/TextLogo.png"
-                    height="40"
-                    width="40"
-                    alt="Logo"
-                    className="rounded-lg"
+                    src="/images/radhe_logo.svg"
+                    alt="logo"
+                    width={250}
+                    className="w-full"
+                    height={250}
                   />
-                  <span className="text-white font-semibold text-lg">
-                    Dashboard
-                  </span>
                 </Link>
               )}
               {isCollapsed && (
@@ -244,7 +241,7 @@ const Sidebar = () => {
                   />
                 </Link>
               )}
-              <button
+              {/* <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
                 className="hidden lg:block text-white/70 hover:text-white transition-colors"
               >
@@ -265,7 +262,7 @@ const Sidebar = () => {
                     d="M15 19l-7-7 7-7"
                   />
                 </svg>
-              </button>
+              </button> */}
             </div>
           </div>
 
