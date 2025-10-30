@@ -39,20 +39,13 @@ const routes = [
   {
     name: "Sell",
     href: "/sell",
-    role: [
-      UserRole.ADMIN,
-      UserRole.UPLOADER,
-      UserRole.SELLER,
-    ],
+    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER],
     icon: "💰",
   },
   {
     name: "Sell Retailer",
     href: "/sellRetailer",
-    role: [
-      UserRole.ADMIN,
-      UserRole.SHOP_SELLER,
-    ],
+    role: [UserRole.ADMIN, UserRole.SHOP_SELLER],
     icon: "🏬",
   },
   {
@@ -68,7 +61,7 @@ const routes = [
   {
     name: "Add Stock",
     href: "/addstock",
-    role: [UserRole.ADMIN,UserRole.UPLOADER,UserRole.SELLER,],
+    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER],
     icon: "📦",
   },
   {
@@ -80,41 +73,37 @@ const routes = [
   {
     name: "Selling History",
     href: "/sellinghistory",
-    role: [UserRole.ADMIN,UserRole.SELLER,],
+    role: [UserRole.ADMIN, UserRole.SELLER],
     icon: "📊",
   },
   {
     name: "Offline Sales",
     href: "/offline-sales",
-    role: [
-      UserRole.ADMIN,
-      UserRole.SHOP_SELLER,
-      UserRole.SELLER_MANAGER,
-    ],
+    role: [UserRole.ADMIN, UserRole.SHOP_SELLER, UserRole.SELLER_MANAGER],
     icon: "🏪",
   },
   {
     name: "Online Sales",
     href: "/online-sales",
-    role: [UserRole.ADMIN,UserRole.SELLER_MANAGER,],
+    role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
     icon: "🌐",
   },
   {
     name: "Orders",
     href: "/orders",
-    role: [UserRole.ADMIN,UserRole.SELLER_MANAGER,],
+    role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
     icon: "🛒",
   },
   {
     name: "Analytics",
     href: "/analytics",
-    role: [UserRole.ADMIN,UserRole.SELLER_MANAGER,],
+    role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
     icon: "📈",
   },
   {
     name: "Dashboard",
     href: "/dashboard",
-    role: [UserRole.ADMIN,UserRole.SELLER_MANAGER,],
+    role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
     icon: "📊",
   },
   {
@@ -152,7 +141,7 @@ const routes = [
     ],
     icon: "💧",
   },
-    {
+  {
     name: "Wallet Request",
     href: "/wallet-request",
     role: [
@@ -217,20 +206,17 @@ const Sidebar = () => {
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="p-4 border-b border-white/20">
+          <div className="border-b border-white/20">
             <div className="flex items-center justify-between">
               {!isCollapsed && (
                 <Link href="/" className="flex items-center gap-2">
                   <Image
-                    src="/images/TextLogo.png"
-                    height="40"
-                    width="40"
-                    alt="Logo"
-                    className="rounded-lg"
+                    src="/images/radhe_logo.svg"
+                    alt="logo"
+                    width={250}
+                    className="w-full"
+                    height={250}
                   />
-                  <span className="text-white font-semibold text-lg">
-                    Dashboard
-                  </span>
                 </Link>
               )}
               {isCollapsed && (
@@ -244,7 +230,7 @@ const Sidebar = () => {
                   />
                 </Link>
               )}
-              <button
+              {/* <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
                 className="hidden lg:block text-white/70 hover:text-white transition-colors"
               >
@@ -265,7 +251,7 @@ const Sidebar = () => {
                     d="M15 19l-7-7 7-7"
                   />
                 </svg>
-              </button>
+              </button> */}
             </div>
           </div>
 
