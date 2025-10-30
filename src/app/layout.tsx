@@ -9,6 +9,15 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Radhe Beautic',
   description: 'Unlock your destiny with ACD Referrals',
+  icons: {
+    icon: '/images/logo_square.svg',
+    shortcut: '/images/logo_square.svg',
+    apple: '/images/logo_square.svg',
+    other: {
+      rel: 'icon',
+      url: '/images/logo_square.svg',
+    },
+  },
 }
 
 export default function RootLayout({
