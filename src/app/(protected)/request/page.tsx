@@ -46,6 +46,7 @@ const ModeratorPage = () => {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [tab, setTab] = useState<0 | 1>(0);
   const [search, setSearch] = useState("");
+  const [verificationFilter, setVerificationFilter] = useState<"all" | "verified" | "unverified">("all");
 
   const currentRole = useCurrentRole();
 
@@ -92,19 +93,33 @@ const ModeratorPage = () => {
   };
 
   // 🔍 Filtered lists
-  const filteredUsers = users.filter((user) =>
-  [user.name, user.phoneNumber, user.groupName]
-    .some((field) =>
-      field?.toLowerCase().includes(search.toLowerCase())
-    )
-);
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch = [user.name, user.phoneNumber, user.groupName]
+      .some((field) =>
+        field?.toLowerCase().includes(search.toLowerCase())
+      );
+    
+    const matchesVerification = 
+      verificationFilter === "all" ||
+      (verificationFilter === "verified" && user.isVerified) ||
+      (verificationFilter === "unverified" && !user.isVerified);
+    
+    return matchesSearch && matchesVerification;
+  });
 
-const filteredCustomers = customers.filter((user) =>
-  [user.name, user.phoneNumber, user.groupName]
-    .some((field) =>
-      field?.toLowerCase().includes(search.toLowerCase())
-    )
-);
+  const filteredCustomers = customers.filter((user) => {
+    const matchesSearch = [user.name, user.phoneNumber, user.groupName]
+      .some((field) =>
+        field?.toLowerCase().includes(search.toLowerCase())
+      );
+    
+    const matchesVerification = 
+      verificationFilter === "all" ||
+      (verificationFilter === "verified" && user.isVerified) ||
+      (verificationFilter === "unverified" && !user.isVerified);
+    
+    return matchesSearch && matchesVerification;
+  });
 
   return (
     <>
@@ -112,36 +127,64 @@ const filteredCustomers = customers.filter((user) =>
       <RoleGate allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
         <Card className="w-full h-full">
           <CardHeader className="bg-secondary rounded-xl">
-            <div className="grid grid-cols-2 items-center gap-4">
-              {/* Left side - Tabs */}
-              <div className="flex gap-2">
-                <Button
-                  variant={tab === 0 ? "default" : "outline"}
-                  onClick={() => setTab(0)}
-                >
-                  🧑‍💼 Staff Members
-                </Button>
-                <Button
-                  variant={tab === 1 ? "default" : "outline"}
-                  onClick={() => setTab(1)}
-                >
-                  🧑‍💻 Customers
-                </Button>
-              </div>
-
-              {/* Right side - Search + Refresh */}
-              <div className="flex justify-end gap-3 items-center">
-                <div className="relative w-full">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    placeholder="Search by name or phone or group..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-10 pr-4 rounded-2xl shadow-sm border focus:ring-2 focus:ring-primary focus:border-primary transition"
-                  />
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 items-center gap-4">
+                {/* Left side - Tabs */}
+                <div className="flex gap-2">
+                  <Button
+                    variant={tab === 0 ? "default" : "outline"}
+                    onClick={() => setTab(0)}
+                  >
+                    🧑‍💼 Staff Members
+                  </Button>
+                  <Button
+                    variant={tab === 1 ? "default" : "outline"}
+                    onClick={() => setTab(1)}
+                  >
+                    🧑‍💻 Customers
+                  </Button>
                 </div>
-                <Button variant="outline" onClick={() => setLoadingUsers(true)}>
-                  <Link href="/request">⟳ Refresh</Link>
+
+                {/* Right side - Search + Refresh */}
+                <div className="flex justify-end gap-3 items-center">
+                  <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      placeholder="Search by name or phone or group..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-10 pr-4 rounded-2xl shadow-sm border focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    />
+                  </div>
+                  <Button variant="outline" onClick={() => setLoadingUsers(true)}>
+                    <Link href="/request">⟳ Refresh</Link>
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Verification Filter */}
+              <div className="flex gap-2 items-center">
+                <span className="text-sm font-medium text-muted-foreground">Filter by Verification:</span>
+                <Button
+                  variant={verificationFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setVerificationFilter("all")}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={verificationFilter === "verified" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setVerificationFilter("verified")}
+                >
+                  ✓ Verified
+                </Button>
+                <Button
+                  variant={verificationFilter === "unverified" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setVerificationFilter("unverified")}
+                >
+                  ✗ Unverified
                 </Button>
               </div>
             </div>

@@ -250,8 +250,8 @@ export const CustomerRow = ({
                       </FormControl>
                       <SelectContent>
                         <SelectItem value={UserRole.USER}>Customer</SelectItem>
-                        <SelectItem value={UserRole.ADMIN}>Admin</SelectItem>
-                        <SelectItem value={UserRole.MOD}>Moderator</SelectItem>
+                        {/* <SelectItem value={UserRole.ADMIN}>Admin</SelectItem>
+                        <SelectItem value={UserRole.MOD}>Moderator</SelectItem> */}
                       </SelectContent>
                     </Select>
                     <FormMessage />

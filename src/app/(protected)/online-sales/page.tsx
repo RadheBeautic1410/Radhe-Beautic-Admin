@@ -61,6 +61,7 @@ interface ShippingAddress {
 }
 interface Order {
   shippingAddress: ShippingAddress;
+  shippingCharge: number;
 }
 interface OnlineSale {
   id: string;
@@ -409,7 +410,10 @@ function OnlineSalesPage() {
                 )}
                 {paymentStatusFilter !== "all" && (
                   <span className="ml-2 text-purple-600">
-                    | Payment Status: {paymentStatusFilter === "COMPLETED" ? "✅ Completed" : "⚠️ Pending"}
+                    | Payment Status:{" "}
+                    {paymentStatusFilter === "COMPLETED"
+                      ? "✅ Completed"
+                      : "⚠️ Pending"}
                   </span>
                 )}
                 {(dateRange?.from || dateRange?.to) && (
@@ -442,20 +446,22 @@ function OnlineSalesPage() {
                     <SelectTrigger className="w-40">
                       <SelectValue />
                     </SelectTrigger>
-                                      <SelectContent>
-                    <SelectItem value="customerName">
-                      Customer Name
-                    </SelectItem>
-                    <SelectItem value="customerPhone">
-                      Customer Phone
-                    </SelectItem>
-                    <SelectItem value="invoiceNumber">
-                      Invoice Number
-                    </SelectItem>
-                    <SelectItem value="orderId">Order ID</SelectItem>
-                    <SelectItem value="amount">Amount</SelectItem>
-                    <SelectItem value="paymentStatus">Payment Status</SelectItem>
-                  </SelectContent>
+                    <SelectContent>
+                      <SelectItem value="customerName">
+                        Customer Name
+                      </SelectItem>
+                      <SelectItem value="customerPhone">
+                        Customer Phone
+                      </SelectItem>
+                      <SelectItem value="invoiceNumber">
+                        Invoice Number
+                      </SelectItem>
+                      <SelectItem value="orderId">Order ID</SelectItem>
+                      <SelectItem value="amount">Amount</SelectItem>
+                      <SelectItem value="paymentStatus">
+                        Payment Status
+                      </SelectItem>
+                    </SelectContent>
                   </Select>
                 </div>
 
@@ -520,7 +526,10 @@ function OnlineSalesPage() {
                     <SelectItem value="PENDING">⚠️ Pending</SelectItem>
                   </SelectContent>
                 </Select>
-                {(searchQuery || dateRange?.from || dateRange?.to || paymentStatusFilter !== "all") && (
+                {(searchQuery ||
+                  dateRange?.from ||
+                  dateRange?.to ||
+                  paymentStatusFilter !== "all") && (
                   <Button onClick={handleClearSearch} variant="outline">
                     Clear All
                   </Button>
@@ -687,8 +696,8 @@ function OnlineSalesPage() {
                           </span>
                         )}
                         <div className="text-sm text-gray-600">
-                          {sale.sellType === "HALL_SELL_ONLINE" 
-                            ? "Hall Sell Online" 
+                          {sale.sellType === "HALL_SELL_ONLINE"
+                            ? "Hall Sell Online"
                             : "Online Sale"}
                         </div>
                       </div>
@@ -698,7 +707,7 @@ function OnlineSalesPage() {
                         <div className="flex items-center gap-1">
                           <ShoppingBag className="h-4 w-4 text-gray-500" />
                           <span className="font-medium">
-                            ₹{sale.totalAmount}
+                            ₹{sale.totalAmount} + ₹{sale.order?.shippingCharge}(shipping charge) = ₹{sale.totalAmount + (sale.order?.shippingCharge || 0)}
                           </span>
                         </div>
                         <div className="text-sm text-gray-600">
@@ -717,7 +726,10 @@ function OnlineSalesPage() {
                               ✅ Completed
                             </span>
                           ) : sale.paymentStatus === "PENDING" ? (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 text-nowrap" title="Payment pending due to insufficient wallet balance">
+                            <span
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 text-nowrap"
+                              title="Payment pending due to insufficient wallet balance"
+                            >
                               ⚠️ Pending
                             </span>
                           ) : (
@@ -740,17 +752,13 @@ function OnlineSalesPage() {
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              generateAddressPDF(
-                                sale.orderId!
-                              )
-                            }
-                            title="Download Address"
-                          >
-                            <FileDownIcon className="h-4 w-4" />
-                          </Button>
+                          size="sm"
+                          variant="outline"
+                          onClick={() => generateAddressPDF(sale.orderId!)}
+                          title="Download Address"
+                        >
+                          <FileDownIcon className="h-4 w-4" />
+                        </Button>
                         {sale.invoiceUrl && (
                           <Button
                             size="sm"

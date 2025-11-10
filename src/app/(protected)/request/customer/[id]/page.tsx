@@ -85,11 +85,20 @@ const CustomerPendingOrdersPage = () => {
         <div className="bg-blue-50 rounded-md p-4">
           <h3 className="font-semibold mb-2">User Info</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-            <div><span className="font-medium">Name:</span> {user?.name || "-"}</div>
+            <div>
+              <span className="font-medium">Name:</span> {user?.name || "-"}
+            </div>
             {/* <div><span className="font-medium">Email:</span> {user?.email || "-"}</div> */}
-            <div><span className="font-medium">Phone:</span> {user?.phoneNumber || "-"}</div>
-            <div><span className="font-medium">Role:</span> {user?.role || "-"}</div>
-            <div><span className="font-medium">Wallet Balance:</span> ₹{wallet}</div>
+            <div>
+              <span className="font-medium">Phone:</span>{" "}
+              {user?.phoneNumber || "-"}
+            </div>
+            <div>
+              <span className="font-medium">Role:</span> {user?.role || "-"}
+            </div>
+            <div>
+              <span className="font-medium">Wallet Balance:</span> ₹{wallet}
+            </div>
           </div>
         </div>
 
@@ -97,17 +106,29 @@ const CustomerPendingOrdersPage = () => {
         <div className="bg-green-50 rounded-md p-4">
           <h3 className="font-semibold mb-3">Pending Online Orders</h3>
           {orders.length === 0 ? (
-            <div className="text-sm text-gray-600">No pending online orders.</div>
+            <div className="text-sm text-gray-600">
+              No pending online orders.
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table className="border">
                 <TableHeader>
                   <TableRow className="bg-green-800">
-                    <TableHead className="font-bold border text-white">Select</TableHead>
-                    <TableHead className="font-bold border text-white">Batch</TableHead>
-                    <TableHead className="font-bold border text-white">Total Amount</TableHead>
-                    <TableHead className="font-bold border text-white">Total Items</TableHead>
-                    <TableHead className="font-bold border text-white">Sale Time</TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Select
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Batch
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Total Amount
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Total Items
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Sale Time
+                    </TableHead>
                     {/* <TableHead className="font-bold border text-white">Action</TableHead> */}
                   </TableRow>
                 </TableHeader>
@@ -119,7 +140,10 @@ const CustomerPendingOrdersPage = () => {
                           type="checkbox"
                           checked={!!selected[o.id]}
                           onChange={() => {
-                            const next = { ...selected } as Record<string, boolean>;
+                            const next = { ...selected } as Record<
+                              string,
+                              boolean
+                            >;
                             if (next[o.id]) {
                               delete next[o.id];
                             } else {
@@ -130,9 +154,13 @@ const CustomerPendingOrdersPage = () => {
                         />
                       </TableCell>
                       <TableCell className="border">{o.batchNumber}</TableCell>
-                      <TableCell className="border">₹{o.totalAmount}</TableCell>
+                      <TableCell className="border">
+                        ₹{o.totalAmount + o.order.shippingCharge}
+                      </TableCell>
                       <TableCell className="border">{o.totalItems}</TableCell>
-                      <TableCell className="border">{new Date(o.saleTime).toLocaleString()}</TableCell>
+                      <TableCell className="border">
+                        {new Date(o.saleTime).toLocaleString()}
+                      </TableCell>
                       {/* <TableCell className="border">
                         <div className="flex gap-2">
                           <Link href={`/online-sales/${o.id}`}>
@@ -146,21 +174,34 @@ const CustomerPendingOrdersPage = () => {
               </Table>
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm">
-                  <span className="text-gray-700">Selected Total: ₹{selectedTotal} / Wallet: ₹{wallet}</span>
+                  <span className="text-gray-700">
+                    Selected Total: ₹{selectedTotal} / Wallet: ₹{wallet}
+                  </span>
                   {exceeds && (
-                    <span className="ml-2 text-red-600 font-medium">Total exceeds wallet balance</span>
+                    <span className="ml-2 text-red-600 font-medium">
+                      Total exceeds wallet balance
+                    </span>
                   )}
                 </div>
                 <Button
-                  disabled={settling || Object.keys(selected).length === 0 || exceeds}
+                  disabled={
+                    settling || Object.keys(selected).length === 0 || exceeds
+                  }
                   onClick={async () => {
                     try {
                       setSettling(true);
-                      const batchIds = Object.keys(selected).filter((k) => selected[k]);
-                      const res = await axios.post(`/api/users/${userId}/settle-pending-online-orders`, { batchIds });
+                      const batchIds = Object.keys(selected).filter(
+                        (k) => selected[k]
+                      );
+                      const res = await axios.post(
+                        `/api/users/${userId}/settle-pending-online-orders`,
+                        { batchIds }
+                      );
                       if (res.data?.success !== false) {
                         // refresh page data
-                        const refreshed = await axios.get(`/api/users/${userId}/pending-online-orders`);
+                        const refreshed = await axios.get(
+                          `/api/users/${userId}/pending-online-orders`
+                        );
                         if (refreshed.data?.success) {
                           setUser(refreshed.data.data.user);
                           setOrders(refreshed.data.data.orders || []);
@@ -168,13 +209,17 @@ const CustomerPendingOrdersPage = () => {
                         }
                       }
                     } catch (e: any) {
-                      alert(e?.response?.data?.error || e?.message || 'Failed to settle');
+                      alert(
+                        e?.response?.data?.error ||
+                          e?.message ||
+                          "Failed to settle"
+                      );
                     } finally {
                       setSettling(false);
                     }
                   }}
                 >
-                  {settling ? 'Processing...' : 'Settle Selected'}
+                  {settling ? "Processing..." : "Settle Selected"}
                 </Button>
               </div>
             </div>
