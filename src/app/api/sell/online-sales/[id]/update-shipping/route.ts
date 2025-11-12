@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
@@ -11,22 +11,31 @@ export async function PUT(
   try {
     const session = await auth();
     const { id } = await params;
-    
+
     if (!session?.user) {
-      return new NextResponse(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+      });
     }
 
     // Check if user is admin
     if (session.user.role !== "ADMIN") {
-      return new NextResponse(JSON.stringify({ error: "Only admins can update shipping information" }), { status: 403 });
+      return new NextResponse(
+        JSON.stringify({
+          error: "Only admins can update shipping information",
+        }),
+        { status: 403 }
+      );
     }
 
     if (!session.user.id) {
-      return new NextResponse(JSON.stringify({ error: "User ID not found" }), { status: 400 });
+      return new NextResponse(JSON.stringify({ error: "User ID not found" }), {
+        status: 400,
+      });
     }
 
     const body = await request.json();
-    const { trackingId, shippingCharge, changeReason } = body;
+    const { trackingId, shippingCharge, changeReason, selectedCourier } = body;
 
     // Get the current online sale batch to find the order
     const saleBatch = await db.onlineSellBatch.findUnique({
@@ -37,7 +46,10 @@ export async function PUT(
     });
 
     if (!saleBatch || !saleBatch.order) {
-      return new NextResponse(JSON.stringify({ error: "Online sale or order not found" }), { status: 404 });
+      return new NextResponse(
+        JSON.stringify({ error: "Online sale or order not found" }),
+        { status: 404 }
+      );
     }
 
     const order = saleBatch.order;
@@ -49,10 +61,13 @@ export async function PUT(
     const shippingChargeChanged = shippingCharge !== previousShippingCharge;
 
     if (!trackingIdChanged && !shippingChargeChanged) {
-      return new NextResponse(JSON.stringify({ 
-        success: true, 
-        message: "No changes detected" 
-      }), { status: 200 });
+      return new NextResponse(
+        JSON.stringify({
+          success: true,
+          message: "No changes detected",
+        }),
+        { status: 200 }
+      );
     }
 
     // Update the order with new shipping information
@@ -61,6 +76,7 @@ export async function PUT(
       data: {
         trackingId: trackingId || null,
         shippingCharge: shippingCharge || 0,
+        courier: selectedCourier || null,
       },
     });
 
@@ -94,18 +110,20 @@ export async function PUT(
       });
     }
 
-    return new NextResponse(JSON.stringify({
-      success: true,
-      message: "Shipping information updated successfully",
-      data: {
-        trackingId: updatedOrder.trackingId,
-        shippingCharge: updatedOrder.shippingCharge,
-        changesLogged: trackingIdChanged || shippingChargeChanged,
-      }
-    }), { status: 200 });
-
+    return new NextResponse(
+      JSON.stringify({
+        success: true,
+        message: "Shipping information updated successfully",
+        data: {
+          trackingId: updatedOrder.trackingId,
+          shippingCharge: updatedOrder.shippingCharge,
+          changesLogged: trackingIdChanged || shippingChargeChanged,
+        },
+      }),
+      { status: 200 }
+    );
   } catch (error: any) {
-    console.error('Update shipping API Error:', error);
+    console.error("Update shipping API Error:", error);
     return new NextResponse(
       JSON.stringify({ error: error.message || "Internal server error" }),
       { status: 500 }

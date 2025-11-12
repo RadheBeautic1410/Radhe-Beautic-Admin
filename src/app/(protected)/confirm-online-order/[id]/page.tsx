@@ -79,7 +79,25 @@ function SellPage() {
   const [shippingCharge, setShippingCharge] = useState<number>(0);
 
   const currentUser = useCurrentUser();
-
+  const [selectedCourier, setSelectedCourier] = useState<string>("indianpost");
+  const courierServices = [
+    {
+      key: "indianpost",
+      value: "Indian Post",
+    },
+    {
+      key: "dtdc",
+      value: "Dtdc",
+    },
+    {
+      key: "delivery",
+      value: "Delivery",
+    },
+    {
+      key: "tirupati",
+      value: "Tirupati",
+    },
+  ];
   // Fetch order data function
   const fetchOrderData = async () => {
     if (!orderId) return;
@@ -416,14 +434,23 @@ function SellPage() {
       } else {
         // Check payment status and show appropriate message
         if (data.paymentStatus === "COMPLETED") {
-          toast.success("Sale completed successfully! Payment processed via wallet.");
+          toast.success(
+            "Sale completed successfully! Payment processed via wallet."
+          );
         } else {
-          toast.success("Sale completed successfully! Order marked as PENDING due to insufficient wallet balance.");
+          toast.success(
+            "Sale completed successfully! Order marked as PENDING due to insufficient wallet balance."
+          );
         }
-        
+
         // Mark order shipped with tracking and shipping charge
         try {
-          const shipRes: any = await shippedOrder(orderId, trackingId, shippingCharge);
+          const shipRes: any = await shippedOrder(
+            orderId,
+            trackingId,
+            shippingCharge,
+            selectedCourier
+          );
           if (shipRes?.error) {
             toast.error(shipRes.error);
           } else {
@@ -452,104 +479,102 @@ function SellPage() {
     }
   };
 
-const generateInvoice = async (saleData: any) => {
-  try {
-    const soldProducts = cart.map((item) => ({
-      kurti: item.kurti,
-      size: item.selectedSize,
-      quantity: item.quantity,
-      selledPrice: item.sellingPrice
-        ? parseFloat(item.sellingPrice?.toString())
-        : 0,
-      unitPrice: item.sellingPrice
-        ? parseFloat(item.sellingPrice?.toString())
-        : 0,
-      totalPrice: item.sellingPrice
-        ? parseFloat(item.sellingPrice?.toString()) * item.quantity
-        : 0,
-    }));
+  const generateInvoice = async (saleData: any) => {
+    try {
+      const soldProducts = cart.map((item) => ({
+        kurti: item.kurti,
+        size: item.selectedSize,
+        quantity: item.quantity,
+        selledPrice: item.sellingPrice
+          ? parseFloat(item.sellingPrice?.toString())
+          : 0,
+        unitPrice: item.sellingPrice
+          ? parseFloat(item.sellingPrice?.toString())
+          : 0,
+        totalPrice: item.sellingPrice
+          ? parseFloat(item.sellingPrice?.toString()) * item.quantity
+          : 0,
+      }));
 
-    const result = await generateInvoicePDF({
-      saleData,
-      batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
-      customerName,
-      customerPhone,
-      selectedLocation: "",
-      billCreatedBy,
-      currentUser,
-      soldProducts,
-      totalAmount: getTotalAmount() + (saleData?.shippingCharge || 0),
-      gstType,
-      invoiceNumber: saleData.invoiceNumber || "",
-      sellType: "HALL_SELL_ONLINE",
-      shippingCharge: saleData?.shippingCharge || 0,
-      trackingId: saleData?.trackingId || trackingId,
-    } as any);
+      const result = await generateInvoicePDF({
+        saleData,
+        batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
+        customerName,
+        customerPhone,
+        selectedLocation: "",
+        billCreatedBy,
+        currentUser,
+        soldProducts,
+        totalAmount: getTotalAmount() + (saleData?.shippingCharge || 0),
+        gstType,
+        invoiceNumber: saleData.invoiceNumber || "",
+        sellType: "HALL_SELL_ONLINE",
+        shippingCharge: saleData?.shippingCharge || 0,
+        trackingId: saleData?.trackingId || trackingId,
+      } as any);
 
-    if (!result.success || !result.pdfBase64) {
-      throw new Error(result.error || "Failed to generate PDF");
-    }
-
-    // Convert base64 string to Blob (PDF)
-    const binaryString = atob(result.pdfBase64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    const blob = new Blob([bytes], { type: "application/pdf" });
-
-    // Trigger download
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `invoice-${
-      saleData.batchNumber || `ONLINE-INV-${Date.now()}`
-    }.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-
-    toast.success("Invoice PDF downloaded successfully!");
-
-    // Send to WhatsApp API
-    // Create a File object from the Blob to simulate file upload
-    const pdfFile = new File(
-      [blob],
-      `invoice-${saleData.batchNumber || `ONLINE-INV-${Date.now()}`}.pdf`,
-      {
-        type: "application/pdf",
+      if (!result.success || !result.pdfBase64) {
+        throw new Error(result.error || "Failed to generate PDF");
       }
-    );
 
-    const formData = new FormData();
-    formData.append("type", "media"); // as per your API example
-    formData.append("to", customerPhone); // or the target WhatsApp number
-    formData.append("file", pdfFile);
-    formData.append("caption", "Here is your PDF document");
+      // Convert base64 string to Blob (PDF)
+      const binaryString = atob(result.pdfBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: "application/pdf" });
 
-    // Call your WhatsApp send API endpoint
-    const response = await fetch("http://localhost:3000/api/whatsapp", {
-      method: "POST",
-      body: formData,
-    });
+      // Trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `invoice-${
+        saleData.batchNumber || `ONLINE-INV-${Date.now()}`
+      }.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-    const whatsappResult = await response.json();
+      toast.success("Invoice PDF downloaded successfully!");
 
-    if (!response.ok) {
-      throw new Error(
-        whatsappResult.error || "Failed to send invoice to WhatsApp"
+      // Send to WhatsApp API
+      // Create a File object from the Blob to simulate file upload
+      const pdfFile = new File(
+        [blob],
+        `invoice-${saleData.batchNumber || `ONLINE-INV-${Date.now()}`}.pdf`,
+        {
+          type: "application/pdf",
+        }
       );
+
+      const formData = new FormData();
+      formData.append("type", "media"); // as per your API example
+      formData.append("to", customerPhone); // or the target WhatsApp number
+      formData.append("file", pdfFile);
+      formData.append("caption", "Here is your PDF document");
+
+      // Call your WhatsApp send API endpoint
+      // const response = await fetch("http://localhost:3000/api/whatsapp", {
+      //   method: "POST",
+      //   body: formData,
+      // });
+
+      // const whatsappResult = await response.json();
+
+      // if (!response.ok) {
+      //   throw new Error(
+      //     whatsappResult.error || "Failed to send invoice to WhatsApp"
+      //   );
+      // }
+
+    //  toast.success("Invoice PDF sent via WhatsApp!");
+    } catch (error) {
+      console.error("Error generating PDF or sending WhatsApp message:", error);
+      toast.error("Failed to generate or send invoice PDF");
     }
-
-    toast.success("Invoice PDF sent via WhatsApp!");
-
-  } catch (error) {
-    console.error("Error generating PDF or sending WhatsApp message:", error);
-    toast.error("Failed to generate or send invoice PDF");
-  }
-};
-
+  };
 
   const resetForm = () => {
     setCode("");
@@ -653,22 +678,32 @@ const generateInvoice = async (saleData: any) => {
           <h3 className="text-lg font-semibold mb-3">GST Configuration</h3>
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              💳 <strong>Payment Method:</strong> Orders will be automatically paid using the customer's wallet balance.
+              💳 <strong>Payment Method:</strong> Orders will be automatically
+              paid using the customer's wallet balance.
               <br />
-              📊 <strong>Balance Check:</strong> The system will verify sufficient funds before confirming the order.
+              📊 <strong>Balance Check:</strong> The system will verify
+              sufficient funds before confirming the order.
             </p>
             {userBalance !== null && (
               <div className="mt-3 p-2 bg-white border border-blue-300 rounded">
                 <p className="text-sm font-medium text-blue-900">
-                  💰 Customer Wallet Balance: <span className="font-bold">₹{userBalance}</span>
+                  💰 Customer Wallet Balance:{" "}
+                  <span className="font-bold">₹{userBalance}</span>
                 </p>
                 {cart.length > 0 && (
                   <p className="text-xs text-blue-700 mt-1">
-                    Order Total: ₹{getTotalAmount()} | 
+                    Order Total: ₹{getTotalAmount()} |
                     {userBalance >= getTotalAmount() ? (
-                      <span className="text-green-600"> ✅ Sufficient Balance - Payment will be completed</span>
+                      <span className="text-green-600">
+                        {" "}
+                        ✅ Sufficient Balance - Payment will be completed
+                      </span>
                     ) : (
-                      <span className="text-orange-600"> ⚠️ Insufficient Balance - Order will be marked as PENDING</span>
+                      <span className="text-orange-600">
+                        {" "}
+                        ⚠️ Insufficient Balance - Order will be marked as
+                        PENDING
+                      </span>
                     )}
                   </p>
                 )}
@@ -761,7 +796,9 @@ const generateInvoice = async (saleData: any) => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div>
-                    <Label className="text-sm font-medium text-green-700">Tracking ID *</Label>
+                    <Label className="text-sm font-medium text-green-700">
+                      Tracking ID *
+                    </Label>
                     <Input
                       placeholder="Enter tracking id"
                       value={trackingId}
@@ -769,14 +806,44 @@ const generateInvoice = async (saleData: any) => {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-green-700">Shipping Charge *</Label>
+                    <Label className="text-sm font-medium text-green-700">
+                      Shipping Charge *
+                    </Label>
                     <Input
                       type="number"
                       min={0}
                       placeholder="Enter shipping charge"
                       value={shippingCharge}
-                      onChange={(e) => setShippingCharge(parseInt(e.target.value || "0"))}
+                      onChange={(e) =>
+                        setShippingCharge(parseInt(e.target.value || "0"))
+                      }
                     />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="courier-select"
+                      className="text-sm font-medium text-green-700"
+                    >
+                      Courier services *
+                    </Label>
+                    <select
+                      id="courier-select"
+                      name="courier-select"
+                      aria-label="Select courier services"
+                      className="w-full p-2 border rounded-md"
+                      value={selectedCourier}
+                      onChange={(e) => {
+                        console.log("e.target.value", e.target.value);
+                        setSelectedCourier(e.target.value);
+                      }}
+                    >
+                      <option value="">Select Courier Services</option>
+                      {courierServices.map((sz: any, i: number) => (
+                        <option key={i} value={sz.key}>
+                          {sz.value}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -1124,7 +1191,8 @@ const generateInvoice = async (saleData: any) => {
 
             <div className="flex justify-between items-center mt-4 pt-4 border-t border-green-300">
               <div className="text-xl font-bold text-green-800">
-                Total Amount: ₹{getTotalAmount()} {shippingCharge > 0 ? `+ Shipping ₹${shippingCharge}` : ""}
+                Total Amount: ₹{getTotalAmount()}{" "}
+                {shippingCharge > 0 ? `+ Shipping ₹${shippingCharge}` : ""}
               </div>
               <div className="flex gap-3">
                 <Button
@@ -1151,16 +1219,23 @@ const generateInvoice = async (saleData: any) => {
                 </Button>
               </div>
             </div>
-            
+
             {/* Payment Status Information */}
             {cart.length > 0 && userBalance !== null && (
               <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="text-sm text-blue-800">
                   <p className="font-medium mb-1">💡 Payment Information:</p>
                   {userBalance >= getTotalAmount() ? (
-                    <p>✅ <strong>Sufficient Balance:</strong> Payment will be automatically completed and amount deducted from wallet.</p>
+                    <p>
+                      ✅ <strong>Sufficient Balance:</strong> Payment will be
+                      automatically completed and amount deducted from wallet.
+                    </p>
                   ) : (
-                    <p>⚠️ <strong>Insufficient Balance:</strong> Order will be completed but marked as PENDING. No amount will be deducted from wallet.</p>
+                    <p>
+                      ⚠️ <strong>Insufficient Balance:</strong> Order will be
+                      completed but marked as PENDING. No amount will be
+                      deducted from wallet.
+                    </p>
                   )}
                 </div>
               </div>

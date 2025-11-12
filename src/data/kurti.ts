@@ -1372,6 +1372,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         saleTime: currentTime,
         sellerName: currentUser.name,
         sellType: sellType,
+        shopId: shopId,
       },
     });
 
@@ -2391,7 +2392,7 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
             customerName: customerName,
             customerPhone: customerPhone,
             selledPrice: sellingPrice,
-            quantity: quantity,
+            quantity: quantity
           },
         });
 

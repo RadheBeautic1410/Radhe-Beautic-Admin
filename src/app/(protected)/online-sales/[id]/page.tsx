@@ -51,6 +51,24 @@ interface SaleDetailsPageProps {
     id: string;
   };
 }
+const courierServices = [
+  {
+    key: "indianpost",
+    value: "Indian Post",
+  },
+  {
+    key: "dtdc",
+    value: "Dtdc",
+  },
+  {
+    key: "delivery",
+    value: "Delivery",
+  },
+  {
+    key: "tirupati",
+    value: "Tirupati",
+  },
+];
 
 function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   const [loading, setLoading] = useState(false);
@@ -91,6 +109,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   const [updatingShipping, setUpdatingShipping] = useState(false);
   const [shippingHistory, setShippingHistory] = useState<any[]>([]);
   const [showShippingHistory, setShowShippingHistory] = useState(false);
+  const [selectedCourier, setSelectedCourier] = useState<string>("indianpost");
 
   const currentUser = useCurrentUser();
   const router = useRouter();
@@ -194,177 +213,178 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   };
 
   // Save changes
-const handleSaveChanges = async () => {
-  try {
-    setUpdating(true);
+  const handleSaveChanges = async () => {
+    try {
+      setUpdating(true);
 
-    // Validate required fields
-    if (!customerName.trim()) {
-      toast.error("Customer name is required");
-      return;
-    }
-
-    if (!billCreatedBy.trim()) {
-      toast.error("Bill created by is required");
-      return;
-    }
-
-    if (!paymentStatus) {
-      toast.error("Payment status is required");
-      return;
-    }
-
-    // Prepare data for API call
-    const updateData: any = {
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      billCreatedBy: billCreatedBy.trim(),
-      paymentStatus: paymentStatus,
-      gstType: gstType,
-      sellType: sellType,
-      orderId: originalSaleData.orderId,
-    };
-
-    // Add new products if any are in the cart that weren't in the original data
-    const originalSaleIds =
-      originalSaleData?.sales?.map((sale: any) => sale.id) || [];
-    const newProducts = cart
-      .filter((item) => !originalSaleIds.includes(item.id))
-      .map((item) => ({
-        kurtiId: item.kurti.id,
-        kurtiCode: item.kurti.code,
-        selectedSize: item.selectedSize,
-        quantity: item.quantity,
-        sellingPrice: item.sellingPrice,
-        code: item.kurti.code,
-      }));
-
-    if (newProducts.length > 0) {
-      updateData.newProducts = newProducts;
-    }
-
-    // Add updated items (existing items that have been modified)
-    const updatedItems = cart
-      .filter((item) => originalSaleIds.includes(item.id))
-      .map((item) => ({
-        id: item.id,
-        quantity: item.quantity,
-        sellingPrice: item.sellingPrice,
-      }));
-
-    if (updatedItems.length > 0) {
-      updateData.updatedItems = updatedItems;
-    }
-
-    // Add removed items if any
-    if (removedItems.length > 0) {
-      updateData.removedItems = removedItems;
-    }
-
-    const response = await axios.put(
-      `/api/sell/online-sales/${params.id}`,
-      updateData
-    );
-
-    if (response.data.success) {
-      toast.success("Sale updated successfully!");
-      setOriginalSaleData(response.data.data);
-
-      // Download the updated invoice
-      try {
-        const link = document.createElement("a");
-        link.href = response.data.data.invoiceUrl;
-        link.download = `invoice-${response.data.batchNumber}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("New invoice downloaded!");
-      } catch (error) {
-        console.error("Error downloading invoice:", error);
-        toast.error("Failed to download invoice");
+      // Validate required fields
+      if (!customerName.trim()) {
+        toast.error("Customer name is required");
+        return;
       }
 
-      // Send updated invoice to WhatsApp
-      try {
-        // First, fetch the updated PDF file from the URL
-        const pdfResponse = await fetch(response.data.data.invoiceUrl);
+      if (!billCreatedBy.trim()) {
+        toast.error("Bill created by is required");
+        return;
+      }
 
-        if (!pdfResponse.ok) {
-          throw new Error("Failed to fetch updated PDF from server");
+      if (!paymentStatus) {
+        toast.error("Payment status is required");
+        return;
+      }
+
+      // Prepare data for API call
+      const updateData: any = {
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        billCreatedBy: billCreatedBy.trim(),
+        paymentStatus: paymentStatus,
+        gstType: gstType,
+        sellType: sellType,
+        orderId: originalSaleData.orderId,
+      };
+
+      // Add new products if any are in the cart that weren't in the original data
+      const originalSaleIds =
+        originalSaleData?.sales?.map((sale: any) => sale.id) || [];
+      const newProducts = cart
+        .filter((item) => !originalSaleIds.includes(item.id))
+        .map((item) => ({
+          kurtiId: item.kurti.id,
+          kurtiCode: item.kurti.code,
+          selectedSize: item.selectedSize,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+          code: item.kurti.code,
+        }));
+
+      if (newProducts.length > 0) {
+        updateData.newProducts = newProducts;
+      }
+
+      // Add updated items (existing items that have been modified)
+      const updatedItems = cart
+        .filter((item) => originalSaleIds.includes(item.id))
+        .map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+        }));
+
+      if (updatedItems.length > 0) {
+        updateData.updatedItems = updatedItems;
+      }
+
+      // Add removed items if any
+      if (removedItems.length > 0) {
+        updateData.removedItems = removedItems;
+      }
+
+      const response = await axios.put(
+        `/api/sell/online-sales/${params.id}`,
+        updateData
+      );
+
+      if (response.data.success) {
+        toast.success("Sale updated successfully!");
+        setOriginalSaleData(response.data.data);
+
+        // Download the updated invoice
+        try {
+          const link = document.createElement("a");
+          link.href = response.data.data.invoiceUrl;
+          link.download = `invoice-${response.data.batchNumber}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.success("New invoice downloaded!");
+        } catch (error) {
+          console.error("Error downloading invoice:", error);
+          toast.error("Failed to download invoice");
         }
 
-        // Convert response to blob
-        const pdfBlob = await pdfResponse.blob();
+        // Send updated invoice to WhatsApp
+        try {
+          // First, fetch the updated PDF file from the URL
+          const pdfResponse = await fetch(response.data.data.invoiceUrl);
 
-        // Create a File object from the blob
-        const pdfFile = new File(
-          [pdfBlob],
-          `invoice-${response.data.batchNumber}.pdf`,
-          {
-            type: "application/pdf",
+          if (!pdfResponse.ok) {
+            throw new Error("Failed to fetch updated PDF from server");
           }
-        );
 
-        // Prepare FormData for WhatsApp API
-        const formData = new FormData();
-        formData.append("type", "media");
-        formData.append("to", customerPhone.trim()); // Use the updated customer phone
-        formData.append("file", pdfFile);
-        formData.append("caption", "Here is your updated invoice PDF");
+          // Convert response to blob
+          const pdfBlob = await pdfResponse.blob();
 
-        // Send to WhatsApp API
-        const whatsappResponse = await fetch(
-          "http://localhost:3000/api/whatsapp",
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
-
-        const whatsappResult = await whatsappResponse.json();
-
-        if (!whatsappResponse.ok) {
-          throw new Error(
-            whatsappResult.error || "Failed to send updated invoice to WhatsApp"
+          // Create a File object from the blob
+          const pdfFile = new File(
+            [pdfBlob],
+            `invoice-${response.data.batchNumber}.pdf`,
+            {
+              type: "application/pdf",
+            }
           );
+
+          // Prepare FormData for WhatsApp API
+          const formData = new FormData();
+          formData.append("type", "media");
+          formData.append("to", customerPhone.trim()); // Use the updated customer phone
+          formData.append("file", pdfFile);
+          formData.append("caption", "Here is your updated invoice PDF");
+
+          // Send to WhatsApp API
+          // const whatsappResponse = await fetch(
+          //   "http://localhost:3000/api/whatsapp",
+          //   {
+          //     method: "POST",
+          //     body: formData,
+          //   }
+          // );
+
+          // const whatsappResult = await whatsappResponse.json();
+
+          // if (!whatsappResponse.ok) {
+          //   throw new Error(
+          //     whatsappResult.error ||
+          //       "Failed to send updated invoice to WhatsApp"
+          //   );
+          // }
+
+       //   toast.success("Updated invoice sent via WhatsApp!");
+        } catch (whatsappError) {
+          console.error(
+            "Error sending updated invoice to WhatsApp:",
+            whatsappError
+          );
+          toast.error("Failed to send updated invoice via WhatsApp");
+          // Don't throw here - we still want the update to be considered successful
         }
 
-        toast.success("Updated invoice sent via WhatsApp!");
-      } catch (whatsappError) {
-        console.error(
-          "Error sending updated invoice to WhatsApp:",
-          whatsappError
-        );
-        toast.error("Failed to send updated invoice via WhatsApp");
-        // Don't throw here - we still want the update to be considered successful
+        // Update cart with the new data from server
+        const updatedCartItems = response.data.data.sales.map((sale: any) => ({
+          id: sale.id,
+          kurti: sale.kurti,
+          selectedSize: sale.kurtiSize,
+          quantity: sale.quantity,
+          sellingPrice: sale.selledPrice,
+          availableStock: sale.availableStock,
+        }));
+        setCart(updatedCartItems);
+
+        await loadSaleDetails();
+
+        // Reset removed items and exit edit mode
+        setRemovedItems([]);
+        setIsEditMode(false);
+      } else {
+        toast.error("Failed to update sale");
       }
-
-      // Update cart with the new data from server
-      const updatedCartItems = response.data.data.sales.map((sale: any) => ({
-        id: sale.id,
-        kurti: sale.kurti,
-        selectedSize: sale.kurtiSize,
-        quantity: sale.quantity,
-        sellingPrice: sale.selledPrice,
-        availableStock: sale.availableStock,
-      }));
-      setCart(updatedCartItems);
-
-      await loadSaleDetails();
-
-      // Reset removed items and exit edit mode
-      setRemovedItems([]);
-      setIsEditMode(false);
-    } else {
-      toast.error("Failed to update sale");
+    } catch (error: any) {
+      console.error("Error updating sale:", error);
+      toast.error(error.response?.data?.error || "Failed to update sale");
+    } finally {
+      setUpdating(false);
     }
-  } catch (error: any) {
-    console.error("Error updating sale:", error);
-    toast.error(error.response?.data?.error || "Failed to update sale");
-  } finally {
-    setUpdating(false);
-  }
-};
+  };
 
   const handleFind = async () => {
     try {
@@ -572,102 +592,103 @@ const handleSaveChanges = async () => {
     return kurti.sizes.filter((sz: any) => sz.quantity > 0);
   };
 
-const regenerateInvoice = async () => {
-  try {
-    setRegeneratingInvoice(true);
+  const regenerateInvoice = async () => {
+    try {
+      setRegeneratingInvoice(true);
 
-    const response = await axios.post(
-      `/api/sell/online-sales/${params.id}/regenerate-invoice`
-    );
+      const response = await axios.post(
+        `/api/sell/online-sales/${params.id}/regenerate-invoice`
+      );
 
-    if (response.data.success) {
-      toast.success("Invoice regenerated successfully!");
+      if (response.data.success) {
+        toast.success("Invoice regenerated successfully!");
 
-      // Update the original sale data with new invoice URL
-      if (originalSaleData) {
-        setOriginalSaleData({
-          ...originalSaleData,
-          invoiceUrl: response.data.invoiceUrl,
-        });
-      }
-
-      // Download the new invoice
-      try {
-        const link = document.createElement("a");
-        link.href = response.data.data.invoiceUrl;
-        console.log("🚀 ~ regenerateInvoice ~ link:", link);
-        link.download = `invoice-${response.data.batchNumber}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("New invoice downloaded!");
-      } catch (error) {
-        console.error("Error downloading invoice:", error);
-        toast.error("Failed to download invoice");
-      }
-
-      // Send PDF to WhatsApp
-      try {
-        // First, fetch the PDF file from the URL
-        const pdfResponse = await fetch(response.data.data.invoiceUrl);
-
-        if (!pdfResponse.ok) {
-          throw new Error("Failed to fetch PDF from server");
+        // Update the original sale data with new invoice URL
+        if (originalSaleData) {
+          setOriginalSaleData({
+            ...originalSaleData,
+            invoiceUrl: response.data.invoiceUrl,
+          });
         }
 
-        // Convert response to blob
-        const pdfBlob = await pdfResponse.blob();
+        // Download the new invoice
+        try {
+          const link = document.createElement("a");
+          link.href = response.data.data.invoiceUrl;
+          console.log("🚀 ~ regenerateInvoice ~ link:", link);
+          link.download = `invoice-${response.data.batchNumber}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.success("New invoice downloaded!");
+        } catch (error) {
+          console.error("Error downloading invoice:", error);
+          toast.error("Failed to download invoice");
+        }
 
-        // Create a File object from the blob
-        const pdfFile = new File(
-          [pdfBlob],
-          `invoice-${response.data.batchNumber}.pdf`,
-          {
-            type: "application/pdf",
+        // Send PDF to WhatsApp
+        try {
+          // First, fetch the PDF file from the URL
+          const pdfResponse = await fetch(response.data.data.invoiceUrl);
+
+          if (!pdfResponse.ok) {
+            throw new Error("Failed to fetch PDF from server");
           }
-        );
 
-        // Prepare FormData for WhatsApp API
-        const formData = new FormData();
-        formData.append("type", "media");
-        formData.append("to", customerPhone); // Make sure this variable is available
-        formData.append("file", pdfFile);
-        formData.append("caption", "Here is your regenerated invoice PDF");
+          // Convert response to blob
+          const pdfBlob = await pdfResponse.blob();
 
-        // Send to WhatsApp API
-        const whatsappResponse = await fetch(
-          "http://localhost:3000/api/whatsapp",
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
-
-        const whatsappResult = await whatsappResponse.json();
-
-        if (!whatsappResponse.ok) {
-          throw new Error(
-            whatsappResult.error || "Failed to send invoice to WhatsApp"
+          // Create a File object from the blob
+          const pdfFile = new File(
+            [pdfBlob],
+            `invoice-${response.data.batchNumber}.pdf`,
+            {
+              type: "application/pdf",
+            }
           );
+
+          // Prepare FormData for WhatsApp API
+          const formData = new FormData();
+          formData.append("type", "media");
+          formData.append("to", customerPhone); // Make sure this variable is available
+          formData.append("file", pdfFile);
+          formData.append("caption", "Here is your regenerated invoice PDF");
+
+          // Send to WhatsApp API
+          // const whatsappResponse = await fetch(
+          //   "http://localhost:3000/api/whatsapp",
+          //   {
+          //     method: "POST",
+          //     body: formData,
+          //   }
+          // );
+
+          // const whatsappResult = await whatsappResponse.json();
+
+          // if (!whatsappResponse.ok) {
+          //   throw new Error(
+          //     whatsappResult.error || "Failed to send invoice to WhatsApp"
+          //   );
+          // }
+
+          // toast.success("Invoice PDF sent via WhatsApp!");
+        } catch (whatsappError) {
+          console.error("Error sending invoice to WhatsApp:", whatsappError);
+          toast.error("Failed to send invoice via WhatsApp");
+          // Don't throw here - we still want the regeneration to be considered successful
         }
-
-        toast.success("Invoice PDF sent via WhatsApp!");
-      } catch (whatsappError) {
-        console.error("Error sending invoice to WhatsApp:", whatsappError);
-        toast.error("Failed to send invoice via WhatsApp");
-        // Don't throw here - we still want the regeneration to be considered successful
+      } else {
+        toast.error(response.data.error || "Failed to regenerate invoice");
       }
-    } else {
-      toast.error(response.data.error || "Failed to regenerate invoice");
+    } catch (error: any) {
+      console.error("Error regenerating invoice:", error);
+      toast.error(
+        error.response?.data?.error || "Failed to regenerate invoice"
+      );
+    } finally {
+      setRegeneratingInvoice(false);
     }
-  } catch (error: any) {
-    console.error("Error regenerating invoice:", error);
-    toast.error(error.response?.data?.error || "Failed to regenerate invoice");
-  } finally {
-    setRegeneratingInvoice(false);
-  }
-};
-
+  };
 
   const updateShippingInformation = async () => {
     try {
@@ -679,12 +700,13 @@ const regenerateInvoice = async () => {
           trackingId: shippingTrackingId,
           shippingCharge: shippingCharge,
           changeReason: changeReason,
+          selectedCourier: selectedCourier,
         }
       );
 
       if (response.data.success) {
         toast.success("Shipping information updated successfully!");
-        
+
         // Update the original sale data
         if (originalSaleData) {
           setOriginalSaleData({
@@ -701,7 +723,9 @@ const regenerateInvoice = async () => {
         setEditingShipping(false);
         setChangeReason("");
       } else {
-        toast.error(response.data.error || "Failed to update shipping information");
+        toast.error(
+          response.data.error || "Failed to update shipping information"
+        );
       }
     } catch (error: any) {
       console.error("Error updating shipping information:", error);
@@ -1333,13 +1357,43 @@ const regenerateInvoice = async () => {
                       type="number"
                       placeholder="Enter shipping charge"
                       value={shippingCharge}
-                      onChange={(e) => setShippingCharge(parseInt(e.target.value) || 0)}
+                      onChange={(e) =>
+                        setShippingCharge(parseInt(e.target.value) || 0)
+                      }
                       className="mt-1"
                     />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="change-reason">Reason for Change (Optional)</Label>
+                  <Label
+                    htmlFor="courier-select"
+                    className="text-sm font-medium text-green-700"
+                  >
+                    Courier services *
+                  </Label>
+                  <select
+                    id="courier-select"
+                    name="courier-select"
+                    aria-label="Select courier services"
+                    className="w-full p-2 border rounded-md"
+                    value={selectedCourier}
+                    onChange={(e) => {
+                      console.log("e.target.value", e.target.value);
+                      setSelectedCourier(e.target.value);
+                    }}
+                  >
+                    <option value="">Select Courier Services</option>
+                    {courierServices.map((sz: any, i: number) => (
+                      <option key={i} value={sz.key}>
+                        {sz.value}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="change-reason">
+                    Reason for Change (Optional)
+                  </Label>
                   <Input
                     id="change-reason"
                     placeholder="Enter reason for change"
@@ -1397,14 +1451,19 @@ const regenerateInvoice = async () => {
                     <div className="mt-1 p-2 bg-blue-100 rounded text-blue-800">
                       <p>{originalSaleData.order.shippingAddress.address}</p>
                       {originalSaleData.order.shippingAddress.zipCode && (
-                        <p>ZIP: {originalSaleData.order.shippingAddress.zipCode}</p>
+                        <p>
+                          ZIP: {originalSaleData.order.shippingAddress.zipCode}
+                        </p>
                       )}
                     </div>
                   </div>
                 )}
-                {!originalSaleData.order.shippingCharge && !originalSaleData.order.trackingId && (
-                  <p className="text-gray-500 italic">No shipping information available</p>
-                )}
+                {!originalSaleData.order.shippingCharge &&
+                  !originalSaleData.order.trackingId && (
+                    <p className="text-gray-500 italic">
+                      No shipping information available
+                    </p>
+                  )}
               </div>
             )}
           </div>
@@ -1436,7 +1495,10 @@ const regenerateInvoice = async () => {
                   <p>💳 Payment completed via wallet</p>
                   <p>💰 Amount deducted: ₹{originalSaleData.totalAmount}</p>
                   {originalSaleData.order?.shippingCharge > 0 && (
-                    <p>🚚 Shipping charge: ₹{originalSaleData.order.shippingCharge}</p>
+                    <p>
+                      🚚 Shipping charge: ₹
+                      {originalSaleData.order.shippingCharge}
+                    </p>
                   )}
                 </div>
               )}
@@ -1445,7 +1507,10 @@ const regenerateInvoice = async () => {
                   <p>⚠️ Payment is pending</p>
                   <p>💰 Amount to be paid: ₹{originalSaleData.totalAmount}</p>
                   {originalSaleData.order?.shippingCharge > 0 && (
-                    <p>🚚 Shipping charge: ₹{originalSaleData.order.shippingCharge}</p>
+                    <p>
+                      🚚 Shipping charge: ₹
+                      {originalSaleData.order.shippingCharge}
+                    </p>
                   )}
                   <p className="text-xs mt-1">
                     This order was completed but payment could not be processed
@@ -1468,7 +1533,9 @@ const regenerateInvoice = async () => {
                 <p>Shipping Charge: ₹{originalSaleData.order.shippingCharge}</p>
               )}
               <p className="font-bold text-green-700">
-                Total Amount: ₹{originalSaleData.totalAmount + (originalSaleData.order?.shippingCharge || 0)}
+                Total Amount: ₹
+                {originalSaleData.totalAmount +
+                  (originalSaleData.order?.shippingCharge || 0)}
               </p>
               <p>Total Items: {originalSaleData.totalItems}</p>
               <p>
@@ -1578,7 +1645,9 @@ const regenerateInvoice = async () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">📋 Shipping Change History</h3>
+                <h3 className="text-lg font-semibold">
+                  📋 Shipping Change History
+                </h3>
                 <Button
                   onClick={() => setShowShippingHistory(false)}
                   variant="outline"
@@ -1587,23 +1656,28 @@ const regenerateInvoice = async () => {
                   ✕ Close
                 </Button>
               </div>
-              
+
               {shippingHistory.length > 0 ? (
                 <div className="space-y-4">
                   {shippingHistory.map((change, index) => (
-                    <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                    <div
+                      key={index}
+                      className="border rounded-lg p-4 bg-gray-50"
+                    >
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <h4 className="font-semibold text-sm text-gray-700 mb-2">Tracking ID Changes</h4>
+                          <h4 className="font-semibold text-sm text-gray-700 mb-2">
+                            Tracking ID Changes
+                          </h4>
                           <div className="space-y-1">
                             <p className="text-sm">
-                              <span className="font-medium">From:</span> 
+                              <span className="font-medium">From:</span>
                               <span className="ml-2 px-2 py-1 bg-gray-200 rounded text-xs">
                                 {change.previousTrackingId || "None"}
                               </span>
                             </p>
                             <p className="text-sm">
-                              <span className="font-medium">To:</span> 
+                              <span className="font-medium">To:</span>
                               <span className="ml-2 px-2 py-1 bg-blue-100 rounded text-xs">
                                 {change.newTrackingId || "None"}
                               </span>
@@ -1611,31 +1685,46 @@ const regenerateInvoice = async () => {
                           </div>
                         </div>
                         <div>
-                          <h4 className="font-semibold text-sm text-gray-700 mb-2">Shipping Charge Changes</h4>
+                          <h4 className="font-semibold text-sm text-gray-700 mb-2">
+                            Shipping Charge Changes
+                          </h4>
                           <div className="space-y-1">
                             <p className="text-sm">
-                              <span className="font-medium">From:</span> 
-                              <span className="ml-2 font-semibold">₹{change.previousShippingCharge || 0}</span>
+                              <span className="font-medium">From:</span>
+                              <span className="ml-2 font-semibold">
+                                ₹{change.previousShippingCharge || 0}
+                              </span>
                             </p>
                             <p className="text-sm">
-                              <span className="font-medium">To:</span> 
-                              <span className="ml-2 font-semibold text-green-600">₹{change.newShippingCharge || 0}</span>
+                              <span className="font-medium">To:</span>
+                              <span className="ml-2 font-semibold text-green-600">
+                                ₹{change.newShippingCharge || 0}
+                              </span>
                             </p>
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <div className="flex justify-between items-center text-xs text-gray-600">
                           <div>
-                            <p><span className="font-medium">Changed by:</span> {change.changedByUser?.name || change.changedByUser?.phoneNumber} ({change.changedByUser?.role})</p>
-                            <p><span className="font-medium">Date:</span> {new Date(change.createdAt).toLocaleString()}</p>
+                            <p>
+                              <span className="font-medium">Changed by:</span>{" "}
+                              {change.changedByUser?.name ||
+                                change.changedByUser?.phoneNumber}{" "}
+                              ({change.changedByUser?.role})
+                            </p>
+                            <p>
+                              <span className="font-medium">Date:</span>{" "}
+                              {new Date(change.createdAt).toLocaleString()}
+                            </p>
                           </div>
                         </div>
                         {change.changeReason && (
                           <div className="mt-2">
                             <p className="text-xs">
-                              <span className="font-medium">Reason:</span> {change.changeReason}
+                              <span className="font-medium">Reason:</span>{" "}
+                              {change.changeReason}
                             </p>
                           </div>
                         )}

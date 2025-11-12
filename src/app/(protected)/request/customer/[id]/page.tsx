@@ -118,7 +118,7 @@ const CustomerPendingOrdersPage = () => {
                       Select
                     </TableHead>
                     <TableHead className="font-bold border text-white">
-                      Batch
+                      Order Id
                     </TableHead>
                     <TableHead className="font-bold border text-white">
                       Total Amount
@@ -153,7 +153,7 @@ const CustomerPendingOrdersPage = () => {
                           }}
                         />
                       </TableCell>
-                      <TableCell className="border">{o.batchNumber}</TableCell>
+                      <TableCell className="border">{o.orderId}</TableCell>
                       <TableCell className="border">
                         ₹{o.totalAmount + o.order.shippingCharge}
                       </TableCell>

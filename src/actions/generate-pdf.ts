@@ -43,22 +43,24 @@ export const generateInvoicePDF = async (data: {
       selectedLocation,
       billCreatedBy,
       currentUser,
-      soldProducts: soldProducts.map(item => ({
+      soldProducts: soldProducts.map((item) => ({
         kurti: {
           code: item.kurti?.code || "",
-          hsnCode: item.kurti?.hsnCode || "6204"
+          hsnCode: item.kurti?.hsnCode || "6204",
         },
         quantity: item.quantity || 1,
         unitPrice: item.unitPrice || item.selledPrice || 0,
-        totalPrice: item.totalPrice || (item.unitPrice || item.selledPrice || 0) * (item.quantity || 1),
-        size: item.size || ""
+        totalPrice:
+          item.totalPrice ||
+          (item.unitPrice || item.selledPrice || 0) * (item.quantity || 1),
+        size: item.size || "",
       })),
       totalAmount,
       gstType,
       invoiceNumber,
       sellType,
       shippingCharge: shippingCharge || 0,
-      trackingId: trackingId || ""
+      trackingId: trackingId || "",
     };
 
     // Call the backend API
@@ -70,9 +72,9 @@ export const generateInvoicePDF = async (data: {
     let response: Response;
     try {
       response = await fetch(`${backendUrl}/generate-invoice-pdf`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(requestPayload),
         // Add timeout for the request
@@ -80,10 +82,10 @@ export const generateInvoicePDF = async (data: {
       });
     } catch (fetchError) {
       if (fetchError instanceof Error) {
-        if (fetchError.name === 'TimeoutError') {
+        if (fetchError.name === "TimeoutError") {
           throw new Error("Backend API request timed out. Please try again.");
         }
-        if (fetchError.name === 'AbortError') {
+        if (fetchError.name === "AbortError") {
           throw new Error("Backend API request was cancelled.");
         }
         throw new Error(`Network error: ${fetchError.message}`);
@@ -158,6 +160,7 @@ export const generateAddressInfo = async ({
       address,
       mobileNo,
     };
+    console.log("requestPayload", requestPayload);
 
     // Call the backend API
     const backendUrl = process.env.NEXT_PUBLIC_SERVER_URL;
@@ -168,9 +171,9 @@ export const generateAddressInfo = async ({
     let response: Response;
     try {
       response = await fetch(`${backendUrl}/generate-address-pdf`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(requestPayload),
         // Add timeout for the request
@@ -178,10 +181,10 @@ export const generateAddressInfo = async ({
       });
     } catch (fetchError) {
       if (fetchError instanceof Error) {
-        if (fetchError.name === 'TimeoutError') {
+        if (fetchError.name === "TimeoutError") {
           throw new Error("Backend API request timed out. Please try again.");
         }
-        if (fetchError.name === 'AbortError') {
+        if (fetchError.name === "AbortError") {
           throw new Error("Backend API request was cancelled.");
         }
         throw new Error(`Network error: ${fetchError.message}`);
@@ -208,7 +211,9 @@ export const generateAddressInfo = async ({
     }
 
     if (!result.success) {
-      throw new Error(result.message || "Failed to generate address PDF from backend");
+      throw new Error(
+        result.message || "Failed to generate address PDF from backend"
+      );
     }
 
     if (!result.pdfBase64) {
@@ -223,7 +228,10 @@ export const generateAddressInfo = async ({
     console.error("Error generating address PDF:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to generate address PDF",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate address PDF",
     };
   }
 };
