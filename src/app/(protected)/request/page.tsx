@@ -61,7 +61,7 @@ const ModeratorPage = () => {
           let customerList: userProps[] = [];
 
           for (let u of result.data || []) {
-            if (u.role === UserRole.USER) {
+            if (u.role === UserRole.RESELLER) {
               customerList.push(u);
             } else {
               staff.push(u);
