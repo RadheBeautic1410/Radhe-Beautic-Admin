@@ -55,6 +55,11 @@ export const generateInvoicePDF = async (data: {
           (item.unitPrice || item.selledPrice || 0) * (item.quantity || 1),
         size: item.size || "",
       })),
+      shopAddress:
+        currentUser.id == "688ced95e5b1f5afbc5b3ff8"
+          ? "Shop no 316, Narayan Nagar, Katargam, Surat, Gujarat 395004"
+          : "269, Narayan Nagar Soc.,Opposite Sagun Jawells street, Katargam, Surat",
+      GSTNo: currentUser.id == "688ced95e5b1f5afbc5b3ff8" ? "24BIFPD2999R1ZK" : "24KJGPD0026N1ZA",
       totalAmount,
       gstType,
       invoiceNumber,
