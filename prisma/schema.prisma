@@ -376,28 +376,28 @@ model CartProduct {
 }
 
 model Orders {
-  id                String              @id @default(auto()) @map("_id") @db.ObjectId
-  orderId           String              @unique
-  cart              Cart                @relation(fields: [cartId], references: [id])
-  cartId            String              @db.ObjectId
-  userId            String              @db.ObjectId
-  date              DateTime            @default(now())
-  trackingIdImages  Json[]
-  status            OrderStatus         @default(PENDING)
-  total             Int
-  shippingAddress   Address             @relation(fields: [addressId], references: [id])
-  shippingCharge    Int                 @default(0)
-  addressId         String              @db.ObjectId
-  trackingId        String?
-  courier           String?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  resellerCustomer  ResellersCustomer   @relation(fields: [resellerCustomerId], references: [id], onDelete: Cascade)
-  resellerCustomerId        String              @db.ObjectId
-  user              User?               @relation(fields: [userId], references: [id])
-  OfflineSellBatch  OfflineSellBatch[]
-  OnlineSellBatch   OnlineSellBatch[]
-  ShippingChangeLog ShippingChangeLog[]
+  id                 String              @id @default(auto()) @map("_id") @db.ObjectId
+  orderId            String              @unique
+  cart               Cart                @relation(fields: [cartId], references: [id])
+  cartId             String              @db.ObjectId
+  userId             String              @db.ObjectId
+  date               DateTime            @default(now())
+  trackingIdImages   Json[]
+  status             OrderStatus         @default(PENDING)
+  total              Int
+  shippingAddress    Address             @relation(fields: [addressId], references: [id])
+  shippingCharge     Int                 @default(0)
+  addressId          String              @db.ObjectId
+  trackingId         String?
+  courier            String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  resellerCustomer   ResellersCustomer   @relation(fields: [resellerCustomerId], references: [id], onDelete: Cascade)
+  resellerCustomerId String              @db.ObjectId
+  user               User?               @relation(fields: [userId], references: [id])
+  OfflineSellBatch   OfflineSellBatch[]
+  OnlineSellBatch    OnlineSellBatch[]
+  ShippingChangeLog  ShippingChangeLog[]
 }
 
 model Address {
@@ -454,6 +454,7 @@ model WalletHistory {
   amount        Float
   type          WalletTxnType
   paymentMethod String
+  paymentType   String
 
   onlineSellBatchId  String?           @db.ObjectId
   offlineSellBatchId String?           @db.ObjectId

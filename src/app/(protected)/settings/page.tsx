@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
 import { removeImage, uploadImage } from "@/src/lib/upload";
+import QRCodeManager from "@/src/components/qr-code-manager";
 
 const SettingsPage = () => {
   const user = useCurrentUser();
@@ -61,8 +62,6 @@ const SettingsPage = () => {
 
   const onSubmit = (values: z.infer<typeof SettingSchema>) => {
     startTransition(() => {
-      console.log("Uploaded QR Code File:", values.qrCode);
-
       settings(values)
         .then((data) => {
           if (data.error) {
@@ -211,28 +210,6 @@ const SettingsPage = () => {
                             )}
                           </div>
                         </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Payment QR Code Upload */}
-                <FormField
-                  control={form.control}
-                  name="qrCode"
-                  render={({ field: { onChange } }) => (
-                    <FormItem>
-                      <FormLabel>Payment QR Code</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          disabled={isPending}
-                          onChange={(e) => {
-                            onChange(e.target.files?.[0]); // save file in form state
-                          }}
-                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -417,6 +394,7 @@ const SettingsPage = () => {
           )}
         </div>
       </Card>
+      <QRCodeManager />
     </>
   );
 };
