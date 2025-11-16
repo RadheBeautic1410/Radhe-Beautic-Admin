@@ -5,7 +5,7 @@ import {
 } from "@/src/lib/firebase/firebase";
 import { generateInvoicePDF } from "@/src/actions/generate-pdf";
 import { OfflineSellType, OnlineSellType, OrderStatus } from "@prisma/client";
-import { Buffer } from 'buffer';
+import { Buffer } from "buffer";
 
 export const getCurrTime = async () => {
   const currentTime = new Date();
@@ -16,7 +16,6 @@ export const getCurrTime = async () => {
 
 export const getLastDelTime = async () => {
   try {
-    // console.log('debg', cat);
     const party: any = await db.deletetime.findUnique({
       where: {
         owner: "DK@123",
@@ -166,7 +165,7 @@ export const getKurtiByCategoryWithPages = async (
 
 export const deleteKurti = async (code: string, category: string) => {
   try {
-    console.log("its kurti delete",code,category)
+    console.log("its kurti delete", code, category);
     const kurtiData = await db.kurti.findUnique({
       where: { code: code.toUpperCase(), isDeleted: false },
     });
@@ -427,7 +426,7 @@ export const sellKurti2 = async (data: any) => {
             }
             const sell = await db.sell.create({
               data: {
-                sellTime: currentTime,
+                sellTime: currTime,
                 code: search.toUpperCase(),
                 sellerName: currentUser.name,
                 kurti: [updateUser],
@@ -819,7 +818,7 @@ export const sellMultipleKurtis = async (data: any) => {
               // Create individual sell record for each product
               const sell = await db.sell.create({
                 data: {
-                  sellTime: currentTime,
+                  sellTime: currTime,
                   code: search.toUpperCase(),
                   sellerName: currentUser.name,
                   kurti: [updateUser],
@@ -862,7 +861,7 @@ export const sellMultipleKurtis = async (data: any) => {
                     decrement: quantity,
                   },
                 },
-              })
+              });
 
               soldProducts.push({
                 kurti: updateUser,
@@ -1069,7 +1068,7 @@ const processSingleSale = async (
     // Create individual sell record
     const sell = await db.sell.create({
       data: {
-        sellTime: currentTime,
+        sellTime: currTime,
         code: search.toUpperCase(),
         sellerName: currentUser.name,
         kurti: [updatedKurti],
@@ -1329,7 +1328,6 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
     let {
       products,
       currentUser,
-      currentTime,
       customerName,
       customerPhone,
       selectedLocation,
@@ -1340,7 +1338,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
       gstType,
       sellType = OfflineSellType.SHOP_SELL_OFFLINE,
     } = data;
-
+    const currTime = await getCurrTime();
     if (!products || products.length === 0) {
       return { error: "No products provided" };
     }
@@ -1367,12 +1365,15 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         customerName: customerName.trim(),
         customerPhone: customerPhone?.trim() || null,
         billCreatedBy: billCreatedBy.trim(),
-        totalAmount: 0, // Will be calculated
-        totalItems: 0, // Will be calculated
-        saleTime: currentTime,
+        totalAmount: 0,
+        totalItems: 0,
+        saleTime: currTime,
         sellerName: currentUser.name,
         sellType: sellType,
         shopId: shopId,
+        paymentType: paymentType,
+        createdAt: currTime,
+        updatedAt: currTime,
       },
     });
 
@@ -1437,8 +1438,6 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
 
           if (flag === 1) {
             try {
-              const currTime = await getCurrTime();
-
               // Update kurti stock
               const updateUser = await db.kurti.update({
                 where: {
@@ -1483,7 +1482,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
               // Create individual offline sell record for each product
               const offlineSell = await db.offlineSell.create({
                 data: {
-                  sellTime: currentTime,
+                  sellTime: currTime,
                   code: search.toUpperCase(),
                   kurtiId: updateUser.id,
                   batchId: offlineBatch.id,
@@ -1494,6 +1493,8 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
                   customerPhone: customerPhone,
                   selledPrice: sellingPrice,
                   quantity: quantity,
+                  createdAt: currTime,
+                  updatedAt: currTime,
                 },
               });
 
@@ -1556,6 +1557,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
             (sum, product) => sum + product.quantity,
             0
           ),
+          updatedAt: currTime,
         },
       });
 
@@ -1573,7 +1575,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
           totalAmount,
           gstType: gstType || "SGST_CGST",
           invoiceNumber: invoiceNumber.toString(),
-          sellType
+          sellType,
         });
 
         if (!result.success || !result.pdfBase64) {
@@ -1581,7 +1583,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         }
 
         // Convert base64 string to Buffer
-        const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
+        const pdfBuffer = Buffer.from(result.pdfBase64, "base64");
 
         // Upload PDF to Firebase
         const invoiceUrl = await uploadInvoicePDFToFirebase(
@@ -1594,6 +1596,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
           where: { id: offlineBatch.id },
           data: {
             invoiceUrl: invoiceUrl,
+            updatedAt: currTime,
           },
         });
       } catch (invoiceError) {
@@ -1674,13 +1677,13 @@ function updateSizeQuantity(sizes: any[], size: string, change: number): any[] {
 
 /**
  * Sell multiple online kurtis with optimized transaction handling
- * 
+ *
  * SOLUTIONS IMPLEMENTED TO FIX TRANSACTION TIMEOUT ISSUES:
  * 1. Increased transaction timeout from 5s to 15s
  * 2. Added batch operations to minimize database round trips
  * 3. Optimized queries and reduced unnecessary operations
  * 4. Added performance monitoring and error handling
- * 
+ *
  * This function handles the sale of multiple kurtis in a single transaction
  * with improved performance and reliability.
  */
@@ -1698,348 +1701,378 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
       sellType = OnlineSellType.HALL_SELL_ONLINE,
       orderId,
     } = data;
-      console.log("🚀 ~ sellMultipleOnlineKurtis ~ products:", products)
+    console.log("🚀 ~ sellMultipleOnlineKurtis ~ products:", products);
 
     if (!products || products.length === 0) {
       return { error: "No products provided" };
     }
-
+    const currTime = await getCurrTime();
     // Start a transaction for all operations with increased timeout
     // Performance optimizations: Increased timeout, optimized queries, batch operations
     console.log(`🚀 Starting transaction for ${products.length} products...`);
     const startTime = Date.now();
-    
-    const txResult = await db.$transaction(async (tx) => {
-      const soldProducts: any[] = [];
-      const errors: string[] = [];
-      let totalAmount = 0;
 
-      // Get user balance for wallet payment
-      if (!orderId) {
-        return { error: "Order ID is required" };
-      }
+    const txResult = await db.$transaction(
+      async (tx) => {
+        const soldProducts: any[] = [];
+        const errors: string[] = [];
+        let totalAmount = 0;
 
-      const order = await tx.orders.findUnique({
-        where: { orderId },
-        select: { userId: true }
-      });
+        // Get user balance for wallet payment
+        if (!orderId) {
+          return { error: "Order ID is required" };
+        }
 
-      if (!order) {
-        return { error: "Order not found" };
-      }
+        const order = await tx.orders.findUnique({
+          where: { orderId },
+          select: { userId: true },
+        });
 
-      const user = await tx.user.findUnique({
-        where: { id: order.userId },
-        select: { id: true, balance: true, name: true }
-      });
+        if (!order) {
+          return { error: "Order not found" };
+        }
 
-      if (!user) {
-        return { error: "User not found" };
-      }
+        const user = await tx.user.findUnique({
+          where: { id: order.userId },
+          select: { id: true, balance: true, name: true },
+        });
 
-      // Calculate total order amount
-      let totalOrderAmount = 0;
-      for (const product of products) {
-        totalOrderAmount += product.sellingPrice * product.quantity;
-      }
+        if (!user) {
+          return { error: "User not found" };
+        }
 
-      // Check if user has sufficient balance for payment
-      const hasSufficientBalance = user.balance >= totalOrderAmount;
-      const paymentStatus = hasSufficientBalance ? "PENDING" : "PENDING"; // Will be updated based on balance
+        // Calculate total order amount
+        let totalOrderAmount = 0;
+        for (const product of products) {
+          totalOrderAmount += product.sellingPrice * product.quantity;
+        }
 
-      // Create offline sale batch first
-      const batchNumber = `ONLINE-${Date.now()}`;
+        // Check if user has sufficient balance for payment
+        const hasSufficientBalance = user.balance >= totalOrderAmount;
+        const paymentStatus = hasSufficientBalance ? "PENDING" : "PENDING"; // Will be updated based on balance
 
-      // Generate invoice number (get the latest invoice number and increment)
-      const latestBatch = await tx.onlineSellBatch.findFirst({
-        orderBy: { invoiceNumber: "desc" },
-        where: { invoiceNumber: { not: null } },
-      });
-      const invoiceNumber = latestBatch
-        ? (latestBatch.invoiceNumber || 0) + 1
-        : 1;
+        // Create offline sale batch first
+        const batchNumber = `ONLINE-${Date.now()}`;
 
-      const offlineBatch = await tx.onlineSellBatch.create({
-        data: {
-          batchNumber,
-          customerName: customerName.trim(),
-          customerPhone: customerPhone?.trim() || null,
-          billCreatedBy: billCreatedBy.trim(),
-          totalAmount: 0,
-          totalItems: 0,
-          saleTime: currentTime,
-          sellerName: currentUser.name,
-          sellType: sellType,
-          invoiceNumber: invoiceNumber,
-          orderId: orderId,
-          paymentStatus: paymentStatus,
-          gstType: gstType,
-        },
-      });
+        // Generate invoice number (get the latest invoice number and increment)
+        const latestBatch = await tx.onlineSellBatch.findFirst({
+          orderBy: { invoiceNumber: "desc" },
+          where: { invoiceNumber: { not: null } },
+        });
+        const invoiceNumber = latestBatch
+          ? (latestBatch.invoiceNumber || 0) + 1
+          : 1;
 
-          // Process each product in the cart with optimized batch operations
-    // Collect all operations to minimize database round trips
-    const batchOperations: any[] = [];
-    const kurtiUpdates: any[] = [];
-    
-    for (let i = 0; i < products.length; i++) {
-        const product = products[i];
-        let { code, kurti, selectedSize, quantity, sellingPrice } = product;
+        const offlineBatch = await tx.onlineSellBatch.create({
+          data: {
+            batchNumber,
+            customerName: customerName.trim(),
+            customerPhone: customerPhone?.trim() || null,
+            billCreatedBy: billCreatedBy.trim(),
+            totalAmount: 0,
+            totalItems: 0,
+            saleTime: currTime,
+            sellerName: currentUser.name,
+            sellType: sellType,
+            invoiceNumber: invoiceNumber,
+            orderId: orderId,
+            paymentStatus: paymentStatus,
+            gstType: gstType,
+            createdAt: currTime,
+            updatedAt: currTime,
+          },
+        });
 
-        try {
-          code = code.toUpperCase();
-          let search = code.substring(0, 7).toUpperCase();
-          let cmp = selectedSize.toUpperCase();
+        // Process each product in the cart with optimized batch operations
+        // Collect all operations to minimize database round trips
+        const batchOperations: any[] = [];
+        const kurtiUpdates: any[] = [];
 
-          // Handle special case for CK codes
-          if (
-            code.toUpperCase().substring(0, 2) === "CK" &&
-            code[2] === "0" &&
-            isSize(code.substring(6))
-          ) {
-            search = code.substring(0, 6).toUpperCase();
-          }
-
-          console.log(
-            `Processing product ${i + 1} - search:`,
-            search,
-            "size:",
-            cmp,
-            "quantity:",
-            quantity
-          );
-
-          // Find the Kurti with reservedSizes
-          const kurtiFromDB = await tx.kurti.findUnique({
-            where: { code: search.toUpperCase(), isDeleted: false },
-            select: {
-              id: true,
-              sizes: true,
-              reservedSizes: true,
-              prices: true,
-            },
-          });
-
-          if (!kurtiFromDB) {
-            errors.push(`Product ${search} not found`);
-            continue;
-          }
-
-          // Check if size is available in sizes array
-          const sizeInSizes: any = kurtiFromDB.sizes.find(
-            (s: any) => s.size === cmp
-          );
-          console.log(
-            "🚀 ~ sellMultipleOnlineKurtis ~ kurtiFromDB:",
-            kurtiFromDB
-          );
-          if (!sizeInSizes || sizeInSizes.quantity < quantity) {
-            errors.push(
-              `Insufficient stock for ${search}-${cmp}. Available: ${
-                sizeInSizes?.quantity || 0
-              }, Requested: ${quantity}`
-            );
-            continue;
-          }
-
-          // Check if size is available in reservedSizes array
-          const sizeInReservedSizes: any = kurtiFromDB.reservedSizes.find(
-            (s: any) => s.size === cmp
-          );
-          if (!sizeInReservedSizes || sizeInReservedSizes.quantity < quantity) {
-            errors.push(
-              `System problem: Reserved size not available for ${search}-${cmp}. Please contact the owner.`
-            );
-            continue;
-          }
+        for (let i = 0; i < products.length; i++) {
+          const product = products[i];
+          let { code, kurti, selectedSize, quantity, sellingPrice } = product;
 
           try {
-            // Update Kurti sizes and reservedSizes using updateSizeQuantity function
-            const updatedSizes = updateSizeQuantity(
-              kurtiFromDB.sizes,
+            code = code.toUpperCase();
+            let search = code.substring(0, 7).toUpperCase();
+            let cmp = selectedSize.toUpperCase();
+
+            // Handle special case for CK codes
+            if (
+              code.toUpperCase().substring(0, 2) === "CK" &&
+              code[2] === "0" &&
+              isSize(code.substring(6))
+            ) {
+              search = code.substring(0, 6).toUpperCase();
+            }
+
+            console.log(
+              `Processing product ${i + 1} - search:`,
+              search,
+              "size:",
               cmp,
-              -quantity
-            );
-            const updatedReservedSizes = updateSizeQuantity(
-              kurtiFromDB.reservedSizes,
-              cmp,
-              -quantity
+              "quantity:",
+              quantity
             );
 
-            // Update kurti stock
-            const updateUser = await tx.kurti.update({
-              where: {
-                id: kurtiFromDB.id,
-              },
-              data: {
-                sizes: updatedSizes,
-                reservedSizes: updatedReservedSizes,
-                lastUpdatedTime: currentTime,
-              },
-              include: {
+            // Find the Kurti with reservedSizes
+            const kurtiFromDB = await tx.kurti.findUnique({
+              where: { code: search.toUpperCase(), isDeleted: false },
+              select: {
+                id: true,
+                sizes: true,
+                reservedSizes: true,
                 prices: true,
               },
             });
 
-            // Handle prices
-            let prices = updateUser.prices;
-            if (!prices || !prices.actualPrice1 || !prices.sellingPrice1) {
-              const sellPrice = parseInt(updateUser.sellingPrice || "0");
-              const actualP = parseInt(updateUser.actualPrice || "0");
-
-              prices = await tx.prices.create({
-                data: {
-                  sellingPrice1: sellPrice,
-                  sellingPrice2: sellPrice,
-                  sellingPrice3: sellPrice,
-                  actualPrice1: actualP,
-                  actualPrice2: actualP,
-                  actualPrice3: actualP,
-                },
-              });
-
-              await tx.kurti.update({
-                where: {
-                  id: updateUser.id,
-                },
-                data: {
-                  pricesId: prices.id,
-                },
-              });
+            if (!kurtiFromDB) {
+              errors.push(`Product ${search} not found`);
+              continue;
             }
 
-            // Create individual offline sell record for each product
-            const offlineSell = await tx.onlineSell.create({
-              data: {
-                sellTime: currentTime,
-                code: search.toUpperCase(),
-                kurtiId: updateUser.id,
-                batchId: offlineBatch.id,
-                pricesId: prices.id,
-                kurtiSize: cmp,
-                shopLocation: selectedLocation,
-                customerName: customerName,
-                customerPhone: customerPhone,
-                selledPrice: parseInt(sellingPrice.toString()),
-                quantity: quantity,
-              },
-            });
+            // Check if size is available in sizes array
+            const sizeInSizes: any = kurtiFromDB.sizes.find(
+              (s: any) => s.size === cmp
+            );
+            console.log(
+              "🚀 ~ sellMultipleOnlineKurtis ~ kurtiFromDB:",
+              kurtiFromDB
+            );
+            if (!sizeInSizes || sizeInSizes.quantity < quantity) {
+              errors.push(
+                `Insufficient stock for ${search}-${cmp}. Available: ${
+                  sizeInSizes?.quantity || 0
+                }, Requested: ${quantity}`
+              );
+              continue;
+            }
 
-            // Update or create TopSoldKurti record
-            await tx.topSoldKurti.upsert({
-              where: {
-                kurtiId: updateUser.id,
-              },
-              update: {
-                soldCount: {
-                  increment: quantity,
+            // Check if size is available in reservedSizes array
+            const sizeInReservedSizes: any = kurtiFromDB.reservedSizes.find(
+              (s: any) => s.size === cmp
+            );
+            if (
+              !sizeInReservedSizes ||
+              sizeInReservedSizes.quantity < quantity
+            ) {
+              errors.push(
+                `System problem: Reserved size not available for ${search}-${cmp}. Please contact the owner.`
+              );
+              continue;
+            }
+
+            try {
+              // Update Kurti sizes and reservedSizes using updateSizeQuantity function
+              const updatedSizes = updateSizeQuantity(
+                kurtiFromDB.sizes,
+                cmp,
+                -quantity
+              );
+              const updatedReservedSizes = updateSizeQuantity(
+                kurtiFromDB.reservedSizes,
+                cmp,
+                -quantity
+              );
+
+              // Update kurti stock
+              const updateUser = await tx.kurti.update({
+                where: {
+                  id: kurtiFromDB.id,
+                },
+                data: {
+                  sizes: updatedSizes,
+                  reservedSizes: updatedReservedSizes,
+                  lastUpdatedTime: currTime,
+                },
+                include: {
+                  prices: true,
+                },
+              });
+
+              // Handle prices
+              let prices = updateUser.prices;
+              if (!prices || !prices.actualPrice1 || !prices.sellingPrice1) {
+                const sellPrice = parseInt(updateUser.sellingPrice || "0");
+                const actualP = parseInt(updateUser.actualPrice || "0");
+
+                prices = await tx.prices.create({
+                  data: {
+                    sellingPrice1: sellPrice,
+                    sellingPrice2: sellPrice,
+                    sellingPrice3: sellPrice,
+                    actualPrice1: actualP,
+                    actualPrice2: actualP,
+                    actualPrice3: actualP,
+                  },
+                });
+
+                await tx.kurti.update({
+                  where: {
+                    id: updateUser.id,
+                  },
+                  data: {
+                    pricesId: prices.id,
+                  },
+                });
+              }
+
+              // Create individual offline sell record for each product
+              const offlineSell = await tx.onlineSell.create({
+                data: {
+                  sellTime: currTime,
+                  code: search.toUpperCase(),
+                  kurtiId: updateUser.id,
+                  batchId: offlineBatch.id,
+                  pricesId: prices.id,
+                  kurtiSize: cmp,
+                  shopLocation: selectedLocation,
+                  customerName: customerName,
+                  customerPhone: customerPhone,
+                  selledPrice: parseInt(sellingPrice.toString()),
+                  quantity: quantity,
+                  createdAt: currTime,
+                  updatedAt: currTime,
+                },
+              });
+
+              // Update or create TopSoldKurti record
+              await tx.topSoldKurti.upsert({
+                where: {
+                  kurtiId: updateUser.id,
+                },
+                update: {
+                  soldCount: {
+                    increment: quantity,
+                  },
+                },
+                create: {
+                  kurtiId: updateUser.id,
+                  soldCount: quantity,
+                },
+              });
+
+              soldProducts.push({
+                kurti: updateUser,
+                sale: offlineSell,
+                size: cmp,
+                quantity: quantity,
+                unitPrice: sellingPrice,
+                totalPrice: sellingPrice * quantity,
+              });
+
+              await db.orders.update({
+                where: { orderId: orderId },
+                data: {
+                  status: OrderStatus.TRACKINGPENDING,
+                  total: totalOrderAmount,
+                },
+              });
+
+              totalAmount += sellingPrice * quantity;
+
+              console.log(`Product ${i + 1} sold successfully:`, offlineSell);
+            } catch (e: any) {
+              console.error(
+                `Error during offline sale of product ${i + 1}:`,
+                e.message,
+                e.stack
+              );
+              errors.push(`Error selling ${search}-${cmp}: ${e.message}`);
+            }
+          } catch (productError: any) {
+            console.error(
+              `Error processing offline product ${i + 1}:`,
+              productError
+            );
+            errors.push(
+              `Error processing product ${i + 1}: ${productError.message}`
+            );
+          }
+        }
+        console.log(soldProducts, "soldProducts");
+        // Update batch with final totals and determine payment status
+        if (soldProducts.length > 0) {
+          // Determine final payment status based on balance sufficiency
+          const finalPaymentStatus = hasSufficientBalance
+            ? "COMPLETED"
+            : "PENDING";
+
+          await tx.onlineSellBatch.update({
+            where: { id: offlineBatch.id },
+            data: {
+              totalAmount: totalAmount,
+              totalItems: soldProducts.reduce(
+                (sum, product) => sum + product.quantity,
+                0
+              ),
+              paymentStatus: finalPaymentStatus as any,
+              updatedAt: currTime,
+            },
+          });
+
+          // Only deduct from wallet and create history if balance is sufficient
+          if (hasSufficientBalance) {
+            // Deduct money from user's wallet
+            await tx.user.update({
+              where: { id: user.id },
+              data: {
+                balance: {
+                  decrement: totalAmount,
                 },
               },
-              create: {
-                kurtiId: updateUser.id,
-                soldCount: quantity,
-              },
             });
 
-            soldProducts.push({
-              kurti: updateUser,
-              sale: offlineSell,
-              size: cmp,
-              quantity: quantity,
-              unitPrice: sellingPrice,
-              totalPrice: sellingPrice * quantity,
-            });
-
-            await db.orders.update({
-              where: { orderId: orderId },
+            // Create wallet history entry
+            await tx.walletHistory.create({
               data: {
-                status: OrderStatus.TRACKINGPENDING,
-                total: totalOrderAmount,
+                userId: user.id,
+                amount: totalAmount,
+                type: "DEBIT",
+                paymentMethod: "wallet",
+                onlineSellBatchId: offlineBatch.id,
               },
             });
-
-            totalAmount += sellingPrice * quantity;
-
-            console.log(`Product ${i + 1} sold successfully:`, offlineSell);
-          } catch (e: any) {
-            console.error(
-              `Error during offline sale of product ${i + 1}:`,
-              e.message,
-              e.stack
-            );
-            errors.push(`Error selling ${search}-${cmp}: ${e.message}`);
           }
-        } catch (productError: any) {
-          console.error(
-            `Error processing offline product ${i + 1}:`,
-            productError
-          );
-          errors.push(
-            `Error processing product ${i + 1}: ${productError.message}`
-          );
         }
-      }
-      console.log(soldProducts, "soldProducts");
-      // Update batch with final totals and determine payment status
-      if (soldProducts.length > 0) {
-        // Determine final payment status based on balance sufficiency
-        const finalPaymentStatus = hasSufficientBalance ? "COMPLETED" : "PENDING";
-        
-        await tx.onlineSellBatch.update({
-          where: { id: offlineBatch.id },
-          data: {
-            totalAmount: totalAmount,
-            totalItems: soldProducts.reduce(
-              (sum, product) => sum + product.quantity,
-              0
-            ),
-            paymentStatus: finalPaymentStatus as any,
-          },
-        });
 
-        // Only deduct from wallet and create history if balance is sufficient
-        if (hasSufficientBalance) {
-          // Deduct money from user's wallet
-          await tx.user.update({
-            where: { id: user.id },
-            data: {
-              balance: {
-                decrement: totalAmount,
-              },
-            },
+        // Check if any products were sold successfully
+        if (soldProducts.length === 0) {
+          // Delete the batch if no products were sold
+          await tx.onlineSellBatch.delete({
+            where: { id: offlineBatch.id },
           });
-
-          // Create wallet history entry
-          await tx.walletHistory.create({
-            data: {
-              userId: user.id,
-              amount: totalAmount,
-              type: "DEBIT",
-              paymentMethod: "wallet",
-              onlineSellBatchId: offlineBatch.id,
-            },
-          });
+          return {
+            error: "No products could be sold. Errors: " + errors.join(", "),
+          } as const;
         }
-      }
 
-      // Check if any products were sold successfully
-      if (soldProducts.length === 0) {
-        // Delete the batch if no products were sold
-        await tx.onlineSellBatch.delete({
-          where: { id: offlineBatch.id },
-        });
-        return {
-          error: "No products could be sold. Errors: " + errors.join(", "),
-        } as const;
-      }
+        // If some products failed but others succeeded, return partial success
+        if (errors.length > 0 && soldProducts.length > 0) {
+          return {
+            success: "Partial offline sale completed",
+            soldProducts,
+            totalAmount,
+            errors,
+            customer: {
+              name: customerName,
+              phone: customerPhone,
+              location: selectedLocation,
+              billCreatedBy,
+            },
+            batchNumber,
+            batchId: offlineBatch.id,
+            invoiceNumber,
+            partialSale: true,
+            paymentStatus: hasSufficientBalance ? "COMPLETED" : "PENDING",
+          } as const;
+        }
 
-      // If some products failed but others succeeded, return partial success
-      if (errors.length > 0 && soldProducts.length > 0) {
+        // All products sold successfully
         return {
-          success: "Partial offline sale completed",
+          success: "All offline products sold successfully",
           soldProducts,
           totalAmount,
-          errors,
           customer: {
             name: customerName,
             phone: customerPhone,
@@ -2049,33 +2082,18 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
           batchNumber,
           batchId: offlineBatch.id,
           invoiceNumber,
-          partialSale: true,
           paymentStatus: hasSufficientBalance ? "COMPLETED" : "PENDING",
         } as const;
+      },
+      {
+        timeout: 15000, // 15 seconds timeout to prevent transaction timeouts
       }
+    );
 
-      // All products sold successfully
-      return {
-        success: "All offline products sold successfully",
-        soldProducts,
-        totalAmount,
-        customer: {
-          name: customerName,
-          phone: customerPhone,
-          location: selectedLocation,
-          billCreatedBy,
-        },
-        batchNumber,
-        batchId: offlineBatch.id,
-        invoiceNumber,
-        paymentStatus: hasSufficientBalance ? "COMPLETED" : "PENDING",
-      } as const;
-    }, {
-      timeout: 15000 // 15 seconds timeout to prevent transaction timeouts
-    });
-    
     const transactionTime = Date.now() - startTime;
-    console.log(`✅ Transaction completed successfully in ${transactionTime}ms`);
+    console.log(
+      `✅ Transaction completed successfully in ${transactionTime}ms`
+    );
 
     // If transaction returned an error-like object
     if ((txResult as any).error) {
@@ -2118,22 +2136,22 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
         totalAmount,
         gstType: gstType || "SGST_CGST",
         invoiceNumber: invoiceNumber.toString(),
-        sellType
+        sellType,
       });
 
       if (!result.success || !result.pdfBase64) {
         throw new Error(result.error || "Failed to generate PDF");
       }
 
-      const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
+      const pdfBuffer = Buffer.from(result.pdfBase64, "base64");
       const invoiceUrl = await uploadInvoicePDFToFirebase(
         pdfBuffer,
         batchNumber
       );
 
-        await db.onlineSellBatch.update({
+      await db.onlineSellBatch.update({
         where: { id: batchId },
-        data: { invoiceUrl },
+        data: { invoiceUrl, updatedAt: currTime },
       });
     } catch (invoiceError) {
       console.error(
@@ -2146,24 +2164,31 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
     return txResult;
   } catch (error: any) {
     console.error("Multiple offline sell error:", error);
-    
+
     // Enhanced error logging for debugging
     if (error instanceof Error) {
       console.error("Error details:", {
         message: error.message,
         stack: error.stack,
-        name: error.name
+        name: error.name,
       });
     }
-    
+
     // Check if it's a transaction timeout error
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2028') {
-      return { 
-        error: "Transaction timeout occurred. Please try again with fewer products or contact support.",
-        details: "The operation took too long to complete. Consider processing products in smaller batches."
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2028"
+    ) {
+      return {
+        error:
+          "Transaction timeout occurred. Please try again with fewer products or contact support.",
+        details:
+          "The operation took too long to complete. Consider processing products in smaller batches.",
       };
     }
-    
+
     return { error: "Something went wrong during the offline sale process!" };
   }
 };
@@ -2174,6 +2199,7 @@ export const regenerateOfflineSaleInvoice = async (
   currentUser: any
 ) => {
   try {
+    const currTime = await getCurrTime();
     // Get the existing batch with all sales data
     const existingBatch = await db.offlineSellBatch.findUnique({
       where: { id: batchId },
@@ -2219,7 +2245,7 @@ export const regenerateOfflineSaleInvoice = async (
       totalAmount: existingBatch.totalAmount,
       gstType: existingBatch.gstType === "IGST" ? "IGST" : "SGST_CGST",
       invoiceNumber: existingBatch.invoiceNumber?.toString() || "",
-      sellType: existingBatch.sellType || "SHOP_SELL_OFFLINE"
+      sellType: existingBatch.sellType || "SHOP_SELL_OFFLINE",
     });
 
     if (!result.success || !result.pdfBase64) {
@@ -2227,7 +2253,7 @@ export const regenerateOfflineSaleInvoice = async (
     }
 
     // Convert base64 string to Buffer
-    const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
+    const pdfBuffer = Buffer.from(result.pdfBase64, "base64");
 
     // Upload new PDF to Firebase
     const newInvoiceUrl = await uploadInvoicePDFToFirebase(
@@ -2240,6 +2266,7 @@ export const regenerateOfflineSaleInvoice = async (
       where: { id: batchId },
       data: {
         invoiceUrl: newInvoiceUrl,
+        updatedAt: currTime,
       },
     });
 
@@ -2270,7 +2297,7 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
       shopId,
       gstType,
     } = data;
-
+    const currTime = await getCurrTime();
     if (!batchId) {
       return { error: "Batch ID is required" };
     }
@@ -2382,7 +2409,7 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
         // Create individual offline sell record for the new product
         const offlineSell = await db.offlineSell.create({
           data: {
-            sellTime: currentTime,
+            sellTime: currTime,
             code: search.toUpperCase(),
             kurtiId: updateUser.id,
             batchId: existingBatch.id,
@@ -2392,7 +2419,9 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
             customerName: customerName,
             customerPhone: customerPhone,
             selledPrice: sellingPrice,
-            quantity: quantity
+            quantity: quantity,
+            createdAt: currTime,
+            updatedAt: currTime,
           },
         });
 
@@ -2445,6 +2474,7 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
         data: {
           totalAmount: newTotalAmount,
           totalItems: newTotalItems,
+          updatedAt: currTime,
         },
       });
 
@@ -2481,14 +2511,14 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
           totalAmount: newTotalAmount,
           gstType: gstType || "SGST_CGST",
           invoiceNumber: existingBatch.invoiceNumber?.toString() || "",
-          sellType: existingBatch.sellType || "SHOP_SELL_OFFLINE"
+          sellType: existingBatch.sellType || "SHOP_SELL_OFFLINE",
         });
 
         if (!result.success || !result.pdfBase64) {
           throw new Error(result.error || "Failed to generate PDF");
         }
 
-        const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
+        const pdfBuffer = Buffer.from(result.pdfBase64, "base64");
 
         // Upload PDF to Firebase
         const invoiceUrl = await uploadInvoicePDFToFirebase(
@@ -2501,6 +2531,7 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
           where: { id: existingBatch.id },
           data: {
             invoiceUrl: invoiceUrl,
+            updatedAt: currTime,
           },
         });
       } catch (invoiceError) {
@@ -2567,6 +2598,7 @@ export const regenerateOnlineSaleInvoice = async (
   currentUser: any
 ) => {
   try {
+    const currTime = await getCurrTime();
     // Get the existing batch with all sales data and order information
     const existingBatch = await db.onlineSellBatch.findUnique({
       where: { id: batchId },
@@ -2622,14 +2654,14 @@ export const regenerateOnlineSaleInvoice = async (
       invoiceNumber: existingBatch.invoiceNumber?.toString() || "",
       sellType: existingBatch.sellType || "HALL_SELL_ONLINE",
       shippingCharge,
-      trackingId
+      trackingId,
     });
 
     if (!result.success || !result.pdfBase64) {
       throw new Error(result.error || "Failed to generate PDF");
     }
 
-    const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
+    const pdfBuffer = Buffer.from(result.pdfBase64, "base64");
 
     // Upload new PDF to Firebase
     const newInvoiceUrl = await uploadInvoicePDFToFirebase(
@@ -2642,6 +2674,7 @@ export const regenerateOnlineSaleInvoice = async (
       where: { id: batchId },
       data: {
         invoiceUrl: newInvoiceUrl,
+        updatedAt: currTime,
       },
     });
 

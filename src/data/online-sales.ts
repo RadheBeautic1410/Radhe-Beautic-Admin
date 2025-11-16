@@ -6,7 +6,8 @@ import {
   uploadInvoicePDFToFirebase,
   deleteInvoiceFromFirebase,
 } from "@/src/lib/firebase/firebase";
-import { Buffer } from 'buffer';
+import { Buffer } from "buffer";
+import { getCurrTime } from "./kurti";
 
 export interface OnlineSalesFilters {
   page?: number;
@@ -335,6 +336,7 @@ export const updateOnlineSale = async (id: string, updateData: any) => {
     } = updateData;
 
     // Start a transaction
+    const currTime = await getCurrTime();
     const result = await db.$transaction(async (tx) => {
       // Update the main sale record
       const updatedSale = await tx.onlineSellBatch.update({
@@ -346,6 +348,7 @@ export const updateOnlineSale = async (id: string, updateData: any) => {
           paymentStatus,
           gstType,
           sellType,
+          updatedAt: currTime,
         },
       });
 
@@ -365,6 +368,7 @@ export const updateOnlineSale = async (id: string, updateData: any) => {
           data: {
             quantity: item.quantity,
             selledPrice: item.sellingPrice,
+            updatedAt: currTime,
           },
         });
       }
@@ -381,6 +385,8 @@ export const updateOnlineSale = async (id: string, updateData: any) => {
               selledPrice: product.sellingPrice,
               batchId: id,
               sellTime: new Date(),
+              createdAt: currTime,
+              updatedAt: currTime,
             },
           });
         }
@@ -424,7 +430,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
       removedItems = [],
       orderId,
     } = updateData;
-
+    const currTime = await getCurrTime();
     const currentOrder = await db.orders.findUnique({
       where: { orderId },
       include: {
@@ -576,6 +582,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
             totalAmount: finalTotal,
             totalItems:
               updatedItems.length + newProducts.length + unchangedItems.length,
+            updatedAt: currTime,
           },
         });
 
@@ -845,6 +852,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
             data: {
               quantity: item.quantity,
               selledPrice: item.sellingPrice,
+              updatedAt: currTime,
             },
           });
         }
@@ -949,6 +957,8 @@ export const updateOnlineSaleWithWalletAndCart = async (
                 selledPrice: product.sellingPrice,
                 batchId: id,
                 sellTime: new Date(),
+                createdAt: currTime,
+                updatedAt: currTime,
               },
             });
             newSaleItems.push(newSale);
@@ -1019,6 +1029,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
           where: { id },
           data: {
             invoiceNumber: newInvoiceNumber,
+            updatedAt: currTime,
           },
         });
 
@@ -1079,7 +1090,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
           invoiceNumber: result.invoiceNumber?.toString() || "",
           sellType: result.sellType,
           shippingCharge,
-          trackingId
+          trackingId,
         });
 
         if (!pdfResult.success || !pdfResult.pdfBase64) {
@@ -1087,7 +1098,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
         }
 
         // Convert base64 string to Buffer
-        const pdfBuffer = Buffer.from(pdfResult.pdfBase64, 'base64');
+        const pdfBuffer = Buffer.from(pdfResult.pdfBase64, "base64");
 
         // Upload PDF to Firebase
         const invoiceUrl = await uploadInvoicePDFToFirebase(
@@ -1100,6 +1111,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
           where: { id },
           data: {
             invoiceUrl: invoiceUrl,
+            updatedAt: currTime,
           },
         });
 
@@ -1411,6 +1423,7 @@ export const completePendingOrderPayment = async (
 ): Promise<{ success: boolean; amountDeducted: number; error?: string }> => {
   try {
     // Get the current sale to check if it's pending
+    const currTime = await getCurrTime();
     const currentSale = await db.onlineSellBatch.findUnique({
       where: { id: saleId },
       include: {
@@ -1491,6 +1504,7 @@ export const completePendingOrderPayment = async (
       where: { id: saleId },
       data: {
         paymentStatus: "COMPLETED",
+        updatedAt: currTime,
       },
     });
 
@@ -1529,14 +1543,14 @@ export const completePendingOrderPayment = async (
         invoiceNumber: currentSale.invoiceNumber?.toString() || "",
         sellType: currentSale.sellType,
         shippingCharge,
-        trackingId
+        trackingId,
       });
 
       if (!result.success || !result.pdfBase64) {
         throw new Error(result.error || "Failed to generate PDF");
       }
 
-      const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
+      const pdfBuffer = Buffer.from(result.pdfBase64, "base64");
 
       // Upload PDF to Firebase
       const invoiceUrl = await uploadInvoicePDFToFirebase(
@@ -1549,6 +1563,7 @@ export const completePendingOrderPayment = async (
         where: { id: saleId },
         data: {
           invoiceUrl: invoiceUrl,
+          updatedAt: currTime,
         },
       });
 
@@ -1581,6 +1596,7 @@ export const regenerateOnlineSaleInvoice = async (
   currentUser: any
 ) => {
   try {
+    const currTime = await getCurrTime();
     // Get the existing batch with all sales data and order information
     const existingBatch = await db.onlineSellBatch.findUnique({
       where: { id: batchId },
@@ -1640,14 +1656,14 @@ export const regenerateOnlineSaleInvoice = async (
       invoiceNumber: existingBatch.invoiceNumber?.toString() || "",
       sellType: existingBatch.sellType,
       shippingCharge,
-      trackingId
+      trackingId,
     });
 
     if (!result.success || !result.pdfBase64) {
       throw new Error(result.error || "Failed to generate PDF");
     }
 
-    const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
+    const pdfBuffer = Buffer.from(result.pdfBase64, "base64");
 
     // Upload PDF to Firebase
     const invoiceUrl = await uploadInvoicePDFToFirebase(
@@ -1660,6 +1676,7 @@ export const regenerateOnlineSaleInvoice = async (
       where: { id: batchId },
       data: {
         invoiceUrl: invoiceUrl,
+        updatedAt: currTime,
       },
     });
 
@@ -1669,7 +1686,9 @@ export const regenerateOnlineSaleInvoice = async (
     console.error("Error regenerating online sale invoice:", error);
     return {
       error:
-        error instanceof Error ? error.message : "Failed to regenerate invoice 5",
+        error instanceof Error
+          ? error.message
+          : "Failed to regenerate invoice 5",
     };
   }
 };

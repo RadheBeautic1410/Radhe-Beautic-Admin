@@ -4,6 +4,7 @@ import { db } from "@/src/lib/db";
 import { getUserById } from "@/src/data/user";
 import { currentUser } from "@/src/lib/auth";
 import { UserRole } from "@prisma/client";
+import { getCurrTime } from "./kurti";
 
 interface moderatorUpdateProps {
   role: UserRole | undefined;
@@ -14,7 +15,7 @@ interface moderatorUpdateProps {
 
 export const moderatorUpdate = async (data: moderatorUpdateProps) => {
   const user = await currentUser();
-
+  const currTime = await getCurrTime();
   if (!user) {
     return { error: "Unauthorized" };
   }
@@ -32,12 +33,23 @@ export const moderatorUpdate = async (data: moderatorUpdateProps) => {
     data: {
       role: role,
       isVerified: isVerified,
-      groupName: groupName, 
+      groupName: groupName,
       verifiedBy: user.id,
       verifiedAt: new Date(),
       emailVerified: new Date(),
     },
   });
+
+  if (role == UserRole.RESELLER) {
+    await db.resellersCustomer.create({
+      data: {
+        resellerId: updatedUser.id,
+        name: updatedUser.name || "Default User",
+        createdAt: currTime,
+        updatedAt: currTime,
+      },
+    });
+  }
 
   return { success: "Settings Updated!", updatedUser };
 };

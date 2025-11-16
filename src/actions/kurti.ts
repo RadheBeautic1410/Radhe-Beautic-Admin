@@ -5,9 +5,6 @@ import { currentRole, currentUser } from "@/src/lib/auth";
 
 import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
-import { size } from "pdfkit/js/page";
-import { v4 as uuidv4 } from "uuid";
-import { error } from "console";
 
 export const getCurrTime = async () => {
   const currentTime = new Date();

@@ -36,8 +36,7 @@ export interface userProps {
   role: UserRole;
   isTwoFactorEnabled: boolean;
   balance: number | null;
-  groupName: string | null; 
-
+  groupName: string | null;
 }
 
 const ModeratorPage = () => {
@@ -46,7 +45,9 @@ const ModeratorPage = () => {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [tab, setTab] = useState<0 | 1>(0);
   const [search, setSearch] = useState("");
-  const [verificationFilter, setVerificationFilter] = useState<"all" | "verified" | "unverified">("all");
+  const [verificationFilter, setVerificationFilter] = useState<
+    "all" | "verified" | "unverified"
+  >("all");
 
   const currentRole = useCurrentRole();
 
@@ -94,30 +95,28 @@ const ModeratorPage = () => {
 
   // 🔍 Filtered lists
   const filteredUsers = users.filter((user) => {
-    const matchesSearch = [user.name, user.phoneNumber, user.groupName]
-      .some((field) =>
-        field?.toLowerCase().includes(search.toLowerCase())
-      );
-    
-    const matchesVerification = 
+    const matchesSearch = [user.name, user.phoneNumber, user.groupName].some(
+      (field) => field?.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const matchesVerification =
       verificationFilter === "all" ||
       (verificationFilter === "verified" && user.isVerified) ||
       (verificationFilter === "unverified" && !user.isVerified);
-    
+
     return matchesSearch && matchesVerification;
   });
 
   const filteredCustomers = customers.filter((user) => {
-    const matchesSearch = [user.name, user.phoneNumber, user.groupName]
-      .some((field) =>
-        field?.toLowerCase().includes(search.toLowerCase())
-      );
-    
-    const matchesVerification = 
+    const matchesSearch = [user.name, user.phoneNumber, user.groupName].some(
+      (field) => field?.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const matchesVerification =
       verificationFilter === "all" ||
       (verificationFilter === "verified" && user.isVerified) ||
       (verificationFilter === "unverified" && !user.isVerified);
-    
+
     return matchesSearch && matchesVerification;
   });
 
@@ -141,7 +140,7 @@ const ModeratorPage = () => {
                     variant={tab === 1 ? "default" : "outline"}
                     onClick={() => setTab(1)}
                   >
-                    🧑‍💻 Customers
+                    🧑‍💻 Reseller
                   </Button>
                 </div>
 
@@ -156,15 +155,20 @@ const ModeratorPage = () => {
                       className="pl-10 pr-4 rounded-2xl shadow-sm border focus:ring-2 focus:ring-primary focus:border-primary transition"
                     />
                   </div>
-                  <Button variant="outline" onClick={() => setLoadingUsers(true)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setLoadingUsers(true)}
+                  >
                     <Link href="/request">⟳ Refresh</Link>
                   </Button>
                 </div>
               </div>
-              
+
               {/* Verification Filter */}
               <div className="flex gap-2 items-center">
-                <span className="text-sm font-medium text-muted-foreground">Filter by Verification:</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Filter by Verification:
+                </span>
                 <Button
                   variant={verificationFilter === "all" ? "default" : "outline"}
                   size="sm"
@@ -173,14 +177,18 @@ const ModeratorPage = () => {
                   All
                 </Button>
                 <Button
-                  variant={verificationFilter === "verified" ? "default" : "outline"}
+                  variant={
+                    verificationFilter === "verified" ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => setVerificationFilter("verified")}
                 >
                   ✓ Verified
                 </Button>
                 <Button
-                  variant={verificationFilter === "unverified" ? "default" : "outline"}
+                  variant={
+                    verificationFilter === "unverified" ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => setVerificationFilter("unverified")}
                 >

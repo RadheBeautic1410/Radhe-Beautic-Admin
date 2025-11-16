@@ -3,12 +3,6 @@ export const dynamic = 'force-dynamic'
 import { sellMultipleOfflineKurtis } from "@/src/data/kurti";
 import { NextRequest, NextResponse } from "next/server";
 
-const getCurrTime = () => {
-    const currentTime = new Date();
-    const ISTOffset = 5.5 * 60 * 60 * 1000;
-    const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-    return ISTTime;
-}
 // API Route Handler for Offline Retailer Sales
 export async function POST(request: NextRequest) {
   try {

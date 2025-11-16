@@ -105,17 +105,20 @@ function SellPage() {
         toast.error("Please enter correct code!!!");
         return;
       }
+      if (code.length > 7) {
+        setSelectedSize(code.slice(7).toUpperCase());
+      }
 
       const res = await axios.post(`/api/kurti/find-kurti`, { code });
       const data = res.data.data;
-
+      console.log("data", data);
       if (data.error) {
         toast.error(data.error);
         setKurti(null);
       } else {
         setKurti(data.kurti);
-        setSellingPrice("");
-        setSelectedSize("");
+        // setSellingPrice("");
+        // setSelectedSize("");
         setQuantity(1);
         toast.success("Product found!");
       }
@@ -261,8 +264,6 @@ function SellPage() {
         return;
       }
 
-
-
       if (!selectedShopId.trim()) {
         if (currentUser?.role === UserRole.ADMIN) {
           toast.error("Please select a shop");
@@ -310,7 +311,7 @@ function SellPage() {
       });
 
       const data = res.data.data;
-      console.log("🚀 ~ handleSell ~ data:", data)
+      console.log("🚀 ~ handleSell ~ data:", data);
 
       if (data.error) {
         toast.error(data.error);
@@ -413,6 +414,8 @@ function SellPage() {
 
   const getAvailableSizes = () => {
     if (!kurti?.sizes) return [];
+    console.log("kurti.sizes", kurti.sizes);
+
     return kurti.sizes.filter((sz: any) => sz.quantity > 0);
   };
 
@@ -526,7 +529,7 @@ function SellPage() {
                 <option value="">Select Payment Type</option>
                 <option value="GPay">GPay</option>
                 <option value="Cash">Cash</option>
-                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="BankTransfer">Bank Transfer</option>
               </select>
             </div>
 
@@ -657,7 +660,9 @@ function SellPage() {
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div>
-                      <Label htmlFor="size-select">Select Size *</Label>
+                      <Label htmlFor="size-select">
+                        Select Size * {selectedSize}
+                      </Label>
                       <select
                         id="size-select"
                         name="size-select"
