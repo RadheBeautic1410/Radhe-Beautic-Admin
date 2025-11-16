@@ -1366,7 +1366,6 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         sellType: sellType,
         shopId: shopId,
         paymentType: paymentType,
-        lastUpdatedTime: currTime,
         createdAt: currTime,
         updatedAt: currTime,
       },
@@ -1928,6 +1927,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                   quantity: quantity,
                   createdAt: currTime,
                   updatedAt: currTime,
+
                 },
               });
 
