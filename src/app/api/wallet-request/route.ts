@@ -160,6 +160,7 @@ export async function PATCH(request: NextRequest) {
           amount: walletReq.amount,
           type: "CREDIT",
           paymentMethod: "wallet-request",
+          paymentType: walletReq.paymentType,
         },
       });
 
