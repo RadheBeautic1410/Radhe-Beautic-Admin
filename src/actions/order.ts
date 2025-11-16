@@ -194,93 +194,94 @@ async function generateOrderId() {
   };
 }
 
-export const placeTheOrder = async (
-  cartId: string,
-  addressId: string,
-  total: number
-) => {
-  const curUser = await currentUser();
+// export const placeTheOrder = async (
+//   cartId: string,
+//   addressId: string,
+//   total: number
+// ) => {
+//   const curUser = await currentUser();
 
-  if (!curUser) {
-    return { error: "Something went wrong!" };
-  }
-  console.log(addressId, cartId, curUser.id);
-  const orderIdRes: any = await generateOrderId();
-  if (orderIdRes.error) {
-    return orderIdRes;
-  }
-  const orderId = orderIdRes.orderId || "";
-  // const
-  if (!orderId) {
-    return { error: "Try again after some time!" };
-  }
-  console.log(orderId);
-  let order: any = null;
-  let retries = 0;
-  const maxRetries = 3;
-  while (!order && retries < maxRetries) {
-    try {
-      order = await db.$transaction(async (transaction) => {
-        // Fetch the current counter and update it in one operation
-        const okDate = await getCurrTime();
-        const newOrder = await transaction.orders.create({
-          data: {
-            orderId: orderId,
-            user: {
-              connect: {
-                id: curUser.id,
-              },
-            },
-            shippingAddress: {
-              connect: {
-                id: addressId,
-              },
-            },
-            cart: {
-              connect: {
-                id: cartId,
-              },
-            },
-            total: total,
-            trackingIdImages: [],
-            createdAt: okDate,
-            updatedAt: okDate,
-          },
-        });
+//   if (!curUser) {
+//     return { error: "Something went wrong!" };
+//   }
+//   console.log(addressId, cartId, curUser.id);
+//   const orderIdRes: any = await generateOrderId();
+//   if (orderIdRes.error) {
+//     return orderIdRes;
+//   }
+//   const orderId = orderIdRes.orderId || "";
+//   // const
+//   if (!orderId) {
+//     return { error: "Try again after some time!" };
+//   }
+//   console.log(orderId);
+//   let order: any = null;
+//   let retries = 0;
+//   const maxRetries = 3;
+//   while (!order && retries < maxRetries) {
+//     try {
+//       order = await db.$transaction(async (transaction) => {
+//         // Fetch the current counter and update it in one operation
+//         const okDate = await getCurrTime();
+//         const newOrder = await transaction.orders.create({
+//           data: {
+//             orderId: orderId,
+//             user: {
+//               connect: {
+//                 id: curUser.id,
+//               },
+//             },
+//             shippingAddress: {
+//               connect: {
+//                 id: addressId,
+//               },
+//             },
+//             cart: {
+//               connect: {
+//                 id: cartId,
+//               },
+//             },
+//             total: total,
+//             trackingIdImages: [],
+//             customerId,
+//             createdAt: okDate,
+//             updatedAt: okDate,
+//           },
+//         });
 
-        const newCart = await transaction.cart.update({
-          where: {
-            id: cartId,
-          },
-          data: {
-            isOrdered: "ORDERED",
-          },
-        });
+//         const newCart = await transaction.cart.update({
+//           where: {
+//             id: cartId,
+//           },
+//           data: {
+//             isOrdered: "ORDERED",
+//           },
+//         });
 
-        return newOrder;
-      });
-    } catch (error: any) {
-      console.error("Error generating order:", error.message);
-      retries++;
-      if (retries >= maxRetries) {
-        return null;
-      }
-      // Wait for a short time before retrying
-      await new Promise((resolve) =>
-        setTimeout(resolve, 100 * Math.pow(2, retries))
-      );
-    }
-  }
+//         return newOrder;
+//       });
+//     } catch (error: any) {
+//       console.error("Error generating order:", error.message);
+//       retries++;
+//       if (retries >= maxRetries) {
+//         return null;
+//       }
+//       // Wait for a short time before retrying
+//       await new Promise((resolve) =>
+//         setTimeout(resolve, 100 * Math.pow(2, retries))
+//       );
+//     }
+//   }
 
-  if (!order) {
-    return { error: "Failed to place an order." };
-  }
+//   if (!order) {
+//     return { error: "Failed to place an order." };
+//   }
 
-  return {
-    success: "Order Placed Successfully",
-    order: order,
-  };
-};
+//   return {
+//     success: "Order Placed Successfully",
+//     order: order,
+//   };
+// };
 
 export const deleteOrder = async (orderId: string) => {
   const curUser = await currentUser();

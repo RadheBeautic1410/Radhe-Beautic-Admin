@@ -7,7 +7,7 @@ import {
   deleteInvoiceFromFirebase,
 } from "@/src/lib/firebase/firebase";
 import { Buffer } from "buffer";
-import { getCurrTime } from "./kurti";
+import { getCurrTime } from "../actions/kurti";
 
 export interface OnlineSalesFilters {
   page?: number;

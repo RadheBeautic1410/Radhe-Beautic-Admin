@@ -1,5 +1,5 @@
 import { db } from "@/src/lib/db";
-import { getCurrTime } from "./kurti";
+import { getCurrTime } from "../actions/kurti";
 
 export const migrate3 = async () => {
     try {

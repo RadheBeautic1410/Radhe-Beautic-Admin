@@ -6,13 +6,7 @@ import {
 import { generateInvoicePDF } from "@/src/actions/generate-pdf";
 import { OfflineSellType, OnlineSellType, OrderStatus } from "@prisma/client";
 import { Buffer } from "buffer";
-
-export const getCurrTime = async () => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-  return ISTTime;
-};
+import { getCurrTime } from "../actions/kurti";
 
 export const getLastDelTime = async () => {
   try {
@@ -1372,6 +1366,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         sellType: sellType,
         shopId: shopId,
         paymentType: paymentType,
+        lastUpdatedTime: currTime,
         createdAt: currTime,
         updatedAt: currTime,
       },

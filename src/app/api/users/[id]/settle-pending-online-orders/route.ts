@@ -4,8 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
 import { db } from "@/src/lib/db";
 import { PaymentStatus } from "@prisma/client";
-import { getCurrTime } from "@/src/data/kurti";
-
+import { getCurrTime } from "@/src/actions/kurti";
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
