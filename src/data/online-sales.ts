@@ -740,6 +740,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
                 type: "CREDIT",
                 paymentMethod: "wallet",
                 onlineSellBatchId: id,
+                paymentType: "",
               },
             });
 
@@ -989,6 +990,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
               type: "DEBIT",
               paymentMethod: "wallet",
               onlineSellBatchId: id,
+              paymentType: "settled amount",
             },
           });
 
@@ -1398,6 +1400,7 @@ export const deductFromWalletForNewProducts = async (
         type: "DEBIT",
         paymentMethod: "wallet",
         onlineSellBatchId: saleId,
+        paymentType: "Diduct Amount",
       },
     });
 
@@ -1496,6 +1499,7 @@ export const completePendingOrderPayment = async (
         type: "DEBIT",
         paymentMethod: "wallet",
         onlineSellBatchId: saleId,
+        paymentType: "",
       },
     });
 

@@ -3,13 +3,16 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-
-console.log("User ID:", req);
     const body = await req.json();
-    const { amount, paymentMethod,userId } = body;
+    const { amount, paymentMethod, userId } = body;
 
     const numericAmount = parseFloat(amount);
-    if (!amount || !paymentMethod || isNaN(numericAmount) || numericAmount <= 0) {
+    if (
+      !amount ||
+      !paymentMethod ||
+      isNaN(numericAmount) ||
+      numericAmount <= 0
+    ) {
       return NextResponse.json(
         { error: "Valid amount and paymentMethod are required." },
         { status: 400 }
@@ -45,7 +48,8 @@ console.log("User ID:", req);
           userId: userId,
           amount: numericAmount,
           type: "CREDIT",
-          paymentMethod,
+          paymentMethod: paymentMethod,
+          paymentType: "Added From Admin",
         },
       }),
       db.user.update({

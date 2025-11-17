@@ -1927,7 +1927,6 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                   quantity: quantity,
                   createdAt: currTime,
                   updatedAt: currTime,
-
                 },
               });
 
@@ -2026,6 +2025,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                 type: "DEBIT",
                 paymentMethod: "wallet",
                 onlineSellBatchId: offlineBatch.id,
+                paymentType: `Bill No :- ${invoiceNumber}`,
               },
             });
           }

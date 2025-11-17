@@ -81,8 +81,9 @@ export async function POST(
             userId,
             amount: b.totalAmount || 0,
             type: "DEBIT",
-            paymentMethod: "wallet",
+            paymentMethod: "Order-Settled",
             onlineSellBatchId: b.id,
+            paymentType: "Diduct From Wallet",
           },
         });
       }
