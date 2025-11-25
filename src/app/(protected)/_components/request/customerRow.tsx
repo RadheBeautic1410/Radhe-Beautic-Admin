@@ -62,7 +62,7 @@ interface moderatorRowProps {
 const editSchema = z.object({
   isVerified: z.boolean(),
   role: z.nativeEnum(UserRole),
-  groupName: z.enum(["group1", "group2", "group3"]), // 👈 added here
+  groupName: z.string().optional(), // 👈 added here
 });
 
 const addMoneySchema = z.object({
@@ -83,12 +83,7 @@ export const CustomerRow = ({
     defaultValues: {
       isVerified: userData.isVerified,
       role: userData.role,
-      groupName:
-        userData.groupName === "group1" ||
-        userData.groupName === "group2" ||
-        userData.groupName === "group3"
-          ? userData.groupName
-          : "group1", // 👈 default fallback
+      groupName: userData.groupName || "",
     },
   });
 
@@ -250,6 +245,10 @@ export const CustomerRow = ({
                       </FormControl>
                       <SelectContent>
                         <SelectItem value={UserRole.USER}>Customer</SelectItem>
+                        <SelectItem value={UserRole.RESELLER}>
+                          Reseller
+                        </SelectItem>
+
                         {/* <SelectItem value={UserRole.ADMIN}>Admin</SelectItem>
                         <SelectItem value={UserRole.MOD}>Moderator</SelectItem> */}
                       </SelectContent>

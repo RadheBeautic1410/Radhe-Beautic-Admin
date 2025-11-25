@@ -1702,7 +1702,6 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
     }
     const currTime = await getCurrTime();
     // Start a transaction for all operations with increased timeout
-    // Performance optimizations: Increased timeout, optimized queries, batch operations
     console.log(`🚀 Starting transaction for ${products.length} products...`);
     const startTime = Date.now();
 
@@ -1719,7 +1718,13 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
 
         const order = await tx.orders.findUnique({
           where: { orderId },
-          select: { userId: true },
+          include: {
+            cart: {
+              include: {
+                CartProduct: true, // all cartProduct rows
+              },
+            },
+          },
         });
 
         if (!order) {
@@ -1778,16 +1783,20 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
         });
 
         // Process each product in the cart with optimized batch operations
-        // Collect all operations to minimize database round trips
         const batchOperations: any[] = [];
         const kurtiUpdates: any[] = [];
 
         for (let i = 0; i < products.length; i++) {
           const product = products[i];
+          console.log("product", product);
+
           let { code, kurti, selectedSize, quantity, sellingPrice } = product;
 
           try {
             code = code.toUpperCase();
+            const kurtiId = kurti.id;
+            console.log("kurtiID", kurtiId);
+
             let search = code.substring(0, 7).toUpperCase();
             let cmp = selectedSize.toUpperCase();
 
@@ -1809,6 +1818,65 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               quantity
             );
 
+            const existingCartProduct = order.cart.CartProduct.find(
+              (cp: any) => {
+                if (cp.kurtiId !== kurtiId) return false;
+                const sizesArr = (cp.sizes || []) as any[];
+                return sizesArr.some(
+                  (s) => s.size.toUpperCase() === cmp.toUpperCase()
+                );
+              }
+            );
+            // 🔴 CHANGED: decide if this flow should use reservedSizes or not
+            // For admin direct-order edit, keep main stock only → no reservedSizes check / update
+            const shouldUseReservedSizes = existingCartProduct ? true : false;
+            console.log("existingCartProduct", existingCartProduct);
+
+            if (!existingCartProduct || existingCartProduct == undefined) {
+              // cart has only 1 item, but request has 2nd product → add new cartProduct
+              console.log("its adding product in cart");
+
+              const newCP = await tx.cartProduct.create({
+                data: {
+                  kurtiId: kurtiId,
+                  cartId: order.cartId,
+                  sizes: [
+                    {
+                      size: cmp,
+                      quantity: quantity,
+                    },
+                  ],
+                  adminSideSizes: [],
+                  scannedSizes: [],
+                  isRejected: false,
+                },
+              });
+              order.cart.CartProduct.push({
+                ...newCP,
+              });
+            } else {
+              // increase quantity in cart if already there
+              const sizesArr = (existingCartProduct.sizes || []) as any[];
+              const idx = sizesArr.findIndex((s) => s.size === cmp);
+
+              if (idx >= 0) {
+                sizesArr[idx] = {
+                  ...sizesArr[idx],
+                  quantity: (sizesArr[idx].quantity || 0) + quantity,
+                };
+
+                const updatedCP = await tx.cartProduct.update({
+                  where: { id: existingCartProduct.id },
+                  data: {
+                    sizes: sizesArr,
+                  },
+                });
+
+                // sync local
+                Object.assign(existingCartProduct, updatedCP);
+              }
+            }
+
             // Find the Kurti with reservedSizes
             const kurtiFromDB = await tx.kurti.findUnique({
               where: { code: search.toUpperCase(), isDeleted: false },
@@ -1819,13 +1887,16 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                 prices: true,
               },
             });
+            console.log("kurtiFromDB", JSON.stringify(kurtiFromDB));
 
             if (!kurtiFromDB) {
               errors.push(`Product ${search} not found`);
               continue;
             }
 
-            // Check if size is available in sizes array
+            // 🔴 CHANGED: unified stock check + conditional reservedSizes check
+
+            // ✅ Always validate main stock
             const sizeInSizes: any = kurtiFromDB.sizes.find(
               (s: any) => s.size === cmp
             );
@@ -1833,6 +1904,8 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               "🚀 ~ sellMultipleOnlineKurtis ~ kurtiFromDB:",
               kurtiFromDB
             );
+            console.log("sizeInSizes", sizeInSizes);
+
             if (!sizeInSizes || sizeInSizes.quantity < quantity) {
               errors.push(
                 `Insufficient stock for ${search}-${cmp}. Available: ${
@@ -1841,33 +1914,45 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               );
               continue;
             }
+            console.log("its after sizeInSizes");
 
-            // Check if size is available in reservedSizes array
-            const sizeInReservedSizes: any = kurtiFromDB.reservedSizes.find(
-              (s: any) => s.size === cmp
-            );
-            if (
-              !sizeInReservedSizes ||
-              sizeInReservedSizes.quantity < quantity
-            ) {
-              errors.push(
-                `System problem: Reserved size not available for ${search}-${cmp}. Please contact the owner.`
+            // ✅ Only validate reservedSizes if this flow actually uses reservation
+            let sizeInReservedSizes: any = null;
+
+            if (shouldUseReservedSizes) {
+              const reservedArr = kurtiFromDB.reservedSizes || [];
+              sizeInReservedSizes = reservedArr.find(
+                (s: any) => s.size === cmp
               );
-              continue;
+
+              if (
+                !sizeInReservedSizes ||
+                sizeInReservedSizes.quantity < quantity
+              ) {
+                errors.push(
+                  `System problem: Reserved size not available for ${search}-${cmp}. Please contact the owner.`
+                );
+                continue;
+              }
+              console.log("reserved size OK", sizeInReservedSizes);
             }
 
+            // 🔽 continue with your existing stock deduction + sale logic
             try {
-              // Update Kurti sizes and reservedSizes using updateSizeQuantity function
+              // 🔴 CHANGED: update reservedSizes only when required
               const updatedSizes = updateSizeQuantity(
                 kurtiFromDB.sizes,
                 cmp,
                 -quantity
               );
-              const updatedReservedSizes = updateSizeQuantity(
-                kurtiFromDB.reservedSizes,
-                cmp,
-                -quantity
-              );
+
+              const updatedReservedSizes = shouldUseReservedSizes
+                ? updateSizeQuantity(
+                    kurtiFromDB.reservedSizes || [],
+                    cmp,
+                    -quantity
+                  )
+                : kurtiFromDB.reservedSizes || []; // keep same when not using reservedSizes
 
               // Update kurti stock
               const updateUser = await tx.kurti.update({
@@ -1910,6 +1995,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                   },
                 });
               }
+              console.log("its adding online sell kurti", updateUser.id);
 
               // Create individual offline sell record for each product
               const offlineSell = await tx.onlineSell.create({
@@ -1985,6 +2071,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
           }
         }
         console.log(soldProducts, "soldProducts");
+
         // Update batch with final totals and determine payment status
         if (soldProducts.length > 0) {
           // Determine final payment status based on balance sufficiency
