@@ -157,10 +157,16 @@ const ListPage = () => {
     { key: "straightPair", value: "Straight Pair" },
     { key: "plazzaPair", value: "Plazza Pair" },
     { key: "sararaPair", value: "Sarara Pair" },
+    { key: "straightKurtiPent", value: "Straight Kurti Pent" },
+    { key: "roundKurti", value: "Round Kurti" },
+    { key: "straightKurti", value: "Straight Kurti" },
     { key: "straight", value: "Straight" },
+    { key: "onlyPent", value: "Only Pent" },
+    { key: "lehengaCholi", value: "Lehenga Choli" },
     { key: "codeSet", value: "Code-Set" },
     { key: "tunique", value: "Tunique" },
     { key: "gaune", value: "Gaune" },
+    { key: "aLineKurti", value: "A-Line Kurti" },
     { key: "aLineKurtiPant", value: "A-Line Kurti Pant" },
     { key: "roundedKurtiPant", value: "Round & Kurti Pant" },
   ];
@@ -1388,6 +1394,21 @@ const ListPage = () => {
                                 <SelectItem value="sararaPair">
                                   Sarara Pair
                                 </SelectItem>
+                                <SelectItem value="straightKurtiPent">
+                                  Straight kurti Pent
+                                </SelectItem>
+                                <SelectItem value="roundKurti">
+                                  Round kurti
+                                </SelectItem>
+                                <SelectItem value="straightKurti">
+                                  Straight kurti
+                                </SelectItem>
+                                <SelectItem value="onlyPent">
+                                  Only Pent
+                                </SelectItem>
+                                <SelectItem value="lehengaCholi">
+                                  Lehenga Choli
+                                </SelectItem>
                                 <SelectItem value="straight">
                                   Straight
                                 </SelectItem>
@@ -1396,9 +1417,13 @@ const ListPage = () => {
                                 </SelectItem>
                                 <SelectItem value="tunique">Tunique</SelectItem>
                                 <SelectItem value="gaune">Gaune</SelectItem>
+                                <SelectItem value="aLineKurti">
+                                  A-Line Kurti
+                                </SelectItem>
                                 <SelectItem value="aLineKurtiPant">
                                   A-Line Kurti Pant
                                 </SelectItem>
+                                
                                 <SelectItem value="roundedKurtiPant">
                                   Round & Kurti Pant
                                 </SelectItem>
@@ -1565,7 +1590,10 @@ const ListPage = () => {
               <h2 className="scroll-m-20 text-sm font-semibold tracking-tight first:mt-0">
                 Filter by Kurti Type
               </h2>
-              <Select onValueChange={handleKurtiTypeChange} value={kurtiTypeFilter}>
+              <Select
+                onValueChange={handleKurtiTypeChange}
+                value={kurtiTypeFilter}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="All Kurti Types" />
                 </SelectTrigger>
