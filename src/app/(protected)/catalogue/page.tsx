@@ -49,6 +49,7 @@ import {
   ShoppingBag,
   Trash2,
   TrendingUp,
+  Filter,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
@@ -82,6 +83,7 @@ import { HashLoader } from "react-spinners";
 import { useDebounce } from "@/src/hooks/useDebounce";
 import ClearStockModal from "../_components/category/ClearStockModel";
 import SetStockReadyModal from "../_components/category/StockReadyModel";
+import { SizeSelectionModal } from "../_components/category/SizeSelectionModal";
 
 interface Category {
   id: string;
@@ -1193,6 +1195,18 @@ const ListPage = () => {
                 onClick={() => downloadCategoryImagesAndVideos(cat.name)}
                 // title="Download all images from this category"
               />
+              <div title="Download by size (no watermark)">
+                <SizeSelectionModal
+                  categoryName={cat.name}
+                  trigger={
+                    <Filter
+                      role="button"
+                      size={16}
+                      className="text-purple-600 cursor-pointer hover:text-purple-800"
+                    />
+                  }
+                />
+              </div>
               <FileDownIcon
                 role="button"
                 size={20}
@@ -1814,6 +1828,18 @@ const ListPage = () => {
                                     downloadCategoryImagesAndVideos(cat.name)
                                   }
                                 />
+                                <div title="Download by size (no watermark)">
+                                  <SizeSelectionModal
+                                    categoryName={cat.name}
+                                    trigger={
+                                      <Filter
+                                        role="button"
+                                        size={20}
+                                        className="text-purple-600 cursor-pointer hover:text-purple-800"
+                                      />
+                                    }
+                                  />
+                                </div>
                                 <FileDownIcon
                                   role="button"
                                   size={20}
