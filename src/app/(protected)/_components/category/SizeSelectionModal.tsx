@@ -123,17 +123,27 @@ export const SizeSelectionModal = ({
         const matchesCategory =
           kurti.category?.toLowerCase() === categoryName.toLowerCase();
         const notDeleted = !kurti.isDeleted;
+        const selectedSizesArr = Array.from(sizes);
 
         // Check if kurti has any of the selected sizes
+        // const hasSelectedSizes =
+        //   kurti.sizes &&
+        //   Array.isArray(kurti.sizes) &&
+        //   kurti.sizes.every(
+        //     (size: any) =>
+        //       size &&
+        //       size.quantity > 0 &&
+        //       size.size &&
+        //       sizes.has(size.size.toUpperCase())
+        //   );
         const hasSelectedSizes =
           kurti.sizes &&
           Array.isArray(kurti.sizes) &&
-          kurti.sizes.some(
-            (size: any) =>
-              size &&
-              size.quantity > 0 &&
-              size.size &&
-              sizes.has(size.size.toUpperCase())
+          selectedSizesArr.every((selectedSize) =>
+            kurti.sizes.some(
+              (s: any) =>
+                s.size?.toUpperCase() === selectedSize && s.quantity > 0
+            )
           );
 
         return matchesCategory && notDeleted && hasSelectedSizes;
@@ -235,7 +245,9 @@ export const SizeSelectionModal = ({
         async (mediaInfo: any, index: number) => {
           try {
             toast.loading(
-              `Processing ${mediaInfo.type} ${index + 1}/${mediaUrls.length}...`,
+              `Processing ${mediaInfo.type} ${index + 1}/${
+                mediaUrls.length
+              }...`,
               {
                 id: loadingToast,
               }
@@ -406,4 +418,3 @@ export const SizeSelectionModal = ({
     </Dialog>
   );
 };
-
