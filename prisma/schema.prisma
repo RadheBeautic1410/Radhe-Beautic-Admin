@@ -15,8 +15,6 @@ enum UserRole {
   SELLER
   UPLOADER
   RESELLER
-  SHOP_SELLER
-  SELLER_MANAGER
 }
 
 enum OrderStatus {
@@ -55,6 +53,11 @@ enum PaymentStatus {
   PENDING
 }
 
+enum WalletTxnType {
+  CREDIT
+  DEBIT
+}
+
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   name          String?
@@ -68,8 +71,8 @@ model User {
 
   verifiedBy String?   @db.ObjectId
   verifiedAt DateTime?
-  groupName  String?   @default("")
-  role       UserRole  @default(USER)
+
+  role UserRole @default(USER)
 
   isTwoFactorEnabled    Boolean                @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
@@ -80,12 +83,14 @@ model User {
   cart               Cart[]
   orders             Orders[]
   Address            Address[]
+  Shop               Shop?
+  WalletHistory      WalletHistory[]
   balance            Float               @default(0)
-  WalletHistory      WalletHistory[]     @relation(name: "UserWalletHistory")
-  shop               Shop?               @relation("ShopOwner")
-  ShippingChangeLog  ShippingChangeLog[]
-  WalletRequest      WalletRequest[]
-  resellersCustomers ResellersCustomer[]
+  ResellersCustomers ResellersCustomer[]
+  walletRequests     WalletRequest[]
+
+  // Indexes for query performance
+  @@index([role])
 }
 
 model VerificationToken {
@@ -159,6 +164,20 @@ model Category {
   sellingPrice        Float?
   actualPrice         Float?
   isStockReady        Boolean @default(true)
+
+  // Indexes for query performance
+  // Compound index for common query pattern: filter by isDeleted, sort by sellingPrice
+  @@index([isDeleted, sellingPrice])
+  // Compound index for sorting by countTotal
+  @@index([isDeleted, countTotal])
+  // Index for name search (text search)
+  @@index([isDeleted, name])
+  // Index for type search
+  @@index([isDeleted, type])
+  // Index for kurtiType filtering
+  @@index([isDeleted, kurtiType])
+  // Index for sellingPrice range queries
+  @@index([sellingPrice])
 }
 
 model Prices {
@@ -173,6 +192,11 @@ model Prices {
   Sell          Sell[]
   OfflineSell   OfflineSell[]
   OnlineSell    OnlineSell[]
+
+  // Indexes for price range queries
+  @@index([sellingPrice1])
+  @@index([sellingPrice2])
+  @@index([sellingPrice3])
 }
 
 model Kurti {
@@ -193,65 +217,161 @@ model Kurti {
   isBigPrice      Boolean  @default(false)
   bigPrice        Float?
 
-  prices            Prices?             @relation(fields: [pricesId], references: [id], onDelete: NoAction)
-  CartProduct       CartProduct[]
-  Sell              Sell[]
-  MovedKurtiHistory MovedKurtiHistory[]
-  TopSoldKurti      TopSoldKurti?
-  OfflineSell       OfflineSell[]
-  OnlineSell        OnlineSell[]
-  createdAt         DateTime?           @default(now())
-  updatedAt         DateTime?           @updatedAt
+  prices      Prices?       @relation(fields: [pricesId], references: [id], onDelete: NoAction)
+  CartProduct CartProduct[]
+  Sell        Sell[]
+  OfflineSell OfflineSell[]
+  OnlineSell  OnlineSell[]
+
+  // Indexes for query performance
+  // Most common query: filter by isDeleted and category
+  @@index([isDeleted, category])
+  // For sorting by lastUpdatedTime
+  @@index([isDeleted, lastUpdatedTime])
+  // For code lookups with isDeleted filter
+  @@index([isDeleted, code])
+  // For foreign key lookups
+  @@index([pricesId])
+  // For category-only queries
+  @@index([category])
 }
 
 model Sell {
-  id            String     @id @default(auto()) @map("_id") @db.ObjectId
-  sellTime      DateTime
-  code          String
-  kurtiSize     String
-  sellerName    String
-  kurti         Json[]
-  kurtiId       String?    @db.ObjectId
-  pricesId      String?    @db.ObjectId
-  prices        Prices?    @relation(fields: [pricesId], references: [id], onDelete: NoAction)
-  kurti2        Kurti?     @relation(fields: [kurtiId], references: [id], onDelete: NoAction)
-  shopLocation  String? // Location of the shop
-  customerName  String? // Customer name
-  customerPhone String? // Customer phone (optional)
-  selledPrice   Int? // Actual selling price (can be different from MRP)
-  invoiceNumber String? // Invoice number for tracking
-  quantity      Int?
-  shopName      String?
-  paymentType   String?
-  billCreatedBy String?
-  batchId       String? // Reference to SaleBatch
-  batch         SaleBatch? @relation("BatchSales", fields: [batchId], references: [id])
-
-  @@map("Sell")
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  sellTime   DateTime
+  code       String
+  kurtiSize  String
+  sellerName String
+  kurti      Json[]
+  kurtiId    String?  @db.ObjectId
+  pricesId   String?  @db.ObjectId
+  prices     Prices?  @relation(fields: [pricesId], references: [id], onDelete: NoAction)
+  kurti2     Kurti?   @relation(fields: [kurtiId], references: [id], onDelete: NoAction)
 }
 
-// If you need to create a separate table for batch sales (optional)
-model SaleBatch {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  batchNumber   String   @unique // Unique batch identifier
-  customerName  String
-  customerPhone String?
-  shopLocation  String
-  shopName      String
-  billCreatedBy String
-  totalAmount   Int // Total amount for the entire batch
-  totalItems    Int // Total number of items in batch
-  saleTime      DateTime
-  sellerName    String
-  sellerId      String?
+model Deletetime {
+  id    String    @id @default(auto()) @map("_id") @db.ObjectId
+  owner String    @unique
+  time  DateTime?
+}
 
-  // Relations
-  sales Sell[] @relation("BatchSales")
+model Cart {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String        @db.ObjectId
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  CartProduct CartProduct[]
+  orders      Orders[]
+  isOrdered   CartStatus    @default(PENDING)
+
+  // Indexes for query performance
+  // Most common: find user's cart by userId and isOrdered status
+  @@index([userId, isOrdered])
+  // For finding all carts of a user
+  @@index([userId])
+}
+
+model CartProduct {
+  id             String  @id @default(auto()) @map("_id") @db.ObjectId
+  kurtiId        String  @db.ObjectId
+  kurti          Kurti   @relation(fields: [kurtiId], references: [id], onDelete: Cascade)
+  sizes          Json[]
+  isRejected     Boolean @default(false)
+  adminSideSizes Json[]
+  scannedSizes   Json[]
+  Cart           Cart?   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId         String? @db.ObjectId
+
+  // Indexes for query performance
+  // Foreign key indexes for faster joins
+  @@index([cartId])
+  @@index([kurtiId])
+}
+
+model Orders {
+  id                 String             @id @default(auto()) @map("_id") @db.ObjectId
+  orderId            String             @unique
+  cart               Cart               @relation(fields: [cartId], references: [id])
+  cartId             String             @db.ObjectId
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String             @db.ObjectId
+  date               DateTime           @default(now())
+  trackingIdImages   Json[]
+  status             OrderStatus        @default(PENDING)
+  total              Int
+  shippingAddress    Address            @relation(fields: [addressId], references: [id])
+  shippingCharge     Int                @default(0)
+  addressId          String             @db.ObjectId
+  trackingId         String?
+  resellerCustomer   ResellersCustomer  @relation(fields: [resellerCustomerId], references: [id], onDelete: Cascade)
+  resellerCustomerId String             @db.ObjectId
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  OfflineSellBatch   OfflineSellBatch[]
+  OnlineSellBatch    OnlineSellBatch[]
+
+  // Indexes for query performance
+  // Most common query: filter by userId, status, and sort by createdAt
+  @@index([userId, status, createdAt])
+  // For admin queries filtering by status
+  @@index([status, createdAt])
+  // For date range queries with userId
+  @@index([userId, createdAt])
+  // For foreign key lookups
+  @@index([cartId])
+  @@index([resellerCustomerId])
+}
+
+model Address {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String   @db.ObjectId
+  address String
+  zipCode String?
+  orders  Orders[]
+
+  // Index for foreign key lookups
+  @@index([userId])
+}
+
+model OrderCounter {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  date     String @unique
+  sequence Int
+}
+
+model Shop {
+  id               String             @id @default(auto()) @map("_id") @db.ObjectId
+  shopName         String
+  shopLocation     String
+  shopAddress      String?
+  ownerId          String?            @unique @db.ObjectId
+  owner            User?              @relation(fields: [ownerId], references: [id])
+  OfflineSellBatch OfflineSellBatch[]
+  isHallSell       Boolean            @default(false)
+}
+
+model WalletHistory {
+  id                 String            @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String            @db.ObjectId
+  user               User              @relation(fields: [userId], references: [id])
+  amount             Float
+  type               WalletTxnType
+  paymentMethod      String
+  paymentType        String
+  onlineSellBatchId  String?           @db.ObjectId
+  offlineSellBatchId String?           @db.ObjectId
+  offlineSellBatch   OfflineSellBatch? @relation(fields: [offlineSellBatchId], references: [id], onDelete: Cascade)
+  onlineSellBatch    OnlineSellBatch?  @relation(fields: [onlineSellBatchId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  @@map("sale_batches")
+  // Indexes for query performance
+  // Most common: filter by userId and sort by createdAt
+  @@index([userId, createdAt])
+  // For filtering by userId and type
+  @@index([userId, type])
+  // For payment method searches
+  @@index([userId, paymentMethod])
 }
 
 model OfflineSellBatch {
@@ -270,13 +390,20 @@ model OfflineSellBatch {
   sales         OfflineSell[]   @relation("OfflineBatchSales")
   shopId        String?         @db.ObjectId
   shop          Shop?           @relation(fields: [shopId], references: [id])
-  createdAt     DateTime?
-  updatedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
   paymentType   String?
   gstType       String?
-  Orders        Orders?         @relation(fields: [ordersId], references: [id])
-  ordersId      String?         @db.ObjectId
+  order         Orders?         @relation(fields: [orderId], references: [id])
+  orderId       String?         @db.ObjectId
   WalletHistory WalletHistory[]
+
+  // Indexes for query performance
+  @@index([shopId])
+  @@index([saleTime])
+  @@index([orderId])
+  @@index([createdAt])
 
   @@map("offline_sale_batches")
 }
@@ -290,8 +417,8 @@ model OfflineSell {
   kurti         Kurti            @relation(fields: [kurtiId], references: [id])
   batchId       String           @db.ObjectId
   batch         OfflineSellBatch @relation("OfflineBatchSales", fields: [batchId], references: [id])
-  createdAt     DateTime?
-  updatedAt     DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   pricesId      String?          @db.ObjectId
   prices        Prices?          @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   shopLocation  String?
@@ -299,6 +426,12 @@ model OfflineSell {
   customerPhone String?
   quantity      Int?
   selledPrice   Int?
+
+  // Indexes for query performance
+  @@index([batchId])
+  @@index([kurtiId])
+  @@index([sellTime])
+  @@index([code])
 }
 
 model OnlineSellBatch {
@@ -315,8 +448,8 @@ model OnlineSellBatch {
   invoiceUrl    String?
   sellType      OnlineSellType @default(HALL_SELL_ONLINE)
   sales         OnlineSell[]   @relation("OnlineBatchSales")
-  createdAt     DateTime?
-  updatedAt     DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   paymentStatus PaymentStatus @default(PENDING)
   gstType       String?
@@ -324,6 +457,12 @@ model OnlineSellBatch {
   orderId       String?
   order         Orders?         @relation(fields: [orderId], references: [orderId])
   WalletHistory WalletHistory[]
+
+  // Indexes for query performance
+  @@index([saleTime])
+  @@index([orderId])
+  @@index([paymentStatus])
+  @@index([createdAt])
 
   @@map("online_sale_batches")
 }
@@ -337,6 +476,8 @@ model OnlineSell {
   kurti         Kurti           @relation(fields: [kurtiId], references: [id])
   batchId       String          @db.ObjectId
   batch         OnlineSellBatch @relation("OnlineBatchSales", fields: [batchId], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   pricesId      String?         @db.ObjectId
   prices        Prices?         @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   shopLocation  String?
@@ -344,148 +485,38 @@ model OnlineSell {
   customerPhone String?
   quantity      Int?
   selledPrice   Int?
-  createdAt     DateTime?
-  updatedAt     DateTime?
+
+  // Indexes for query performance
+  @@index([batchId])
+  @@index([kurtiId])
+  @@index([sellTime])
+  @@index([code])
 }
 
-model Deletetime {
-  id    String    @id @default(auto()) @map("_id") @db.ObjectId
-  owner String    @unique
-  time  DateTime?
-}
+// model ResellersCustomer {
+//   id        String   @id @default(auto()) @map("_id") @db.ObjectId
+//   name      String
+//   address   String
+//   isActive  Boolean  @default(true)
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+//   retailerId String   @db.ObjectId   
+//   user       User     @relation(fields: [retailerId], references: [id], onDelete: Cascade)
+// }
+model ResellersCustomer {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  // address    String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  resellerId String   @db.ObjectId
+  orders     Orders[]
+  reseller   User     @relation(fields: [resellerId], references: [id], onDelete: Cascade)
 
-model Cart {
-  id          String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String        @db.ObjectId
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  CartProduct CartProduct[]
-  orders      Orders[]
-  isOrdered   CartStatus    @default(PENDING)
-}
-
-model CartProduct {
-  id             String  @id @default(auto()) @map("_id") @db.ObjectId
-  kurtiId        String  @db.ObjectId
-  kurti          Kurti   @relation(fields: [kurtiId], references: [id], onDelete: Cascade)
-  sizes          Json[]
-  isRejected     Boolean @default(false)
-  adminSideSizes Json[]
-  scannedSizes   Json[]
-  Cart           Cart?   @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  cartId         String? @db.ObjectId
-}
-
-model Orders {
-  id                 String              @id @default(auto()) @map("_id") @db.ObjectId
-  orderId            String              @unique
-  cart               Cart                @relation(fields: [cartId], references: [id])
-  cartId             String              @db.ObjectId
-  userId             String              @db.ObjectId
-  date               DateTime            @default(now())
-  trackingIdImages   Json[]
-  status             OrderStatus         @default(PENDING)
-  total              Int
-  shippingAddress    Address             @relation(fields: [addressId], references: [id])
-  shippingCharge     Int                 @default(0)
-  addressId          String              @db.ObjectId
-  trackingId         String?
-  courier            String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  resellerCustomer   ResellersCustomer   @relation(fields: [resellerCustomerId], references: [id], onDelete: Cascade)
-  resellerCustomerId String              @db.ObjectId
-  user               User?               @relation(fields: [userId], references: [id])
-  OfflineSellBatch   OfflineSellBatch[]
-  OnlineSellBatch    OnlineSellBatch[]
-  ShippingChangeLog  ShippingChangeLog[]
-}
-
-model Address {
-  id      String   @id @default(auto()) @map("_id") @db.ObjectId
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId  String   @db.ObjectId
-  address String
-  zipCode String?
-  orders  Orders[]
-}
-
-model OrderCounter {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  date     String @unique
-  sequence Int
-}
-
-model MovedKurtiHistory {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  kurtiId      String   @db.ObjectId
-  kurti        Kurti    @relation(fields: [kurtiId], references: [id], onDelete: Cascade)
-  fromCategory String
-  toCategory   String
-  oldKurtiCode String
-  newKurtiCode String
-  sizes        Json[]
-  date         DateTime @default(now())
-}
-
-model TopSoldKurti {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  kurtiId   String   @unique
-  kurti     Kurti    @relation(fields: [kurtiId], references: [id])
-  soldCount Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Shop {
-  id               String             @id @default(auto()) @map("_id") @db.ObjectId
-  shopName         String
-  shopLocation     String
-  shopAddress      String?
-  ownerId          String?            @unique @db.ObjectId
-  owner            User?              @relation("ShopOwner", fields: [ownerId], references: [id])
-  OfflineSellBatch OfflineSellBatch[]
-  isHallSell       Boolean            @default(false)
-}
-
-model WalletHistory {
-  id            String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String        @db.ObjectId
-  user          User          @relation("UserWalletHistory", fields: [userId], references: [id])
-  amount        Float
-  type          WalletTxnType
-  paymentMethod String
-  paymentType   String
-
-  onlineSellBatchId  String?           @db.ObjectId
-  offlineSellBatchId String?           @db.ObjectId
-  offlineSellBatch   OfflineSellBatch? @relation(fields: [offlineSellBatchId], references: [id], onDelete: Cascade)
-  onlineSellBatch    OnlineSellBatch?  @relation(fields: [onlineSellBatchId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-}
-
-enum WalletTxnType {
-  CREDIT
-  DEBIT
-}
-
-model ShippingChangeLog {
-  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
-  orderId                String   @db.ObjectId
-  order                  Orders   @relation(fields: [orderId], references: [id])
-  previousTrackingId     String?
-  newTrackingId          String?
-  previousShippingCharge Int?
-  newShippingCharge      Int?
-  changedBy              String   @db.ObjectId
-  changedByUser          User     @relation(fields: [changedBy], references: [id])
-  changeReason           String? // Optional reason for the change
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-
-  @@map("shipping_change_logs")
+  // Indexes for query performance
+  @@index([resellerId])
+  @@index([resellerId, isActive])
 }
 
 model WalletRequest {
@@ -500,6 +531,17 @@ model WalletRequest {
   approvedAt  DateTime?
   image       String
   paymentType String
+
+  // Indexes for query performance
+  @@index([resellerId])
+  @@index([resellerId, status])
+  @@index([status, createdAt])
+}
+
+model QRCodeImage {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  image_url String
+  is_active Boolean
 }
 
 model NewReleseSetting {
@@ -511,22 +553,4 @@ model NewReleseSetting {
   endPrice   Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-}
-
-model QRCodeImage {
-  id        String  @id @default(auto()) @map("_id") @db.ObjectId
-  image_url String
-  is_active Boolean
-}
-
-model ResellersCustomer {
-  id         String    @id @default(auto()) @map("_id") @db.ObjectId
-  name       String
-  // address    String
-  isActive   Boolean   @default(true)
-  createdAt  DateTime?
-  updatedAt  DateTime?
-  resellerId String    @db.ObjectId
-  orders     Orders[]
-  reseller   User      @relation(fields: [resellerId], references: [id], onDelete: Cascade)
 }
