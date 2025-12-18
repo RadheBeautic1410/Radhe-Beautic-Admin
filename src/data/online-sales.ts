@@ -305,6 +305,15 @@ export const getOnlineSaleById = async (id: string) => {
           include: {
             user: true,
             shippingAddress: true,
+            cart: {
+              include: {
+                CartProduct: {
+                  include: {
+                    kurti: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
