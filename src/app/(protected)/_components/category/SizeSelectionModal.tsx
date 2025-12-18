@@ -322,7 +322,19 @@ export const SizeSelectionModal = ({
       toast.dismiss(loadingToast);
     }
   };
+  const generateLink = async () => {
+    const selectedSizesArr = Array.from(sizes);
+    const Createlink = `http://www.radhebeautic.com//sharebyadmin/${categoryName}/${selectedSizesArr[0]}`;
+    // want to clipboard this createlink
 
+    try {
+      await navigator.clipboard.writeText(Createlink);
+      toast.success("Link copied to clipboard!");
+    } catch (error) {
+      console.error("Failed to copy link to clipboard:", error);
+      toast.error("Failed to copy link to clipboard");
+    }
+  };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -413,6 +425,7 @@ export const SizeSelectionModal = ({
           >
             {downloading ? "Downloading..." : "Download Selected Sizes"}
           </Button>
+          <Button onClick={generateLink}>{"Generate link"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
