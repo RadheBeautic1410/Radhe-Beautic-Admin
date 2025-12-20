@@ -20,6 +20,7 @@ interface kurti {
   party: string;
   sellingPrice: string;
   actualPrice: string;
+  customerPrice?: number;
   videos?: any[];
 }
 

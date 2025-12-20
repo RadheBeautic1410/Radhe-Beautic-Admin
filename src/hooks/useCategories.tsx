@@ -10,6 +10,7 @@ interface Category {
   totalItems: number;
   sellingPrice: number;
   actualPrice: number;
+  customerPrice?: number;
   image?: string;
   bigPrice?: number;
   walletDiscount?: number;
