@@ -39,7 +39,10 @@ export const kurtiAddition = async (data: any) => {
   // If category has no sellingPrice or actualPrice, use user-entered values
   let finalSellingPrice = data.sellingPrice;
   let finalActualPrice = data.actualPrice;
-  let finalCustomerPrice = data.customerPrice || data.sellingPrice; // Default to sellingPrice if not provided
+  // Convert customerPrice to number, default to sellingPrice if not provided
+  let finalCustomerPrice: number | undefined = data.customerPrice 
+    ? parseFloat(data.customerPrice.toString()) 
+    : (data.sellingPrice ? parseFloat(data.sellingPrice.toString()) : undefined);
 
   if (categoryData) {
     // If category has no sellingPrice, use user-entered sellingPrice
@@ -60,10 +63,12 @@ export const kurtiAddition = async (data: any) => {
 
     // If category has no customerPrice, use user-entered customerPrice
     if (!categoryData.customerPrice || categoryData.customerPrice === 0) {
-      finalCustomerPrice = data.customerPrice || data.sellingPrice;
+      finalCustomerPrice = data.customerPrice 
+        ? parseFloat(data.customerPrice.toString()) 
+        : (data.sellingPrice ? parseFloat(data.sellingPrice.toString()) : undefined);
     } else {
-      // Use category's customerPrice if available
-      finalCustomerPrice = categoryData.customerPrice.toString();
+      // Use category's customerPrice if available (keep as number)
+      finalCustomerPrice = categoryData.customerPrice;
     }
   }
 
@@ -216,13 +221,20 @@ export const priceChange = async (data: any) => {
   const { code } = data;
 
   const currTime = await getCurrTime();
+  const updateData: any = {
+    sellingPrice: data.sellingPrice,
+    actualPrice: data.actualPrice,
+    lastUpdatedTime: currTime,
+  };
+  
+  // Only include customerPrice if it's provided
+  if (data.customerPrice !== undefined && data.customerPrice !== null && data.customerPrice !== "") {
+    updateData.customerPrice = parseFloat(data.customerPrice.toString());
+  }
+  
   const updatedKurti = await db.kurti.update({
     where: { code },
-    data: {
-      sellingPrice: data.sellingPrice,
-      actualPrice: data.actualPrice,
-      lastUpdatedTime: currTime,
-    },
+    data: updateData,
   });
   let obj = {
     sellingPrice1: parseInt(data.sellingPrice || "0"),

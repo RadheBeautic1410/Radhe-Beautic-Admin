@@ -184,7 +184,7 @@ model Kurti {
   party           String
   sellingPrice    String
   actualPrice     String
-  customerPrice   String?
+  customerPrice   Float?
   category        String
   code            String   @unique
   images          Json[]

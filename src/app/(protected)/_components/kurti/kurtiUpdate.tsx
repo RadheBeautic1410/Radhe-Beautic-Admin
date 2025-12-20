@@ -63,6 +63,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [isPending, startTransition] = useTransition();
   const [actualPrice, setActualPrice] = useState(data?.actualPrice);
   const [sellingPrice, setSellingPrice] = useState(data?.sellingPrice);
+  const [customerPrice, setCustomerPrice] = useState(data?.customerPrice);
   const [downloadSize, setDownloadSize] = useState("");
   const [downloadQuantity, setDownloadQuanitity] = useState(0);
   const [downloading1, setDownloading1] = useState(false);
@@ -106,6 +107,15 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   useEffect(() => {
     if (data?.sizes) {
       setAllSizes(data.sizes);
+    }
+    if (data?.actualPrice !== undefined) {
+      setActualPrice(data.actualPrice);
+    }
+    if (data?.sellingPrice !== undefined) {
+      setSellingPrice(data.sellingPrice);
+    }
+    if (data?.customerPrice !== undefined) {
+      setCustomerPrice(data.customerPrice);
     }
   }, [data]);
   const handleImageChange = (data: any) => {
@@ -283,6 +293,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
         code: data?.code,
         sellingPrice: sellingPrice,
         actualPrice: actualPrice,
+        customerPrice: customerPrice,
       })
         .then((data: any) => {
           console.log(data);
@@ -401,7 +412,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
               bgColor="destructive"
             >
               <div>
-                <h2>Selling Price</h2>
+                <h2>Selling Price (Reseller)</h2>
                 <Input
                   value={sellingPrice}
                   defaultValue={sellingPrice}
@@ -415,6 +426,15 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                   defaultValue={actualPrice}
                   onChange={(e) => {
                     setActualPrice(e.target.value);
+                  }}
+                ></Input>
+                <h2 className="pt-2">Customer Price</h2>
+                <Input
+                  type="number"
+                  value={customerPrice || ""}
+                  defaultValue={customerPrice}
+                  onChange={(e) => {
+                    setCustomerPrice(e.target.value ? parseFloat(e.target.value) : undefined);
                   }}
                 ></Input>
               </div>
