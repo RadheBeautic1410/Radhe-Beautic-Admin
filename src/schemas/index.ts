@@ -51,6 +51,11 @@ export const categoryAddSchema = z.object({
       message: "Big price must be a number greater than 0",
     })
   ),
+  customerPrice: z.optional(
+    z.number().min(1, {
+      message: "Customer price must be a number greater than 0",
+    })
+  ),
   bigPrice: z.optional(
     z.number().min(1, {
       message: "Big price must be a number greater than 0",
@@ -179,6 +184,15 @@ export const KurtiSchema = z.object({
           "Actual price must be a number greater than 0 and less than or equal to sell price",
       }
     ),
+  customerPrice: z.string().refine(
+    (val) => {
+      const numericValue = parseFloat(val);
+      return !Number.isNaN(numericValue) && numericValue > 0;
+    },
+    {
+      message: "Customer price must be a number greater than 0",
+    }
+  ),
   countOfPiece: z.number(),
   category: z.string().min(1, { message: "Please select the category." }),
   code: z.string(),
@@ -192,6 +206,7 @@ export const categoryEditSchema = z.object({
   bigPrice: z.number().optional(),
   sellingPrice: z.number().optional(),
   actualPrice: z.number().optional(),
+  customerPrice: z.number().optional(),
   walletDiscount: z.number().min(0, "Discount must be zero or more").optional(),
   kurtiType: z.string(),
 });

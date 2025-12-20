@@ -158,6 +158,7 @@ model Category {
   walletDiscount      Int?    @default(0)
   sellingPrice        Float?
   actualPrice         Float?
+  customerPrice       Float?
   isStockReady        Boolean @default(true)
 }
 
@@ -183,6 +184,7 @@ model Kurti {
   party           String
   sellingPrice    String
   actualPrice     String
+  customerPrice   String?
   category        String
   code            String   @unique
   images          Json[]

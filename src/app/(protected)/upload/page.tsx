@@ -77,6 +77,7 @@ const BulkKurtiSchema = z.object({
   party: z.string().min(1, "Party is required"),
   sellingPrice: z.string().min(1, "Selling price is required"),
   actualPrice: z.string().min(1, "Actual price is required"),
+  customerPrice: z.string().min(1, "Customer price is required"),
   category: z.string().min(1, "Category is required"),
 });
 
@@ -342,6 +343,7 @@ const BulkUploadPage = () => {
           party: formValues.party,
           sellingPrice: formValues.sellingPrice,
           actualPrice: formValues.actualPrice,
+          customerPrice: formValues.customerPrice,
           category: formValues.category?.toUpperCase(),
           code: design.code,
           countOfPiece: design.countOfPiece,
@@ -456,6 +458,7 @@ const BulkUploadPage = () => {
       party: "",
       sellingPrice: "0",
       actualPrice: "0",
+      customerPrice: "0",
       category: "",
       code: "",
       countOfPiece: 0,
@@ -723,7 +726,7 @@ const BulkUploadPage = () => {
                     name="sellingPrice"
                     render={({ field }) => (
                       <FormItem className="w-[30%]">
-                        <FormLabel>Sell Price</FormLabel>
+                        <FormLabel>Sell Price (Reseller)</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -732,7 +735,28 @@ const BulkUploadPage = () => {
                           />
                         </FormControl>
                         <FormDescription>
-                          Enter Selling Price per Piece.
+                          Enter Selling Price per Piece for Reseller.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="customerPrice"
+                    render={({ field }) => (
+                      <FormItem className="w-[30%]">
+                        <FormLabel>Customer Price</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            disabled={isPending}
+                            type="number"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Enter Customer Price per Piece.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

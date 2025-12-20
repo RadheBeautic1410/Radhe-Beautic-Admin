@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import * as z from "zod";
 import EditCategoryModal from "../_components/category/EditCategoryModel";
@@ -94,10 +95,12 @@ interface Category {
   totalItems: number;
   sellingPrice: number;
   actualPrice: number;
+  customerPrice?: number;
   image?: string;
   bigPrice?: number;
   walletDiscount?: number;
   code?: string;
+  kurtiType?: string;
   isStockReady: boolean;
 }
 
@@ -247,16 +250,18 @@ const ListPage = () => {
     </div>
   );
 
-  const form = useForm({
+  const form = useForm<z.infer<typeof categoryAddSchema>>({
+    resolver: zodResolver(categoryAddSchema),
     defaultValues: {
       name: "",
       type: "",
       kurtiType: "",
       image: "",
-      sellingPrice: 0,
-      actualPrice: 0,
-      bigPrice: 0,
-      price: 0,
+      sellingPrice: undefined,
+      actualPrice: undefined,
+      customerPrice: undefined,
+      bigPrice: undefined,
+      price: undefined,
     },
   });
 
@@ -337,6 +342,9 @@ const ListPage = () => {
           sellingPrice: values.sellingPrice
             ? parseFloat(values.sellingPrice?.toString())
             : null,
+          customerPrice: values.customerPrice
+            ? parseFloat(values.customerPrice?.toString())
+            : null,
           kurtiType: values.kurtiType,
         })
           .then((data) => {
@@ -358,6 +366,7 @@ const ListPage = () => {
                   sellingPrice: 0,
                   countTotal: 0,
                   actualPrice: 0,
+                  customerPrice: data.data.customerPrice || undefined,
                   image: data.data.image || undefined,
                   isStockReady: true,
                 };
@@ -1303,10 +1312,17 @@ const ListPage = () => {
                   <span className="font-medium">{cat.countTotal}</span>
                 </div>
               </RoleGateForComponent>
-              <div className="flex items-center gap-1 col-span-2">
-                <TrendingUp size={14} className="text-purple-500" />
-                <span className="text-gray-600">Price:</span>
-                <span className="font-medium">₹{cat.sellingPrice}</span>
+              <div className="flex flex-col gap-1 col-span-2">
+                <div className="flex items-center gap-1">
+                  <TrendingUp size={14} className="text-blue-500" />
+                  <span className="text-gray-600">Reseller:</span>
+                  <span className="font-medium text-blue-600">₹{cat.sellingPrice || 0}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <TrendingUp size={14} className="text-green-500" />
+                  <span className="text-gray-600">Customer:</span>
+                  <span className="font-medium text-green-600">₹{cat.customerPrice || cat.sellingPrice || 0}</span>
+                </div>
               </div>
               <div className="flex items-center gap-4">
                 Stock Ready: {cat.isStockReady ? "Yes" : "No"}
@@ -1472,13 +1488,31 @@ const ListPage = () => {
                       name="sellingPrice"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Selling price</FormLabel>
+                          <FormLabel>Selling price (Reseller)</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
                               {...field}
                               disabled={isPending}
-                              placeholder="Enter price of big size"
+                              placeholder="Enter selling price for reseller"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="customerPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Customer price</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              disabled={isPending}
+                              placeholder="Enter customer price"
                             />
                           </FormControl>
                           <FormMessage />
@@ -1741,7 +1775,7 @@ const ListPage = () => {
                           </TableHead>
                         </RoleGateForComponent>
                         <TableHead className="text-center font-bold text-base">
-                          Price
+                          Reseller/Customer Price
                         </TableHead>
                         <TableHead className="text-center font-bold text-base">
                           Wallet Discount
@@ -1771,20 +1805,18 @@ const ListPage = () => {
                             </Link>
                           </TableCell>
                           <TableCell className="text-center">
-                            <TableCell className="text-center flex">
-                              <img
-                                src={cat.image || "/images/no-image.png"}
-                                alt={cat.name}
-                                className="w-16 h-16 shrink-0 object-cover mx-auto cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => {
-                                  if (cat.image && cat.image !== "") {
-                                    setSelectedImage(
-                                      cat.image || "/images/no-image.png"
-                                    );
-                                  }
-                                }}
-                              />
-                            </TableCell>
+                            <img
+                              src={cat.image || "/images/no-image.png"}
+                              alt={cat.name}
+                              className="w-16 h-16 shrink-0 object-cover mx-auto cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => {
+                                if (cat.image && cat.image !== "") {
+                                  setSelectedImage(
+                                    cat.image || "/images/no-image.png"
+                                  );
+                                }
+                              }}
+                            />
                           </TableCell>
                           <TableCell className="text-center font-bold">
                             {cat.type}
@@ -1810,7 +1842,14 @@ const ListPage = () => {
                             </TableCell>
                           </RoleGateForComponent>
                           <TableCell className="text-center">
-                            {cat.sellingPrice}
+                            <div className="flex flex-col gap-1 items-center">
+                              <div className="text-blue-600 font-semibold">
+                                Reseller: ₹{cat.sellingPrice || 0}
+                              </div>
+                              <div className="text-green-600 font-semibold">
+                                Customer: ₹{cat.customerPrice || cat.sellingPrice || 0}
+                              </div>
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             {cat.walletDiscount || 0}

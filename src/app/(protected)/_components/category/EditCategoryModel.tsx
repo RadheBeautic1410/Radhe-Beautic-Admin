@@ -44,6 +44,7 @@ interface Category {
   totalItems: number;
   sellingPrice: number;
   actualPrice: number;
+  customerPrice?: number;
   image?: string;
   bigPrice?: number; // Added bigPrice field
   walletDiscount?: number;
@@ -76,6 +77,7 @@ const EditCategoryModal = ({
       image: category.image || "/images/no-image.png",
       sellingPrice: category.sellingPrice || undefined,
       actualPrice: category.actualPrice || undefined,
+      customerPrice: category.customerPrice || undefined,
       bigPrice: category.bigPrice || undefined,
       walletDiscount: category.walletDiscount || undefined,
       kurtiType: category.kurtiType || "",
@@ -98,6 +100,7 @@ const EditCategoryModal = ({
         image: values.image,
         sellingPrice: values.sellingPrice,
         actualPrice: values.actualPrice,
+        customerPrice: values.customerPrice,
         bigPrice: values.bigPrice, // Include bigPrice in the update
         walletDiscount: values.walletDiscount || 0,
         kurtiType: values.kurtiType,
@@ -155,8 +158,10 @@ const EditCategoryModal = ({
         image: category.image || "/images/no-image.png",
         actualPrice: category.actualPrice,
         sellingPrice: category.sellingPrice,
+        customerPrice: category.customerPrice,
         bigPrice: category.bigPrice || 0,
         walletDiscount: category.walletDiscount || 0,
+        kurtiType: category.kurtiType || "",
       });
     }
   };
@@ -227,7 +232,7 @@ const EditCategoryModal = ({
                   <FormControl>
                     <Select
                       onValueChange={field.onChange}
-                      value={field.value}
+                      value={field.value || undefined}
                       disabled={isPending}
                     >
                       <SelectTrigger>
@@ -273,7 +278,7 @@ const EditCategoryModal = ({
               name="actualPrice"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Actual Price (Optional)</FormLabel>
+                  <FormLabel>Actual Price</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
@@ -298,7 +303,7 @@ const EditCategoryModal = ({
               name="sellingPrice"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Selling Price (Optional)</FormLabel>
+                  <FormLabel>Selling Price (Reseller)</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
@@ -306,7 +311,32 @@ const EditCategoryModal = ({
                       step="0.01"
                       min="0"
                       disabled={isPending}
-                      placeholder="Enter selling price"
+                      placeholder="Enter selling price for reseller"
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value ? parseFloat(value) : undefined);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="customerPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Customer Price</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      disabled={isPending}
+                      placeholder="Enter customer price"
                       value={field.value || ""}
                       onChange={(e) => {
                         const value = e.target.value;
