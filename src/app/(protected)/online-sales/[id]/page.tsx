@@ -38,10 +38,12 @@ import Link from "next/link";
 interface CartItem {
   id: string;
   kurti: any;
-  selectedSize: string;
+  selectedSize: string; // Actual size being sent
+  orderedSize?: string; // Lower size that was ordered (if applicable)
   quantity: number;
   sellingPrice: number;
   availableStock: number;
+  isLowerSize?: boolean; // Flag to indicate if this is a lower size replacement
 }
 
 type GSTType = "IGST" | "SGST_CGST";
@@ -152,15 +154,43 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         setShippingCharge(saleData.order.shippingCharge || 0);
       }
 
-      // Load existing cart items
-      const existingCartItems = saleData.sales.map((sale: any) => ({
-        id: sale.id,
-        kurti: sale.kurti,
-        selectedSize: sale.kurtiSize,
-        quantity: sale.quantity,
-        sellingPrice: sale.selledPrice,
-        availableStock: sale.availableStock,
-      }));
+      // Load existing cart items with lower size information
+      const existingCartItems = saleData.sales.map((sale: any) => {
+        // Find the corresponding cart product to get lower size info
+        let orderedSize: string | undefined;
+        let isLowerSize = false;
+        
+        if (saleData.order?.cart?.CartProduct) {
+          const cartProduct = saleData.order.cart.CartProduct.find(
+            (cp: any) => cp.kurtiId === sale.kurtiId
+          );
+          
+          if (cartProduct?.sizes && Array.isArray(cartProduct.sizes)) {
+            // Find the size entry where actualSize matches the sale's kurtiSize (the size being sent)
+            const sizeInfo = cartProduct.sizes.find(
+              (s: any) => s.actualSize === sale.kurtiSize || 
+                         (s.isLowerSize && s.actualSize === sale.kurtiSize) ||
+                         (!s.isLowerSize && s.size === sale.kurtiSize)
+            );
+            
+            if (sizeInfo?.isLowerSize && sizeInfo.actualSize === sale.kurtiSize) {
+              isLowerSize = true;
+              orderedSize = sizeInfo.size; // The lower size that was ordered
+            }
+          }
+        }
+        
+        return {
+          id: sale.id,
+          kurti: sale.kurti,
+          selectedSize: sale.kurtiSize, // Actual size being sent
+          orderedSize: orderedSize, // Lower size that was ordered
+          quantity: sale.quantity,
+          sellingPrice: sale.selledPrice,
+          availableStock: sale.availableStock,
+          isLowerSize: isLowerSize,
+        };
+      });
       setCart(existingCartItems);
 
       // Fetch user wallet balance if order ID exists
@@ -193,15 +223,41 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         setGstType(originalSaleData.gstType || "SGST_CGST");
         setSellType(originalSaleData.sellType || "HALL_SELL_ONLINE");
 
-        // Restore original cart items
-        const originalCartItems = originalSaleData.sales.map((sale: any) => ({
-          id: sale.id,
-          kurti: sale.kurti,
-          selectedSize: sale.kurtiSize,
-          quantity: sale.quantity,
-          sellingPrice: sale.selledPrice,
-          availableStock: sale.availableStock,
-        }));
+        // Restore original cart items with lower size information
+        const originalCartItems = originalSaleData.sales.map((sale: any) => {
+          let orderedSize: string | undefined;
+          let isLowerSize = false;
+          
+          if (originalSaleData.order?.cart?.CartProduct) {
+            const cartProduct = originalSaleData.order.cart.CartProduct.find(
+              (cp: any) => cp.kurtiId === sale.kurtiId
+            );
+            
+            if (cartProduct?.sizes && Array.isArray(cartProduct.sizes)) {
+              const sizeInfo = cartProduct.sizes.find(
+                (s: any) => s.actualSize === sale.kurtiSize || 
+                           (s.isLowerSize && s.actualSize === sale.kurtiSize) ||
+                           (!s.isLowerSize && s.size === sale.kurtiSize)
+              );
+              
+              if (sizeInfo?.isLowerSize && sizeInfo.actualSize === sale.kurtiSize) {
+                isLowerSize = true;
+                orderedSize = sizeInfo.size;
+              }
+            }
+          }
+          
+          return {
+            id: sale.id,
+            kurti: sale.kurti,
+            selectedSize: sale.kurtiSize,
+            orderedSize: orderedSize,
+            quantity: sale.quantity,
+            sellingPrice: sale.selledPrice,
+            availableStock: sale.availableStock,
+            isLowerSize: isLowerSize,
+          };
+        });
         setCart(originalCartItems);
         setRemovedItems([]);
       }
@@ -1172,6 +1228,25 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
               items)
             </h3>
 
+            {/* Lower Size Notice */}
+            {cart.some((item) => item.isLowerSize) && (
+              <div className="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-yellow-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm text-yellow-800 font-medium">
+                      ⚠️ Lower Level Size Notice
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Some items were ordered with lower level sizes that are not available. The actual size being sent is shown, with the ordered size displayed below.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <Table className="border border-collapse">
                 <TableHeader>
@@ -1219,7 +1294,18 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                         </div>
                       </TableCell>
                       <TableCell className="border">
-                        {item.selectedSize.toUpperCase()}
+                        {item.isLowerSize && item.orderedSize ? (
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-blue-600">
+                              {item.selectedSize.toUpperCase()} (Sending)
+                            </span>
+                            <span className="text-xs text-orange-600 font-medium">
+                              Ordered: {item.orderedSize.toUpperCase()}
+                            </span>
+                          </div>
+                        ) : (
+                          <span>{item.selectedSize.toUpperCase()}</span>
+                        )}
                       </TableCell>
                       <TableCell className="border">
                         {isEditMode ? (

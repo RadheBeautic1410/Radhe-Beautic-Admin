@@ -307,6 +307,89 @@ const isSize = (str: string): boolean => {
   return selectSizes.includes(str.toUpperCase());
 };
 
+/**
+ * Get sizes with dummy sizes included for marketing purposes
+ * Adds one lower level size for each available size (if it doesn't exist)
+ * Dummy sizes have isDummy: true flag and quantity: 0
+ * Use this for backend operations (orders/add to cart) to identify dummy sizes
+ * 
+ * @param sizes - Array of size objects with { size: string, quantity: number }
+ * @returns Array of size objects with { size: string, quantity: number, isDummy: boolean }
+ */
+export const getSizesWithDummy = (sizes: Array<{ size: string; quantity: number }>): Array<{ size: string; quantity: number; isDummy: boolean }> => {
+  const selectSizes: string[] = [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL",
+    "3XL",
+    "4XL",
+    "5XL",
+    "6XL",
+    "7XL",
+    "8XL",
+    "9XL",
+    "10XL",
+  ];
+
+  // Get available sizes (with quantity > 0)
+  const availableSizes = sizes
+    .filter((sz) => sz.quantity > 0)
+    .map((sz) => sz.size.toUpperCase());
+  
+  // Create a map to track which sizes are real
+  const realSizesMap = new Map<string, boolean>();
+  availableSizes.forEach((size: string) => {
+    realSizesMap.set(size, true);
+  });
+
+  // Create result array with both real and dummy sizes
+  const result: Array<{ size: string; quantity: number; isDummy: boolean }> = [];
+  const addedSizes = new Set<string>();
+
+  // First, add all real sizes
+  sizes.forEach((sz) => {
+    if (sz.quantity > 0) {
+      const sizeUpper = sz.size.toUpperCase();
+      result.push({
+        size: sizeUpper,
+        quantity: sz.quantity,
+        isDummy: false,
+      });
+      addedSizes.add(sizeUpper);
+    }
+  });
+
+  // Then, for each available size, add one lower level size if it doesn't exist
+  availableSizes.forEach((size: string) => {
+    const currentIndex = selectSizes.indexOf(size);
+    if (currentIndex > 0) {
+      // There is a lower level size
+      const lowerSize = selectSizes[currentIndex - 1];
+      // Only add if it's not already in the available sizes
+      if (!realSizesMap.has(lowerSize) && !addedSizes.has(lowerSize)) {
+        result.push({
+          size: lowerSize,
+          quantity: 0, // Dummy size has 0 quantity
+          isDummy: true,
+        });
+        addedSizes.add(lowerSize);
+      }
+    }
+  });
+
+  // Sort by selectSizes order
+  result.sort((a, b) => {
+    const indexA = selectSizes.indexOf(a.size);
+    const indexB = selectSizes.indexOf(b.size);
+    return indexA - indexB;
+  });
+
+  return result;
+};
+
 export const sellKurti2 = async (data: any) => {
   try {
     interface Size {
@@ -1790,7 +1873,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
           const product = products[i];
           console.log("product", product);
 
-          let { code, kurti, selectedSize, quantity, sellingPrice } = product;
+          let { code, kurti, selectedSize, quantity, sellingPrice, orderedSize } = product;
 
           try {
             code = code.toUpperCase();
@@ -1836,16 +1919,23 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               // cart has only 1 item, but request has 2nd product → add new cartProduct
               console.log("its adding product in cart");
 
+              // Check if this is a lower size replacement
+              const isLowerSize = orderedSize && orderedSize !== selectedSize;
+              const sizeData: any = {
+                size: isLowerSize ? orderedSize : cmp,
+                quantity: quantity,
+              };
+              
+              if (isLowerSize) {
+                sizeData.isLowerSize = true;
+                sizeData.actualSize = cmp; // The actual size being sent
+              }
+
               const newCP = await tx.cartProduct.create({
                 data: {
                   kurtiId: kurtiId,
                   cartId: order.cartId,
-                  sizes: [
-                    {
-                      size: cmp,
-                      quantity: quantity,
-                    },
-                  ],
+                  sizes: [sizeData],
                   adminSideSizes: [],
                   scannedSizes: [],
                   isRejected: false,

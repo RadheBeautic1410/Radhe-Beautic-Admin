@@ -43,10 +43,12 @@ const getCurrTime = () => {
 interface CartItem {
   id: string;
   kurti: any;
-  selectedSize: string;
+  selectedSize: string; // This will be the actual size for stock deduction
+  orderedSize?: string; // The lower size that customer ordered (for PDF display)
   quantity: number;
   sellingPrice: number;
   availableStock: number;
+  isLowerSize?: boolean; // Flag to indicate if this is a lower size replacement
 }
 type GSTType = "IGST" | "SGST_CGST";
 function SellPage() {
@@ -194,22 +196,46 @@ function SellPage() {
 
           orderedSizes.forEach((sizeInfo: any) => {
             if (sizeInfo.quantity > 0) {
-              // Find the corresponding size in kurti.sizes to get current stock
-              const currentSize = kurti.sizes?.find(
-                (sz: any) => sz.size === sizeInfo.size
-              );
+              // Check if this is a lower size replacement
+              if (sizeInfo.isLowerSize && sizeInfo.actualSize) {
+                // For lower sizes, use actualSize for stock deduction
+                const actualSizeStock = kurti.sizes?.find(
+                  (sz: any) => sz.size === sizeInfo.actualSize
+                );
 
-              if (currentSize && currentSize.quantity > 0) {
-                items.push({
-                  id: `${kurti.code}-${
-                    sizeInfo.size
-                  }-${Date.now()}-${Math.random()}`,
-                  kurti: kurti,
-                  selectedSize: sizeInfo.size,
-                  quantity: sizeInfo.quantity,
-                  sellingPrice: kurti.sellingPrice || 0,
-                  availableStock: currentSize.quantity,
-                });
+                if (actualSizeStock && actualSizeStock.quantity > 0) {
+                  items.push({
+                    id: `${kurti.code}-${
+                      sizeInfo.actualSize
+                    }-${Date.now()}-${Math.random()}`,
+                    kurti: kurti,
+                    selectedSize: sizeInfo.actualSize, // Use actual size for stock deduction
+                    orderedSize: sizeInfo.size, // Keep ordered size for PDF
+                    quantity: sizeInfo.quantity,
+                    sellingPrice: kurti.sellingPrice || 0,
+                    availableStock: actualSizeStock.quantity,
+                    isLowerSize: true,
+                  });
+                }
+              } else {
+                // Normal size - no replacement needed
+                const currentSize = kurti.sizes?.find(
+                  (sz: any) => sz.size === sizeInfo.size
+                );
+
+                if (currentSize && currentSize.quantity > 0) {
+                  items.push({
+                    id: `${kurti.code}-${
+                      sizeInfo.size
+                    }-${Date.now()}-${Math.random()}`,
+                    kurti: kurti,
+                    selectedSize: sizeInfo.size,
+                    quantity: sizeInfo.quantity,
+                    sellingPrice: kurti.sellingPrice || 0,
+                    availableStock: currentSize.quantity,
+                    isLowerSize: false,
+                  });
+                }
               }
             }
           });
@@ -405,13 +431,20 @@ function SellPage() {
       }
 
       // Prepare products data for API
-      const products = cart.map((item) => ({
-        code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
-        kurti: item.kurti,
-        selectedSize: item.selectedSize,
-        quantity: item.quantity,
-        sellingPrice: item.sellingPrice,
-      }));
+      const products = cart.map((item) => {
+        const product: any = {
+          code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
+          kurti: item.kurti,
+          selectedSize: item.selectedSize, // Actual size for stock deduction
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+        };
+        // Only include orderedSize if it exists (for lower sizes)
+        if (item.orderedSize) {
+          product.orderedSize = item.orderedSize; // Lower size for PDF
+        }
+        return product;
+      });
 
       const res = await axios.post(`/api/sell/confirm-offline-order`, {
         products,
@@ -483,7 +516,7 @@ function SellPage() {
     try {
       const soldProducts = cart.map((item) => ({
         kurti: item.kurti,
-        size: item.selectedSize,
+        size: item.orderedSize || item.selectedSize, // Use orderedSize (lower size) for PDF, fallback to selectedSize
         quantity: item.quantity,
         selledPrice: item.sellingPrice
           ? parseFloat(item.sellingPrice?.toString())
@@ -1094,6 +1127,25 @@ function SellPage() {
               )}
             </div>
 
+            {/* Lower Size Notice */}
+            {cart.some((item) => item.isLowerSize) && (
+              <div className="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-yellow-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm text-yellow-800 font-medium">
+                      ⚠️ Lower Level Size Notice
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Some items have lower level sizes ordered. Stock will be deducted from the actual size being sent, but the bill will show the ordered (lower) size for the customer.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <Table className="border border-collapse">
                 <TableHeader>
@@ -1139,7 +1191,18 @@ function SellPage() {
                         </div>
                       </TableCell>
                       <TableCell className="border">
-                        {item.selectedSize.toUpperCase()}
+                        {item.isLowerSize && item.orderedSize ? (
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-blue-600">
+                              {item.selectedSize.toUpperCase()} (Sending)
+                            </span>
+                            <span className="text-xs text-orange-600 font-medium">
+                              Ordered: {item.orderedSize.toUpperCase()}
+                            </span>
+                          </div>
+                        ) : (
+                          <span>{item.selectedSize.toUpperCase()}</span>
+                        )}
                       </TableCell>
                       <TableCell className="border">
                         <Input

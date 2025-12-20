@@ -23,8 +23,9 @@ import { log } from "console";
 import { Loader2, Download } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
+import { getSizesWithDummy } from "@/src/data/kurti";
 import { ImageWatermark } from "watermark-js-plus";
 import {
   Dialog,
@@ -76,6 +77,15 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
   let sizes = data.sizes.length;
   const [isBrowserMobile, setIsBrowserMobile] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  // Get sizes with dummy sizes included for marketing
+  // This includes one lower level size for each available size (if it doesn't exist)
+  // Dummy sizes have isDummy: true flag and quantity: 0
+  // Use this for backend operations (orders/add to cart) to identify dummy sizes
+  // Note: Dummy sizes are NOT displayed in UI, only real sizes are shown in the table
+  const sizesWithDummy = useMemo(() => {
+    return getSizesWithDummy(data.sizes);
+  }, [data.sizes]);
 
   useEffect(() => {
     if (!data?.images?.[0]?.url) {
@@ -322,80 +332,6 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     return { leftText: res.data, rightText: res2.data };
   };
 
-  // const downloadAllImagesAsZip = async () => {
-  //   let processingToastId: string | number | undefined;
-
-  //   try {
-  //     setDownloading(true);
-
-  //     processingToastId = toast.loading("Starting download process...");
-
-  //     const { leftText, rightText } = await findBlocks();
-
-  //     const zip = new JSZip();
-
-  //     const filteredData = data.images?.filter(
-  //       (image: { url: string; is_hidden: boolean; id: string }) =>
-  //         image.is_hidden === false
-  //     );
-
-  //     for (let i = 0; i < filteredData.length; i++) {
-  //       const imageUrl = filteredData[i].url;
-  //       const filename = `${data.code.toLowerCase()}_image_${i + 1}.jpg`;
-
-  //       toast.loading(`Processing image ${i + 1}/${filteredData.length}...`, {
-  //         id: processingToastId,
-  //       });
-
-  //       try {
-  //         const blob = await applyWatermarkToImage(
-  //           imageUrl,
-  //           rightText,
-  //           leftText
-  //         );
-
-  //         zip.file(filename, blob);
-  //       } catch (error) {
-  //         console.error(`Error processing image ${i + 1}:`, error);
-  //         toast.error(`Failed to process image ${i + 1}`, { duration: 2000 });
-  //       }
-  //     }
-
-  //     toast.loading("Generating zip file...", {
-  //       id: processingToastId,
-  //     });
-
-  //     const zipBlob = await zip.generateAsync({ type: "blob" });
-
-  //     toast.loading("Starting download...", {
-  //       id: processingToastId,
-  //     });
-
-  //     const url = URL.createObjectURL(zipBlob);
-  //     const link = document.createElement("a");
-  //     link.href = url;
-  //     link.download = `${data.code.toLowerCase()}_images.zip`;
-  //     document.body.appendChild(link);
-  //     link.click();
-  //     document.body.removeChild(link);
-
-  //     // Clean up
-  //     URL.revokeObjectURL(url);
-
-  //     toast.dismiss(processingToastId);
-  //     toast.success("All images downloaded successfully!");
-  //   } catch (error) {
-  //     console.error("Error downloading images:", error);
-  //     if (processingToastId) {
-  //       toast.dismiss(processingToastId);
-  //     }
-  //     toast.error("Failed to download images");
-  //   } finally {
-  //     setDownloading(false);
-  //     setDownloadDialogOpen(false);
-  //   }
-  // };
-
   const downloadAllImagesDirectly = async () => {
     let processingToastId: string | number | undefined;
 
@@ -459,80 +395,6 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       setDownloadDialogOpen(false);
     }
   };
-
-  // const downloadAllVideosAsZip = async () => {
-  //   let processingToastId: string | number | undefined;
-
-  //   try {
-  //     setDownloading(true);
-
-  //     processingToastId = toast.loading("Starting video download process...");
-
-  //     const zip = new JSZip();
-
-  //     // Filter for video files (assuming there's a videos array or video URLs in your data)
-  //     // You'll need to adjust this based on your actual data structure
-  //     const videoData = data.videos || []; // Adjust this based on your data structure
-
-  //     if (videoData.length === 0) {
-  //       toast.error("No videos found to download");
-  //       setDownloading(false);
-  //       setDownloadDialogOpen(false);
-  //       return;
-  //     }
-
-  //     for (let i = 0; i < videoData.length; i++) {
-  //       const videoUrl = videoData[i].url;
-  //       const filename = `${data.code.toLowerCase()}_video_${i + 1}.mp4`;
-
-  //       toast.loading(`Processing video ${i + 1}/${videoData.length}...`, {
-  //         id: processingToastId,
-  //       });
-
-  //       try {
-  //         const response = await fetch(videoUrl);
-  //         const blob = await response.blob();
-  //         zip.file(filename, blob);
-  //       } catch (error) {
-  //         console.error(`Error processing video ${i + 1}:`, error);
-  //         toast.error(`Failed to process video ${i + 1}`, { duration: 2000 });
-  //       }
-  //     }
-
-  //     toast.loading("Generating zip file...", {
-  //       id: processingToastId,
-  //     });
-
-  //     const zipBlob = await zip.generateAsync({ type: "blob" });
-
-  //     toast.loading("Starting download...", {
-  //       id: processingToastId,
-  //     });
-
-  //     const url = URL.createObjectURL(zipBlob);
-  //     const link = document.createElement("a");
-  //     link.href = url;
-  //     link.download = `${data.code.toLowerCase()}_videos.zip`;
-  //     document.body.appendChild(link);
-  //     link.click();
-  //     document.body.removeChild(link);
-
-  //     // Clean up
-  //     URL.revokeObjectURL(url);
-
-  //     toast.dismiss(processingToastId);
-  //     toast.success("All videos downloaded successfully!");
-  //   } catch (error) {
-  //     console.error("Error downloading videos:", error);
-  //     if (processingToastId) {
-  //       toast.dismiss(processingToastId);
-  //     }
-  //     toast.error("Failed to download videos");
-  //   } finally {
-  //     setDownloading(false);
-  //     setDownloadDialogOpen(false);
-  //   }
-  // };
 
   const downloadAllVideosDirectly = async () => {
     let processingToastId: string | number | undefined;
