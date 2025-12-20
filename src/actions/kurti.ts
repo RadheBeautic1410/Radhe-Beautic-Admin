@@ -39,10 +39,7 @@ export const kurtiAddition = async (data: any) => {
   // If category has no sellingPrice or actualPrice, use user-entered values
   let finalSellingPrice = data.sellingPrice;
   let finalActualPrice = data.actualPrice;
-  // Convert customerPrice to number, default to sellingPrice if not provided
-  let finalCustomerPrice: number | undefined = data.customerPrice 
-    ? parseFloat(data.customerPrice.toString()) 
-    : (data.sellingPrice ? parseFloat(data.sellingPrice.toString()) : undefined);
+  let finalCustomerPrice = data.customerPrice || data.sellingPrice; // Default to sellingPrice if not provided
 
   if (categoryData) {
     // If category has no sellingPrice, use user-entered sellingPrice
@@ -63,12 +60,10 @@ export const kurtiAddition = async (data: any) => {
 
     // If category has no customerPrice, use user-entered customerPrice
     if (!categoryData.customerPrice || categoryData.customerPrice === 0) {
-      finalCustomerPrice = data.customerPrice 
-        ? parseFloat(data.customerPrice.toString()) 
-        : (data.sellingPrice ? parseFloat(data.sellingPrice.toString()) : undefined);
+      finalCustomerPrice = data.customerPrice || data.sellingPrice;
     } else {
-      // Use category's customerPrice if available (keep as number)
-      finalCustomerPrice = categoryData.customerPrice;
+      // Use category's customerPrice if available
+      finalCustomerPrice = categoryData.customerPrice.toString();
     }
   }
 
