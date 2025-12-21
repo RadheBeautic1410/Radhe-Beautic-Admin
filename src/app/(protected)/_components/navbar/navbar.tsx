@@ -152,6 +152,12 @@ const routes = [
     ],
     icon: "💰",
   },
+  {
+    name: "Offer",
+    href: "/offers",
+    role: [UserRole.ADMIN],
+    icon: "🎁",
+  },
 ];
 
 const Sidebar = () => {
