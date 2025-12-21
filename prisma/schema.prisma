@@ -532,3 +532,13 @@ model ResellersCustomer {
   orders     Orders[]
   reseller   User      @relation(fields: [resellerId], references: [id], onDelete: Cascade)
 }
+
+model OtherProduct {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  categoryName String
+  productType  String
+  images       Json[]
+  isDeleted    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

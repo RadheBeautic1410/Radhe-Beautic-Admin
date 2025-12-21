@@ -26,6 +26,8 @@ interface DialogDemoProps {
     | null
     | undefined;
   isTriggerElement?: boolean; // Optional prop to indicate if trigger is an element
+  onOpenChange?: (open: boolean) => void; // Optional callback for open state changes
+  open?: boolean; // Controlled open state
 }
 
 export const DialogDemo = ({
@@ -36,9 +38,25 @@ export const DialogDemo = ({
   ButtonLabel,
   bgColor,
   isTriggerElement = false, // Default to false if not provided
+  onOpenChange,
+  open: controlledOpen,
 }: DialogDemoProps) => {
-  const [open, setOpen] = useState(false);
-  const closeDialog = () => setOpen(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  
+  const closeDialog = () => {
+    if (controlledOpen === undefined) {
+      setInternalOpen(false);
+    }
+    onOpenChange?.(false);
+  };
+  
+  const handleOpenChange = (newOpen: boolean) => {
+    if (controlledOpen === undefined) {
+      setInternalOpen(newOpen);
+    }
+    onOpenChange?.(newOpen);
+  };
 
   const renderChildren = () => {
     if (typeof children === "function") {
@@ -48,7 +66,7 @@ export const DialogDemo = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {!isTriggerElement ? (
           <Button variant={bgColor ? bgColor : "outline" }>
