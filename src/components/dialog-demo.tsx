@@ -26,6 +26,7 @@ interface DialogDemoProps {
     | null
     | undefined;
   isTriggerElement?: boolean; // Optional prop to indicate if trigger is an element
+  dialogContentClassName?: string; // Optional prop to customize dialog content width
 }
 
 export const DialogDemo = ({
@@ -36,6 +37,7 @@ export const DialogDemo = ({
   ButtonLabel,
   bgColor,
   isTriggerElement = false, // Default to false if not provided
+  dialogContentClassName, // Optional custom className for dialog content
 }: DialogDemoProps) => {
   const [open, setOpen] = useState(false);
   const closeDialog = () => setOpen(false);
@@ -58,7 +60,7 @@ export const DialogDemo = ({
           dialogTrigger
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className={dialogContentClassName || "sm:max-w-[425px]"}>
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
