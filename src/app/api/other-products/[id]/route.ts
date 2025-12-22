@@ -3,11 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const product = await db.otherProduct.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!product) {
@@ -27,9 +28,10 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await req.json();
     const { categoryName, productType, images } = body;
 
@@ -48,7 +50,7 @@ export async function PUT(
     }
 
     const updatedProduct = await db.otherProduct.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         categoryName,
         productType,
@@ -67,12 +69,13 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Soft delete
     const deletedProduct = await db.otherProduct.update({
-      where: { id: params.id },
+      where: { id },
       data: { isDeleted: true },
     });
 

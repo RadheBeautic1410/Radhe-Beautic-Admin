@@ -1474,7 +1474,21 @@ const ListPage = () => {
                           <FormControl>
                             <Input
                               type="number"
-                              {...field}
+                              value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === "" || value === null) {
+                                  field.onChange(undefined);
+                                } else {
+                                  const numValue = parseFloat(value);
+                                  if (!isNaN(numValue)) {
+                                    field.onChange(numValue);
+                                  } else {
+                                    field.onChange(undefined);
+                                  }
+                                }
+                              }}
+                              onBlur={field.onBlur}
                               disabled={isPending}
                               placeholder="Enter price of big size"
                             />
@@ -1492,7 +1506,21 @@ const ListPage = () => {
                           <FormControl>
                             <Input
                               type="number"
-                              {...field}
+                              value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === "" || value === null) {
+                                  field.onChange(undefined);
+                                } else {
+                                  const numValue = parseFloat(value);
+                                  if (!isNaN(numValue)) {
+                                    field.onChange(numValue);
+                                  } else {
+                                    field.onChange(undefined);
+                                  }
+                                }
+                              }}
+                              onBlur={field.onBlur}
                               disabled={isPending}
                               placeholder="Enter selling price for reseller"
                             />
@@ -1510,7 +1538,21 @@ const ListPage = () => {
                           <FormControl>
                             <Input
                               type="number"
-                              {...field}
+                              value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === "" || value === null) {
+                                  field.onChange(undefined);
+                                } else {
+                                  const numValue = parseFloat(value);
+                                  if (!isNaN(numValue)) {
+                                    field.onChange(numValue);
+                                  } else {
+                                    field.onChange(undefined);
+                                  }
+                                }
+                              }}
+                              onBlur={field.onBlur}
                               disabled={isPending}
                               placeholder="Enter customer price"
                             />
@@ -1528,7 +1570,21 @@ const ListPage = () => {
                           <FormControl>
                             <Input
                               type="number"
-                              {...field}
+                              value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === "" || value === null) {
+                                  field.onChange(undefined);
+                                } else {
+                                  const numValue = parseFloat(value);
+                                  if (!isNaN(numValue)) {
+                                    field.onChange(numValue);
+                                  } else {
+                                    field.onChange(undefined);
+                                  }
+                                }
+                              }}
+                              onBlur={field.onBlur}
                               disabled={isPending}
                               placeholder="Enter price of big size"
                             />
@@ -1542,13 +1598,14 @@ const ListPage = () => {
                       name="image"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Image</FormLabel>
+                          <FormLabel>Image (Optional)</FormLabel>
                           <FormControl>
                             <ImageUpload2
-                              images={[field.value]}
+                              images={field.value ? [field.value] : []}
                               singleFile
                               onImageChange={(data) => {
-                                field.onChange(data[0]?.url || "");
+                                const url = data[0]?.url;
+                                field.onChange(url && url.trim() !== "" ? url : undefined);
                               }}
                             />
                           </FormControl>

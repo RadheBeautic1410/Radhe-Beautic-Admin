@@ -31,35 +31,79 @@ export const categoryAddSchema = z.object({
   kurtiType: z.string().min(1, {
     message: "Kurti Type is required",
   }),
-  image: z.optional(
-    z.string().url({
-      message: "Image must be a valid URL",
-    })
+  image: z
+    .union([z.string().url({ message: "Image must be a valid URL" }), z.literal("")])
+    .optional()
+    .transform((val) => (val === "" ? undefined : val)),
+  price: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return undefined;
+      if (typeof val === "number") return val;
+      const num = parseFloat(val as string);
+      return isNaN(num) ? undefined : num;
+    },
+    z
+      .number()
+      .min(1, {
+        message: "Price must be a number greater than 0",
+      })
+      .optional()
   ),
-  price: z.optional(
-    z.number().min(1, {
-      message: "Price must be a number greater than 0",
-    })
+  actualPrice: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return undefined;
+      if (typeof val === "number") return val;
+      const num = parseFloat(val as string);
+      return isNaN(num) ? undefined : num;
+    },
+    z
+      .number()
+      .min(1, {
+        message: "Big price must be a number greater than 0",
+      })
+      .optional()
   ),
-  actualPrice: z.optional(
-    z.number().min(1, {
-      message: "Big price must be a number greater than 0",
-    })
+  sellingPrice: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return undefined;
+      if (typeof val === "number") return val;
+      const num = parseFloat(val as string);
+      return isNaN(num) ? undefined : num;
+    },
+    z
+      .number()
+      .min(1, {
+        message: "Big price must be a number greater than 0",
+      })
+      .optional()
   ),
-  sellingPrice: z.optional(
-    z.number().min(1, {
-      message: "Big price must be a number greater than 0",
-    })
+  customerPrice: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return undefined;
+      if (typeof val === "number") return val;
+      const num = parseFloat(val as string);
+      return isNaN(num) ? undefined : num;
+    },
+    z
+      .number()
+      .min(1, {
+        message: "Customer price must be a number greater than 0",
+      })
+      .optional()
   ),
-  customerPrice: z.optional(
-    z.number().min(1, {
-      message: "Customer price must be a number greater than 0",
-    })
-  ),
-  bigPrice: z.optional(
-    z.number().min(1, {
-      message: "Big price must be a number greater than 0",
-    })
+  bigPrice: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return undefined;
+      if (typeof val === "number") return val;
+      const num = parseFloat(val as string);
+      return isNaN(num) ? undefined : num;
+    },
+    z
+      .number()
+      .min(1, {
+        message: "Big price must be a number greater than 0",
+      })
+      .optional()
   ),
 });
 
