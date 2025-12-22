@@ -159,7 +159,6 @@ model Category {
   sellingPrice        Float?
   actualPrice         Float?
   customerPrice       Float?
-  customerPrice       Float?
   isStockReady        Boolean @default(true)
 }
 
