@@ -7,6 +7,7 @@ import { currentRole } from "@/src/lib/auth";
 export interface OtherProductData {
   categoryName: string;
   productType: string;
+  subType?: string;
   images: { url: string }[];
 }
 
@@ -31,6 +32,7 @@ export const createOtherProduct = async (data: OtherProductData) => {
       data: {
         categoryName: data.categoryName,
         productType: data.productType,
+        subType: data.subType || null,
         images: data.images,
       },
     });
@@ -67,6 +69,7 @@ export const updateOtherProduct = async (
       data: {
         categoryName: data.categoryName,
         productType: data.productType,
+        subType: data.subType || null,
         images: data.images,
       },
     });

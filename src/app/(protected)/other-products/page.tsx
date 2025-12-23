@@ -7,7 +7,6 @@ import { Input } from "@/src/components/ui/input";
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -16,7 +15,6 @@ import {
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -59,6 +57,7 @@ interface OtherProduct {
   id: string;
   categoryName: string;
   productType: string;
+  subType?: string;
   images: { url: string }[];
   createdAt: string;
   updatedAt: string;
@@ -67,6 +66,7 @@ interface OtherProduct {
 const otherProductSchema = z.object({
   categoryName: z.string().min(1, "Category name is required"),
   productType: z.string().min(1, "Product type is required"),
+  subType: z.string().optional(),
   images: z.array(z.object({ url: z.string() })).min(1, "At least one image is required"),
 });
 
@@ -79,6 +79,48 @@ const productTypes = [
   "Dupatta",
   "Other",
 ];
+
+// Subtype mapping based on product type
+const productSubTypes: Record<string, string[]> = {
+  Sadi: [
+    "Cotton Sadi",
+    "Silk Sadi",
+    "Georgette Sadi",
+    "Chiffon Sadi",
+    "Linen Sadi",
+    "Designer Sadi",
+    "Printed Sadi",
+    "Embroidered Sadi",
+  ],
+  Choli: [
+    "Backless Choli",
+    "High Neck Choli",
+    "Deep Neck Choli",
+    "Crop Top Choli",
+    "Designer Choli",
+    "Embroidered Choli",
+    "Printed Choli",
+  ],
+  Lehenga: [
+    "A-Line Lehenga",
+    "Circular Lehenga",
+    "Mermaid Lehenga",
+    "Panel Lehenga",
+    "Designer Lehenga",
+    "Embroidered Lehenga",
+    "Printed Lehenga",
+  ],
+  Dupatta: [
+    "Cotton Dupatta",
+    "Silk Dupatta",
+    "Georgette Dupatta",
+    "Chiffon Dupatta",
+    "Embroidered Dupatta",
+    "Printed Dupatta",
+    "Designer Dupatta",
+  ],
+  Other: [],
+};
 
 interface EditProductDialogProps {
   product: OtherProduct;
@@ -96,9 +138,13 @@ const EditProductDialog = ({ product, onSuccess }: EditProductDialogProps) => {
     defaultValues: {
       categoryName: product.categoryName,
       productType: product.productType,
+      subType: product.subType || "",
       images: product.images,
     },
   });
+
+  const selectedProductType = form.watch("productType");
+  const availableSubTypes = selectedProductType ? productSubTypes[selectedProductType] || [] : [];
 
   const handleOpenChange = (open: boolean) => {
     setDialogOpen(open);
@@ -106,6 +152,7 @@ const EditProductDialog = ({ product, onSuccess }: EditProductDialogProps) => {
       form.reset({
         categoryName: product.categoryName,
         productType: product.productType,
+        subType: product.subType || "",
         images: product.images,
       });
       setImages(product.images);
@@ -189,7 +236,11 @@ const EditProductDialog = ({ product, onSuccess }: EditProductDialogProps) => {
               <FormItem>
                 <FormLabel>Product Type</FormLabel>
                 <Select
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    // Reset subtype when product type changes
+                    form.setValue("subType", "");
+                  }}
                   value={field.value}
                   disabled={isPending}
                 >
@@ -210,6 +261,37 @@ const EditProductDialog = ({ product, onSuccess }: EditProductDialogProps) => {
               </FormItem>
             )}
           />
+
+          {availableSubTypes.length > 0 && (
+            <FormField
+              control={form.control}
+              name="subType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sub Type</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={isPending}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select sub type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {availableSubTypes.map((subType) => (
+                        <SelectItem key={subType} value={subType}>
+                          {subType}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <FormField
             control={form.control}
@@ -257,9 +339,13 @@ function OtherProductsPage() {
     defaultValues: {
       categoryName: "",
       productType: "",
+      subType: "",
       images: [],
     },
   });
+
+  const selectedProductType = form.watch("productType");
+  const availableSubTypes = selectedProductType ? productSubTypes[selectedProductType] || [] : [];
 
   const fetchProducts = async (pageNum?: number) => {
     try {
@@ -312,6 +398,7 @@ function OtherProductsPage() {
     form.reset({
       categoryName: product.categoryName,
       productType: product.productType,
+      subType: product.subType || "",
       images: product.images,
     });
     setImages(product.images);
@@ -448,7 +535,11 @@ function OtherProductsPage() {
                     <FormItem>
                       <FormLabel>Product Type</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          // Reset subtype when product type changes
+                          form.setValue("subType", "");
+                        }}
                         value={field.value}
                         disabled={isPending}
                       >
@@ -469,6 +560,37 @@ function OtherProductsPage() {
                     </FormItem>
                   )}
                 />
+
+                {availableSubTypes.length > 0 && (
+                  <FormField
+                    control={form.control}
+                    name="subType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sub Type</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          disabled={isPending}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select sub type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {availableSubTypes.map((subType) => (
+                              <SelectItem key={subType} value={subType}>
+                                {subType}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={form.control}
@@ -531,6 +653,7 @@ function OtherProductsPage() {
                     <TableRow>
                       <TableHead>Category Name</TableHead>
                       <TableHead>Product Type</TableHead>
+                      <TableHead>Sub Type</TableHead>
                       <TableHead>Images</TableHead>
                       <TableHead>Created At</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -543,6 +666,7 @@ function OtherProductsPage() {
                           {product.categoryName}
                         </TableCell>
                         <TableCell>{product.productType}</TableCell>
+                        <TableCell>{product.subType || "-"}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             {product.images.slice(0, 3).map((img, idx) => (

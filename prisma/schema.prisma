@@ -534,21 +534,22 @@ model ResellersCustomer {
 }
 
 model OtherProduct {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
   categoryName String
   productType  String
+  subType      String?
   images       Json[]
   isDeleted    Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Offer {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  qty         Int
-  categories  String[] // Array of category IDs
-  image       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  qty        Int
+  categories String[] // Array of category IDs
+  image      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

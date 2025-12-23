@@ -33,7 +33,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { categoryName, productType, images } = body;
+    const { categoryName, productType, subType, images } = body;
 
     if (!categoryName || !productType) {
       return new NextResponse(
@@ -54,6 +54,7 @@ export async function PUT(
       data: {
         categoryName,
         productType,
+        subType: subType || null,
         images: images,
       },
     });
