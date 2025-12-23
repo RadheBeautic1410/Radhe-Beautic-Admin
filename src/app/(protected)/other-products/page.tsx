@@ -73,53 +73,77 @@ const otherProductSchema = z.object({
 type OtherProductFormValues = z.infer<typeof otherProductSchema>;
 
 const productTypes = [
-  "Sadi",
-  "Choli",
-  "Lehenga",
-  "Dupatta",
-  "Other",
+  { key: "sadi", value: "Sadi" },
+  { key: "choli", value: "Choli" },
+  { key: "lehenga", value: "Lehenga" },
+  { key: "dupatta", value: "Dupatta" },
+  { key: "other", value: "Other" },
 ];
 
-// Subtype mapping based on product type
-const productSubTypes: Record<string, string[]> = {
-  Sadi: [
-    "Cotton Sadi",
-    "Silk Sadi",
-    "Georgette Sadi",
-    "Chiffon Sadi",
-    "Linen Sadi",
-    "Designer Sadi",
-    "Printed Sadi",
-    "Embroidered Sadi",
+// Subtype mapping based on product type key
+const productSubTypes: Record<string, Array<{ key: string; value: string }>> = {
+  sadi: [
+    { key: "cotton-sadi", value: "Cotton Sadi" },
+    { key: "silk-sadi", value: "Silk Sadi" },
+    { key: "georgette-sadi", value: "Georgette Sadi" },
+    { key: "chiffon-sadi", value: "Chiffon Sadi" },
+    { key: "linen-sadi", value: "Linen Sadi" },
+    { key: "designer-sadi", value: "Designer Sadi" },
+    { key: "printed-sadi", value: "Printed Sadi" },
+    { key: "embroidered-sadi", value: "Embroidered Sadi" },
   ],
-  Choli: [
-    "Backless Choli",
-    "High Neck Choli",
-    "Deep Neck Choli",
-    "Crop Top Choli",
-    "Designer Choli",
-    "Embroidered Choli",
-    "Printed Choli",
+  choli: [
+    { key: "backless-choli", value: "Backless Choli" },
+    { key: "high-neck-choli", value: "High Neck Choli" },
+    { key: "deep-neck-choli", value: "Deep Neck Choli" },
+    { key: "crop-top-choli", value: "Crop Top Choli" },
+    { key: "designer-choli", value: "Designer Choli" },
+    { key: "embroidered-choli", value: "Embroidered Choli" },
+    { key: "printed-choli", value: "Printed Choli" },
   ],
-  Lehenga: [
-    "A-Line Lehenga",
-    "Circular Lehenga",
-    "Mermaid Lehenga",
-    "Panel Lehenga",
-    "Designer Lehenga",
-    "Embroidered Lehenga",
-    "Printed Lehenga",
+  lehenga: [
+    { key: "a-line-lehenga", value: "A-Line Lehenga" },
+    { key: "circular-lehenga", value: "Circular Lehenga" },
+    { key: "mermaid-lehenga", value: "Mermaid Lehenga" },
+    { key: "panel-lehenga", value: "Panel Lehenga" },
+    { key: "designer-lehenga", value: "Designer Lehenga" },
+    { key: "embroidered-lehenga", value: "Embroidered Lehenga" },
+    { key: "printed-lehenga", value: "Printed Lehenga" },
   ],
-  Dupatta: [
-    "Cotton Dupatta",
-    "Silk Dupatta",
-    "Georgette Dupatta",
-    "Chiffon Dupatta",
-    "Embroidered Dupatta",
-    "Printed Dupatta",
-    "Designer Dupatta",
+  dupatta: [
+    { key: "cotton-dupatta", value: "Cotton Dupatta" },
+    { key: "silk-dupatta", value: "Silk Dupatta" },
+    { key: "georgette-dupatta", value: "Georgette Dupatta" },
+    { key: "chiffon-dupatta", value: "Chiffon Dupatta" },
+    { key: "embroidered-dupatta", value: "Embroidered Dupatta" },
+    { key: "printed-dupatta", value: "Printed Dupatta" },
+    { key: "designer-dupatta", value: "Designer Dupatta" },
   ],
-  Other: [],
+  other: [],
+};
+
+// Helper functions to convert between key and value
+const getProductTypeKey = (type: string): string => {
+  const found = productTypes.find(t => t.value === type || t.key === type);
+  return found ? found.key : type.toLowerCase();
+};
+
+const getProductTypeValue = (key: string): string => {
+  const found = productTypes.find(t => t.key === key || t.value === key);
+  return found ? found.value : key;
+};
+
+// Helper functions for subtype conversion
+const getSubTypeKey = (subType: string, productTypeKey: string): string => {
+  const subtypes = productSubTypes[productTypeKey] || [];
+  const found = subtypes.find(st => st.value === subType || st.key === subType);
+  return found ? found.key : subType.toLowerCase().replace(/\s+/g, '-');
+};
+
+const getSubTypeValue = (key: string, productTypeKey: string): string => {
+  const subtypes = productSubTypes[productTypeKey] || [];
+  const found = subtypes.find(st => st.key === key || st.value === key);
+  return found ? found.value : key;
 };
 
 interface EditProductDialogProps {
@@ -137,22 +161,23 @@ const EditProductDialog = ({ product, onSuccess }: EditProductDialogProps) => {
     resolver: zodResolver(otherProductSchema),
     defaultValues: {
       categoryName: product.categoryName,
-      productType: product.productType,
-      subType: product.subType || "",
+      productType: getProductTypeKey(product.productType), // Convert stored value to key
+      subType: product.subType ? getSubTypeKey(product.subType, getProductTypeKey(product.productType)) : "",
       images: product.images,
     },
   });
 
   const selectedProductType = form.watch("productType");
-  const availableSubTypes = selectedProductType ? productSubTypes[selectedProductType] || [] : [];
+  const productTypeKey = selectedProductType ? getProductTypeKey(selectedProductType) : "";
+  const availableSubTypes = productTypeKey ? productSubTypes[productTypeKey] || [] : [];
 
   const handleOpenChange = (open: boolean) => {
     setDialogOpen(open);
     if (!open) {
       form.reset({
         categoryName: product.categoryName,
-        productType: product.productType,
-        subType: product.subType || "",
+        productType: getProductTypeKey(product.productType), // Convert stored value to key
+        subType: product.subType ? getSubTypeKey(product.subType, getProductTypeKey(product.productType)) : "",
         images: product.images,
       });
       setImages(product.images);
@@ -251,8 +276,8 @@ const EditProductDialog = ({ product, onSuccess }: EditProductDialogProps) => {
                   </FormControl>
                   <SelectContent>
                     {productTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
+                      <SelectItem key={type.key} value={type.key}>
+                        {type.value}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -281,8 +306,8 @@ const EditProductDialog = ({ product, onSuccess }: EditProductDialogProps) => {
                     </FormControl>
                     <SelectContent>
                       {availableSubTypes.map((subType) => (
-                        <SelectItem key={subType} value={subType}>
-                          {subType}
+                        <SelectItem key={subType.key} value={subType.key}>
+                          {subType.value}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -345,7 +370,8 @@ function OtherProductsPage() {
   });
 
   const selectedProductType = form.watch("productType");
-  const availableSubTypes = selectedProductType ? productSubTypes[selectedProductType] || [] : [];
+  const productTypeKey = selectedProductType ? getProductTypeKey(selectedProductType) : "";
+  const availableSubTypes = productTypeKey ? productSubTypes[productTypeKey] || [] : [];
 
   const fetchProducts = async (pageNum?: number) => {
     try {
@@ -397,8 +423,8 @@ function OtherProductsPage() {
     setEditingProduct(product);
     form.reset({
       categoryName: product.categoryName,
-      productType: product.productType,
-      subType: product.subType || "",
+      productType: getProductTypeKey(product.productType), // Convert stored value to key
+      subType: product.subType ? getSubTypeKey(product.subType, getProductTypeKey(product.productType)) : "",
       images: product.images,
     });
     setImages(product.images);
@@ -550,8 +576,8 @@ function OtherProductsPage() {
                         </FormControl>
                         <SelectContent>
                           {productTypes.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {type}
+                            <SelectItem key={type.key} value={type.key}>
+                              {type.value}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -580,8 +606,8 @@ function OtherProductsPage() {
                           </FormControl>
                           <SelectContent>
                             {availableSubTypes.map((subType) => (
-                              <SelectItem key={subType} value={subType}>
-                                {subType}
+                              <SelectItem key={subType.key} value={subType.key}>
+                                {subType.value}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -665,8 +691,8 @@ function OtherProductsPage() {
                         <TableCell className="font-medium">
                           {product.categoryName}
                         </TableCell>
-                        <TableCell>{product.productType}</TableCell>
-                        <TableCell>{product.subType || "-"}</TableCell>
+                        <TableCell>{getProductTypeValue(product.productType)}</TableCell>
+                        <TableCell>{product.subType ? getSubTypeValue(product.subType, getProductTypeKey(product.productType)) : "-"}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             {product.images.slice(0, 3).map((img, idx) => (
