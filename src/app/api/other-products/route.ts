@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
 
     // Product Type Filter
     const productType = searchParams.get("productType")?.trim() ?? "";
+    // Sub Type Filter
+    const subType = searchParams.get("subType")?.trim() ?? "";
 
     // Build Prisma filter
     let where: any = { isDeleted: false };
@@ -33,6 +35,11 @@ export async function GET(req: NextRequest) {
     // Add product type filter
     if (productType) {
       where.productType = productType;
+    }
+
+    // Add sub type filter
+    if (subType) {
+      where.subType = subType;
     }
 
     // Sorting mapping
@@ -78,7 +85,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { categoryName, productType, images } = body;
+    const { categoryName, productType, subType, description, images } = body;
 
     if (!categoryName || !productType) {
       return new NextResponse(
@@ -98,6 +105,8 @@ export async function POST(req: NextRequest) {
       data: {
         categoryName,
         productType,
+        subType: subType || null,
+        description: description || null,
         images: images,
       },
     });

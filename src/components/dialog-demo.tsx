@@ -1,4 +1,4 @@
-import { useState, isValidElement } from "react";
+import { useState, isValidElement, cloneElement } from "react";
 import {
   Dialog,
   DialogContent,
@@ -74,8 +74,10 @@ export const DialogDemo = ({
           <Button variant={bgColor ? bgColor : "outline" }>
             {dialogTrigger}
           </Button>
+        ) : isValidElement(dialogTrigger) ? (
+          cloneElement(dialogTrigger as React.ReactElement)
         ) : (
-          dialogTrigger
+          <Button>{dialogTrigger}</Button>
         )}
       </DialogTrigger>
       <DialogContent className={dialogContentClassName || "sm:max-w-[425px]"}>

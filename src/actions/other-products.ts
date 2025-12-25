@@ -8,6 +8,7 @@ export interface OtherProductData {
   categoryName: string;
   productType: string;
   subType?: string;
+  description?: string;
   images: { url: string }[];
 }
 
@@ -33,6 +34,7 @@ export const createOtherProduct = async (data: OtherProductData) => {
         categoryName: data.categoryName,
         productType: data.productType,
         subType: data.subType || null,
+        description: data.description || null,
         images: data.images,
       },
     });
@@ -70,6 +72,7 @@ export const updateOtherProduct = async (
         categoryName: data.categoryName,
         productType: data.productType,
         subType: data.subType || null,
+        description: data.description || null,
         images: data.images,
       },
     });

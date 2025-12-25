@@ -538,6 +538,7 @@ model OtherProduct {
   categoryName String
   productType  String
   subType      String?
+  description  String?
   images       Json[]
   isDeleted    Boolean  @default(false)
   createdAt    DateTime @default(now())

@@ -35,6 +35,7 @@ import { v4 as uuidv4 } from "uuid";
 import imageCompression from "browser-image-compression";
 import { AxiosProgressEvent, CancelTokenSource } from "axios";
 import React from "react";
+import { applyTextWatermarkToFile } from "@/src/lib/watermark";
 
 interface ChildProps {
   onImageChange: (data: any) => void;
@@ -43,6 +44,7 @@ interface ChildProps {
   videos?: any[]; // New prop for videos
   singleFile?: boolean;
   allowVideos?: boolean; // New flag to enable video uploads
+  watermarkText?: string; // Optional watermark text to apply to images
 }
 
 interface FileUploadProgress {
@@ -99,6 +101,7 @@ const ImageUpload2 = React.forwardRef(
       videos = [],
       singleFile = false,
       allowVideos = false,
+      watermarkText,
     }: ChildProps,
     ref: React.Ref<ImageUploadRef>
   ) => {
@@ -332,8 +335,21 @@ const ImageUpload2 = React.forwardRef(
           const fileUploadBatch = filesToProcess.map(async (file) => {
             const isVideo = file.type.includes(FileTypes.Video);
 
+            let processedFile = file;
+
+            // Apply watermark to images if watermarkText is provided
+            if (!isVideo && watermarkText && watermarkText.trim()) {
+              try {
+                processedFile = await applyTextWatermarkToFile(file, watermarkText);
+              } catch (error) {
+                console.error("Error applying watermark:", error);
+                toast.error("Failed to apply watermark, uploading original image");
+                // Continue with original file if watermark fails
+              }
+            }
+
             // Only compress images, not videos
-            const processedFile = isVideo ? file : await compressImage(file);
+            processedFile = isVideo ? processedFile : await compressImage(processedFile);
 
             const storagePath = `${isVideo ? "videos" : "images"}/${uuidv4()}`;
             const downloadURL = await uploadFile(processedFile, storagePath);
@@ -383,7 +399,7 @@ const ImageUpload2 = React.forwardRef(
           setIsUploading(false);
         }
       },
-      [onImageChange, onVideoChange, singleFile]
+      [onImageChange, onVideoChange, singleFile, watermarkText]
     );
 
     // Define accepted file types based on allowVideos flag
