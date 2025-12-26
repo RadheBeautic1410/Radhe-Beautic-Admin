@@ -98,8 +98,7 @@ const productTypes = [
   { key: "tunique", value: "Tunique" },
   { key: "chaniya", value: "Chaniya" },
   { key: "dupatta", value: "Dupatta" },
-  { key: "kurti", value: "Kurti" },
-  { key: "mensKurta", value: "Mens Kurta" },
+  { key: "kurti", value: "Kurti" },  { key: "mensKurta", value: "Mens Kurta" },
   { key: "kidsWear", value: "kids Wear" },
   { key: "other", value: "Other" },
 ];
@@ -270,6 +269,7 @@ const EditProductDialog = ({ product, onSuccess }: EditProductDialogProps) => {
       bgColor="default"
       open={dialogOpen}
       onOpenChange={handleOpenChange}
+      dialogContentClassName="sm:max-w-2xl max-h-[85vh] !flex !flex-col"
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -919,7 +919,6 @@ function OtherProductsPage() {
               </div>
             </DialogDemo>
             <DialogDemo
-              isTriggerElement
               dialogTrigger={
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
@@ -934,6 +933,7 @@ function OtherProductsPage() {
                 setDialogOpen(open);
                 handleOpenChange(open);
               }}
+              dialogContentClassName="sm:max-w-2xl max-h-[85vh] !flex !flex-col"
             >
               <Form {...form}>
                 <form

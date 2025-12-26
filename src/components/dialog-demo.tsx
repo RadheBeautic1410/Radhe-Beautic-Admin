@@ -1,4 +1,4 @@
-import { useState, isValidElement, cloneElement } from "react";
+import { useState, isValidElement } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,9 +26,9 @@ interface DialogDemoProps {
     | null
     | undefined;
   isTriggerElement?: boolean; // Optional prop to indicate if trigger is an element
-  dialogContentClassName?: string; // Optional prop to customize dialog content width
   onOpenChange?: (open: boolean) => void; // Optional callback for open state changes
-  open?: boolean; // Controlled open state
+  dialogContentClassName?: string; // Optional className for DialogContent
+  open?: boolean; // Optional controlled open state
 }
 
 export const DialogDemo = ({
@@ -40,8 +40,8 @@ export const DialogDemo = ({
   bgColor,
   isTriggerElement = false, // Default to false if not provided
   onOpenChange,
+  dialogContentClassName,
   open: controlledOpen,
-  dialogContentClassName, // Optional custom className for dialog content
 }: DialogDemoProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -67,30 +67,34 @@ export const DialogDemo = ({
     return children; // old pattern
   };
 
+  // Automatically detect if dialogTrigger is a React element
+  const isReactElement = isValidElement(dialogTrigger);
+  const shouldUseAsChild = isTriggerElement || isReactElement;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {!isTriggerElement ? (
+      <DialogTrigger asChild={shouldUseAsChild}>
+        {shouldUseAsChild ? (
+          dialogTrigger
+        ) : (
           <Button variant={bgColor ? bgColor : "outline" }>
             {dialogTrigger}
           </Button>
-        ) : isValidElement(dialogTrigger) ? (
-          cloneElement(dialogTrigger as React.ReactElement)
-        ) : (
-          <Button>{dialogTrigger}</Button>
         )}
       </DialogTrigger>
-      <DialogContent className={dialogContentClassName || "sm:max-w-[425px]"}>
-        <DialogHeader>
+      <DialogContent className={dialogContentClassName || "sm:max-w-[425px] max-h-[85vh] !flex !flex-col"}>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
 
-        {renderChildren()}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {renderChildren()}
+        </div>
 
         {/* Optional Footer Button */}
         {ButtonLabel && (
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0">
             <Button onClick={closeDialog}>{ButtonLabel}</Button>
           </DialogFooter>
         )}
