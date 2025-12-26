@@ -98,7 +98,8 @@ const productTypes = [
   { key: "tunique", value: "Tunique" },
   { key: "chaniya", value: "Chaniya" },
   { key: "dupatta", value: "Dupatta" },
-  { key: "kurti", value: "Kurti" },  { key: "mensKurta", value: "Mens Kurta" },
+  { key: "kurti", value: "Kurti" }, 
+  { key: "mensKurta", value: "Mens Kurta" },
   { key: "kidsWear", value: "kids Wear" },
   { key: "other", value: "Other" },
 ];
@@ -123,15 +124,15 @@ const productSubTypes: Record<string, Array<{ key: string; value: string }>> = {
     { key: "low", value: "Low" },
   ],
   threePiece: [
-    { key: "jaypuri-cottom-round", value: "A-Line Lehenga" },
-    { key: "jaypuri-cottom-pair", value: "Circular Lehenga" },
-    { key: "heavy", value: "Mermaid Lehenga" },
-    { key: "anarkali", value: "Panel Lehenga" },
-    { key: "sarara-pair", value: "Designer Lehenga" },
+    { key: "jaypuri-cotton-round", value: "Jaypuri Cotton Round" },
+    { key: "jaypuri-cotton-pair", value: "Jaypuri Cotton Pair" },
+    { key: "heavy", value: "Heavy" },
+    { key: "anarkali", value: "Anarkali" },
+    { key: "sarara-pair", value: "Sarara Pair" },
   ],
   kurtiPant: [
-    { key: "plazza-pair", value: "Cotton Dupatta" },
-    { key: "codeset", value: "Silk Dupatta" },
+    { key: "plazza-pair", value: "Plazza Pair" },
+    { key: "codeset", value: "Codeset" },
     { key: "a-line-kurit-pant", value: "A-line Kurit Pant" },
   ],
   chaniya: [
