@@ -221,6 +221,21 @@ export const categoryUpdate = async (
       });
     }
 
+    // Update customerPrice for all kurtis in this category when customerPrice changes
+    if (customerPrice !== undefined && customerPrice !== existingCategory.customerPrice) {
+      const categoryName = updatedCategory.name;
+
+      await prisma.kurti.updateMany({
+        where: {
+          category: categoryName,
+          isDeleted: false,
+        },
+        data: {
+          customerPrice: customerPrice ?? null,
+        },
+      });
+    }
+
     return updatedCategory;
   });
 
