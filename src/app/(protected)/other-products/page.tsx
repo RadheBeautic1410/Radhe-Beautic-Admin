@@ -98,7 +98,7 @@ const productTypes = [
   { key: "tunique", value: "Tunique" },
   { key: "chaniya", value: "Chaniya" },
   { key: "dupatta", value: "Dupatta" },
-  { key: "kurti", value: "Kurti" }, 
+  { key: "kurti", value: "Kurti" },
   { key: "mensKurta", value: "Mens Kurta" },
   { key: "kidsWear", value: "kids Wear" },
   { key: "other", value: "Other" },
@@ -117,6 +117,8 @@ const productSubTypes: Record<string, Array<{ key: string; value: string }>> = {
     { key: "banarasi-saree", value: "Banarasi saree" },
     { key: "georgette-saree", value: "Georgette saree" },
     { key: "ready-to-wear-saree", value: "Ready to wear saree" },
+    { key: "kanjivaram-sadi", value: "Kanjivaram Sadi" },
+    { key: "tussar-sadi", value: "Tussar Sadi" },
   ],
   choli: [
     { key: "heavy", value: "Heavy" },
@@ -1095,11 +1097,13 @@ function OtherProductsPage() {
                 className="pl-10"
               />
             </div>
-            
+
             {/* Filter Section */}
             <div className="flex gap-4 items-end">
               <div className="flex-1">
-                <label className="text-sm font-medium mb-2 block">Product Type</label>
+                <label className="text-sm font-medium mb-2 block">
+                  Product Type
+                </label>
                 <Select
                   value={filterProductType || "all"}
                   onValueChange={(value) => {
@@ -1122,34 +1126,39 @@ function OtherProductsPage() {
                 </Select>
               </div>
 
-              {filterProductType && (() => {
-                const filterProductTypeKey = getProductTypeKey(filterProductType);
-                const filterAvailableSubTypes = productSubTypes[filterProductTypeKey] || [];
-                return filterAvailableSubTypes.length > 0 ? (
-                  <div className="flex-1">
-                    <label className="text-sm font-medium mb-2 block">Sub Type</label>
-                    <Select
-                      value={filterSubType || "all"}
-                      onValueChange={(value) => {
-                        setFilterSubType(value === "all" ? "" : value);
-                        setPage(1);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="All Sub Types" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Sub Types</SelectItem>
-                        {filterAvailableSubTypes.map((subType) => (
-                          <SelectItem key={subType.key} value={subType.key}>
-                            {subType.value}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null;
-              })()}
+              {filterProductType &&
+                (() => {
+                  const filterProductTypeKey =
+                    getProductTypeKey(filterProductType);
+                  const filterAvailableSubTypes =
+                    productSubTypes[filterProductTypeKey] || [];
+                  return filterAvailableSubTypes.length > 0 ? (
+                    <div className="flex-1">
+                      <label className="text-sm font-medium mb-2 block">
+                        Sub Type
+                      </label>
+                      <Select
+                        value={filterSubType || "all"}
+                        onValueChange={(value) => {
+                          setFilterSubType(value === "all" ? "" : value);
+                          setPage(1);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All Sub Types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Sub Types</SelectItem>
+                          {filterAvailableSubTypes.map((subType) => (
+                            <SelectItem key={subType.key} value={subType.key}>
+                              {subType.value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : null;
+                })()}
 
               {(filterProductType || filterSubType) && (
                 <Button
