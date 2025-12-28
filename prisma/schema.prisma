@@ -86,6 +86,7 @@ model User {
   ShippingChangeLog  ShippingChangeLog[]
   WalletRequest      WalletRequest[]
   resellersCustomers ResellersCustomer[]
+  customerOrders     CustomerOrder[]
 }
 
 model VerificationToken {
@@ -194,6 +195,7 @@ model Kurti {
   videos          Json[]
   isBigPrice      Boolean  @default(false)
   bigPrice        Float?
+  weight          Int?     // Weight in grams
 
   prices            Prices?             @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   CartProduct       CartProduct[]
@@ -204,6 +206,20 @@ model Kurti {
   OnlineSell        OnlineSell[]
   createdAt         DateTime?           @default(now())
   updatedAt         DateTime?           @updatedAt
+}
+
+model ShippingRate {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  pincode     String   // Pincode pattern (wildcard like 36**, or range like 364001-364005, or exact)
+  rate        Float    // Shipping rate in currency
+  type        String   // Type: "wildcard", "range", or "exact"
+  isActive    Boolean  @default(true)
+  description String?  // Optional description
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([pincode])
+  @@map("shipping_rates")
 }
 
 model Sell {
@@ -357,12 +373,13 @@ model Deletetime {
 }
 
 model Cart {
-  id          String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String        @db.ObjectId
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  CartProduct CartProduct[]
-  orders      Orders[]
-  isOrdered   CartStatus    @default(PENDING)
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String          @db.ObjectId
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  CartProduct    CartProduct[]
+  orders         Orders[]
+  customerOrders CustomerOrder[]
+  isOrdered      CartStatus      @default(PENDING)
 }
 
 model CartProduct {
@@ -403,12 +420,21 @@ model Orders {
 }
 
 model Address {
-  id      String   @id @default(auto()) @map("_id") @db.ObjectId
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId  String   @db.ObjectId
-  address String
-  zipCode String?
-  orders  Orders[]
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String          @db.ObjectId
+  fullName       String?
+  phoneNumber    String?
+  address        String
+  city           String?
+  state          String?
+  zipCode        String?
+  landmark       String?
+  orders         Orders[]
+  customerOrders CustomerOrder[]
+
+  // Index for foreign key lookups
+  @@index([userId])
 }
 
 model OrderCounter {
@@ -553,4 +579,29 @@ model Offer {
   image      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model CustomerOrder {
+  id               String      @id @default(auto()) @map("_id") @db.ObjectId
+  orderId          String      @unique
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String      @db.ObjectId
+  cart             Cart        @relation(fields: [cartId], references: [id])
+  cartId           String      @db.ObjectId
+  shippingAddress  Address     @relation(fields: [addressId], references: [id])
+  addressId        String      @db.ObjectId
+  status           OrderStatus @default(PENDING)
+  total            Float
+  shippingCharge   Float       @default(0)
+  trackingId       String?
+  trackingIdImages Json[]      @default([])
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  // Indexes for query performance
+  @@index([userId, status, createdAt])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([cartId])
+  @@index([addressId])
 }

@@ -240,6 +240,7 @@ export const KurtiSchema = z.object({
   countOfPiece: z.number(),
   category: z.string().min(1, { message: "Please select the category." }),
   code: z.string(),
+  weight: z.number().min(0, { message: "Weight must be 0 or greater" }).optional(),
 });
 
 export const categoryEditSchema = z.object({

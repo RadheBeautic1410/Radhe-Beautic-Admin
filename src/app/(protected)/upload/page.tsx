@@ -347,6 +347,7 @@ const BulkUploadPage = () => {
           category: formValues.category?.toUpperCase(),
           code: design.code,
           countOfPiece: design.countOfPiece,
+          weight: formValues.weight,
         };
         return kurtiAddition(designData);
       });
@@ -462,6 +463,7 @@ const BulkUploadPage = () => {
       category: "",
       code: "",
       countOfPiece: 0,
+      weight: undefined,
     },
   });
 
@@ -757,6 +759,33 @@ const BulkUploadPage = () => {
                         </FormControl>
                         <FormDescription>
                           Enter Customer Price per Piece.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="weight"
+                    render={({ field }) => (
+                      <FormItem className="w-[30%]">
+                        <FormLabel>Weight (grams)</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            disabled={isPending}
+                            type="number"
+                            min="0"
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value ? parseInt(value) : undefined);
+                            }}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Enter weight in grams (optional).
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

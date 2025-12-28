@@ -64,6 +64,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [actualPrice, setActualPrice] = useState(data?.actualPrice);
   const [sellingPrice, setSellingPrice] = useState(data?.sellingPrice);
   const [customerPrice, setCustomerPrice] = useState(data?.customerPrice);
+  const [weight, setWeight] = useState(data?.weight);
   const [downloadSize, setDownloadSize] = useState("");
   const [downloadQuantity, setDownloadQuanitity] = useState(0);
   const [downloading1, setDownloading1] = useState(false);
@@ -116,6 +117,9 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
     }
     if (data?.customerPrice !== undefined) {
       setCustomerPrice(data.customerPrice);
+    }
+    if (data?.weight !== undefined) {
+      setWeight(data.weight);
     }
   }, [data]);
   const handleImageChange = (data: any) => {
@@ -294,6 +298,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
         sellingPrice: sellingPrice,
         actualPrice: actualPrice,
         customerPrice: customerPrice,
+        weight: weight,
       })
         .then((data: any) => {
           console.log(data);
@@ -406,9 +411,9 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
           </Button>
           <Button asChild className="ml-3">
             <DialogDemo
-              dialogTrigger="Edit Price"
-              dialogTitle="Edit Price"
-              dialogDescription="Edit previous prices"
+              dialogTrigger="Edit Price and Weight"
+              dialogTitle="Edit Price and Weight"
+              dialogDescription="Edit previous prices and weight"
               bgColor="destructive"
             >
               <div>
@@ -435,6 +440,16 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                   defaultValue={customerPrice}
                   onChange={(e) => {
                     setCustomerPrice(e.target.value ? parseFloat(e.target.value) : undefined);
+                  }}
+                ></Input>
+                <h2 className="pt-2">Weight (grams)</h2>
+                <Input
+                  type="number"
+                  min="0"
+                  value={weight || ""}
+                  defaultValue={weight}
+                  onChange={(e) => {
+                    setWeight(e.target.value ? parseInt(e.target.value) : undefined);
                   }}
                 ></Input>
               </div>

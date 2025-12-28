@@ -232,6 +232,11 @@ export const priceChange = async (data: any) => {
     updateData.customerPrice = parseFloat(data.customerPrice.toString());
   }
   
+  // Only include weight if it's provided
+  if (data.weight !== undefined && data.weight !== null && data.weight !== "") {
+    updateData.weight = parseInt(data.weight.toString());
+  }
+  
   const updatedKurti = await db.kurti.update({
     where: { code },
     data: updateData,

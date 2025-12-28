@@ -171,6 +171,12 @@ const routes = [
     role: [UserRole.ADMIN],
     icon: "🎁",
   },
+  {
+    name: "Shipping Calculator",
+    href: "/shipping-calculator",
+    role: [UserRole.ADMIN],
+    icon: "🚚",
+  },
 ];
 
 const Sidebar = () => {
