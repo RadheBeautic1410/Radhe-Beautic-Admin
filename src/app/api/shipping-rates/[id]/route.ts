@@ -5,8 +5,9 @@ import { UserRole } from "@prisma/client";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params;
   try {
     const user = await currentUser();
     const role = await currentRole();
@@ -86,7 +87,7 @@ export async function PUT(
     }
 
     const shippingRate = await db.shippingRate.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     });
 
@@ -101,8 +102,9 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params;
   try {
     const user = await currentUser();
     const role = await currentRole();
@@ -114,7 +116,7 @@ export async function DELETE(
     }
 
     await db.shippingRate.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

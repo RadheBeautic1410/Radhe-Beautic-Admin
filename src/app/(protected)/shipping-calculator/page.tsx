@@ -144,11 +144,29 @@ const ShippingCalculatorPage = () => {
   const onSubmit = async (values: ShippingRateFormValues, closeDialog?: () => void) => {
     startTransition(async () => {
       try {
+        // Ensure type is determined if not provided
+        let finalValues = { ...values };
+        if (!finalValues.type && finalValues.pincode) {
+          if (finalValues.pincode.includes("*")) {
+            finalValues.type = "wildcard";
+          } else if (finalValues.pincode.includes("-")) {
+            finalValues.type = "range";
+          } else {
+            finalValues.type = "exact";
+          }
+        }
+        
+        // Type assertion since we've ensured type is set
+        const submitData = {
+          ...finalValues,
+          type: finalValues.type as "wildcard" | "range" | "exact",
+        };
+        
         let result;
         if (editingRate) {
-          result = await updateShippingRate(editingRate.id, values);
+          result = await updateShippingRate(editingRate.id, submitData);
         } else {
-          result = await createShippingRate(values);
+          result = await createShippingRate(submitData);
         }
 
         if (result.success) {
