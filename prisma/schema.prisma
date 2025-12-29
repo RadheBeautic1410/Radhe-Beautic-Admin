@@ -582,21 +582,25 @@ model Offer {
 }
 
 model CustomerOrder {
-  id               String      @id @default(auto()) @map("_id") @db.ObjectId
-  orderId          String      @unique
-  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId           String      @db.ObjectId
-  cart             Cart        @relation(fields: [cartId], references: [id])
-  cartId           String      @db.ObjectId
-  shippingAddress  Address     @relation(fields: [addressId], references: [id])
-  addressId        String      @db.ObjectId
-  status           OrderStatus @default(PENDING)
+  id               String        @id @default(auto()) @map("_id") @db.ObjectId
+  orderId          String        @unique
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String        @db.ObjectId
+  cart             Cart          @relation(fields: [cartId], references: [id])
+  cartId           String        @db.ObjectId
+  shippingAddress  Address       @relation(fields: [addressId], references: [id])
+  addressId        String        @db.ObjectId
+  status           OrderStatus   @default(PENDING)
   total            Float
-  shippingCharge   Float       @default(0)
+  shippingCharge   Float         @default(0)
   trackingId       String?
-  trackingIdImages Json[]      @default([])
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  trackingIdImages Json[]        @default([])
+  courier          String?
+  paymentStatus    PaymentStatus @default(PENDING)
+  paymentType      String?
+  note             String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   // Indexes for query performance
   @@index([userId, status, createdAt])

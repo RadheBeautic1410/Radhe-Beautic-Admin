@@ -177,6 +177,12 @@ const routes = [
     role: [UserRole.ADMIN],
     icon: "🚚",
   },
+  {
+    name: "Customer Orders",
+    href: "/customer-orders",
+    role: [UserRole.ADMIN],
+    icon: "📦",
+  },
 ];
 
 const Sidebar = () => {
