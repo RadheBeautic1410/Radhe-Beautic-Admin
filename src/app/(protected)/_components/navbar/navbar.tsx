@@ -10,8 +10,24 @@ import Image from "next/image";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { useForm } from "react-hook-form";
 import { cn } from "@/src/lib/utils";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
-const routes = [
+interface SubMenuItem {
+  name: string;
+  href: string;
+  role: UserRole[];
+  icon: string;
+}
+
+interface MenuItem {
+  name: string;
+  href: string;
+  role: UserRole[];
+  icon: string;
+  submenu?: SubMenuItem[];
+}
+
+const routes: MenuItem[] = [
   {
     name: "Upload",
     href: "/upload",
@@ -166,29 +182,55 @@ const routes = [
     icon: "💰",
   },
   {
-    name: "Offer",
-    href: "/offers",
+    name: "Customer",
+    href: "#",
     role: [UserRole.ADMIN],
-    icon: "🎁",
-  },
-  {
-    name: "Shipping Calculator",
-    href: "/shipping-calculator",
-    role: [UserRole.ADMIN],
-    icon: "🚚",
-  },
-  {
-    name: "Customer Orders",
-    href: "/customer-orders",
-    role: [UserRole.ADMIN],
-    icon: "📦",
+    icon: "👥",
+    submenu: [
+      {
+        name: "Offer",
+        href: "/offers",
+        role: [UserRole.ADMIN],
+        icon: "🎁",
+      },
+      {
+        name: "Shipping Calculator",
+        href: "/shipping-calculator",
+        role: [UserRole.ADMIN],
+        icon: "🚚",
+      },
+      {
+        name: "Customer Orders",
+        href: "/customer-orders",
+        role: [UserRole.ADMIN],
+        icon: "📦",
+      },
+    ],
   },
 ];
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set());
   const pathname = usePathname();
+
+  // Auto-expand submenu if current path matches any submenu item
+  useEffect(() => {
+    routes.forEach((route) => {
+      if (route.submenu) {
+        const hasActiveSubItem = route.submenu.some((subItem) => {
+          if (subItem.href === "/sell" || subItem.href === "/sellHistory") {
+            return pathname === subItem.href;
+          }
+          return pathname.includes(subItem.href);
+        });
+        if (hasActiveSubItem) {
+          setOpenSubmenus((prev) => new Set(prev).add(route.name));
+        }
+      }
+    });
+  }, [pathname]);
 
   const form = useForm({
     defaultValues: {
@@ -291,30 +333,94 @@ const Sidebar = () => {
             <div className="space-y-2">
               {routes.map((route) => (
                 <RoleGateForComponent allowedRole={route.role} key={route.name}>
-                  <Link
-                    href={route.href}
-                    onClick={() => setIsMobileOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group",
-                      (
-                        route.href === "/sell" || route.href === "/sellHistory"
-                          ? pathname === route.href
-                          : pathname.includes(route.href)
-                      )
-                        ? "bg-white/20 text-white shadow-lg"
-                        : "text-white/70 hover:bg-white/10 hover:text-white"
-                    )}
-                  >
-                    <span className="text-xl flex-shrink-0">{route.icon}</span>
-                    {!isCollapsed && (
-                      <span className="font-medium">{route.name}</span>
-                    )}
-                    {isCollapsed && (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                        {route.name}
-                      </div>
-                    )}
-                  </Link>
+                  {route.submenu ? (
+                    // Menu with submenu
+                    <div>
+                      <button
+                        onClick={() => {
+                          const newOpenSubmenus = new Set(openSubmenus);
+                          if (newOpenSubmenus.has(route.name)) {
+                            newOpenSubmenus.delete(route.name);
+                          } else {
+                            newOpenSubmenus.add(route.name);
+                          }
+                          setOpenSubmenus(newOpenSubmenus);
+                        }}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group",
+                          "text-white/70 hover:bg-white/10 hover:text-white"
+                        )}
+                      >
+                        <span className="text-xl flex-shrink-0">{route.icon}</span>
+                        {!isCollapsed && (
+                          <>
+                            <span className="font-medium flex-1 text-left">{route.name}</span>
+                            {openSubmenus.has(route.name) ? (
+                              <ChevronDown className="w-4 h-4" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4" />
+                            )}
+                          </>
+                        )}
+                        {isCollapsed && (
+                          <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                            {route.name}
+                          </div>
+                        )}
+                      </button>
+                      {!isCollapsed && openSubmenus.has(route.name) && (
+                        <div className="ml-4 mt-1 space-y-1 border-l border-white/20 pl-2">
+                          {route.submenu.map((subItem) => (
+                            <RoleGateForComponent allowedRole={subItem.role} key={subItem.name}>
+                              <Link
+                                href={subItem.href}
+                                onClick={() => setIsMobileOpen(false)}
+                                className={cn(
+                                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group",
+                                  (
+                                    subItem.href === "/sell" || subItem.href === "/sellHistory"
+                                      ? pathname === subItem.href
+                                      : pathname.includes(subItem.href)
+                                  )
+                                    ? "bg-white/20 text-white shadow-lg"
+                                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                                )}
+                              >
+                                <span className="text-xl flex-shrink-0">{subItem.icon}</span>
+                                <span className="font-medium">{subItem.name}</span>
+                              </Link>
+                            </RoleGateForComponent>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Regular menu item
+                    <Link
+                      href={route.href}
+                      onClick={() => setIsMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group",
+                        (
+                          route.href === "/sell" || route.href === "/sellHistory"
+                            ? pathname === route.href
+                            : pathname.includes(route.href)
+                        )
+                          ? "bg-white/20 text-white shadow-lg"
+                          : "text-white/70 hover:bg-white/10 hover:text-white"
+                      )}
+                    >
+                      <span className="text-xl flex-shrink-0">{route.icon}</span>
+                      {!isCollapsed && (
+                        <span className="font-medium">{route.name}</span>
+                      )}
+                      {isCollapsed && (
+                        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                          {route.name}
+                        </div>
+                      )}
+                    </Link>
+                  )}
                 </RoleGateForComponent>
               ))}
             </div>
