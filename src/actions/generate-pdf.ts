@@ -142,17 +142,13 @@ export const generateAddressInfo = async ({
   date,
   quantity,
   group,
-  name,
   address,
-  mobileNo,
 }: {
   orderId: string;
   date: string;
   quantity: number;
   group: string;
-  name: string;
   address: string;
-  mobileNo: string;
 }) => {
   try {
     // Prepare the request payload for the backend API
@@ -161,9 +157,7 @@ export const generateAddressInfo = async ({
       date,
       quantity,
       group,
-      name,
       address,
-      mobileNo,
     };
     console.log("requestPayload", requestPayload);
 

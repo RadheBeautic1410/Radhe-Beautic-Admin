@@ -36,9 +36,10 @@ import {
   getCustomerOrderById,
 } from "@/src/actions/customer-order";
 import { Badge } from "@/src/components/ui/badge";
-import { Eye, CheckCircle2, Truck, Search, X } from "lucide-react";
+import { Eye, CheckCircle2, Truck, Search, X, Download } from "lucide-react";
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
+import { generateAddressInfo } from "@/src/actions/generate-pdf";
 
 interface CartProduct {
   id: string;
@@ -296,6 +297,91 @@ const CustomerOrdersPage = () => {
     });
   };
 
+  // Handle download address PDF
+  const handleDownloadAddressPDF = async (order: CustomerOrder) => {
+    try {
+      // Calculate total quantity from cart products
+      const totalQuantity = order.cart.CartProduct.reduce((total, cartProduct) => {
+        const productQuantity = cartProduct.sizes.reduce((sum, size) => sum + size.quantity, 0);
+        return total + productQuantity;
+      }, 0);
+
+      // Combine name, mobile number, and address into a single string
+      // Format: Name, Mobile Number, Address (newline separated for parsing)
+      const name = order.shippingAddress.fullName || order.user.name || "";
+      const mobileNo = order.shippingAddress.phoneNumber || order.user.phoneNumber || "";
+      
+      const addressParts: string[] = [];
+      if (name) {
+        addressParts.push(name);
+      }
+      if (mobileNo) {
+        addressParts.push(mobileNo);
+      }
+      if (order.shippingAddress.address) {
+        addressParts.push(order.shippingAddress.address);
+      }
+      if (order.shippingAddress.city && order.shippingAddress.state) {
+        addressParts.push(`${order.shippingAddress.city}, ${order.shippingAddress.state}`);
+      } else if (order.shippingAddress.city) {
+        addressParts.push(order.shippingAddress.city);
+      } else if (order.shippingAddress.state) {
+        addressParts.push(order.shippingAddress.state);
+      }
+      if (order.shippingAddress.zipCode) {
+        addressParts.push(order.shippingAddress.zipCode);
+      }
+      if (order.shippingAddress.landmark) {
+        addressParts.push(order.shippingAddress.landmark);
+      }
+      const combinedAddress = addressParts.join("\n");
+
+      // Format date
+      const currentDate = new Date(order.createdAt).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+
+      // Prepare request data - only pass address (name, mobile, address combined)
+      const reqData = {
+        orderId: order.orderId,
+        date: currentDate,
+        quantity: totalQuantity,
+        group: "radhe beautic",
+        address: combinedAddress,
+      };
+
+      // Call the generate address PDF API
+      const result = await generateAddressInfo(reqData);
+
+      if (!result.success || !result.pdfBase64) {
+        throw new Error(result.error || "Failed to generate PDF");
+      }
+
+      // Convert base64 string to Blob and trigger download
+      const binaryString = atob(result.pdfBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Address-${order.orderId}-${Date.now()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Address PDF downloaded successfully");
+    } catch (error) {
+      console.error("Error generating address PDF:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to download address PDF");
+    }
+  };
+
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
       PENDING: { label: "Pending", className: "bg-yellow-500" },
@@ -483,6 +569,15 @@ const CustomerOrdersPage = () => {
                           >
                             <Eye className="h-4 w-4 mr-1" />
                             View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadAddressPDF(order)}
+                            title="Download Address PDF"
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Download
                           </Button>
                           {order.status === OrderStatus.PENDING && (
                             <Button

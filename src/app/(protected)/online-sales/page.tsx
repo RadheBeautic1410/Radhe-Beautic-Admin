@@ -276,14 +276,26 @@ function OnlineSalesPage() {
     console.log("findOrder",findOrder);
      
     const currentDate = new Date().toLocaleDateString();
+    
+    // Combine name, mobile number, and address into a single string
+    const addressParts: string[] = [];
+    if (findOrder?.customerName) {
+      addressParts.push(findOrder.customerName);
+    }
+    if (findOrder?.customerPhone) {
+      addressParts.push(findOrder.customerPhone);
+    }
+    if (findOrder?.order?.shippingAddress.address) {
+      addressParts.push(findOrder.order.shippingAddress.address);
+    }
+    const combinedAddress = addressParts.join("\n");
+    
     const reqData = {
       orderId : orderId,
       date : currentDate,
       quantity: 1,
       group: "ABC",
-      name: findOrder?.customerName!,
-      address: findOrder?.order?.shippingAddress.address!,
-      mobileNo: findOrder?.customerPhone!,
+      address: combinedAddress,
     }
     console.log("reqData",reqData);
     
