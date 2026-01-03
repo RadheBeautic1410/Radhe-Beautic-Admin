@@ -599,6 +599,7 @@ model CustomerOrder {
   paymentStatus    PaymentStatus @default(PENDING)
   paymentType      String?
   note             String?
+  paymentScreenshot String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 

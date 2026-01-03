@@ -89,7 +89,7 @@ export const DialogDemo = ({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0">
-          {renderChildren()}
+        {renderChildren()}
         </div>
 
         {/* Optional Footer Button */}
