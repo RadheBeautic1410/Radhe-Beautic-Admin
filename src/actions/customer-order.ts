@@ -335,8 +335,8 @@ export const acceptCustomerOrder = async (
           await tx.kurti.update({
             where: { code },
             data: {
-              sizes: updatedSizes,
-              reservedSizes: updatedReservedSizes,
+              sizes: updatedSizes as any,
+              reservedSizes: updatedReservedSizes as any,
               countOfPiece: Math.max(0, (kurti.countOfPiece || 0) - totalQuantityDeducted),
               lastUpdatedTime: getCurrTime(),
             },
