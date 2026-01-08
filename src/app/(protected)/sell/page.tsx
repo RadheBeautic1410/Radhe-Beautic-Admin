@@ -147,10 +147,10 @@ function SellPage() {
               key={"code"}
               className="font-bold"
             >{`Code: ${kurti.code.toUpperCase()}`}</p>
-            <p
+            {/* <p 
               key={"price"}
               className="text-2xl font-semibold mt-2 mb-1"
-            >{`Price - ${kurti.sellingPrice}/-`}</p>
+            >{`Price - ${kurti.sellingPrice}/-`}</p>*/}
             <div className="flex flex-row space-evenely mb-2 gap-2">
               <Table className="border border-collapse border-red">
                 <TableHeader className="border border-red text-white bg-slate-800">
