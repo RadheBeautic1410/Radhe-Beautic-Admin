@@ -19,6 +19,7 @@ interface Category {
   walletDiscount?: number;
   code?: string;
   isStockReady?: boolean;
+  isVisibleForCustomer?: boolean;
 }
 
 // export async function GET(request: Request) {

@@ -1298,6 +1298,10 @@ export const addStock = async (code: string) => {
     if (cmp.length === 0) {
       return { error: "Enter valid code" };
     }
+    // Validate size against valid sizes
+    if (!isSize(cmp)) {
+      return { error: `Invalid size "${cmp}". Valid sizes are: XS, S, M, L, XL, XXL, 3XL, 4XL, 5XL, 6XL, 7XL, 8XL, 9XL, 10XL` };
+    }
     console.log("search: ", search);
     const kurti = await db.kurti.findUnique({
       where: { code: search.toUpperCase(), isDeleted: false },

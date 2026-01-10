@@ -161,6 +161,7 @@ model Category {
   actualPrice         Float?
   customerPrice       Float?
   isStockReady        Boolean @default(true)
+  isVisibleForCustomer Boolean @default(true)
 }
 
 model Prices {

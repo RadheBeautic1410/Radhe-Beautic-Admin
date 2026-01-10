@@ -91,6 +91,7 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
       customerPrice: customerPrice || 0,
       bigPrice: bigPrice || 0,
       kurtiType: data.kurtiType || null,
+      isVisibleForCustomer: true,
     },
   });
 
@@ -596,6 +597,44 @@ export const setStockReady = async (categoryCode: string) => {
     return {
       success: false,
       error: "Failed to set stock ready",
+    };
+  }
+};
+
+export const toggleVisibilityForCustomer = async (categoryCode: string) => {
+  try {
+    const category = await db.category.findUnique({
+      where: {
+        code: categoryCode,
+      },
+    });
+
+    if (!category) {
+      return {
+        success: false,
+        error: "Category not found",
+      };
+    }
+
+    const updatedCategory = await db.category.update({
+      where: {
+        code: categoryCode,
+      },
+      data: {
+        isVisibleForCustomer: !category.isVisibleForCustomer,
+      },
+    });
+
+    return {
+      success: true,
+      message: `Category visibility ${updatedCategory.isVisibleForCustomer ? "enabled" : "disabled"} successfully`,
+      data: updatedCategory,
+    };
+  } catch (error) {
+    console.error("Error toggling visibility:", error);
+    return {
+      success: false,
+      error: "Failed to toggle visibility",
     };
   }
 };

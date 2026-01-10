@@ -16,6 +16,7 @@ interface Category {
   walletDiscount?: number;
   code?: string;
   isStockReady: boolean;
+  isVisibleForCustomer?: boolean;
 }
 interface CategoriesPaginationMeta {
   page: number;

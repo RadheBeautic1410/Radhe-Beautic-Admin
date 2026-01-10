@@ -6,6 +6,7 @@ import syncCategoryData, {
   generateCategoryPDF,
   getCategoryOverallStates,
   setStockReady,
+  toggleVisibilityForCustomer,
 } from "@/src/actions/category";
 import { deleteCategory, fetchKurtiByCategory } from "@/src/actions/kurti";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
@@ -50,6 +51,8 @@ import {
   Trash2,
   TrendingUp,
   Filter,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
@@ -102,6 +105,7 @@ interface Category {
   code?: string;
   kurtiType?: string;
   isStockReady: boolean;
+  isVisibleForCustomer?: boolean;
 }
 
 interface Kurti {
@@ -369,6 +373,7 @@ const ListPage = () => {
                   customerPrice: data.data.customerPrice || undefined,
                   image: data.data.image || undefined,
                   isStockReady: true,
+                  isVisibleForCustomer: (data.data as any).isVisibleForCustomer ?? true,
                 };
                 setCategoryData([...categoryList, newCategory]);
               }
@@ -1155,6 +1160,33 @@ const ListPage = () => {
     }
   };
 
+  const handleToggleVisibility = async (categoryCode: string) => {
+    try {
+      const res = await toggleVisibilityForCustomer(categoryCode);
+      if (res.success && res.data) {
+        const isVisible = (res.data as any).isVisibleForCustomer ?? true;
+        toast.success(
+          `Category ${isVisible ? "made visible" : "hidden"} for customers successfully!`
+        );
+        setCategoryData(
+          categoryList.map((cat) =>
+            cat.code?.toLowerCase() === categoryCode.toLowerCase()
+              ? { ...cat, isVisibleForCustomer: isVisible }
+              : cat
+          )
+        );
+        setIsLoading(true);
+        return { success: true };
+      } else {
+        toast.error(res.error || "Failed to toggle visibility!");
+        return { error: res.error || "Failed to toggle visibility!" };
+      }
+    } catch (error) {
+      toast.error("Something went wrong while toggling visibility!");
+      return { error: "Something went wrong while toggling visibility!" };
+    }
+  };
+
   const CategoryCard = ({
     cat,
     index,
@@ -1241,6 +1273,31 @@ const ListPage = () => {
                   />
                 }
               />
+              <div title="Visible for customer">
+                {cat.isVisibleForCustomer !== false ? (
+                  <Eye
+                    role="button"
+                    size={16}
+                    className="text-blue-600 cursor-pointer hover:text-blue-800"
+                    onClick={() => {
+                      if (cat.code) {
+                        handleToggleVisibility(cat.code);
+                      }
+                    }}
+                  />
+                ) : (
+                  <EyeOff
+                    role="button"
+                    size={16}
+                    className="text-gray-400 cursor-pointer hover:text-gray-600"
+                    onClick={() => {
+                      if (cat.code) {
+                        handleToggleVisibility(cat.code);
+                      }
+                    }}
+                  />
+                )}
+              </div>
               <DialogDemo
                 isTriggerElement
                 dialogTrigger={
@@ -1955,7 +2012,31 @@ const ListPage = () => {
                                   }}
                                   trigger={<Edit role="button" size={20} />}
                                 />
-
+                                <div title="Visible for customer">
+                                  {cat.isVisibleForCustomer !== false ? (
+                                    <Eye
+                                      role="button"
+                                      size={20}
+                                      className="text-blue-600 cursor-pointer hover:text-blue-800"
+                                      onClick={() => {
+                                        if (cat.code) {
+                                          handleToggleVisibility(cat.code);
+                                        }
+                                      }}
+                                    />
+                                  ) : (
+                                    <EyeOff
+                                      role="button"
+                                      size={20}
+                                      className="text-gray-400 cursor-pointer hover:text-gray-600"
+                                      onClick={() => {
+                                        if (cat.code) {
+                                          handleToggleVisibility(cat.code);
+                                        }
+                                      }}
+                                    />
+                                  )}
+                                </div>
                                 <DialogDemo
                                   isTriggerElement
                                   dialogTrigger={
