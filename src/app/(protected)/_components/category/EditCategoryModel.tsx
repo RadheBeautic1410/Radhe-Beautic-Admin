@@ -104,6 +104,7 @@ const EditCategoryModal = ({
         actualPrice: values.actualPrice,
         customerPrice: values.customerPrice,
         bigPrice: values.bigPrice, // Include bigPrice in the update
+        customerBigPrice: values.customerBigPrice, // Include customerBigPrice in the update
         walletDiscount: values.walletDiscount || 0,
         kurtiType: values.kurtiType,
       })
@@ -161,7 +162,8 @@ const EditCategoryModal = ({
         actualPrice: category.actualPrice,
         sellingPrice: category.sellingPrice,
         customerPrice: category.customerPrice,
-        bigPrice: category.bigPrice || 0,
+        bigPrice: category.bigPrice || undefined,
+        customerBigPrice: category.customerBigPrice || undefined,
         walletDiscount: category.walletDiscount || 0,
         kurtiType: category.kurtiType || "",
       });
