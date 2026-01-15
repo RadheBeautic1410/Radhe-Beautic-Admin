@@ -156,6 +156,7 @@ model Category {
   totalItems          Int     @default(0)
   isDeleted           Boolean @default(false)
   bigPrice            Float?
+  customerBigPrice    Float?
   walletDiscount      Int?    @default(0)
   sellingPrice        Float?
   actualPrice         Float?
@@ -573,13 +574,14 @@ model OtherProduct {
 }
 
 model Offer {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  name       String
-  qty        Int
-  categories String[] // Array of category IDs
-  image      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  qty         Int
+  totalAmount Float?
+  categories  String[] // Array of category IDs
+  image       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model CustomerOrder {

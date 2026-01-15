@@ -25,9 +25,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
 import { useTransition, useEffect, useState } from "react";
-import { createOffer, getAllOffers, deleteOffer } from "@/src/actions/offer";
+import { createOffer, getAllOffers, deleteOffer, updateOffer } from "@/src/actions/offer";
 import ImageUpload2 from "../_components/upload/imageUpload2";
-import { Trash2, Check, ChevronsUpDown, X } from "lucide-react";
+import { Trash2, Check, ChevronsUpDown, X, Pencil } from "lucide-react";
 import Image from "next/image";
 import { Popover, PopoverContent, PopoverTrigger } from "@/src/components/ui/popover";
 import {
@@ -45,6 +45,7 @@ import { DeleteConfirmationDialog } from "@/src/components/delete-confirmation-d
 const offerSchema = z.object({
   name: z.string().min(1, "Offer name is required"),
   qty: z.number().min(1, "Quantity must be at least 1"),
+  totalAmount: z.number().min(0, "Total amount must be 0 or greater").optional(),
   categories: z.array(z.string()).min(1, "At least one category must be selected"),
   image: z.string().optional(),
 });
@@ -55,6 +56,7 @@ interface Offer {
   id: string;
   name: string;
   qty: number;
+  totalAmount?: number | null;
   categories: string[];
   image?: string | null;
   createdAt: Date;
@@ -76,12 +78,15 @@ const OffersPage = () => {
   const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [offerToDelete, setOfferToDelete] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [offerToEdit, setOfferToEdit] = useState<Offer | null>(null);
 
   const form = useForm<OfferFormValues>({
     resolver: zodResolver(offerSchema),
     defaultValues: {
       name: "",
       qty: 1,
+      totalAmount: undefined,
       categories: [],
       image: "",
     },
@@ -133,33 +138,49 @@ const OffersPage = () => {
       return;
     }
 
-    // Validate image
-    if (images.length === 0 || !images[0]?.url) {
+    // Validate image (only for new offers, not when editing)
+    if (!offerToEdit && (images.length === 0 || !images[0]?.url)) {
       toast.error("Please upload an image");
       return;
     }
 
     startTransition(async () => {
       try {
-        const result = await createOffer({
-          name: values.name.trim(),
-          qty: values.qty,
-          categories: selectedCategories,
-          image: images[0].url,
-        });
+        const imageUrl = images.length > 0 && images[0]?.url 
+          ? images[0].url 
+          : (offerToEdit?.image || "");
+
+        const result = offerToEdit
+          ? await updateOffer(offerToEdit.id, {
+              name: values.name.trim(),
+              qty: values.qty,
+              totalAmount: values.totalAmount,
+              categories: selectedCategories,
+              image: imageUrl,
+            })
+          : await createOffer({
+              name: values.name.trim(),
+              qty: values.qty,
+              totalAmount: values.totalAmount,
+              categories: selectedCategories,
+              image: imageUrl,
+            });
 
         if (result.success) {
-          toast.success("Offer created successfully!");
+          toast.success(offerToEdit ? "Offer updated successfully!" : "Offer created successfully!");
           
           // Reset form
           form.reset({
             name: "",
             qty: 1,
+            totalAmount: undefined,
             categories: [],
             image: "",
           });
           setSelectedCategories([]);
           setImages([]);
+          setOfferToEdit(null);
+          setEditDialogOpen(false);
           
           // Close dialog
           closeDialog?.();
@@ -201,6 +222,24 @@ const OffersPage = () => {
         toast.error("Failed to delete offer. Please try again.");
       }
     });
+  };
+
+  const handleEditClick = (offer: Offer) => {
+    setOfferToEdit(offer);
+    form.reset({
+      name: offer.name,
+      qty: offer.qty,
+      totalAmount: offer.totalAmount ?? undefined,
+      categories: offer.categories,
+      image: offer.image || "",
+    });
+    setSelectedCategories(offer.categories);
+    if (offer.image) {
+      setImages([{ url: offer.image }]);
+    } else {
+      setImages([]);
+    }
+    setEditDialogOpen(true);
   };
 
   const toggleCategory = (categoryId: string) => {
@@ -272,6 +311,30 @@ const OffersPage = () => {
                                 placeholder="Enter quantity"
                                 onChange={(e) =>
                                   field.onChange(parseInt(e.target.value) || 0)
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="totalAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Total Amount (Optional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                {...field}
+                                disabled={isPending}
+                                placeholder="Enter total amount"
+                                value={field.value ?? ""}
+                                onChange={(e) =>
+                                  field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)
                                 }
                               />
                             </FormControl>
@@ -423,6 +486,7 @@ const OffersPage = () => {
                   <TableHead>Image</TableHead>
                   <TableHead>Offer Name</TableHead>
                   <TableHead>Quantity</TableHead>
+                  <TableHead>Total Amount</TableHead>
                   <TableHead>Categories</TableHead>
                   <TableHead>Created At</TableHead>
                   <TableHead>Actions</TableHead>
@@ -449,6 +513,11 @@ const OffersPage = () => {
                     <TableCell className="font-medium">{offer.name}</TableCell>
                     <TableCell>{offer.qty}</TableCell>
                     <TableCell>
+                      {offer.totalAmount !== null && offer.totalAmount !== undefined
+                        ? `₹${offer.totalAmount.toFixed(2)}`
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {offer.categories.slice(0, 3).map((catId) => (
                           <span
@@ -469,14 +538,24 @@ const OffersPage = () => {
                       {new Date(offer.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteClick(offer.id)}
-                        disabled={isPending}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditClick(offer)}
+                          disabled={isPending}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteClick(offer.id)}
+                          disabled={isPending}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -485,6 +564,227 @@ const OffersPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <DialogDemo
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            // Reset form and state when dialog closes
+            form.reset({
+              name: "",
+              qty: 1,
+              totalAmount: undefined,
+              categories: [],
+              image: "",
+            });
+            setSelectedCategories([]);
+            setImages([]);
+            setOfferToEdit(null);
+          }
+        }}
+        dialogTrigger=""
+        dialogTitle="Edit Offer"
+        dialogDescription="Update the offer details"
+        dialogContentClassName="sm:max-w-[600px]"
+      >
+        {(closeDialog) => (
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit((values) => {
+                onSubmit(values, closeDialog);
+              })}
+              className="space-y-6 max-h-[70vh] overflow-y-auto pr-2"
+            >
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Offer Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        disabled={isPending}
+                        placeholder="Enter offer name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="qty"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantity</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        disabled={isPending}
+                        placeholder="Enter quantity"
+                        onChange={(e) =>
+                          field.onChange(parseInt(e.target.value) || 0)
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="totalAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Total Amount (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        {...field}
+                        disabled={isPending}
+                        placeholder="Enter total amount"
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormItem>
+                <FormLabel>Categories (Multi-select)</FormLabel>
+                <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between min-h-[42px] h-auto",
+                          !selectedCategories.length && "text-muted-foreground"
+                        )}
+                        disabled={isPending}
+                      >
+                        <div className="flex flex-wrap gap-1 flex-1 items-center">
+                          {selectedCategories.length > 0 ? (
+                            selectedCategories.map((categoryId) => {
+                              const category = categories.find((c) => c.id === categoryId);
+                              return (
+                                <Badge
+                                  key={categoryId}
+                                  variant="secondary"
+                                  className="mr-1 mb-1"
+                                >
+                                  {category?.name || categoryId}
+                                  <button
+                                    type="button"
+                                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        toggleCategory(categoryId);
+                                      }
+                                    }}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                    }}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      toggleCategory(categoryId);
+                                    }}
+                                  >
+                                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                  </button>
+                                </Badge>
+                              );
+                            })
+                          ) : (
+                            <span>Select categories...</span>
+                          )}
+                        </div>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search categories..." />
+                      <CommandList>
+                        <CommandEmpty>No category found.</CommandEmpty>
+                        <CommandGroup>
+                          {categories.map((category) => {
+                            const isSelected = selectedCategories.includes(category.id);
+                            return (
+                              <CommandItem
+                                key={category.id}
+                                value={category.name}
+                                onSelect={() => {
+                                  toggleCategory(category.id);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    isSelected ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <span>{category.name}</span>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {selectedCategories.length === 0 && (
+                  <p className="text-sm text-red-500 mt-1">
+                    Please select at least one category
+                  </p>
+                )}
+                {selectedCategories.length > 0 && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Selected: {selectedCategories.length} category
+                    {selectedCategories.length !== 1 ? "ies" : "y"}
+                  </p>
+                )}
+                <FormMessage />
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Image</FormLabel>
+                <ImageUpload2
+                  onImageChange={(imgs) => {
+                    setImages(imgs);
+                    if (imgs.length > 0) {
+                      form.setValue("image", imgs[0].url);
+                    }
+                  }}
+                  images={images}
+                  singleFile={true}
+                />
+              </FormItem>
+
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Updating..." : "Update Offer"}
+              </Button>
+            </form>
+          </Form>
+        )}
+      </DialogDemo>
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmationDialog

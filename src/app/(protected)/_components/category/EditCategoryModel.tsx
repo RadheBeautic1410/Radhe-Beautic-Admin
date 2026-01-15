@@ -45,6 +45,7 @@ interface Category {
   sellingPrice: number;
   actualPrice: number;
   customerPrice?: number;
+  customerBigPrice?: number;
   image?: string;
   bigPrice?: number; // Added bigPrice field
   walletDiscount?: number;
@@ -79,6 +80,7 @@ const EditCategoryModal = ({
       actualPrice: category.actualPrice || undefined,
       customerPrice: category.customerPrice || undefined,
       bigPrice: category.bigPrice || undefined,
+      customerBigPrice: category.customerBigPrice || undefined,
       walletDiscount: category.walletDiscount || undefined,
       kurtiType: category.kurtiType || "",
     },
@@ -362,6 +364,31 @@ const EditCategoryModal = ({
                       min="0"
                       disabled={isPending}
                       placeholder="Enter big price"
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value ? parseFloat(value) : undefined);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="customerBigPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Customer Big Price (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="number"
+                      step="5"
+                      min="0"
+                      disabled={isPending}
+                      placeholder="Enter customer big price"
                       value={field.value || ""}
                       onChange={(e) => {
                         const value = e.target.value;

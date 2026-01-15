@@ -265,6 +265,7 @@ const ListPage = () => {
       actualPrice: undefined,
       customerPrice: undefined,
       bigPrice: undefined,
+      customerBigPrice: undefined,
       price: undefined,
     },
   });
@@ -339,6 +340,9 @@ const ListPage = () => {
           price: values.price,
           bigPrice: values.bigPrice
             ? parseFloat(values.bigPrice?.toString())
+            : null,
+          customerBigPrice: values.customerBigPrice
+            ? parseFloat(values.customerBigPrice?.toString())
             : null,
           actualPrice: values.actualPrice
             ? parseFloat(values.actualPrice?.toString())
@@ -1644,6 +1648,38 @@ const ListPage = () => {
                               onBlur={field.onBlur}
                               disabled={isPending}
                               placeholder="Enter price of big size"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="customerBigPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Customer Big price</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === "" || value === null) {
+                                  field.onChange(undefined);
+                                } else {
+                                  const numValue = parseFloat(value);
+                                  if (!isNaN(numValue)) {
+                                    field.onChange(numValue);
+                                  } else {
+                                    field.onChange(undefined);
+                                  }
+                                }
+                              }}
+                              onBlur={field.onBlur}
+                              disabled={isPending}
+                              placeholder="Enter customer big price"
                             />
                           </FormControl>
                           <FormMessage />

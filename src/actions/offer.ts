@@ -7,6 +7,7 @@ import { UserRole } from "@prisma/client";
 interface OfferAdditionProps {
   name: string;
   qty: number;
+  totalAmount?: number;
   categories: string[]; // Array of category IDs
   image?: string;
 }
@@ -19,7 +20,7 @@ export const createOffer = async (data: OfferAdditionProps) => {
     return { error: "Unauthorized" };
   }
 
-  const { name, qty, categories, image } = data;
+  const { name, qty, totalAmount, categories, image } = data;
 
   if (name.length === 0) {
     return { error: "Offer name can't be empty" };
@@ -38,6 +39,7 @@ export const createOffer = async (data: OfferAdditionProps) => {
       data: {
         name,
         qty,
+        totalAmount: totalAmount ?? null,
         categories,
         image: image || "",
       },
@@ -69,6 +71,49 @@ export const getAllOffers = async () => {
   } catch (error: any) {
     console.error("Error fetching offers:", error);
     return { error: error.message || "Failed to fetch offers" };
+  }
+};
+
+export const updateOffer = async (offerId: string, data: OfferAdditionProps) => {
+  const user = await currentUser();
+  const role = await currentRole();
+
+  if (!user || role !== UserRole.ADMIN) {
+    return { error: "Unauthorized" };
+  }
+
+  const { name, qty, totalAmount, categories, image } = data;
+
+  if (name.length === 0) {
+    return { error: "Offer name can't be empty" };
+  }
+
+  if (qty <= 0) {
+    return { error: "Quantity must be greater than 0" };
+  }
+
+  if (!categories || categories.length === 0) {
+    return { error: "At least one category must be selected" };
+  }
+
+  try {
+    const offer = await db.offer.update({
+      where: {
+        id: offerId,
+      },
+      data: {
+        name,
+        qty,
+        totalAmount: totalAmount ?? null,
+        categories,
+        image: image || "",
+      },
+    });
+
+    return { success: "Offer updated successfully!", data: offer };
+  } catch (error: any) {
+    console.error("Error updating offer:", error);
+    return { error: error.message || "Failed to update offer" };
   }
 };
 

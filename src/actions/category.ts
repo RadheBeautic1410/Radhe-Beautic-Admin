@@ -26,6 +26,7 @@ interface categoryAddtionProps {
   sellingPrice?: number | null;
   customerPrice?: number | null;
   bigPrice?: number | null;
+  customerBigPrice?: number | null;
   walletDiscount?: number;
   kurtiType?: string;
 }
@@ -34,7 +35,7 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
   const user = await currentUser();
   const role = await currentRole();
 
-  const { name, type, image, actualPrice, sellingPrice, customerPrice, bigPrice, price } =
+  const { name, type, image, actualPrice, sellingPrice, customerPrice, bigPrice, customerBigPrice, price } =
     data;
   if (name.length === 0) {
     return { error: "Category Can't be empty" };
@@ -90,6 +91,7 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
       sellingPrice: sellingPrice || 0,
       customerPrice: customerPrice || 0,
       bigPrice: bigPrice || 0,
+      customerBigPrice: customerBigPrice || 0,
       kurtiType: data.kurtiType || null,
       isVisibleForCustomer: true,
     },
@@ -168,6 +170,7 @@ export const categoryUpdate = async (
     type,
     image,
     bigPrice,
+    customerBigPrice,
     walletDiscount,
     sellingPrice,
     actualPrice,
@@ -203,6 +206,7 @@ export const categoryUpdate = async (
         sellingPrice: sellingPrice ?? existingCategory.sellingPrice,
         customerPrice: customerPrice ?? existingCategory.customerPrice,
         bigPrice: bigPrice ?? existingCategory.bigPrice,
+        customerBigPrice: customerBigPrice ?? existingCategory.customerBigPrice,
         walletDiscount: walletDiscount ?? existingCategory.walletDiscount,
         kurtiType: data.kurtiType ?? existingCategory.kurtiType,
       },

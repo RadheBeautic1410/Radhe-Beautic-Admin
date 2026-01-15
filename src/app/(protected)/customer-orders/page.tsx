@@ -607,7 +607,114 @@ const CustomerOrdersPage = () => {
             </div>
           ) : (
             <>
-              <div className="rounded-md border">
+              {/* Mobile Card View */}
+              <div className="block md:hidden space-y-3">
+                {orders.map((order) => (
+                  <Card key={order.id} className="border">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="font-semibold text-base mb-1">
+                            {order.orderId}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {order.user.name || "N/A"}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {order.user.phoneNumber}
+                          </div>
+                        </div>
+                        <div className="ml-2">
+                          {getStatusBadge(order.status)}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-500">Total:</span>
+                          <span className="font-medium ml-1">
+                            ₹{order.total.toFixed(2)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Shipping:</span>
+                          <span className="font-medium ml-1">
+                            ₹{order.shippingCharge.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Date:</span>
+                          <span className="font-medium ml-1 text-xs">
+                            {formatDate(order.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-2 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewOrder(order)}
+                          className="flex-1 min-w-[80px]"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadAddressPDF(order)}
+                          title="Download Address PDF"
+                          className="flex-1 min-w-[80px]"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
+                        {order.status === OrderStatus.PENDING && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleViewOrder(order)}
+                            disabled={isPending}
+                            className="flex-1 min-w-[100px]"
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-1" />
+                            Accept
+                          </Button>
+                        )}
+                        {order.status === OrderStatus.TRACKINGPENDING && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleOpenTrackingDialog(order)}
+                            disabled={updatingTracking}
+                            className="flex-1 min-w-[120px]"
+                          >
+                            <Truck className="h-4 w-4 mr-1" />
+                            Assign Tracking
+                          </Button>
+                        )}
+                        {(order.status === OrderStatus.PENDING ||
+                          order.status === OrderStatus.TRACKINGPENDING) && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleCancelOrder(order.id)}
+                            disabled={isPending}
+                            className="flex-1 min-w-[80px]"
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Cancel
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -774,7 +881,7 @@ const CustomerOrdersPage = () => {
       <Sheet open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <SheetContent
           side="right"
-          className="w-[75vw] sm:w-[75vw] p-0 flex flex-col"
+          className="w-full sm:w-[90vw] md:w-[75vw] p-0 flex flex-col"
         >
           <SheetHeader className="px-5 pt-5 pb-3 border-b flex-shrink-0">
             <SheetTitle className="text-xl font-bold">
@@ -791,7 +898,7 @@ const CustomerOrdersPage = () => {
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <div className="space-y-4">
                 {/* Customer Information and Shipping Address - Side by Side */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base">
@@ -864,7 +971,7 @@ const CustomerOrdersPage = () => {
                     <CardTitle className="text-base">Order Products</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       {selectedOrder.cart.CartProduct.map((cartProduct) => {
                         const totalQuantity =
                           Array.isArray(cartProduct.sizes) &&
@@ -1039,7 +1146,7 @@ const CustomerOrdersPage = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Payment Information Display */}
                     {(isOrderTrackingPending || isOrderAccepted) &&
                       selectedOrder.paymentStatus && (

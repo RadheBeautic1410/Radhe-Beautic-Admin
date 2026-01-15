@@ -105,6 +105,20 @@ export const categoryAddSchema = z.object({
       })
       .optional()
   ),
+  customerBigPrice: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return undefined;
+      if (typeof val === "number") return val;
+      const num = parseFloat(val as string);
+      return isNaN(num) ? undefined : num;
+    },
+    z
+      .number()
+      .min(1, {
+        message: "Customer big price must be a number greater than 0",
+      })
+      .optional()
+  ),
 });
 
 export const stockUpdateSchema = z.object({
@@ -249,6 +263,7 @@ export const categoryEditSchema = z.object({
   type: z.string().optional(),
   image: z.string().optional(),
   bigPrice: z.number().optional(),
+  customerBigPrice: z.number().optional(),
   sellingPrice: z.number().optional(),
   actualPrice: z.number().optional(),
   customerPrice: z.number().optional(),
