@@ -10,6 +10,7 @@ interface OfferAdditionProps {
   totalAmount?: number;
   categories: string[]; // Array of category IDs
   image?: string;
+  description?: string;
 }
 
 export const createOffer = async (data: OfferAdditionProps) => {
@@ -20,7 +21,7 @@ export const createOffer = async (data: OfferAdditionProps) => {
     return { error: "Unauthorized" };
   }
 
-  const { name, qty, totalAmount, categories, image } = data;
+  const { name, qty, totalAmount, categories, image, description } = data;
 
   if (name.length === 0) {
     return { error: "Offer name can't be empty" };
@@ -42,6 +43,7 @@ export const createOffer = async (data: OfferAdditionProps) => {
         totalAmount: totalAmount ?? null,
         categories,
         image: image || "",
+        description: description || null,
       },
     });
 
@@ -82,7 +84,7 @@ export const updateOffer = async (offerId: string, data: OfferAdditionProps) => 
     return { error: "Unauthorized" };
   }
 
-  const { name, qty, totalAmount, categories, image } = data;
+  const { name, qty, totalAmount, categories, image, description } = data;
 
   if (name.length === 0) {
     return { error: "Offer name can't be empty" };
@@ -107,6 +109,7 @@ export const updateOffer = async (offerId: string, data: OfferAdditionProps) => 
         totalAmount: totalAmount ?? null,
         categories,
         image: image || "",
+        description: description || null,
       },
     });
 

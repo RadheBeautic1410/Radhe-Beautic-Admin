@@ -61,6 +61,7 @@ import {
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { generateAddressInfo } from "@/src/actions/generate-pdf";
+import { DeleteConfirmationDialog } from "@/src/components/delete-confirmation-dialog";
 
 interface CartProduct {
   id: string;
@@ -164,6 +165,10 @@ const CustomerOrdersPage = () => {
 
   // Image viewer state
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+
+  // Cancel order confirmation state
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
 
   // Fetch orders based on filters and pagination
   const fetchOrders = async () => {
@@ -282,11 +287,19 @@ const CustomerOrdersPage = () => {
     }
   };
 
-  // Handle cancel order
-  const handleCancelOrder = (orderId: string) => {
+  // Handle cancel order click - show confirmation dialog
+  const handleCancelOrderClick = (orderId: string) => {
+    setOrderToCancel(orderId);
+    setCancelDialogOpen(true);
+  };
+
+  // Handle cancel order confirmation
+  const handleCancelOrderConfirm = () => {
+    if (!orderToCancel) return;
+    
     startTransition(async () => {
       try {
-        const result = await cancelCustomerOrder(orderId);
+        const result = await cancelCustomerOrder(orderToCancel);
         if (result.success) {
           toast.success(result.message || "Order cancelled successfully");
           fetchOrders(); // Refresh the list
@@ -296,6 +309,9 @@ const CustomerOrdersPage = () => {
       } catch (error) {
         console.error("Error cancelling order:", error);
         toast.error("Failed to cancel order");
+      } finally {
+        setCancelDialogOpen(false);
+        setOrderToCancel(null);
       }
     });
   };
@@ -346,6 +362,17 @@ const CustomerOrdersPage = () => {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  // Calculate total quantity for an order
+  const calculateTotalQuantity = (order: CustomerOrder): number => {
+    return order.cart.CartProduct.reduce((total, cartProduct) => {
+      const productQuantity = cartProduct.sizes.reduce(
+        (sum, size) => sum + size.quantity,
+        0
+      );
+      return total + productQuantity;
+    }, 0);
   };
 
   // Handle download address PDF
@@ -495,8 +522,8 @@ const CustomerOrdersPage = () => {
     selectedOrder?.status === OrderStatus.SHIPPED;
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <Card>
+    <>
+    <Card className="rounded-none w-full h-full">
         <CardHeader>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -699,7 +726,7 @@ const CustomerOrdersPage = () => {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => handleCancelOrder(order.id)}
+                            onClick={() => handleCancelOrderClick(order.id)}
                             disabled={isPending}
                             className="flex-1 min-w-[80px]"
                           >
@@ -721,24 +748,33 @@ const CustomerOrdersPage = () => {
                       <TableHead>Order ID</TableHead>
                       <TableHead>Customer</TableHead>
                       <TableHead>Phone</TableHead>
+                      <TableHead>Quantity</TableHead>
                       <TableHead>Total Amount</TableHead>
-                      <TableHead>Shipping Charge</TableHead>
+                      <TableHead>Grand Total</TableHead>
                       <TableHead>Order Date</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((order) => (
+                    {orders.map((order) => {
+                      const totalQuantity = calculateTotalQuantity(order);
+                      const grandTotal = order.total + order.shippingCharge;
+                      return (
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">
                           {order.orderId}
                         </TableCell>
                         <TableCell>{order.user.name || "N/A"}</TableCell>
                         <TableCell>{order.user.phoneNumber}</TableCell>
-                        <TableCell>₹{order.total.toFixed(2)}</TableCell>
+                        <TableCell className="font-medium">
+                          {totalQuantity}
+                        </TableCell>
                         <TableCell>
-                          ₹{order.shippingCharge.toFixed(2)}
+                          ₹{order.total.toFixed(2)} + ₹{order.shippingCharge.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          ₹{grandTotal.toFixed(2)}
                         </TableCell>
                         <TableCell>{formatDate(order.createdAt)}</TableCell>
                         <TableCell>{getStatusBadge(order.status)}</TableCell>
@@ -788,7 +824,7 @@ const CustomerOrdersPage = () => {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleCancelOrder(order.id)}
+                                onClick={() => handleCancelOrderClick(order.id)}
                                 disabled={isPending}
                               >
                                 <XCircle className="h-4 w-4 mr-1" />
@@ -798,7 +834,8 @@ const CustomerOrdersPage = () => {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -1424,7 +1461,23 @@ const CustomerOrdersPage = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* Cancel Order Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        onConfirm={handleCancelOrderConfirm}
+        title="Cancel Order"
+        description={
+          orderToCancel
+            ? `Are you sure you want to cancel order "${orders.find((o) => o.id === orderToCancel)?.orderId || orderToCancel}"? This action will release reserved quantities and cannot be undone.`
+            : "Are you sure you want to cancel this order? This action will release reserved quantities and cannot be undone."
+        }
+        confirmButtonText="Cancel Order"
+        cancelButtonText="Keep Order"
+        isLoading={isPending}
+      />
+    </>
   );
 };
 

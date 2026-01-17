@@ -3,6 +3,7 @@
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
+import { Textarea } from "@/src/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -48,6 +49,7 @@ const offerSchema = z.object({
   totalAmount: z.number().min(0, "Total amount must be 0 or greater").optional(),
   categories: z.array(z.string()).min(1, "At least one category must be selected"),
   image: z.string().optional(),
+  description: z.string().optional(),
 });
 
 type OfferFormValues = z.infer<typeof offerSchema>;
@@ -59,6 +61,7 @@ interface Offer {
   totalAmount?: number | null;
   categories: string[];
   image?: string | null;
+  description?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -89,6 +92,7 @@ const OffersPage = () => {
       totalAmount: undefined,
       categories: [],
       image: "",
+      description: "",
     },
   });
 
@@ -157,6 +161,7 @@ const OffersPage = () => {
               totalAmount: values.totalAmount,
               categories: selectedCategories,
               image: imageUrl,
+              description: values.description?.trim() || undefined,
             })
           : await createOffer({
               name: values.name.trim(),
@@ -164,6 +169,7 @@ const OffersPage = () => {
               totalAmount: values.totalAmount,
               categories: selectedCategories,
               image: imageUrl,
+              description: values.description?.trim() || undefined,
             });
 
         if (result.success) {
@@ -176,6 +182,7 @@ const OffersPage = () => {
             totalAmount: undefined,
             categories: [],
             image: "",
+            description: "",
           });
           setSelectedCategories([]);
           setImages([]);
@@ -232,6 +239,7 @@ const OffersPage = () => {
       totalAmount: offer.totalAmount ?? undefined,
       categories: offer.categories,
       image: offer.image || "",
+      description: offer.description || "",
     });
     setSelectedCategories(offer.categories);
     if (offer.image) {
@@ -336,6 +344,26 @@ const OffersPage = () => {
                                 onChange={(e) =>
                                   field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)
                                 }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                disabled={isPending}
+                                placeholder="Enter offer description"
+                                rows={4}
+                                className="resize-none"
                               />
                             </FormControl>
                             <FormMessage />
@@ -578,6 +606,7 @@ const OffersPage = () => {
               totalAmount: undefined,
               categories: [],
               image: "",
+              description: "",
             });
             setSelectedCategories([]);
             setImages([]);
@@ -654,6 +683,26 @@ const OffersPage = () => {
                         onChange={(e) =>
                           field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)
                         }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        disabled={isPending}
+                        placeholder="Enter offer description"
+                        rows={4}
+                        className="resize-none"
                       />
                     </FormControl>
                     <FormMessage />

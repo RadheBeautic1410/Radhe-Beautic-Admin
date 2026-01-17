@@ -580,6 +580,7 @@ model Offer {
   totalAmount Float?
   categories  String[] // Array of category IDs
   image       String?
+  description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
