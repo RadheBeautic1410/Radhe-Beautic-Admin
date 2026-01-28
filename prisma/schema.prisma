@@ -87,6 +87,19 @@ model User {
   WalletRequest      WalletRequest[]
   resellersCustomers ResellersCustomer[]
   customerOrders     CustomerOrder[]
+
+  // Indexes for query performance
+  @@index([role])
+  @@index([isVerified])
+  @@index([email])
+  @@index([organization])
+  @@index([groupName])
+  @@index([role, isVerified])
+  @@index([role, organization])
+  @@index([isVerified, organization])
+  @@index([groupName, role])
+  @@index([verifiedBy])
+  @@index([name])
 }
 
 model VerificationToken {
@@ -163,6 +176,19 @@ model Category {
   customerPrice       Float?
   isStockReady        Boolean @default(true)
   isVisibleForCustomer Boolean @default(true)
+
+  // Indexes for query performance
+  @@index([isDeleted])
+  @@index([isVisibleForCustomer])
+  @@index([isStockReady])
+  @@index([isDeleted, isVisibleForCustomer])
+  @@index([isDeleted, isStockReady])
+  @@index([type])
+  @@index([kurtiType])
+  @@index([type, isDeleted])
+  @@index([kurtiType, isDeleted])
+  @@index([isVisibleForCustomer, isStockReady])
+  @@index([name])
 }
 
 model Prices {
@@ -208,6 +234,20 @@ model Kurti {
   OnlineSell        OnlineSell[]
   createdAt         DateTime?           @default(now())
   updatedAt         DateTime?           @updatedAt
+
+  // Indexes for query performance
+  @@index([category])
+  @@index([isDeleted])
+  @@index([party])
+  @@index([isBigPrice])
+  @@index([countOfPiece])
+  @@index([pricesId])
+  @@index([category, isDeleted])
+  @@index([party, isDeleted])
+  @@index([category, isBigPrice])
+  @@index([isDeleted, countOfPiece])
+  @@index([lastUpdatedTime])
+  @@index([createdAt])
 }
 
 model ShippingRate {

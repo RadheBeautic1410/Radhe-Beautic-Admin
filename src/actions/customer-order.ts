@@ -362,44 +362,55 @@ export const acceptCustomerOrder = async (
         }
       }
 
-      // Update order status
+      // Update order status (minimal include to reduce transaction time)
       const updatedOrder = await tx.customerOrder.update({
         where: {
           id: orderId,
         },
         data: updateData,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              phoneNumber: true,
-              email: true,
-            },
+        select: {
+          id: true,
+        },
+      });
+
+      return updatedOrder;
+    }, {
+      maxWait: 20000, // Maximum time to wait for a transaction slot (20 seconds)
+      timeout: 20000, // Maximum time the transaction can run (20 seconds)
+    });
+
+    // Fetch the full order data after transaction completes (to avoid heavy includes in transaction)
+    const fullOrder = await db.customerOrder.findUnique({
+      where: { id: orderId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+            email: true,
           },
-          shippingAddress: true,
-          cart: {
-            include: {
-              CartProduct: {
-                include: {
-                  kurti: {
-                    include: {
-                      prices: true,
-                    },
+        },
+        shippingAddress: true,
+        cart: {
+          include: {
+            CartProduct: {
+              include: {
+                kurti: {
+                  include: {
+                    prices: true,
                   },
                 },
               },
             },
           },
         },
-      });
-
-      return updatedOrder;
+      },
     });
 
     return {
       success: true,
-      data: result,
+      data: fullOrder || result,
       message: "Order accepted successfully",
     };
   } catch (error: any) {
