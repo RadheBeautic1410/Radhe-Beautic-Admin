@@ -33,13 +33,17 @@ function SellPage() {
   const [kurti, setKurti] = useState<any>(null);
   const [selling, setSelling] = useState(false);
   const [sizes, setSellSize] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const currentUser = useCurrentUser();
   // console.log(currentUser);
   const handleSell = async () => {
     try {
       setSelling(true);
+      setErrorMessage(null); // Clear previous error
       if (code.length < 7) {
-        toast.error("PLease enter correct code!!!");
+        const errorMsg = "Please enter correct code!!!";
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
       } else {
         console.log(currentUser);
         const currentTime = new Date();
@@ -59,9 +63,11 @@ function SellPage() {
         console.log(res.data);
         const data = res.data.data;
         if (data.error) {
+          setErrorMessage(data.error);
           toast.error(data.error);
           setKurti(null);
         } else {
+          setErrorMessage(null); // Clear error on success
           toast.success("Sold Successfully");
           // console.log(result);
 
@@ -74,6 +80,9 @@ function SellPage() {
       // setCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
     } catch (error) {
       console.error("Error fetching data:", error);
+      const errorMsg = "Failed to process sale. Please try again.";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setCode("");
       setSelling(false);
@@ -101,7 +110,7 @@ function SellPage() {
           <div className="flex flex-col flex-wrap">
             <h3>Product Code</h3>
             <Input
-              className="w-[100%]"
+              className={`w-[100%] ${errorMessage ? "border-red-500 focus-visible:ring-red-500" : ""}`}
               placeholder="Enter code"
               value={code}
               onKeyUp={(e) => {
@@ -111,9 +120,16 @@ function SellPage() {
               }}
               onChange={(e) => {
                 setCode(e.target.value);
+                setErrorMessage(null); // Clear error when user types
               }}
               // disabled
             ></Input>
+            {errorMessage && (
+              <p className="text-red-500 text-sm font-medium mt-1 flex items-center gap-1">
+                <span className="text-red-600">⚠</span>
+                {errorMessage}
+              </p>
+            )}
           </div>
           <Button
             type="button"

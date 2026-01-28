@@ -411,6 +411,16 @@ export const sellKurti2 = async (data: any) => {
     console.log("search: ", search);
     const kurti = await db.kurti.findUnique({
       where: { code: search.toUpperCase(), isDeleted: false },
+      select: {
+        id: true,
+        code: true,
+        sizes: true,
+        reservedSizes: true,
+        images: true,
+        sellingPrice: true,
+        actualPrice: true,
+        pricesId: true,
+      },
     });
     console.log(kurti);
     if (!kurti) {
@@ -418,6 +428,7 @@ export const sellKurti2 = async (data: any) => {
     }
     if (kurti?.sizes !== undefined) {
       let arr: any[] = kurti?.sizes;
+      let reservedArr: any[] = kurti?.reservedSizes || [];
       let newArr: any[] = [];
       let flag = 0;
       for (let i = 0; i < arr?.length; i++) {
@@ -429,12 +440,28 @@ export const sellKurti2 = async (data: any) => {
         if (obj.size === cmp) {
           if (obj.quantity == 0) {
             return { error: "Stock is equal to 0, add stock first" };
-          } else {
-            flag = 1;
-            obj.quantity -= 1;
-            if (obj.quantity > 0) {
-              newArr.push(obj);
-            }
+          }
+          
+          // Check reserved quantity
+          const reservedSizeObj = reservedArr.find((r: any) => r.size === cmp);
+          const reservedQty = reservedSizeObj?.quantity || 0;
+          const availableQty = obj.quantity;
+          
+          // If reserved quantity is greater than or equal to available quantity, show error
+          if (reservedQty >= availableQty) {
+            return { error: "This piece is already reserved." };
+          }
+          
+          // Check if trying to sell more than available (after considering reserved)
+          const availableForSale = availableQty - reservedQty;
+          if (availableForSale <= 0) {
+            return { error: "This piece is already reserved." };
+          }
+          
+          flag = 1;
+          obj.quantity -= 1;
+          if (obj.quantity > 0) {
+            newArr.push(obj);
           }
         } else {
           newArr.push(arr[i]);
