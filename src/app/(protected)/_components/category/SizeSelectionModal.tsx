@@ -323,9 +323,15 @@ export const SizeSelectionModal = ({
     }
   };
   const generateLink = async () => {
-    const selectedSizesArr = Array.from(sizes);
-    const Createlink = `http://www.radhebeautic.com//sharebyadmin/${categoryName}/${selectedSizesArr[0]}`;
-    // want to clipboard this createlink
+    if (sizes.size === 0) {
+      toast.error("Please select at least one size");
+      return;
+    }
+
+    const selectedSizesArr = Array.from(sizes).sort();
+    // Join all selected sizes with comma separator
+    const sizesParam = selectedSizesArr.join(",");
+    const Createlink = `http://www.radhebeautic.com//sharebyadmin/${categoryName}/${sizesParam}`;
 
     try {
       await navigator.clipboard.writeText(Createlink);
@@ -425,7 +431,12 @@ export const SizeSelectionModal = ({
           >
             {downloading ? "Downloading..." : "Download Selected Sizes"}
           </Button>
-          <Button onClick={generateLink}>{"Generate link"}</Button>
+          <Button 
+            onClick={generateLink}
+            disabled={sizes.size === 0 || loading}
+          >
+            Generate link
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
