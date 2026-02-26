@@ -118,6 +118,10 @@ const courierServices = [
   { key: "dtdc", value: "DTDC" },
   { key: "delivery", value: "Delivery" },
   { key: "tirupati", value: "Tirupati" },
+  {
+    key: "shreeMahavir",
+    value: "Shree Mahavir",
+  },
 ];
 
 const paymentTypes = [
@@ -137,7 +141,7 @@ const CustomerOrdersPage = () => {
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<CustomerOrder | null>(
-    null
+    null,
   );
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [trackingDialogOpen, setTrackingDialogOpen] = useState(false);
@@ -153,7 +157,7 @@ const CustomerOrdersPage = () => {
 
   // Payment form state (for accepting orders)
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(
-    PaymentStatus.PENDING
+    PaymentStatus.PENDING,
   );
   const [paymentType, setPaymentType] = useState<string>("");
   const [note, setNote] = useState<string>("");
@@ -179,7 +183,7 @@ const CustomerOrdersPage = () => {
         orderIdFilter.trim() || undefined,
         phoneFilter.trim() || undefined,
         page,
-        pageSize
+        pageSize,
       );
       if (result.success && result.data) {
         setOrders(result.data as unknown as CustomerOrder[]);
@@ -296,7 +300,7 @@ const CustomerOrdersPage = () => {
   // Handle cancel order confirmation
   const handleCancelOrderConfirm = () => {
     if (!orderToCancel) return;
-    
+
     startTransition(async () => {
       try {
         const result = await cancelCustomerOrder(orderToCancel);
@@ -335,7 +339,7 @@ const CustomerOrdersPage = () => {
       });
       if (result.success) {
         toast.success(
-          result.message || "Tracking information updated successfully"
+          result.message || "Tracking information updated successfully",
         );
         // Close the tracking dialog
         setTrackingDialogOpen(false);
@@ -369,7 +373,7 @@ const CustomerOrdersPage = () => {
     return order.cart.CartProduct.reduce((total, cartProduct) => {
       const productQuantity = cartProduct.sizes.reduce(
         (sum, size) => sum + size.quantity,
-        0
+        0,
       );
       return total + productQuantity;
     }, 0);
@@ -383,11 +387,11 @@ const CustomerOrdersPage = () => {
         (total, cartProduct) => {
           const productQuantity = cartProduct.sizes.reduce(
             (sum, size) => sum + size.quantity,
-            0
+            0,
           );
           return total + productQuantity;
         },
-        0
+        0,
       );
 
       // Combine name, mobile number, and address into a single string
@@ -408,7 +412,7 @@ const CustomerOrdersPage = () => {
       }
       if (order.shippingAddress.city && order.shippingAddress.state) {
         addressParts.push(
-          `${order.shippingAddress.city}, ${order.shippingAddress.state}`
+          `${order.shippingAddress.city}, ${order.shippingAddress.state}`,
         );
       } else if (order.shippingAddress.city) {
         addressParts.push(order.shippingAddress.city);
@@ -430,7 +434,7 @@ const CustomerOrdersPage = () => {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
-        }
+        },
       );
 
       // Prepare request data - only pass address (name, mobile, address combined)
@@ -471,7 +475,7 @@ const CustomerOrdersPage = () => {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to download address PDF"
+          : "Failed to download address PDF",
       );
     }
   };
@@ -523,7 +527,7 @@ const CustomerOrdersPage = () => {
 
   return (
     <>
-    <Card className="rounded-none w-full h-full">
+      <Card className="rounded-none w-full h-full">
         <CardHeader>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -655,7 +659,7 @@ const CustomerOrdersPage = () => {
                           {getStatusBadge(order.status)}
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <span className="text-gray-500">Total:</span>
@@ -761,79 +765,85 @@ const CustomerOrdersPage = () => {
                       const totalQuantity = calculateTotalQuantity(order);
                       const grandTotal = order.total + order.shippingCharge;
                       return (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium">
-                          {order.orderId}
-                        </TableCell>
-                        <TableCell>{order.user.name || "N/A"}</TableCell>
-                        <TableCell>{order.user.phoneNumber}</TableCell>
-                        <TableCell className="font-medium">
-                          {totalQuantity}
-                        </TableCell>
-                        <TableCell>
-                          ₹{order.total.toFixed(2)} + ₹{order.shippingCharge.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="font-semibold">
-                          ₹{grandTotal.toFixed(2)}
-                        </TableCell>
-                        <TableCell>{formatDate(order.createdAt)}</TableCell>
-                        <TableCell>{getStatusBadge(order.status)}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewOrder(order)}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadAddressPDF(order)}
-                              title="Download Address PDF"
-                            >
-                              <Download className="h-4 w-4 mr-1" />
-                              Download
-                            </Button>
-                            {order.status === OrderStatus.PENDING && (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">
+                            {order.orderId}
+                          </TableCell>
+                          <TableCell>{order.user.name || "N/A"}</TableCell>
+                          <TableCell>{order.user.phoneNumber}</TableCell>
+                          <TableCell className="font-medium">
+                            {totalQuantity}
+                          </TableCell>
+                          <TableCell>
+                            ₹{order.total.toFixed(2)} + ₹
+                            {order.shippingCharge.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            ₹{grandTotal.toFixed(2)}
+                          </TableCell>
+                          <TableCell>{formatDate(order.createdAt)}</TableCell>
+                          <TableCell>{getStatusBadge(order.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
                               <Button
-                                variant="default"
+                                variant="outline"
                                 size="sm"
                                 onClick={() => handleViewOrder(order)}
-                                disabled={isPending}
                               >
-                                <CheckCircle2 className="h-4 w-4 mr-1" />
-                                Accept
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
                               </Button>
-                            )}
-                            {order.status === OrderStatus.TRACKINGPENDING && (
                               <Button
-                                variant="default"
+                                variant="outline"
                                 size="sm"
-                                onClick={() => handleOpenTrackingDialog(order)}
-                                disabled={updatingTracking}
+                                onClick={() => handleDownloadAddressPDF(order)}
+                                title="Download Address PDF"
                               >
-                                <Truck className="h-4 w-4 mr-1" />
-                                Assign Tracking
+                                <Download className="h-4 w-4 mr-1" />
+                                Download
                               </Button>
-                            )}
-                            {(order.status === OrderStatus.PENDING ||
-                              order.status === OrderStatus.TRACKINGPENDING) && (
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleCancelOrderClick(order.id)}
-                                disabled={isPending}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Cancel
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                              {order.status === OrderStatus.PENDING && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => handleViewOrder(order)}
+                                  disabled={isPending}
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                                  Accept
+                                </Button>
+                              )}
+                              {order.status === OrderStatus.TRACKINGPENDING && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleOpenTrackingDialog(order)
+                                  }
+                                  disabled={updatingTracking}
+                                >
+                                  <Truck className="h-4 w-4 mr-1" />
+                                  Assign Tracking
+                                </Button>
+                              )}
+                              {(order.status === OrderStatus.PENDING ||
+                                order.status ===
+                                  OrderStatus.TRACKINGPENDING) && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleCancelOrderClick(order.id)
+                                  }
+                                  disabled={isPending}
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Cancel
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
                   </TableBody>
@@ -1016,7 +1026,7 @@ const CustomerOrdersPage = () => {
                             ? cartProduct.sizes.reduce(
                                 (sum: number, sizeItem: any) =>
                                   sum + (sizeItem.quantity || 0),
-                                0
+                                0,
                               )
                             : 0;
                         return (
@@ -1032,7 +1042,7 @@ const CustomerOrdersPage = () => {
                                   className="w-14 h-14 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
                                   onClick={() =>
                                     setSelectedImageUrl(
-                                      cartProduct.kurti.images[0].url
+                                      cartProduct.kurti.images[0].url,
                                     )
                                   }
                                 />
@@ -1072,7 +1082,7 @@ const CustomerOrdersPage = () => {
                                             </span>
                                           )}
                                       </div>
-                                    )
+                                    ),
                                   )
                                 ) : (
                                   <span className="text-xs text-gray-400">
@@ -1174,7 +1184,7 @@ const CustomerOrdersPage = () => {
                             className="w-full max-w-xs border rounded-md cursor-pointer hover:opacity-80 transition-opacity"
                             onClick={() =>
                               setSelectedImageUrl(
-                                selectedOrder.paymentScreenshot!
+                                selectedOrder.paymentScreenshot!,
                               )
                             }
                           />
@@ -1199,7 +1209,7 @@ const CustomerOrdersPage = () => {
                                 Status:
                               </span>
                               {getPaymentStatusBadge(
-                                selectedOrder.paymentStatus
+                                selectedOrder.paymentStatus,
                               )}
                             </div>
                             {selectedOrder.paymentType && (
@@ -1233,7 +1243,7 @@ const CustomerOrdersPage = () => {
                                   className="w-full max-w-xs border rounded-md cursor-pointer hover:opacity-80 transition-opacity"
                                   onClick={() =>
                                     setSelectedImageUrl(
-                                      selectedOrder.paymentScreenshot!
+                                      selectedOrder.paymentScreenshot!,
                                     )
                                   }
                                 />
@@ -1260,7 +1270,7 @@ const CustomerOrdersPage = () => {
                               </span>
                               <span className="font-medium text-sm">
                                 {courierServices.find(
-                                  (c) => c.key === selectedOrder.courier
+                                  (c) => c.key === selectedOrder.courier,
                                 )?.value ||
                                   selectedOrder.courier ||
                                   "N/A"}

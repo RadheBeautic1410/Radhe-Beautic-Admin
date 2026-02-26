@@ -70,6 +70,10 @@ const courierServices = [
     key: "tirupati",
     value: "Tirupati",
   },
+  {
+      key: "shreeMahavir",
+      value: "Shree Mahavir",
+    },
 ];
 
 function SaleDetailsPage({ params }: SaleDetailsPageProps) {

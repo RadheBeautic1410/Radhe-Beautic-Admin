@@ -99,6 +99,10 @@ function SellPage() {
       key: "tirupati",
       value: "Tirupati",
     },
+        {
+      key: "shreeMahavir",
+      value: "Shree Mahavir",
+    },
   ];
   // Fetch order data function
   const fetchOrderData = async () => {

@@ -45,6 +45,33 @@ const updateSizeQuantity = (sizes: any[], size: string, change: number): any[] =
   return updatedSizes;
 };
 
+// Helper function to safely update reserved sizes (doesn't throw error if size doesn't exist)
+const updateReservedSizeQuantity = (sizes: any[], size: string, change: number): any[] => {
+  const updatedSizes = [...sizes];
+  const existingSizeIndex = updatedSizes.findIndex((s: any) => s.size === size);
+  
+  if (existingSizeIndex !== -1) {
+    // Size exists, update quantity
+    const existingSize = updatedSizes[existingSizeIndex] as any;
+    existingSize.quantity += change;
+    
+    if (existingSize.quantity === 0) {
+      // Remove size if quantity becomes 0
+      return updatedSizes.filter((s: any) => s.size !== size);
+    } else if (existingSize.quantity < 0) {
+      // If quantity goes negative, set to 0 (don't throw error)
+      existingSize.quantity = 0;
+      return updatedSizes.filter((s: any) => s.size !== size);
+    }
+  } else if (change > 0) {
+    // Size doesn't exist, add new size entry (only if adding)
+    updatedSizes.push({ size, quantity: change });
+  }
+  // If size doesn't exist and we're trying to deduct, just return unchanged (don't throw error)
+  
+  return updatedSizes;
+};
+
 // Helper function to get current time
 const getCurrTime = (): Date => {
   const currentTime = new Date();
@@ -322,13 +349,23 @@ export const acceptCustomerOrder = async (
           
           for (const size in sizesToDeduct) {
             const quantity = sizesToDeduct[size];
+            
+            // First, check if size is available in actual stock (sizes)
+            const sizeInStock = updatedSizes.find((s: any) => s.size === size);
+            const availableInStock = sizeInStock ? sizeInStock?.quantity : 0;
+            
+            if (availableInStock < quantity) {
+              // Not enough in actual stock - throw error
+              throw new Error(`Size-${size} is not available (only ${availableInStock} available, need ${quantity})`);
+            }
+            
             totalQuantityDeducted += quantity;
             
-            // Deduct from actual sizes (stock)
+            // Deduct from actual sizes (stock) - this will throw error if not available
             updatedSizes = updateSizeQuantity(updatedSizes, size, -quantity);
             
-            // Deduct from reservedSizes (release reserved quantities)
-            updatedReservedSizes = updateSizeQuantity(updatedReservedSizes, size, -quantity);
+            // Deduct from reservedSizes (release reserved quantities) - safe function that doesn't throw if size doesn't exist
+            updatedReservedSizes = updateReservedSizeQuantity(updatedReservedSizes, size, -quantity);
           }
           
           // Update kurti with deducted quantities
