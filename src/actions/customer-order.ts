@@ -351,8 +351,8 @@ export const acceptCustomerOrder = async (
             const quantity = sizesToDeduct[size];
             
             // First, check if size is available in actual stock (sizes)
-            const sizeInStock = updatedSizes.find((s: any) => s.size === size);
-            const availableInStock = sizeInStock ? sizeInStock?.quantity : 0;
+            const sizeInStock = updatedSizes.find((s: any) => s.size === size) as { size: string; quantity: number } | undefined;
+            const availableInStock = sizeInStock ? sizeInStock.quantity : 0;
             
             if (availableInStock < quantity) {
               // Not enough in actual stock - throw error
