@@ -1263,7 +1263,7 @@ const ExpensesPage = () => {
               ? `Are you sure you want to delete "${itemToDelete.name}"? This action cannot be undone.`
               : ""
           }
-          isPending={isPending}
+          isLoading={isPending}
         />
         </CardContent>
       </Card>
