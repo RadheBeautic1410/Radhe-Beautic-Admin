@@ -182,6 +182,12 @@ const routes: MenuItem[] = [
     icon: "💰",
   },
   {
+    name: "Expenses",
+    href: "/expenses",
+    role: [UserRole.ADMIN],
+    icon: "💸",
+  },
+  {
     name: "Customer",
     href: "#",
     role: [UserRole.ADMIN],
