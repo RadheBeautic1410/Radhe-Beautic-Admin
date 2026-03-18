@@ -80,6 +80,9 @@ const expenseSchema = z.object({
   amount: z.number().min(0.01, "Amount must be greater than 0"),
   description: z.string().optional(),
   date: z.date(),
+  paymentMethod: z.string().default("CASH"),
+  isPaid: z.boolean().default(false),
+  paidDate: z.date().optional().nullable(),
 });
 
 const reasonSchema = z.object({
@@ -108,6 +111,9 @@ interface Expense {
   amount: number;
   description: string | null;
   date: Date;
+  paymentMethod: string;
+  isPaid: boolean;
+  paidDate: Date | null;
   createdAt: Date;
   reason: { id: string; name: string };
   subReason: { id: string; name: string } | null;
@@ -171,6 +177,9 @@ const ExpensesPage = () => {
       amount: 0,
       description: "",
       date: new Date(),
+      paymentMethod: "CASH",
+      isPaid: false,
+      paidDate: null,
     },
   });
 
@@ -317,6 +326,9 @@ const ExpensesPage = () => {
       amount: expense.amount,
       description: expense.description || "",
       date: new Date(expense.date),
+      paymentMethod: expense.paymentMethod || "CASH",
+      isPaid: expense.isPaid ?? false,
+      paidDate: expense.paidDate ? new Date(expense.paidDate) : null,
     });
     setExpenseDialogOpen(true);
   };
@@ -530,8 +542,8 @@ const ExpensesPage = () => {
                       Add Expense
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
+                  <DialogContent className="max-w-2xl max-h-[85vh] !flex !flex-col">
+                    <DialogHeader className="flex-shrink-0">
                       <DialogTitle>
                         {editingItem && "amount" in editingItem
                           ? "Edit Expense"
@@ -543,11 +555,12 @@ const ExpensesPage = () => {
                           : "Add a new expense to the system"}
                       </DialogDescription>
                     </DialogHeader>
-                    <Form {...expenseForm}>
-                      <form
-                        onSubmit={expenseForm.handleSubmit(onExpenseSubmit)}
-                        className="space-y-4"
-                      >
+                    <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+                      <Form {...expenseForm}>
+                        <form
+                          onSubmit={expenseForm.handleSubmit(onExpenseSubmit)}
+                          className="space-y-4"
+                        >
                         <FormField
                           control={expenseForm.control}
                           name="reasonId"
@@ -633,6 +646,54 @@ const ExpensesPage = () => {
                             </FormItem>
                           )}
                         />
+                                                <FormField
+                          control={expenseForm.control}
+                          name="paymentMethod"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Payment Method *</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select payment method" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="CASH">Cash</SelectItem>
+                                  <SelectItem value="GPAY">GPay</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={expenseForm.control}
+                          name="isPaid"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                              <div className="space-y-0.5">
+                                <FormLabel>Is Paid</FormLabel>
+                                <div className="text-sm text-muted-foreground">
+                                  Check if payment has been made
+                                </div>
+                              </div>
+                              <FormControl>
+                                <input
+                                  type="checkbox"
+                                  checked={field.value}
+                                  onChange={field.onChange}
+                                  className="h-4 w-4"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
 
                         <FormField
                           control={expenseForm.control}
@@ -675,23 +736,55 @@ const ExpensesPage = () => {
                           )}
                         />
 
-                        <DialogFooter>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setExpenseDialogOpen(false);
-                              resetForms();
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button type="submit" disabled={isPending}>
-                            {isPending ? "Saving..." : "Save"}
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </Form>
+                        {expenseForm.watch("isPaid") && (
+                          <FormField
+                            control={expenseForm.control}
+                            name="paidDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Paid Date</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="date"
+                                    value={
+                                      field.value
+                                        ? new Date(field.value).toISOString().split("T")[0]
+                                        : ""
+                                    }
+                                    onChange={(e) =>
+                                      field.onChange(
+                                        e.target.value ? new Date(e.target.value) : null
+                                      )
+                                    }
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                        </form>
+                      </Form>
+                    </div>
+                    <DialogFooter className="flex-shrink-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setExpenseDialogOpen(false);
+                          resetForms();
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="button"
+                        disabled={isPending}
+                        onClick={expenseForm.handleSubmit(onExpenseSubmit)}
+                      >
+                        {isPending ? "Saving..." : "Save"}
+                      </Button>
+                    </DialogFooter>
                   </DialogContent>
                 </Dialog>
               </CardHeader>
@@ -710,6 +803,9 @@ const ExpensesPage = () => {
                         <TableHead>Reason</TableHead>
                         <TableHead>SubReason</TableHead>
                         <TableHead>Amount</TableHead>
+                        <TableHead>Payment Method</TableHead>
+                        <TableHead>Is Paid</TableHead>
+                        <TableHead>Paid Date</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>Created By</TableHead>
                         <TableHead>Actions</TableHead>
@@ -730,6 +826,23 @@ const ExpensesPage = () => {
                             )}
                           </TableCell>
                           <TableCell>₹{expense.amount.toLocaleString("en-IN")}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {expense.paymentMethod === "GPAY" ? "GPay" : "Cash"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={expense.isPaid ? "default" : "secondary"}>
+                              {expense.isPaid ? "Paid" : "Unpaid"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {expense.paidDate ? (
+                              new Date(expense.paidDate).toLocaleDateString()
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             {expense.description || (
                               <span className="text-muted-foreground">-</span>

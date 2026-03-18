@@ -376,6 +376,9 @@ export interface ExpenseData {
   amount: number;
   description?: string;
   date?: Date;
+  paymentMethod?: string;
+  isPaid?: boolean;
+  paidDate?: Date | null;
 }
 
 export const createExpense = async (data: ExpenseData) => {
@@ -430,6 +433,9 @@ export const createExpense = async (data: ExpenseData) => {
         amount: data.amount,
         description: data.description?.trim() || null,
         date: data.date || new Date(),
+        paymentMethod: data.paymentMethod || "CASH",
+        isPaid: data.isPaid ?? false,
+        paidDate: data.paidDate || null,
         createdById: user.id,
       },
       include: {
@@ -516,6 +522,11 @@ export const updateExpense = async (id: string, data: Partial<ExpenseData>) => {
           description: data.description?.trim() || null,
         }),
         ...(data.date && { date: data.date }),
+        ...(data.paymentMethod !== undefined && {
+          paymentMethod: data.paymentMethod,
+        }),
+        ...(data.isPaid !== undefined && { isPaid: data.isPaid }),
+        ...(data.paidDate !== undefined && { paidDate: data.paidDate || null }),
       },
       include: {
         reason: {

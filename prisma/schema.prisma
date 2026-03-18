@@ -694,6 +694,9 @@ model Expense {
   amount      Float
   description String?
   date        DateTime @default(now())
+  paymentMethod String @default("CASH")
+  isPaid      Boolean  @default(false)
+  paidDate    DateTime?
   createdBy   User     @relation(fields: [createdById], references: [id])
   createdById String   @db.ObjectId
   createdAt   DateTime @default(now())
@@ -704,4 +707,6 @@ model Expense {
   @@index([createdById])
   @@index([date])
   @@index([createdAt])
+  @@index([isPaid])
+  @@index([paymentMethod])
 }
