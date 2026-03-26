@@ -1669,51 +1669,8 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         },
       });
 
-      // Generate and upload invoice to Firebase
-      try {
-        const result = await generateInvoicePDF({
-          saleData: data,
-          batchNumber,
-          customerName,
-          customerPhone,
-          selectedLocation,
-          billCreatedBy,
-          currentUser,
-          soldProducts,
-          totalAmount,
-          gstType: gstType || "SGST_CGST",
-          invoiceNumber: invoiceNumber.toString(),
-          sellType,
-        });
-
-        if (!result.success || !result.pdfBase64) {
-          throw new Error(result.error || "Failed to generate PDF");
-        }
-
-        // Convert base64 string to Buffer
-        const pdfBuffer = Buffer.from(result.pdfBase64, "base64");
-
-        // Upload PDF to Firebase
-        const invoiceUrl = await uploadInvoicePDFToFirebase(
-          pdfBuffer,
-          batchNumber
-        );
-
-        // Update batch with invoice URL
-        await db.offlineSellBatch.update({
-          where: { id: offlineBatch.id },
-          data: {
-            invoiceUrl: invoiceUrl,
-            updatedAt: currTime,
-          },
-        });
-      } catch (invoiceError) {
-        console.error(
-          "Error generating or uploading invoice to Firebase:",
-          invoiceError
-        );
-        // Don't fail the entire sale if invoice upload fails
-      }
+      // Intentionally skip backend PDF generation/upload for retailer offline flow.
+      // Invoice is now shown in browser print preview from /sellRetailer.
     }
 
     // Check if any products were sold successfully

@@ -19,17 +19,16 @@ import {
   Loader2,
   Search,
   ShoppingCart,
-  FileText,
   Trash2,
   Plus,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
-import { generateInvoicePDF } from "@/src/actions/generate-pdf";
 import { getShopList, getUserShop } from "@/src/actions/shop";
 import { useEffect } from "react";
+import InvoicePreview, { InvoicePayload } from "./invoice-preview/InvoicePreview";
 
 const getCurrTime = () => {
   const currentTime = new Date();
@@ -47,12 +46,53 @@ interface CartItem {
   availableStock: number;
 }
 type GSTType = "IGST" | "SGST_CGST";
+
+const GST_RATE = 5;
+
+const calculateGSTBreakdown = (totalPriceWithGST: number, gstType: GSTType) => {
+  if (!totalPriceWithGST || Number.isNaN(totalPriceWithGST)) {
+    return {
+      basePrice: 0,
+      igst: 0,
+      sgst: 0,
+      cgst: 0,
+      totalGST: 0,
+    };
+  }
+
+  const basePrice = totalPriceWithGST / (1 + GST_RATE / 100);
+  const totalGSTAmount = totalPriceWithGST - basePrice;
+
+  if (gstType === "IGST") {
+    return {
+      basePrice: parseFloat(basePrice.toFixed(2)),
+      igst: parseFloat(totalGSTAmount.toFixed(2)),
+      sgst: 0,
+      cgst: 0,
+      totalGST: parseFloat(totalGSTAmount.toFixed(2)),
+    };
+  }
+
+  const sgst = totalGSTAmount / 2;
+  const cgst = totalGSTAmount / 2;
+  return {
+    basePrice: parseFloat(basePrice.toFixed(2)),
+    igst: 0,
+    sgst: parseFloat(sgst.toFixed(2)),
+    cgst: parseFloat(cgst.toFixed(2)),
+    totalGST: parseFloat(totalGSTAmount.toFixed(2)),
+  };
+};
 function SellPage() {
   const [code, setCode] = useState("");
   const [kurti, setKurti] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [selling, setSelling] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [invoicePreview, setInvoicePreview] = useState<InvoicePayload | null>(
+    null
+  );
+  const shouldPrintAfterSaveRef = useRef(false);
   const [gstType, setGstType] = useState<GSTType>("SGST_CGST");
   // Sale details
   const [customerName, setCustomerName] = useState("");
@@ -250,6 +290,41 @@ function SellPage() {
     );
   };
 
+  const draftInvoiceRef = useRef(`DRAFT-${Date.now()}`);
+
+  const draftInvoicePreview = useMemo<InvoicePayload | null>(() => {
+    if (cart.length === 0) return null;
+    return {
+      batchNumber: draftInvoiceRef.current,
+      invoiceNumber: draftInvoiceRef.current,
+      customerName: customerName.trim() || "-",
+      customerPhone: customerPhone.trim() || "-",
+      billCreatedBy: billCreatedBy.trim() || "-",
+      gstType,
+      soldProducts: cart.map((item) => ({
+        kurti: {
+          code: item.kurti.code,
+          hsnCode: item.kurti.hsnCode || "6204",
+        },
+        size: item.selectedSize,
+        quantity: item.quantity,
+        unitPrice: item.sellingPrice,
+        totalPrice: item.sellingPrice * item.quantity,
+      })),
+      totalAmount: getTotalAmount(),
+      shopName: userShop?.shopName || "Radhe Beautic",
+      shopLocation: userShop?.shopLocation || "Surat, Gujarat",
+    };
+  }, [
+    billCreatedBy,
+    cart,
+    customerName,
+    customerPhone,
+    gstType,
+    userShop?.shopLocation,
+    userShop?.shopName,
+  ]);
+
   const handleSell = async () => {
     try {
       setSelling(true);
@@ -317,7 +392,7 @@ function SellPage() {
         toast.error(data.error);
       } else {
         toast.success("Sale completed successfully!");
-        // Generate invoice
+        // Generate invoice preview payload (for on-page preview / printing)
         await generateInvoice(data);
 
         // Show invoice URL if available
@@ -337,58 +412,40 @@ function SellPage() {
 
   const generateInvoice = async (saleData: any) => {
     try {
-      // Convert cart items to the format expected by the shared utility
       const soldProducts = cart.map((item) => ({
-        kurti: item.kurti,
+        kurti: {
+          code: item.kurti.code,
+          hsnCode: item.kurti.hsnCode || "6204",
+        },
         size: item.selectedSize,
         quantity: item.quantity,
-        selledPrice: item.sellingPrice,
         unitPrice: item.sellingPrice,
         totalPrice: item.sellingPrice * item.quantity,
       }));
 
-      // Call the server action for PDF generation
-      const result = await generateInvoicePDF({
-        saleData,
+      const payload = {
         batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
-        customerName,
-        customerPhone,
-        selectedLocation: userShop?.shopLocation || "",
-        billCreatedBy,
-        currentUser,
+        invoiceNumber:
+          saleData.invoiceNumber ||
+          saleData.batchNumber ||
+          `OFFLINE-INV-${Date.now()}`,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        billCreatedBy: billCreatedBy.trim(),
+        gstType,
         soldProducts,
         totalAmount: getTotalAmount(),
-        gstType,
-        invoiceNumber: saleData.invoiceNumber || "",
-        sellType: "SHOP_SELL_OFFLINE", // Regular offline sales are not hall sales
-      });
+        shopName: userShop?.shopName || "Radhe Beautic",
+        shopLocation: userShop?.shopLocation || "Surat, Gujarat",
+      };
 
-      if (!result.success || !result.pdfBase64) {
-        throw new Error(result.error || "Failed to generate PDF");
-      }
-
-      // Convert base64 string to Blob and trigger download
-      const binaryString = atob(result.pdfBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `invoice-${
-        saleData.batchNumber || `OFFLINE-INV-${Date.now()}`
-      }.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success("Invoice PDF downloaded successfully!");
+      const key = `invoice_preview_${Date.now()}`;
+      localStorage.setItem(key, JSON.stringify(payload));
+      // Open invoice UI in the same page (no route change / no new tab).
+      setInvoicePreview(payload);
     } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast.error("Failed to generate PDF invoice");
+      console.error("Error opening invoice preview:", error);
+      toast.error("Failed to open invoice preview");
     }
   };
 
@@ -412,6 +469,26 @@ function SellPage() {
     setQuantity(1);
   };
 
+  const clearAll = () => {
+    resetForm();
+    setInvoicePreview(null);
+  };
+
+  const handleSave = async (shouldPrint: boolean) => {
+    shouldPrintAfterSaveRef.current = shouldPrint;
+    await handleSell();
+  };
+
+  useEffect(() => {
+    if (!invoicePreview) return;
+    if (!shouldPrintAfterSaveRef.current) return;
+    shouldPrintAfterSaveRef.current = false;
+    // Give React a moment to paint the invoice before printing.
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  }, [invoicePreview]);
+
   const getAvailableSizes = () => {
     if (!kurti?.sizes) return [];
     console.log("kurti.sizes", kurti.sizes);
@@ -419,8 +496,43 @@ function SellPage() {
     return kurti.sizes.filter((sz: any) => sz.quantity > 0);
   };
 
+  const canCompleteSale =
+    cart.length > 0 &&
+    customerName.trim().length > 0 &&
+    selectedShopId.trim().length > 0 &&
+    billCreatedBy.trim().length > 0 &&
+    paymentType.trim().length > 0 &&
+    !selling;
+
+  const missingCompleteSaleFields = useMemo(() => {
+    const missing: string[] = [];
+    if (cart.length === 0) missing.push("Add at least 1 item");
+    if (!customerName.trim()) missing.push("Customer Name");
+    if (!selectedShopId.trim()) missing.push("Shop");
+    if (!paymentType.trim()) missing.push("Payment Type");
+    if (!billCreatedBy.trim()) missing.push("Bill Created By");
+    return missing;
+  }, [billCreatedBy, cart.length, customerName, paymentType, selectedShopId]);
+
   return (
     <Card className="rounded-none w-full h-full">
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          .print-area,
+          .print-area * {
+            visibility: visible !important;
+          }
+          .print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+        }
+      `}</style>
       <CardHeader>
         <p className="text-2xl font-semibold text-center">
           🛒 Offline Multi-Product Sale System
@@ -584,252 +696,95 @@ function SellPage() {
           </div>
         </div>
 
-        {/* Product Details */}
+        {/* Add to Cart (no Product Details) */}
         {kurti && (
-          <div className="bg-white border rounded-lg p-4">
-            <h3 className="text-lg font-semibold mb-3">Product Details</h3>
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-shrink-0">
-                <img
-                  src={kurti.images[0]?.url}
-                  alt={kurti.code}
-                  className="w-64 h-64 object-cover rounded-lg border"
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h4 className="font-semibold mb-3 text-yellow-800">Add to Cart</h4>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div>
+                <Label htmlFor="size-select">Select Size *</Label>
+                <select
+                  id="size-select"
+                  name="size-select"
+                  aria-label="Select size"
+                  className="w-full p-2 border rounded-md"
+                  value={selectedSize}
+                  onChange={(e) => setSelectedSize(e.target.value)}
+                >
+                  <option value="">Select Size</option>
+                  {getAvailableSizes().map((sz: any, i: number) => (
+                    <option key={i} value={sz.size}>
+                      {sz.size.toUpperCase()} (Stock: {sz.quantity})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="quantity">Quantity *</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  placeholder="Enter quantity"
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
                 />
               </div>
-              <div className="flex-1 space-y-2">
-                <p className="text-xl font-bold">
-                  Code: {kurti.code.toUpperCase()}
-                </p>
-                <p className="text-lg">Category: {kurti.category}</p>
-                <p className="text-lg">Party: {kurti.party}</p>
-                <p className="text-lg font-semibold text-green-600">
-                  SP: RB{kurti.sellingPrice}
-                </p>
-                {kurti?.isBigPrice && (
-                  <p className="text-lg font-semibold text-green-600">
-                    BSP: RB
-                    {parseInt(kurti.sellingPrice) +
-                      (kurti?.isBigPrice ? kurti?.bigPrice : 0)}
-                  </p>
-                )}
-
-                {/* Size Table */}
-                <div className="mt-4">
-                  <h4 className="font-semibold mb-2">Available Sizes:</h4>
-                  <div className="flex flex-wrap gap-4">
-                    <Table className="border border-collapse max-w-md">
-                      <TableHeader>
-                        <TableRow className="bg-slate-800">
-                          <TableHead className="font-bold border text-white">
-                            SIZE
-                          </TableHead>
-                          <TableHead className="font-bold border text-white">
-                            STOCK
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {kurti.sizes.map((sz: any, i: number) => (
-                          <TableRow
-                            key={i}
-                            className={sz.quantity === 0 ? "opacity-50" : ""}
-                          >
-                            <TableCell className="border">
-                              {sz.size.toUpperCase()}
-                            </TableCell>
-                            <TableCell
-                              className={`border ${
-                                sz.quantity === 0
-                                  ? "text-red-500"
-                                  : "text-green-600"
-                              }`}
-                            >
-                              {sz.quantity}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-
-                {/* Add to Cart Form */}
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-                  <h4 className="font-semibold mb-3 text-yellow-800">
-                    Add to Cart
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <div>
-                      <Label htmlFor="size-select">
-                        Select Size * {selectedSize}
-                      </Label>
-                      <select
-                        id="size-select"
-                        name="size-select"
-                        aria-label="Select size"
-                        className="w-full p-2 border rounded-md"
-                        value={selectedSize}
-                        onChange={(e) => setSelectedSize(e.target.value)}
-                      >
-                        <option value="">Select Size</option>
-                        {getAvailableSizes().map((sz: any, i: number) => (
-                          <option key={i} value={sz.size}>
-                            {sz.size.toUpperCase()} (Stock: {sz.quantity})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <Label htmlFor="quantity">Quantity *</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        min="1"
-                        placeholder="Enter quantity"
-                        value={quantity}
-                        onChange={(e) =>
-                          setQuantity(parseInt(e.target.value) || 1)
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="selling-price">Selling Price *</Label>
-                      <Input
-                        id="selling-price"
-                        type="number"
-                        placeholder="Enter selling price"
-                        value={sellingPrice}
-                        onChange={(e) => setSellingPrice(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <Button
-                        type="button"
-                        onClick={addToCart}
-                        className="w-full bg-yellow-600 hover:bg-yellow-700"
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add to Cart
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+              <div>
+                <Label htmlFor="selling-price">Selling Price *</Label>
+                <Input
+                  id="selling-price"
+                  type="number"
+                  placeholder="Enter selling price"
+                  value={sellingPrice}
+                  onChange={(e) => setSellingPrice(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  onClick={addToCart}
+                  className="w-full bg-yellow-600 hover:bg-yellow-700"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add to Cart
+                </Button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Shopping Cart */}
-        {cart.length > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold mb-4 text-green-800">
-              Shopping Cart ({cart.length} items)
-            </h3>
-
-            <div className="overflow-x-auto">
-              <Table className="border border-collapse">
-                <TableHeader>
-                  <TableRow className="bg-green-800">
-                    <TableHead className="font-bold border text-white">
-                      Product
-                    </TableHead>
-                    <TableHead className="font-bold border text-white">
-                      Size
-                    </TableHead>
-                    <TableHead className="font-bold border text-white">
-                      Quantity
-                    </TableHead>
-                    <TableHead className="font-bold border text-white">
-                      Unit Price
-                    </TableHead>
-                    <TableHead className="font-bold border text-white">
-                      Total
-                    </TableHead>
-                    <TableHead className="font-bold border text-white">
-                      Actions
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cart.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="border">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={item.kurti.images[0]?.url}
-                            alt={item.kurti.code}
-                            className="w-12 h-12 object-cover rounded"
-                          />
-                          <div>
-                            <div className="font-semibold">
-                              {item.kurti.code.toUpperCase()}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {item.kurti.category}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="border">
-                        {item.selectedSize.toUpperCase()}
-                      </TableCell>
-                      <TableCell className="border">
-                        <Input
-                          type="number"
-                          min="1"
-                          max={item.availableStock}
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateCartItemQuantity(
-                              item.id,
-                              parseInt(e.target.value) || 1
-                            )
-                          }
-                          className="w-20"
-                        />
-                      </TableCell>
-                      <TableCell className="border">
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.sellingPrice}
-                          onChange={(e) =>
-                            updateCartItemPrice(
-                              item.id,
-                              parseInt(e.target.value) || 1
-                            )
-                          }
-                          className="w-24"
-                        />
-                      </TableCell>
-                      <TableCell className="border font-semibold">
-                        ₹{item.sellingPrice * item.quantity}
-                      </TableCell>
-                      <TableCell className="border">
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => removeFromCart(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            <div className="flex justify-between items-center mt-4 pt-4 border-t border-green-300">
-              <div className="text-xl font-bold text-green-800">
-                Total Amount: ₹{getTotalAmount()}
+        {/* Invoice Preview (shown immediately after Add to Cart) */}
+        {(invoicePreview || draftInvoicePreview) && (
+          <div className="border rounded-lg p-3 bg-white print-area">
+            <div className="flex items-center justify-between mb-2 print:hidden">
+              <div className="font-semibold">
+                {invoicePreview ? "Invoice Preview" : "Draft Invoice Preview"}
               </div>
-              <div className="flex gap-3">
+              <div className="flex items-center gap-2">
                 <Button
                   type="button"
-                  onClick={handleSell}
-                  disabled={selling || cart.length === 0}
+                  variant="outline"
+                  onClick={clearAll}
+                  disabled={selling && cart.length === 0}
+                >
+                  Clear
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => handleSave(false)}
+                  disabled={!canCompleteSale}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {selling ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => handleSave(true)}
+                  disabled={!canCompleteSale}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   {selling ? (
@@ -837,18 +792,24 @@ function SellPage() {
                   ) : (
                     <ShoppingCart className="mr-2 h-4 w-4" />
                   )}
-                  Complete Sale & Generate Invoice
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetForm}
-                  disabled={selling}
-                >
-                  Clear All
+                  Save & Print
                 </Button>
               </div>
             </div>
+            {!canCompleteSale && missingCompleteSaleFields.length > 0 && (
+              <div className="text-sm text-gray-600 mb-2 print:hidden">
+                To enable <span className="font-medium">Save</span>, fill:{" "}
+                <span className="font-medium">
+                  {missingCompleteSaleFields.join(", ")}
+                </span>
+              </div>
+            )}
+            <div className="h-px w-full bg-gray-200 mb-3 print:hidden" />
+            <InvoicePreview
+              embedded
+              showPrintButton={false}
+              invoice={(invoicePreview || draftInvoicePreview)!}
+            />
           </div>
         )}
       </CardContent>
