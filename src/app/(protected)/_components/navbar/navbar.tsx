@@ -256,12 +256,13 @@ const Sidebar = () => {
 
       {/* Mobile Toggle Button */}
       <button
-        className="fixed top-4 left-4 z-50 lg:hidden bg-white/10 backdrop-blur-sm p-2 rounded-lg"
+        className="fixed top-4 left-4 z-50 lg:hidden rounded-lg p-2 shadow-md border border-black/10 bg-white text-slate-900 hover:bg-white/95 transition-colors"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
+        aria-label={isMobileOpen ? "Close sidebar" : "Open sidebar"}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="w-6 h-6 text-white"
+          className="w-6 h-6 text-slate-900"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
