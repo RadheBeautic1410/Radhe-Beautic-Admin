@@ -20,6 +20,7 @@ import {
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { UserRole } from "@prisma/client";
 import { SearchBar } from "@/src/components/Searchbar";
+import { Button } from "@/src/components/ui/button";
 
 interface kurti {
   id: string;
@@ -50,28 +51,78 @@ function KurtiListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [pageLoader, setPageLoader] = useState(true);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+
+  const SIZE_ORDER = [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL",
+    "3XL",
+    "4XL",
+    "5XL",
+    "6XL",
+    "7XL",
+    "8XL",
+    "9XL",
+    "10XL",
+  ];
+
+  const getAvailableSizes = (data: kurti[]) => {
+    const set = new Set<string>();
+    for (const k of data) {
+      for (const s of k.sizes || []) {
+        if (!s?.size) continue;
+        if ((s.quantity ?? 0) > 0) set.add(String(s.size).toUpperCase());
+      }
+    }
+    return Array.from(set).sort((a, b) => {
+      const ai = SIZE_ORDER.indexOf(a);
+      const bi = SIZE_ORDER.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  };
+
+  const applyFilters = (data: kurti[]) => {
+    const search = textFieldValue.trim();
+    return data.filter((row) => {
+      const matchesSearch =
+        search.length === 0 || row.code.toUpperCase().includes(search.toUpperCase());
+
+      const matchesSize =
+        selectedSizes.length === 0 ||
+        (row.sizes || []).some(
+          (s) =>
+            selectedSizes.includes(String(s.size).toUpperCase()) &&
+            (s.quantity ?? 0) > 0
+        );
+
+      return matchesSearch && matchesSize;
+    });
+  };
+
+  const updatePaginationView = (allRows: kurti[], page: number) => {
+    const filtered = applyFilters(allRows);
+    const pages = Math.max(1, Math.ceil(filtered.length / 20));
+    const safePage = Math.min(Math.max(page, 1), pages);
+    setTotalPages(pages);
+    setDisplayData(filtered.slice(20 * (safePage - 1), 20 * (safePage - 1) + 20));
+  };
 
   const handleSearch = (newVal: string) => {
-    if (newVal === "") {
-      setTextFieldValue("");
-      setDisplayData(
-        kurtiData.slice(
-          20 * (parseInt(pageNum) - 1),
-          20 * (parseInt(pageNum) - 1) + 20
-        )
-      );
-    } else {
-      setTextFieldValue(newVal);
-      const filteredRows = kurtiData
-        .filter((row) => row.code.toUpperCase().includes(newVal.toUpperCase()))
-        .slice(0, 20);
-      setDisplayData(filteredRows);
-    }
+    setTextFieldValue(newVal);
+    // Keep URL + pagination consistent when changing filters
+    router.replace(`${baseUrl}1`);
   };
 
   const cancelSearch = () => {
     setTextFieldValue("");
-    handleSearch("");
+    router.replace(`${baseUrl}1`);
   };
 
   const handleKurtiDelete = async (data: kurti[]) => {
@@ -84,6 +135,18 @@ function KurtiListPage() {
       router.replace(`${baseUrl}${page}`);
     }
   };
+
+  // Sync state when URL changes (e.g. user clicks pagination or uses back/forward)
+  useEffect(() => {
+    const p = parseInt(pageNum);
+    if (!Number.isNaN(p)) setCurrentPage(p);
+  }, [pageNum]);
+
+  // Recompute visible page whenever filters/page change
+  useEffect(() => {
+    if (!kurtiData.length) return;
+    updatePaginationView(kurtiData, currentPage);
+  }, [kurtiData, currentPage, textFieldValue, selectedSizes]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -128,15 +191,8 @@ function KurtiListPage() {
               (b.countOfPiece ?? 0) - (a.countOfPiece ?? 0)
           );
 
-          // ✅ Setup pagination
-          setDisplayData(
-            sortedByStock.slice(
-              20 * (parseInt(pageNum) - 1),
-              20 * (parseInt(pageNum) - 1) + 20
-            )
-          );
           setKurtiData(sortedByStock);
-          setTotalPages(Math.ceil(sortedByStock.length / 20));
+          // displayData/totalPages handled by filter effect
         } else {
           setValid(false);
         }
@@ -177,6 +233,60 @@ function KurtiListPage() {
                 marginLeft: "auto",
               }}
             />
+
+            {/* Size Filter */}
+            <div className="mt-4 flex flex-col gap-2">
+              <details className="rounded-md border bg-white">
+                <summary className="cursor-pointer select-none px-3 py-2 font-medium">
+                  Size Filter
+                  {selectedSizes.length > 0 ? ` (${selectedSizes.length})` : ""}
+                </summary>
+                <div className="px-3 pb-3">
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    {getAvailableSizes(kurtiData).map((size) => {
+                      const checked = selectedSizes.includes(size);
+                      return (
+                        <label
+                          key={size}
+                          className="flex items-center gap-2 rounded-md border px-2 py-1 cursor-pointer hover:bg-gray-50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const nextChecked = e.target.checked;
+                              setSelectedSizes((prev) => {
+                                const next = new Set(prev);
+                                if (nextChecked) next.add(size);
+                                else next.delete(size);
+                                return Array.from(next);
+                              });
+                              router.replace(`${baseUrl}1`);
+                            }}
+                          />
+                          <span className="text-sm font-medium">{size}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={selectedSizes.length === 0}
+                      onClick={() => {
+                        setSelectedSizes([]);
+                        router.replace(`${baseUrl}1`);
+                      }}
+                    >
+                      Clear sizes
+                    </Button>
+                  </div>
+                </div>
+              </details>
+            </div>
           </CardContent>
 
           <CardContent className="w-full flex flex-wrap justify-center gap-3">

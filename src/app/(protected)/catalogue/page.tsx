@@ -46,6 +46,7 @@ import {
   FileDownIcon,
   LucideBrush,
   LucidePaintbrush,
+  MoreVertical,
   Package,
   ShoppingBag,
   Trash2,
@@ -88,6 +89,13 @@ import { useDebounce } from "@/src/hooks/useDebounce";
 import ClearStockModal from "../_components/category/ClearStockModel";
 import SetStockReadyModal from "../_components/category/StockReadyModel";
 import { SizeSelectionModal } from "../_components/category/SizeSelectionModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/src/components/ui/dropdown-menu";
 
 interface Category {
   id: string;
@@ -1231,15 +1239,6 @@ const ListPage = () => {
           </TableCell>
           <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
             <div className="flex gap-1 ml-2">
-              <Download
-                role="button"
-                size={16}
-                className={`text-green-600 cursor-pointer hover:text-green-800 ${
-                  downloadLoading && "pointer-events-none"
-                }`}
-                onClick={() => downloadCategoryImagesAndVideos(cat.name)}
-                // title="Download all images from this category"
-              />
               <div title="Download by size (no watermark)">
                 <SizeSelectionModal
                   categoryName={cat.name}
@@ -1252,18 +1251,6 @@ const ListPage = () => {
                   }
                 />
               </div>
-              <FileDownIcon
-                role="button"
-                size={20}
-                className={`text-blue-600 cursor-pointer hover:text-blue-800 ${
-                  isGenerating && "pointer-events-none"
-                }`}
-                onClick={async () => {
-                  if (cat.code) {
-                    handleGeneratePDF(cat.code);
-                  }
-                }}
-              />
               <EditCategoryModal
                 category={cat}
                 onCategoryUpdate={(updatedCat) => {
@@ -1277,63 +1264,95 @@ const ListPage = () => {
                   />
                 }
               />
-              <div title="Visible for customer">
-                {cat.isVisibleForCustomer !== false ? (
-                  <Eye
-                    role="button"
-                    size={16}
-                    className="text-blue-600 cursor-pointer hover:text-blue-800"
-                    onClick={() => {
-                      if (cat.code) {
-                        handleToggleVisibility(cat.code);
-                      }
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-md p-1 text-gray-700 hover:bg-gray-100"
+                    aria-label="Open actions menu"
+                  >
+                    <MoreVertical size={18} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    disabled={downloadLoading}
+                    onSelect={() => downloadCategoryImagesAndVideos(cat.name)}
+                  >
+                    <Download className="mr-2 h-4 w-4 text-green-600" />
+                    Download media
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    disabled={isGenerating}
+                    onSelect={() => {
+                      if (cat.code) handleGeneratePDF(cat.code);
                     }}
-                  />
-                ) : (
-                  <EyeOff
-                    role="button"
-                    size={16}
-                    className="text-gray-400 cursor-pointer hover:text-gray-600"
-                    onClick={() => {
-                      if (cat.code) {
-                        handleToggleVisibility(cat.code);
-                      }
+                  >
+                    <FileDownIcon className="mr-2 h-4 w-4 text-blue-600" />
+                    Generate PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onSelect={() => {
+                      if (cat.code) handleToggleVisibility(cat.code);
                     }}
+                  >
+                    {cat.isVisibleForCustomer !== false ? (
+                      <>
+                        <Eye className="mr-2 h-4 w-4 text-blue-600" />
+                        Hide for customer
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="mr-2 h-4 w-4 text-gray-500" />
+                        Show for customer
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DialogDemo
+                    isTriggerElement
+                    dialogTrigger={
+                      <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    }
+                    dialogTitle="Delete Category"
+                    dialogDescription="Delete the category"
+                  >
+                    <div>
+                      <h1>Delete Category</h1>
+                      <h3>
+                        Are you sure you want to delete category "{cat.name}"?
+                      </h3>
+                    </div>
+                    <Button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => handleDeleteCategory(cat.name)}
+                    >
+                      Delete
+                    </Button>
+                  </DialogDemo>
+                  <ClearStockModal
+                    categoryCode={cat.code!}
+                    categoryName={cat.name}
+                    onClearStock={async (categoryCode, password) =>
+                      handleClearStock(categoryCode, password)
+                    }
+                    trigger={
+                      <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                        <LucidePaintbrush className="mr-2 h-4 w-4" />
+                        Clear stock
+                      </DropdownMenuItem>
+                    }
                   />
-                )}
-              </div>
-              <DialogDemo
-                isTriggerElement
-                dialogTrigger={
-                  <Trash2 size={16} className="text-red-600 cursor-pointer" />
-                }
-                dialogTitle="Delete Category"
-                dialogDescription="Delete the category"
-              >
-                <div>
-                  <h1>Delete Category</h1>
-                  <h3>
-                    Are you sure you want to delete category "{cat.name}"?
-                  </h3>
-                </div>
-                <Button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => handleDeleteCategory(cat.name)}
-                >
-                  Delete
-                </Button>
-              </DialogDemo>
-              <ClearStockModal
-                categoryCode={cat.code!}
-                categoryName={cat.name}
-                onClearStock={async (categoryCode, password) =>
-                  handleClearStock(categoryCode, password)
-                }
-                trigger={
-                  <LucidePaintbrush role="button" size={20} color="red" />
-                }
-              />
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </RoleGateForComponent>
         </div>
@@ -2006,17 +2025,8 @@ const ListPage = () => {
                           </TableCell>
                           <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                             <TableCell className="text-center">
-                              <div className="flex justify-center gap-2">
-                                <Download
-                                  role="button"
-                                  size={20}
-                                  className={`text-green-600 cursor-pointer hover:text-green-800 ${
-                                    downloadLoading && "pointer-events-none"
-                                  }`}
-                                  onClick={() =>
-                                    downloadCategoryImagesAndVideos(cat.name)
-                                  }
-                                />
+                              <div className="flex justify-center items-center gap-2">
+                                {/* Keep outside per request */}
                                 <div title="Download by size (no watermark)">
                                   <SizeSelectionModal
                                     categoryName={cat.name}
@@ -2029,96 +2039,112 @@ const ListPage = () => {
                                     }
                                   />
                                 </div>
-                                <FileDownIcon
-                                  role="button"
-                                  size={20}
-                                  className={`text-blue-600 cursor-pointer hover:text-blue-800 ${
-                                    isGenerating && "pointer-events-none"
-                                  }`}
-                                  onClick={async () => {
-                                    if (cat.code) {
-                                      handleGeneratePDF(cat.code);
-                                    }
-                                  }}
-                                />
                                 <EditCategoryModal
                                   category={cat}
                                   onCategoryUpdate={(updatedCat) => {
                                     handleCategoryUpdate(updatedCat, cat.name);
                                   }}
-                                  trigger={<Edit role="button" size={20} />}
-                                />
-                                <div title="Visible for customer">
-                                  {cat.isVisibleForCustomer !== false ? (
-                                    <Eye
-                                      role="button"
-                                      size={20}
-                                      className="text-blue-600 cursor-pointer hover:text-blue-800"
-                                      onClick={() => {
-                                        if (cat.code) {
-                                          handleToggleVisibility(cat.code);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <EyeOff
-                                      role="button"
-                                      size={20}
-                                      className="text-gray-400 cursor-pointer hover:text-gray-600"
-                                      onClick={() => {
-                                        if (cat.code) {
-                                          handleToggleVisibility(cat.code);
-                                        }
-                                      }}
-                                    />
-                                  )}
-                                </div>
-                                <DialogDemo
-                                  isTriggerElement
-                                  dialogTrigger={
-                                    <span className="flex items-center gap-2 text-red-600">
-                                      <Trash2
-                                        size={20}
-                                        className="cursor-pointer"
-                                      />
-                                    </span>
-                                  }
-                                  dialogTitle="Delete Category"
-                                  dialogDescription="Delete the category"
-                                >
-                                  <div>
-                                    <h1>Delete Category</h1>
-                                    <h3>
-                                      Are you sure you want to delete category "
-                                      {cat.name}"?
-                                    </h3>
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    disabled={isPending}
-                                    onClick={() =>
-                                      handleDeleteCategory(cat.name)
-                                    }
-                                  >
-                                    Delete
-                                  </Button>
-                                </DialogDemo>
-
-                                <ClearStockModal
-                                  categoryCode={cat.code!}
-                                  categoryName={cat.name}
-                                  onClearStock={async (
-                                    categoryCode,
-                                    password
-                                  ) => handleClearStock(categoryCode, password)}
                                   trigger={
-                                    <LucidePaintbrush
+                                    <Edit
                                       role="button"
                                       size={20}
-                                      color="red"
+                                      className="text-blue-600 cursor-pointer"
                                     />
                                   }
                                 />
+
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="inline-flex items-center justify-center rounded-md p-1 hover:bg-gray-100"
+                                      aria-label="Open actions menu"
+                                    >
+                                      <MoreVertical size={18} />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      className="cursor-pointer"
+                                      disabled={downloadLoading}
+                                      onSelect={() =>
+                                        downloadCategoryImagesAndVideos(cat.name)
+                                      }
+                                    >
+                                      <Download className="mr-2 h-4 w-4 text-green-600" />
+                                      Download media
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="cursor-pointer"
+                                      disabled={isGenerating}
+                                      onSelect={() => {
+                                        if (cat.code) handleGeneratePDF(cat.code);
+                                      }}
+                                    >
+                                      <FileDownIcon className="mr-2 h-4 w-4 text-blue-600" />
+                                      Generate PDF
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="cursor-pointer"
+                                      onSelect={() => {
+                                        if (cat.code) handleToggleVisibility(cat.code);
+                                      }}
+                                    >
+                                      {cat.isVisibleForCustomer !== false ? (
+                                        <>
+                                          <Eye className="mr-2 h-4 w-4 text-blue-600" />
+                                          Hide for customer
+                                        </>
+                                      ) : (
+                                        <>
+                                          <EyeOff className="mr-2 h-4 w-4 text-gray-500" />
+                                          Show for customer
+                                        </>
+                                      )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DialogDemo
+                                      isTriggerElement
+                                      dialogTrigger={
+                                        <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                                          <Trash2 className="mr-2 h-4 w-4" />
+                                          Delete
+                                        </DropdownMenuItem>
+                                      }
+                                      dialogTitle="Delete Category"
+                                      dialogDescription="Delete the category"
+                                    >
+                                      <div>
+                                        <h1>Delete Category</h1>
+                                        <h3>
+                                          Are you sure you want to delete category "
+                                          {cat.name}"?
+                                        </h3>
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        disabled={isPending}
+                                        onClick={() => handleDeleteCategory(cat.name)}
+                                      >
+                                        Delete
+                                      </Button>
+                                    </DialogDemo>
+                                    <ClearStockModal
+                                      categoryCode={cat.code!}
+                                      categoryName={cat.name}
+                                      onClearStock={async (categoryCode, password) =>
+                                        handleClearStock(categoryCode, password)
+                                      }
+                                      trigger={
+                                        <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                                          <LucidePaintbrush className="mr-2 h-4 w-4" />
+                                          Clear stock
+                                        </DropdownMenuItem>
+                                      }
+                                    />
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
