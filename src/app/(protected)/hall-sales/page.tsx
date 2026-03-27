@@ -6,6 +6,14 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/src/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -19,23 +27,33 @@ import {
   Loader2,
   Search,
   ShoppingCart,
-  FileText,
   Trash2,
   Plus,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
-import { generateInvoicePDF } from "@/src/actions/generate-pdf";
 import { getUserShop, getHallSaleShops } from "@/src/actions/shop";
 import { useEffect } from "react";
+import InvoicePreview, {
+  InvoicePayload,
+} from "@/src/app/(protected)/sellRetailer/invoice-preview/InvoicePreview";
 
 const getCurrTime = () => {
   const currentTime = new Date();
   const ISTOffset = 5.5 * 60 * 60 * 1000;
   const ISTTime = new Date(currentTime.getTime() + ISTOffset);
   return ISTTime;
+};
+
+const fetchNextHallDisplayBillNo = async (): Promise<string> => {
+  const res = await fetch("/api/hall-sales/next-bill-no", { method: "POST" });
+  const json = await res.json();
+  if (!res.ok || !json?.success || !json?.displayBillNo) {
+    throw new Error(json?.error || "Failed to generate bill number");
+  }
+  return String(json.displayBillNo);
 };
 
 interface CartItem {
@@ -62,13 +80,26 @@ function HallSalesPage() {
   const [shops, setShops] = useState<any[]>([]);
   const [paymentType, setpaymentType] = useState("");
   const [userShop, setUserShop] = useState<any>(null);
+  const [invoicePreview, setInvoicePreview] = useState<InvoicePayload | null>(
+    null
+  );
+  const shouldPrintAfterSaveRef = useRef(false);
 
   // Current product selection
   const [selectedSize, setSelectedSize] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [quantity, setQuantity] = useState(1);
 
+  // Bulk add sizes modal state
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkSelectedSizes, setBulkSelectedSizes] = useState<string[]>([]);
+  const [bulkPrice, setBulkPrice] = useState("");
+
   const currentUser = useCurrentUser();
+  const selectedShop = useMemo(() => {
+    if (currentUser?.role !== UserRole.ADMIN) return userShop;
+    return shops.find((s) => s.id === selectedShopId) || null;
+  }, [currentUser?.role, selectedShopId, shops, userShop]);
 
   // Load shops and user's shop on component mount
   useEffect(() => {
@@ -162,42 +193,12 @@ function HallSalesPage() {
       return;
     }
 
-    // Check if same product+size already exists in cart
-    const existingItemIndex = cart.findIndex(
-      (item) =>
-        item.kurti.code === kurti.code && item.selectedSize === selectedSize
-    );
-
-    const newItem: CartItem = {
-      id: `${kurti.code}-${selectedSize}-${Date.now()}`,
-      kurti,
-      selectedSize,
-      quantity,
-      sellingPrice: parseInt(sellingPrice),
-      availableStock: sizeInfo.quantity,
-    };
-
-    if (existingItemIndex >= 0) {
-      // Update existing item
-      const updatedCart = [...cart];
-      const existingItem = updatedCart[existingItemIndex];
-      const totalQuantity = existingItem.quantity + quantity;
-
-      if (totalQuantity > sizeInfo.quantity) {
-        toast.error("Total quantity exceeds available stock");
-        return;
-      }
-
-      updatedCart[existingItemIndex] = {
-        ...existingItem,
-        quantity: totalQuantity,
-        sellingPrice: parseInt(sellingPrice), // Update price if changed
-      };
-      setCart(updatedCart);
-    } else {
-      // Add new item
-      setCart([...cart, newItem]);
-    }
+    addToCartBySize({
+      size: selectedSize,
+      qty: quantity,
+      price: parseInt(sellingPrice),
+      sizeInfoQuantity: sizeInfo.quantity,
+    });
 
     // Reset current product selection
     setCode("");
@@ -207,6 +208,145 @@ function HallSalesPage() {
     setQuantity(1);
 
     toast.success("Product added to cart!");
+  };
+
+  const addToCartBySize = ({
+    size,
+    qty,
+    price,
+    sizeInfoQuantity,
+  }: {
+    size: string;
+    qty: number;
+    price: number;
+    sizeInfoQuantity: number;
+  }) => {
+    if (!kurti) return;
+
+    const normalizedSize = String(size).toUpperCase();
+
+    setCart((prev) => {
+      const existingIndex = prev.findIndex(
+        (item) =>
+          item.kurti.code === kurti.code && item.selectedSize === normalizedSize
+      );
+
+      if (existingIndex >= 0) {
+        const existing = prev[existingIndex];
+        const totalQuantity = existing.quantity + qty;
+        if (totalQuantity > sizeInfoQuantity) {
+          toast.error(
+            `Total quantity exceeds available stock for size ${normalizedSize}`
+          );
+          return prev;
+        }
+        const next = [...prev];
+        next[existingIndex] = {
+          ...existing,
+          quantity: totalQuantity,
+          sellingPrice: price,
+          availableStock: sizeInfoQuantity,
+        };
+        return next;
+      }
+
+      return [
+        ...prev,
+        {
+          id: `${kurti.code}-${normalizedSize}-${Date.now()}-${Math.random()
+            .toString(16)
+            .slice(2)}`,
+          kurti,
+          selectedSize: normalizedSize,
+          quantity: qty,
+          sellingPrice: price,
+          availableStock: sizeInfoQuantity,
+        } satisfies CartItem,
+      ];
+    });
+  };
+
+  const handleBulkAdd = () => {
+    if (!kurti) {
+      toast.error("Please find a product first");
+      return;
+    }
+
+    const price = parseInt(bulkPrice);
+    if (!bulkPrice || Number.isNaN(price) || price <= 0) {
+      toast.error("Please enter valid price");
+      return;
+    }
+
+    if (bulkSelectedSizes.length === 0) {
+      toast.error("Please select at least one size");
+      return;
+    }
+
+    let addedCount = 0;
+    let skippedCount = 0;
+
+    // Build nextCart once to avoid React state overwrite during loops
+    const nextCart: CartItem[] = [...cart];
+
+    bulkSelectedSizes.forEach((size) => {
+      const normalizedSize = String(size).toUpperCase();
+      const sizeInfo = kurti.sizes.find(
+        (sz: any) => String(sz.size).toUpperCase() === normalizedSize
+      );
+
+      if (!sizeInfo || (sizeInfo.quantity ?? 0) <= 0) {
+        skippedCount++;
+        return;
+      }
+
+      const existingIndex = nextCart.findIndex(
+        (item) =>
+          item.kurti.code === kurti.code && item.selectedSize === normalizedSize
+      );
+
+      if (existingIndex >= 0) {
+        const existing = nextCart[existingIndex];
+        const totalQuantity = existing.quantity + 1;
+        if (totalQuantity > sizeInfo.quantity) {
+          skippedCount++;
+          return;
+        }
+        nextCart[existingIndex] = {
+          ...existing,
+          quantity: totalQuantity,
+          sellingPrice: price,
+          availableStock: sizeInfo.quantity,
+        };
+        addedCount++;
+        return;
+      }
+
+      nextCart.push({
+        id: `${kurti.code}-${normalizedSize}-${Date.now()}-${Math.random()
+          .toString(16)
+          .slice(2)}`,
+        kurti,
+        selectedSize: normalizedSize,
+        quantity: 1,
+        sellingPrice: price,
+        availableStock: sizeInfo.quantity,
+      });
+      addedCount++;
+    });
+
+    setCart(nextCart);
+
+    if (addedCount > 0) {
+      toast.success(`Added ${addedCount} size(s) to cart`);
+    }
+    if (skippedCount > 0) {
+      toast.warning(`Skipped ${skippedCount} size(s) due to no stock`);
+    }
+
+    setBulkOpen(false);
+    setBulkSelectedSizes([]);
+    setBulkPrice("");
   };
 
   const removeFromCart = (itemId: string) => {
@@ -254,6 +394,84 @@ function HallSalesPage() {
       0
     );
   };
+
+  const canCompleteSale =
+    cart.length > 0 &&
+    customerName.trim().length > 0 &&
+    selectedShopId.trim().length > 0 &&
+    billCreatedBy.trim().length > 0 &&
+    paymentType.trim().length > 0 &&
+    !selling;
+
+  const missingCompleteSaleFields = useMemo(() => {
+    const missing: string[] = [];
+    if (cart.length === 0) missing.push("Add at least 1 item");
+    if (!customerName.trim()) missing.push("Customer Name");
+    if (!selectedShopId.trim()) missing.push("Shop");
+    if (!paymentType.trim()) missing.push("Payment Type");
+    if (!billCreatedBy.trim()) missing.push("Bill Created By");
+    return missing;
+  }, [billCreatedBy, cart.length, customerName, paymentType, selectedShopId]);
+
+  const draftInvoiceRef = useRef(`DRAFT-${Date.now()}`);
+  const draftDisplayBillNoRef = useRef<string>("");
+
+  useEffect(() => {
+    // Create a stable draft display bill no only once per draft (avoids increment on re-render)
+    if (cart.length === 0) {
+      draftDisplayBillNoRef.current = "";
+      return;
+    }
+    if (!draftDisplayBillNoRef.current && typeof window !== "undefined") {
+      fetchNextHallDisplayBillNo()
+        .then((no) => {
+          draftDisplayBillNoRef.current = no;
+        })
+        .catch((e) => {
+          console.error(e);
+          // fallback (still allows saving, but without short number)
+          draftDisplayBillNoRef.current = "offline-000";
+        });
+    }
+  }, [cart.length]);
+
+  const draftInvoicePreview = useMemo<InvoicePayload | null>(() => {
+    if (cart.length === 0) return null;
+    const displayNo =
+      draftDisplayBillNoRef.current ||
+      (typeof window !== "undefined" ? "offline-000" : draftInvoiceRef.current);
+    return {
+      batchNumber: draftInvoiceRef.current,
+      invoiceNumber: draftInvoiceRef.current,
+      displayBatchNumber: displayNo,
+      displayInvoiceNumber: displayNo,
+      customerName: customerName.trim() || "-",
+      customerPhone: customerPhone.trim() || "-",
+      billCreatedBy: billCreatedBy.trim() || "-",
+      gstType,
+      soldProducts: cart.map((item) => ({
+        kurti: {
+          code: item.kurti.code,
+          hsnCode: item.kurti.hsnCode || "6204",
+        },
+        size: item.selectedSize,
+        quantity: item.quantity,
+        unitPrice: item.sellingPrice,
+        totalPrice: item.sellingPrice * item.quantity,
+      })),
+      totalAmount: getTotalAmount(),
+      shopName: selectedShop?.shopName || "Radhe Beautic",
+      shopLocation: selectedShop?.shopLocation || "Surat, Gujarat",
+    };
+  }, [
+    billCreatedBy,
+    cart,
+    customerName,
+    customerPhone,
+    gstType,
+    selectedShop?.shopLocation,
+    selectedShop?.shopName,
+  ]);
 
   const handleSell = async () => {
     try {
@@ -322,15 +540,8 @@ function HallSalesPage() {
         toast.error(data.error);
       } else {
         toast.success("Sale completed successfully!");
-        // Generate invoice
-        await generateInvoice(data);
-
-        // Show invoice URL if available
-        if (data.batchNumber) {
-          toast.success(`Invoice saved with batch number: ${data.batchNumber}`);
-        }
-
-        resetForm();
+        // Open invoice preview UI (like /sellRetailer). No PDF generation here.
+        openInvoicePreview(data);
       }
     } catch (error) {
       console.error("Error selling products:", error);
@@ -340,60 +551,55 @@ function HallSalesPage() {
     }
   };
 
-  const generateInvoice = async (saleData: any) => {
+  const openInvoicePreview = async (saleData: any) => {
     try {
-      // Convert cart items to the format expected by the shared utility
       const soldProducts = cart.map((item) => ({
-        kurti: item.kurti,
+        kurti: {
+          code: item.kurti.code,
+          hsnCode: item.kurti.hsnCode || "6204",
+        },
         size: item.selectedSize,
         quantity: item.quantity,
-        selledPrice: item.sellingPrice,
         unitPrice: item.sellingPrice,
         totalPrice: item.sellingPrice * item.quantity,
       }));
 
-      // Call the server action for PDF generation
-      const result = await generateInvoicePDF({
-        saleData,
-        batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
-        customerName,
-        customerPhone,
-        selectedLocation: userShop?.shopLocation || "",
-        billCreatedBy,
-        currentUser,
+      // Prefer the already-reserved draft number if present; otherwise request one.
+      const displayNo =
+        draftDisplayBillNoRef.current || (await fetchNextHallDisplayBillNo());
+      const payload: InvoicePayload = {
+        batchNumber: saleData.batchNumber || `HALL-INV-${Date.now()}`,
+        invoiceNumber:
+          saleData.invoiceNumber ||
+          saleData.batchNumber ||
+          `HALL-INV-${Date.now()}`,
+        displayBatchNumber: displayNo,
+        displayInvoiceNumber: displayNo,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        billCreatedBy: billCreatedBy.trim(),
+        gstType,
         soldProducts,
         totalAmount: getTotalAmount(),
-        gstType,
-        invoiceNumber: saleData.invoiceNumber || "",
-        sellType: "HALL_SELL_OFFLINE", // Hall sales are always hall sales
-      });
+        shopName: selectedShop?.shopName || "Radhe Beautic",
+        shopLocation: selectedShop?.shopLocation || "Surat, Gujarat",
+      };
 
-      if (!result.success || !result.pdfBase64) {
-        throw new Error(result.error || "Failed to generate PDF");
+      const key = `invoice_preview_${Date.now()}`;
+      localStorage.setItem(key, JSON.stringify(payload));
+      setInvoicePreview(payload);
+
+      if (saleData.batchNumber) {
+        toast.success(`Invoice saved with batch number: ${saleData.batchNumber}`);
       }
 
-      // Convert base64 string to Blob and trigger download
-      const binaryString = atob(result.pdfBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `invoice-${
-        saleData.batchNumber || `OFFLINE-INV-${Date.now()}`
-      }.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success("Invoice PDF downloaded successfully!");
+      // Reset inputs + cart after a successful sale, but keep the preview visible.
+      resetForm();
+      // Reset draft reserved number for next sale.
+      draftDisplayBillNoRef.current = "";
     } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast.error("Failed to generate PDF invoice");
+      console.error("Error opening invoice preview:", error);
+      toast.error("Failed to open invoice preview");
     }
   };
 
@@ -417,6 +623,25 @@ function HallSalesPage() {
     setQuantity(1);
   };
 
+  const clearAll = () => {
+    resetForm();
+    setInvoicePreview(null);
+  };
+
+  const handleSave = async (shouldPrint: boolean) => {
+    shouldPrintAfterSaveRef.current = shouldPrint;
+    await handleSell();
+  };
+
+  useEffect(() => {
+    if (!invoicePreview) return;
+    if (!shouldPrintAfterSaveRef.current) return;
+    shouldPrintAfterSaveRef.current = false;
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  }, [invoicePreview]);
+
   const getAvailableSizes = () => {
     if (!kurti?.sizes) return [];
     return kurti.sizes.filter((sz: any) => sz.quantity > 0);
@@ -424,6 +649,23 @@ function HallSalesPage() {
 
   return (
     <Card className="rounded-none w-full h-full">
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          .print-area,
+          .print-area * {
+            visibility: visible !important;
+          }
+          .print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+        }
+      `}</style>
       <CardHeader>
         <p className="text-2xl font-semibold text-center">
           🛒 Offline Hall Sale System
@@ -604,9 +846,103 @@ function HallSalesPage() {
                 />
               </div>
               <div className="flex-1 space-y-2">
-                <p className="text-xl font-bold">
-                  Code: {kurti.code.toUpperCase()}
-                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xl font-bold">
+                    Code: {kurti.code.toUpperCase()}
+                  </p>
+
+                  <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+                    <DialogTrigger asChild>
+                      <Button type="button" variant="outline" size="sm">
+                        Add multiple sizes
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-auto">
+                      <DialogHeader>
+                        <DialogTitle>Add multiple sizes</DialogTitle>
+                        <DialogDescription>
+                          Select sizes and enter a price. Each selected size will
+                          be added with quantity = 1.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="bulk-price">Selling Price *</Label>
+                          <Input
+                            id="bulk-price"
+                            type="number"
+                            min="1"
+                            placeholder="Enter selling price"
+                            value={bulkPrice}
+                            onChange={(e) => setBulkPrice(e.target.value)}
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <Label>Select Sizes *</Label>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setBulkSelectedSizes([])}
+                              disabled={bulkSelectedSizes.length === 0}
+                            >
+                              Clear
+                            </Button>
+                          </div>
+
+                          <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {getAvailableSizes().map((sz: any) => {
+                              const size = String(sz.size).toUpperCase();
+                              const checked = bulkSelectedSizes.includes(size);
+                              return (
+                                <label
+                                  key={size}
+                                  className="flex items-center gap-2 rounded-md border px-2 py-2 cursor-pointer hover:bg-gray-50"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      const next = e.target.checked;
+                                      setBulkSelectedSizes((prev) => {
+                                        const set = new Set(prev);
+                                        if (next) set.add(size);
+                                        else set.delete(size);
+                                        return Array.from(set);
+                                      });
+                                    }}
+                                  />
+                                  <span className="text-sm font-medium">
+                                    {size}
+                                  </span>
+                                  <span className="ml-auto text-xs text-gray-500">
+                                    {sz.quantity}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setBulkOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button type="button" onClick={handleBulkAdd}>
+                            Add sizes
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
                 <p className="text-lg">Category: {kurti.category}</p>
                 <p className="text-lg">Party: {kurti.party}</p>
                 <p className="text-lg font-semibold text-green-600">
@@ -833,8 +1169,19 @@ function HallSalesPage() {
               <div className="flex gap-3">
                 <Button
                   type="button"
-                  onClick={handleSell}
-                  disabled={selling || cart.length === 0}
+                  onClick={() => handleSave(false)}
+                  disabled={!canCompleteSale}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {selling ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => handleSave(true)}
+                  disabled={!canCompleteSale}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   {selling ? (
@@ -842,18 +1189,44 @@ function HallSalesPage() {
                   ) : (
                     <ShoppingCart className="mr-2 h-4 w-4" />
                   )}
-                  Complete Sale & Generate Invoice
+                  Save & Print
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={resetForm}
+                  onClick={clearAll}
                   disabled={selling}
                 >
                   Clear All
                 </Button>
               </div>
             </div>
+            {!canCompleteSale && missingCompleteSaleFields.length > 0 && (
+              <div className="mt-2 text-sm text-gray-600">
+                To enable <span className="font-medium">Save</span>, fill:{" "}
+                <span className="font-medium">
+                  {missingCompleteSaleFields.join(", ")}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Invoice Preview (like /sellRetailer). Shows draft when cart exists; final after save. */}
+        {(invoicePreview || draftInvoicePreview) && (
+          <div className="border rounded-lg p-3 bg-white print-area">
+            <div className="flex items-center justify-between mb-2 print:hidden">
+              <div className="font-semibold">
+                {invoicePreview ? "Invoice Preview" : "Draft Invoice Preview"}
+              </div>
+            </div>
+            <div className="h-px w-full bg-gray-200 mb-3 print:hidden" />
+            <InvoicePreview
+              embedded
+              showPrintButton={false}
+              groupByCode
+              invoice={(invoicePreview || draftInvoicePreview)!}
+            />
           </div>
         )}
       </CardContent>

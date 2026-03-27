@@ -486,6 +486,14 @@ model OrderCounter {
   sequence Int
 }
 
+/// Daily counter used to create short, incremental bill numbers on /hall-sales
+/// Example display: offline-001 (counter resets daily)
+model HallSalesBillCounter {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  date     String @unique
+  sequence Int    @default(0)
+}
+
 model MovedKurtiHistory {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   kurtiId      String   @db.ObjectId
