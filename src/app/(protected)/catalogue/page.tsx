@@ -1252,14 +1252,25 @@ const ListPage = () => {
                 />
               </div>
               <Download
-                role="button"
-                size={16}
-                className={`text-green-600 cursor-pointer hover:text-green-800 ${
+                role="img"
+                size={0}
+                className="hidden"
+              />
+              <button
+                type="button"
+                title="Download media"
+                className={`inline-flex items-center justify-center p-0.5 rounded hover:bg-gray-100 ${
                   downloadLoading && "pointer-events-none"
                 }`}
                 onClick={() => downloadCategoryImagesAndVideos(cat.name)}
-                title="Download media"
-              />
+                aria-label="Download media"
+              >
+                <Download
+                  aria-hidden="true"
+                  size={16}
+                  className="text-green-600 hover:text-green-800"
+                />
+              </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -2049,16 +2060,27 @@ const ListPage = () => {
                                   />
                                 </div>
                                 <Download
-                                  role="button"
-                                  size={20}
-                                  className={`text-green-600 cursor-pointer hover:text-green-800 ${
+                                  role="img"
+                                  size={0}
+                                  className="hidden"
+                                />
+                                <button
+                                  type="button"
+                                  title="Download media"
+                                  className={`inline-flex items-center justify-center p-0.5 rounded hover:bg-gray-100 ${
                                     downloadLoading && "pointer-events-none"
                                   }`}
                                   onClick={() =>
                                     downloadCategoryImagesAndVideos(cat.name)
                                   }
-                                  title="Download media"
-                                />
+                                  aria-label="Download media"
+                                >
+                                  <Download
+                                    aria-hidden="true"
+                                    size={20}
+                                    className="text-green-600 hover:text-green-800"
+                                  />
+                                </button>
 
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
