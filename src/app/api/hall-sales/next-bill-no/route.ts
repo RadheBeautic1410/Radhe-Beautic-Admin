@@ -3,29 +3,34 @@
 import { NextResponse } from "next/server";
 import { db } from "@/src/lib/db";
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
-
-const getISTDateKey = () => {
+const getISTDateStrDDMMYYYY = () => {
   const now = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ist = new Date(now.getTime() + ISTOffset);
-  const yyyy = ist.getFullYear();
-  const mm = pad2(ist.getMonth() + 1);
-  const dd = pad2(ist.getDate());
-  return `${yyyy}${mm}${dd}`;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).formatToParts(now);
+  const dd = parts.find((p) => p.type === "day")?.value as string;
+  const mm = parts.find((p) => p.type === "month")?.value as string;
+  const yyyy = parts.find((p) => p.type === "year")?.value as string;
+  return `${dd}${mm}${yyyy}`;
 };
 
 export async function POST() {
   try {
-    const dateKey = getISTDateKey();
+    const dateKey = getISTDateStrDDMMYYYY();
 
-    const counter = await db.hallSalesBillCounter.upsert({
-      where: { date: dateKey },
-      create: { date: dateKey, sequence: 1 },
+    const counter = await db.salesBillCounter.upsert({
+      where: { date_type_unique: { date: dateKey, type: "HS" } },
+      create: { date: dateKey, type: "HS", sequence: 1 },
       update: { sequence: { increment: 1 } },
     });
 
-    const displayBillNo = `offline-${String(counter.sequence).padStart(3, "0")}`;
+    const displayBillNo = `HS-${dateKey}-${String(counter.sequence).padStart(
+      2,
+      "0"
+    )}`;
 
     return NextResponse.json({ success: true, displayBillNo });
   } catch (error) {
