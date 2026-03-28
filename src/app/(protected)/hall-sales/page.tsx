@@ -590,6 +590,25 @@ function HallSalesPage() {
         shopLocation: selectedShop?.shopLocation || "Surat, Gujarat",
       };
 
+      // Persist the generated bill number as the batchNumber in DB
+      if (saleData?.batchNumber) {
+        try {
+          await fetch("/api/sales/update-batch-number", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              oldBatchNumber: saleData.batchNumber,
+              newBatchNumber: displayNo,
+            }),
+          });
+          // Also reflect it in the local payload
+          payload.batchNumber = displayNo;
+          payload.invoiceNumber = displayNo;
+        } catch (e) {
+          console.error("Failed to persist batch number", e);
+        }
+      }
+
       const key = `invoice_preview_${Date.now()}`;
       localStorage.setItem(key, JSON.stringify(payload));
       setInvoicePreview(payload);
