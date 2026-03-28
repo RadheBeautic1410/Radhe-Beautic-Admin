@@ -256,19 +256,15 @@ export default function InvoicePreview({
         </div>
 
         <div className="flex border-b-2 border-black">
-          <div className="flex-[2] p-4 border-r-2 border-black">
+          <div className="basis-[54%] p-4 border-r-2 border-black">
             <div className="text-xs font-bold mb-2">
-              M/s.: {(invoice.customerName || "").toUpperCase()}
+              Mr./Ms.: {(invoice.customerName || "").toUpperCase()}
             </div>
             <div className="text-sm leading-6">
-              {invoice.shopName}
-              <br />
-              {invoice.shopLocation}
-              <br />
-              {invoice.customerPhone || "-"}
+              <span className="font-semibold">Mobile:</span> {invoice.customerPhone || "-"}
             </div>
           </div>
-          <div className="flex-1 p-4 text-sm">
+          <div className="basis-[46%] p-4 text-sm">
             <div className="flex justify-between mb-2">
               <span className="font-bold">Bill No:</span>
               <span>{invoice.displayBatchNumber || invoice.batchNumber}</span>
@@ -367,20 +363,42 @@ export default function InvoicePreview({
           <div className="flex-1 p-3 text-right">
             <div className="text-xs mb-2">
               {invoice.gstType === "IGST" ? (
-                <>IGST (5%): Rs.{gstSummary.igst.toFixed(2)}</>
+                <table className="w-full border border-black text-xs">
+                  <tbody>
+                    <tr>
+                      <td className="border-r border-black px-2 py-1 text-left">IGST (5%)</td>
+                      <td className="px-2 py-1 text-right">Rs.{gstSummary.igst.toFixed(2)}</td>
+                    </tr>
+                  </tbody>
+                </table>
               ) : (
-                <>
-                  SGST (2.5%): Rs.{gstSummary.sgst.toFixed(2)}
-                  <br />
-                  CGST (2.5%): Rs.{gstSummary.cgst.toFixed(2)}
-                </>
+                <table className="w-full border border-black text-xs">
+                  <tbody>
+                    <tr>
+                      <td className="border-r border-b border-black px-2 py-1 text-left">
+                        SGST (2.5%)
+                      </td>
+                      <td className="border-b border-black px-2 py-1 text-right">
+                        Rs.{gstSummary.sgst.toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="border-r border-black px-2 py-1 text-left">
+                        CGST (2.5%)
+                      </td>
+                      <td className="px-2 py-1 text-right">Rs.{gstSummary.cgst.toFixed(2)}</td>
+                    </tr>
+                  </tbody>
+                </table>
               )}
             </div>
             <div className="pt-2 border-t border-black text-sm font-bold">
-              <span className="bg-gray-100 px-2 py-1">INVOICE TOTAL</span>
-              <span className="float-right bg-gray-100 px-2 py-1">
-                {Number(invoice.totalAmount || 0).toFixed(2)}
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="bg-gray-100 px-2 py-1">INVOICE TOTAL</span>
+                <span className="bg-gray-100 px-2 py-1">
+                  {Number(invoice.totalAmount || 0).toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -400,7 +418,7 @@ export default function InvoicePreview({
           </div>
           <div className="flex-1 p-4">
             <div className="text-center text-xs font-bold mb-5">For, RADHE BEAUTIC</div>
-            <div className="text-center mt-10 pt-1 border-t border-black text-xs font-bold">
+            <div className="text-center mt-10 pt-1 text-xs font-bold">
               Authorised Signatory
             </div>
           </div>

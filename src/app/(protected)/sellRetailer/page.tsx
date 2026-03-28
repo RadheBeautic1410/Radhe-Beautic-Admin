@@ -110,6 +110,19 @@ function SellPage() {
 
   const currentUser = useCurrentUser();
 
+  const fetchNextDisplayBillNo = async (type: "RB" | "HS"): Promise<string> => {
+    const res = await fetch(`/api/sales/next-bill-no?type=${type}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json?.success || !json?.displayBillNo) {
+      throw new Error(json?.error || "Failed to generate bill number");
+    }
+    return String(json.displayBillNo);
+  };
+
   // Load shops and user's shop on component mount
   useEffect(() => {
     const loadShopsAndUserShop = async () => {
@@ -291,12 +304,34 @@ function SellPage() {
   };
 
   const draftInvoiceRef = useRef(`DRAFT-${Date.now()}`);
+  const [draftDisplayBillNo, setDraftDisplayBillNo] = useState<string>("");
+
+  useEffect(() => {
+    if (cart.length === 0) {
+      setDraftDisplayBillNo("");
+      return;
+    }
+    if (!draftDisplayBillNo && typeof window !== "undefined") {
+      fetchNextDisplayBillNo("RB")
+        .then((no) => {
+          setDraftDisplayBillNo(no);
+        })
+        .catch(() => {
+          setDraftDisplayBillNo("RB-00000000-00");
+        });
+    }
+  }, [cart.length, draftDisplayBillNo]);
 
   const draftInvoicePreview = useMemo<InvoicePayload | null>(() => {
     if (cart.length === 0) return null;
+    const displayNo =
+      draftDisplayBillNo ||
+      (typeof window !== "undefined" ? "RB-00000000-00" : draftInvoiceRef.current);
     return {
       batchNumber: draftInvoiceRef.current,
       invoiceNumber: draftInvoiceRef.current,
+      displayBatchNumber: displayNo,
+      displayInvoiceNumber: displayNo,
       customerName: customerName.trim() || "-",
       customerPhone: customerPhone.trim() || "-",
       billCreatedBy: billCreatedBy.trim() || "-",
@@ -323,6 +358,7 @@ function SellPage() {
     gstType,
     userShop?.shopLocation,
     userShop?.shopName,
+    draftDisplayBillNo,
   ]);
 
   const handleSell = async () => {
@@ -423,12 +459,17 @@ function SellPage() {
         totalPrice: item.sellingPrice * item.quantity,
       }));
 
-      const payload = {
+      const displayNo =
+        draftDisplayBillNo || (await fetchNextDisplayBillNo("RB"));
+
+      const payload: InvoicePayload = {
         batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
         invoiceNumber:
           saleData.invoiceNumber ||
           saleData.batchNumber ||
           `OFFLINE-INV-${Date.now()}`,
+        displayBatchNumber: displayNo,
+        displayInvoiceNumber: displayNo,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         billCreatedBy: billCreatedBy.trim(),
@@ -439,10 +480,29 @@ function SellPage() {
         shopLocation: userShop?.shopLocation || "Surat, Gujarat",
       };
 
+      // Persist the generated bill number as the batchNumber in DB
+      if (saleData?.batchNumber) {
+        try {
+          await fetch("/api/sales/update-batch-number", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              oldBatchNumber: saleData.batchNumber,
+              newBatchNumber: displayNo,
+            }),
+          });
+          payload.batchNumber = displayNo;
+          payload.invoiceNumber = displayNo;
+        } catch (e) {
+          console.error("Failed to persist batch number", e);
+        }
+      }
+
       const key = `invoice_preview_${Date.now()}`;
       localStorage.setItem(key, JSON.stringify(payload));
       // Open invoice UI in the same page (no route change / no new tab).
       setInvoicePreview(payload);
+      setDraftDisplayBillNo("");
     } catch (error) {
       console.error("Error opening invoice preview:", error);
       toast.error("Failed to open invoice preview");
@@ -749,6 +809,116 @@ function SellPage() {
                   <Plus className="mr-2 h-4 w-4" />
                   Add to Cart
                 </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Shopping Cart (like Hall Sales) */}
+        {cart.length > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-4 text-green-800">
+              Shopping Cart ({cart.length} items)
+            </h3>
+
+            <div className="overflow-x-auto">
+              <Table className="border border-collapse">
+                <TableHeader>
+                  <TableRow className="bg-green-800">
+                    <TableHead className="font-bold border text-white">
+                      Product
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Size
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Quantity
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Unit Price
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Total
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Actions
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cart.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="border">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={item.kurti.images[0]?.url}
+                            alt={item.kurti.code}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                          <div>
+                            <div className="font-semibold">
+                              {item.kurti.code.toUpperCase()}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {item.kurti.category}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="border">
+                        {item.selectedSize.toUpperCase()}
+                      </TableCell>
+                      <TableCell className="border">
+                        <Input
+                          type="number"
+                          min="1"
+                          max={item.availableStock}
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateCartItemQuantity(
+                              item.id,
+                              parseInt(e.target.value) || 1
+                            )
+                          }
+                          className="w-20"
+                        />
+                      </TableCell>
+                      <TableCell className="border">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.sellingPrice}
+                          onChange={(e) =>
+                            updateCartItemPrice(
+                              item.id,
+                              parseInt(e.target.value) || 1
+                            )
+                          }
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell className="border font-semibold">
+                        ₹{item.sellingPrice * item.quantity}
+                      </TableCell>
+                      <TableCell className="border">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-green-300">
+              <div className="text-xl font-bold text-green-800">
+                Total Amount: ₹{getTotalAmount()}
               </div>
             </div>
           </div>
