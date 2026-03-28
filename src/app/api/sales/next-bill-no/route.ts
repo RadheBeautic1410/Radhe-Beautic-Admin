@@ -7,11 +7,19 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
 
 const getISTDateStrDDMMYYYY = () => {
   const now = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ist = new Date(now.getTime() + ISTOffset);
-  const dd = pad2(ist.getDate());
-  const mm = pad2(ist.getMonth() + 1);
-  const yyyy = ist.getFullYear();
+  // Use timezone-aware formatting instead of manual offset math
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).formatToParts(now);
+  const dd = parts.find((p) => p.type === "day")?.value ?? pad2(now.getDate());
+  const mm =
+    parts.find((p) => p.type === "month")?.value ??
+    pad2(now.getMonth() + 1);
+  const yyyy =
+    parts.find((p) => p.type === "year")?.value ?? String(now.getFullYear());
   return `${dd}${mm}${yyyy}`;
 };
 
