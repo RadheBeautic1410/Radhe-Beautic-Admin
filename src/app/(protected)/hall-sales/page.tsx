@@ -48,7 +48,11 @@ const getCurrTime = () => {
 };
 
 const fetchNextHallDisplayBillNo = async (): Promise<string> => {
-  const res = await fetch("/api/hall-sales/next-bill-no", { method: "POST" });
+  const res = await fetch("/api/sales/next-bill-no?type=HS", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "HS" }),
+  });
   const json = await res.json();
   if (!res.ok || !json?.success || !json?.displayBillNo) {
     throw new Error(json?.error || "Failed to generate bill number");
@@ -414,32 +418,32 @@ function HallSalesPage() {
   }, [billCreatedBy, cart.length, customerName, paymentType, selectedShopId]);
 
   const draftInvoiceRef = useRef(`DRAFT-${Date.now()}`);
-  const draftDisplayBillNoRef = useRef<string>("");
+  const [draftDisplayBillNo, setDraftDisplayBillNo] = useState<string>("");
 
   useEffect(() => {
     // Create a stable draft display bill no only once per draft (avoids increment on re-render)
     if (cart.length === 0) {
-      draftDisplayBillNoRef.current = "";
+      setDraftDisplayBillNo("");
       return;
     }
-    if (!draftDisplayBillNoRef.current && typeof window !== "undefined") {
+    if (!draftDisplayBillNo && typeof window !== "undefined") {
       fetchNextHallDisplayBillNo()
         .then((no) => {
-          draftDisplayBillNoRef.current = no;
+          setDraftDisplayBillNo(no);
         })
         .catch((e) => {
           console.error(e);
           // fallback (still allows saving, but without short number)
-          draftDisplayBillNoRef.current = "offline-000";
+          setDraftDisplayBillNo("HS-00000000-00");
         });
     }
-  }, [cart.length]);
+  }, [cart.length, draftDisplayBillNo]);
 
   const draftInvoicePreview = useMemo<InvoicePayload | null>(() => {
     if (cart.length === 0) return null;
     const displayNo =
-      draftDisplayBillNoRef.current ||
-      (typeof window !== "undefined" ? "offline-000" : draftInvoiceRef.current);
+      draftDisplayBillNo ||
+      (typeof window !== "undefined" ? "HS-00000000-00" : draftInvoiceRef.current);
     return {
       batchNumber: draftInvoiceRef.current,
       invoiceNumber: draftInvoiceRef.current,
@@ -471,6 +475,7 @@ function HallSalesPage() {
     gstType,
     selectedShop?.shopLocation,
     selectedShop?.shopName,
+    draftDisplayBillNo,
   ]);
 
   const handleSell = async () => {
@@ -566,7 +571,7 @@ function HallSalesPage() {
 
       // Prefer the already-reserved draft number if present; otherwise request one.
       const displayNo =
-        draftDisplayBillNoRef.current || (await fetchNextHallDisplayBillNo());
+        draftDisplayBillNo || (await fetchNextHallDisplayBillNo());
       const payload: InvoicePayload = {
         batchNumber: saleData.batchNumber || `HALL-INV-${Date.now()}`,
         invoiceNumber:
@@ -596,7 +601,7 @@ function HallSalesPage() {
       // Reset inputs + cart after a successful sale, but keep the preview visible.
       resetForm();
       // Reset draft reserved number for next sale.
-      draftDisplayBillNoRef.current = "";
+      setDraftDisplayBillNo("");
     } catch (error) {
       console.error("Error opening invoice preview:", error);
       toast.error("Failed to open invoice preview");

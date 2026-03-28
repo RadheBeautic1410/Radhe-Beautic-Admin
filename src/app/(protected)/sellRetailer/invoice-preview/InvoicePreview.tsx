@@ -256,19 +256,13 @@ export default function InvoicePreview({
         </div>
 
         <div className="flex border-b-2 border-black">
-          <div className="flex-[2] p-4 border-r-2 border-black">
+          <div className="basis-[58%] p-4 border-r-2 border-black">
             <div className="text-xs font-bold mb-2">
               M/s.: {(invoice.customerName || "").toUpperCase()}
             </div>
-            <div className="text-sm leading-6">
-              {invoice.shopName}
-              <br />
-              {invoice.shopLocation}
-              <br />
-              {invoice.customerPhone || "-"}
-            </div>
+            <div className="text-sm leading-6">{invoice.customerPhone || "-"}</div>
           </div>
-          <div className="flex-1 p-4 text-sm">
+          <div className="basis-[42%] p-4 text-sm">
             <div className="flex justify-between mb-2">
               <span className="font-bold">Bill No:</span>
               <span>{invoice.displayBatchNumber || invoice.batchNumber}</span>

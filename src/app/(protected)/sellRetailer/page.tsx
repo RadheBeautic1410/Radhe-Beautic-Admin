@@ -110,6 +110,19 @@ function SellPage() {
 
   const currentUser = useCurrentUser();
 
+  const fetchNextDisplayBillNo = async (type: "RB" | "HS"): Promise<string> => {
+    const res = await fetch(`/api/sales/next-bill-no?type=${type}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json?.success || !json?.displayBillNo) {
+      throw new Error(json?.error || "Failed to generate bill number");
+    }
+    return String(json.displayBillNo);
+  };
+
   // Load shops and user's shop on component mount
   useEffect(() => {
     const loadShopsAndUserShop = async () => {
@@ -291,12 +304,34 @@ function SellPage() {
   };
 
   const draftInvoiceRef = useRef(`DRAFT-${Date.now()}`);
+  const [draftDisplayBillNo, setDraftDisplayBillNo] = useState<string>("");
+
+  useEffect(() => {
+    if (cart.length === 0) {
+      setDraftDisplayBillNo("");
+      return;
+    }
+    if (!draftDisplayBillNo && typeof window !== "undefined") {
+      fetchNextDisplayBillNo("RB")
+        .then((no) => {
+          setDraftDisplayBillNo(no);
+        })
+        .catch(() => {
+          setDraftDisplayBillNo("RB-00000000-00");
+        });
+    }
+  }, [cart.length, draftDisplayBillNo]);
 
   const draftInvoicePreview = useMemo<InvoicePayload | null>(() => {
     if (cart.length === 0) return null;
+    const displayNo =
+      draftDisplayBillNo ||
+      (typeof window !== "undefined" ? "RB-00000000-00" : draftInvoiceRef.current);
     return {
       batchNumber: draftInvoiceRef.current,
       invoiceNumber: draftInvoiceRef.current,
+      displayBatchNumber: displayNo,
+      displayInvoiceNumber: displayNo,
       customerName: customerName.trim() || "-",
       customerPhone: customerPhone.trim() || "-",
       billCreatedBy: billCreatedBy.trim() || "-",
@@ -323,6 +358,7 @@ function SellPage() {
     gstType,
     userShop?.shopLocation,
     userShop?.shopName,
+    draftDisplayBillNo,
   ]);
 
   const handleSell = async () => {
@@ -423,12 +459,17 @@ function SellPage() {
         totalPrice: item.sellingPrice * item.quantity,
       }));
 
-      const payload = {
+      const displayNo =
+        draftDisplayBillNo || (await fetchNextDisplayBillNo("RB"));
+
+      const payload: InvoicePayload = {
         batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
         invoiceNumber:
           saleData.invoiceNumber ||
           saleData.batchNumber ||
           `OFFLINE-INV-${Date.now()}`,
+        displayBatchNumber: displayNo,
+        displayInvoiceNumber: displayNo,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         billCreatedBy: billCreatedBy.trim(),
@@ -443,6 +484,7 @@ function SellPage() {
       localStorage.setItem(key, JSON.stringify(payload));
       // Open invoice UI in the same page (no route change / no new tab).
       setInvoicePreview(payload);
+      setDraftDisplayBillNo("");
     } catch (error) {
       console.error("Error opening invoice preview:", error);
       toast.error("Failed to open invoice preview");
