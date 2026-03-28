@@ -1238,7 +1238,7 @@ const ListPage = () => {
             />
           </TableCell>
           <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-            <div className="flex gap-1 ml-2">
+            <div className="flex gap-3 ml-2 items-center">
               <div title="Download by size (no watermark)">
                 <SizeSelectionModal
                   categoryName={cat.name}
@@ -1251,18 +1251,14 @@ const ListPage = () => {
                   }
                 />
               </div>
-              <EditCategoryModal
-                category={cat}
-                onCategoryUpdate={(updatedCat) => {
-                  handleCategoryUpdate(updatedCat, cat.name);
-                }}
-                trigger={
-                  <Edit
-                    role="button"
-                    size={16}
-                    className="text-blue-600 cursor-pointer"
-                  />
-                }
+              <Download
+                role="button"
+                size={16}
+                className={`text-green-600 cursor-pointer hover:text-green-800 ${
+                  downloadLoading && "pointer-events-none"
+                }`}
+                onClick={() => downloadCategoryImagesAndVideos(cat.name)}
+                title="Download media"
               />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1275,14 +1271,21 @@ const ListPage = () => {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    disabled={downloadLoading}
-                    onSelect={() => downloadCategoryImagesAndVideos(cat.name)}
-                  >
-                    <Download className="mr-2 h-4 w-4 text-green-600" />
-                    Download media
-                  </DropdownMenuItem>
+                  <EditCategoryModal
+                    category={cat}
+                    onCategoryUpdate={(updatedCat) => {
+                      handleCategoryUpdate(updatedCat, cat.name);
+                    }}
+                    trigger={
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        <Edit className="mr-2 h-4 w-4 text-blue-600" />
+                        Edit
+                      </DropdownMenuItem>
+                    }
+                  />
                   <DropdownMenuItem
                     className="cursor-pointer"
                     disabled={isGenerating}
@@ -1316,7 +1319,10 @@ const ListPage = () => {
                   <DialogDemo
                     isTriggerElement
                     dialogTrigger={
-                      <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                      <DropdownMenuItem
+                        className="cursor-pointer text-red-600 focus:text-red-600"
+                        onSelect={(e) => e.preventDefault()}
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
                       </DropdownMenuItem>
@@ -1345,7 +1351,10 @@ const ListPage = () => {
                       handleClearStock(categoryCode, password)
                     }
                     trigger={
-                      <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                      <DropdownMenuItem
+                        className="cursor-pointer text-red-600 focus:text-red-600"
+                        onSelect={(e) => e.preventDefault()}
+                      >
                         <LucidePaintbrush className="mr-2 h-4 w-4" />
                         Clear stock
                       </DropdownMenuItem>
@@ -2025,7 +2034,7 @@ const ListPage = () => {
                           </TableCell>
                           <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
                             <TableCell className="text-center">
-                              <div className="flex justify-center items-center gap-2">
+                              <div className="flex justify-center items-center gap-3">
                                 {/* Keep outside per request */}
                                 <div title="Download by size (no watermark)">
                                   <SizeSelectionModal
@@ -2039,18 +2048,16 @@ const ListPage = () => {
                                     }
                                   />
                                 </div>
-                                <EditCategoryModal
-                                  category={cat}
-                                  onCategoryUpdate={(updatedCat) => {
-                                    handleCategoryUpdate(updatedCat, cat.name);
-                                  }}
-                                  trigger={
-                                    <Edit
-                                      role="button"
-                                      size={20}
-                                      className="text-blue-600 cursor-pointer"
-                                    />
+                                <Download
+                                  role="button"
+                                  size={20}
+                                  className={`text-green-600 cursor-pointer hover:text-green-800 ${
+                                    downloadLoading && "pointer-events-none"
+                                  }`}
+                                  onClick={() =>
+                                    downloadCategoryImagesAndVideos(cat.name)
                                   }
+                                  title="Download media"
                                 />
 
                                 <DropdownMenu>
@@ -2064,16 +2071,21 @@ const ListPage = () => {
                                     </button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                    <DropdownMenuItem
-                                      className="cursor-pointer"
-                                      disabled={downloadLoading}
-                                      onSelect={() =>
-                                        downloadCategoryImagesAndVideos(cat.name)
+                                    <EditCategoryModal
+                                      category={cat}
+                                      onCategoryUpdate={(updatedCat) => {
+                                        handleCategoryUpdate(updatedCat, cat.name);
+                                      }}
+                                      trigger={
+                                        <DropdownMenuItem
+                                          className="cursor-pointer"
+                                          onSelect={(e) => e.preventDefault()}
+                                        >
+                                          <Edit className="mr-2 h-4 w-4 text-blue-600" />
+                                          Edit
+                                        </DropdownMenuItem>
                                       }
-                                    >
-                                      <Download className="mr-2 h-4 w-4 text-green-600" />
-                                      Download media
-                                    </DropdownMenuItem>
+                                    />
                                     <DropdownMenuItem
                                       className="cursor-pointer"
                                       disabled={isGenerating}
@@ -2107,7 +2119,10 @@ const ListPage = () => {
                                     <DialogDemo
                                       isTriggerElement
                                       dialogTrigger={
-                                        <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                                        <DropdownMenuItem
+                                          className="cursor-pointer text-red-600 focus:text-red-600"
+                                          onSelect={(e) => e.preventDefault()}
+                                        >
                                           <Trash2 className="mr-2 h-4 w-4" />
                                           Delete
                                         </DropdownMenuItem>
@@ -2137,7 +2152,10 @@ const ListPage = () => {
                                         handleClearStock(categoryCode, password)
                                       }
                                       trigger={
-                                        <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                                        <DropdownMenuItem
+                                          className="cursor-pointer text-red-600 focus:text-red-600"
+                                          onSelect={(e) => e.preventDefault()}
+                                        >
                                           <LucidePaintbrush className="mr-2 h-4 w-4" />
                                           Clear stock
                                         </DropdownMenuItem>

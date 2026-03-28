@@ -19,6 +19,12 @@ type SoldProduct = {
 export type InvoicePayload = {
   batchNumber: string;
   invoiceNumber: string;
+  /**
+   * Optional: shorter/pretty numbers for display only (keeps original batch/invoice values intact).
+   * Useful when backend numbers are long.
+   */
+  displayBatchNumber?: string;
+  displayInvoiceNumber?: string;
   customerName: string;
   customerPhone: string;
   billCreatedBy: string;
@@ -64,11 +70,56 @@ export default function InvoicePreview({
   invoice,
   embedded = false,
   showPrintButton = true,
+  groupByCode = false,
 }: {
   invoice: InvoicePayload;
   embedded?: boolean;
   showPrintButton?: boolean;
+  groupByCode?: boolean;
 }) {
+  const displayRows = useMemo(() => {
+    if (!groupByCode) return invoice.soldProducts;
+
+    type GroupRow = SoldProduct & {
+      _baseAmount: number; // base amount excluding GST
+    };
+
+    const map = new Map<string, GroupRow>();
+
+    for (const item of invoice.soldProducts) {
+      const code = item.kurti.code?.toUpperCase() || "";
+      const qty = Number(item.quantity || 0);
+      const unit = Number(item.unitPrice || 0);
+      const baseAmount = (unit / (1 + GST_RATE / 100)) * qty;
+
+      const prev = map.get(code);
+      if (!prev) {
+        map.set(code, {
+          ...item,
+          size: "", // not shown in grouped mode
+          quantity: qty,
+          unitPrice: unit,
+          totalPrice: unit * qty,
+          _baseAmount: baseAmount,
+        });
+      } else {
+        const nextQty = prev.quantity + qty;
+        const nextTotal = prev.totalPrice + unit * qty;
+        const nextBase = prev._baseAmount + baseAmount;
+        map.set(code, {
+          ...prev,
+          quantity: nextQty,
+          totalPrice: nextTotal,
+          // show weighted average unit price (incl GST) for reference
+          unitPrice: nextQty > 0 ? nextTotal / nextQty : prev.unitPrice,
+          _baseAmount: nextBase,
+        });
+      }
+    }
+
+    return Array.from(map.values());
+  }, [groupByCode, invoice.soldProducts]);
+
   const gstSummary = useMemo(() => {
     return invoice.soldProducts.reduce(
       (acc, item) => {
@@ -188,7 +239,9 @@ export default function InvoicePreview({
       <div className="max-w-[900px] mx-auto bg-white border-2 border-black invoice-page">
         <div className="border-b-2 border-black px-5 py-4 text-center bg-gray-50">
           <div className="text-sm font-bold float-left">Tax Invoice</div>
-          <div className="text-sm font-bold float-right">No: {invoice.invoiceNumber}</div>
+          <div className="text-sm font-bold float-right">
+            No: {invoice.displayInvoiceNumber || invoice.invoiceNumber}
+          </div>
           <div className="clear-both" />
           <div className="text-2xl font-bold tracking-wide mt-2 uppercase">
             Radhe Beautic
@@ -218,11 +271,20 @@ export default function InvoicePreview({
           <div className="flex-1 p-4 text-sm">
             <div className="flex justify-between mb-2">
               <span className="font-bold">Bill No:</span>
-              <span>{invoice.batchNumber}</span>
+              <span>{invoice.displayBatchNumber || invoice.batchNumber}</span>
             </div>
             <div className="flex justify-between mb-2">
               <span className="font-bold">Date:</span>
-              <span>{new Date().toLocaleDateString("en-IN")}</span>
+              <span>
+                {new Date().toLocaleString("en-IN", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                })}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="font-bold">Bill By:</span>
@@ -245,13 +307,14 @@ export default function InvoicePreview({
             </tr>
           </thead>
           <tbody>
-            {invoice.soldProducts.map((item, index) => (
-              <tr key={`${item.kurti.code}-${item.size}-${index}`}>
+            {displayRows.map((item, index) => (
+              <tr key={`${item.kurti.code}-${groupByCode ? "group" : item.size}-${index}`}>
                 <td className="border border-black p-2 text-xs text-center">
                   {index + 1}
                 </td>
                 <td className="border border-black p-2 text-xs">
-                  {item.kurti.code?.toUpperCase()} ({item.size?.toUpperCase()})
+                  {item.kurti.code?.toUpperCase()}
+                  {!groupByCode && item.size ? ` (${item.size?.toUpperCase()})` : ""}
                 </td>
                 <td className="border border-black p-2 text-xs text-center">
                   {item.kurti.hsnCode || "6204"}
@@ -260,16 +323,29 @@ export default function InvoicePreview({
                   {Number(item.quantity || 0).toFixed(2)}
                 </td>
                 <td className="border border-black p-2 text-xs text-right">
-                  {(
-                    Number(item.unitPrice || 0) /
-                    (1 + GST_RATE / 100)
-                  ).toFixed(2)}
+                  {(() => {
+                    if (groupByCode) {
+                      const anyItem = item as any;
+                      const baseAmount = Number(anyItem._baseAmount || 0);
+                      const qty = Number(item.quantity || 0);
+                      return qty > 0 ? (baseAmount / qty).toFixed(2) : "0.00";
+                    }
+                    return (
+                      Number(item.unitPrice || 0) / (1 + GST_RATE / 100)
+                    ).toFixed(2);
+                  })()}
                 </td>
                 <td className="border border-black p-2 text-xs text-right">
-                  {(
-                    (Number(item.unitPrice || 0) / (1 + GST_RATE / 100)) *
-                    Number(item.quantity || 0)
-                  ).toFixed(2)}
+                  {(() => {
+                    if (groupByCode) {
+                      const anyItem = item as any;
+                      return Number(anyItem._baseAmount || 0).toFixed(2);
+                    }
+                    return (
+                      (Number(item.unitPrice || 0) / (1 + GST_RATE / 100)) *
+                      Number(item.quantity || 0)
+                    ).toFixed(2);
+                  })()}
                 </td>
               </tr>
             ))}
