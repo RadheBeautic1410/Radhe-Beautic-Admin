@@ -186,8 +186,43 @@ const BulkUploadPage = () => {
           .toString()
           .padStart(4, "0")}`;
 
+        let aiGeneratedImageUrl: string | null = null;
+        try {
+          const genRes = await fetch(
+            `/api/leonardo/generate-model-image`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                sourceImageUrl: imagesWithIds[i]?.url,
+                category: categorySelected,
+              }),
+            }
+          );
+
+          const genJson = await genRes.json();
+          if (genJson?.success && genJson?.generatedImageUrl) {
+            aiGeneratedImageUrl = genJson.generatedImageUrl;
+          }
+        } catch (e) {
+          console.error("Leonardo generation failed:", e);
+        }
+
+        const designImages = aiGeneratedImageUrl
+          ? [
+              imagesWithIds[i],
+              {
+                url: aiGeneratedImageUrl,
+                id: uuidv4(),
+                is_hidden: false,
+              },
+            ]
+          : [imagesWithIds[i]];
+
         newDesigns.push({
-          images: [imagesWithIds[i]], // Each design gets one image
+          images: designImages, // Each design gets original + AI model image
           code: newCode,
           sizes: [...sizes], // Copy of sizes for each design
           countOfPiece: totalPieces,
