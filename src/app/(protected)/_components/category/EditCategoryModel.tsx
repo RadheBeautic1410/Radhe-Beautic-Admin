@@ -244,32 +244,32 @@ const EditCategoryModal = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="roundedPair">
-                          Rounded Pair
+                          Round Kurti-pent Dupatta
                         </SelectItem>
                         <SelectItem value="straightPair">
-                          Straight Pair
+                          Straight Kurti-pent Dupatta
                         </SelectItem>
-                        <SelectItem value="plazzaPair">Plazza Pair</SelectItem>
-                        <SelectItem value="sararaPair">Sarara Pair</SelectItem>
+                        <SelectItem value="plazzaPair">A-Line Kurti Plazza + Plazza Pair</SelectItem>
+                        {/* <SelectItem value="sararaPair">Sarara Pair</SelectItem> */}
                         <SelectItem value="straightKurtiPent">
                           Straight kurti Pent
                         </SelectItem>
-                        <SelectItem value="roundKurti">Round kurti</SelectItem>
+                        <SelectItem value="roundKurti">Round + Feeding kurti</SelectItem>
                         <SelectItem value="straightKurti">
                           Straight kurti
                         </SelectItem>
                         <SelectItem value="onlyPent">Only Pent</SelectItem>
-                        <SelectItem value="lehengaCholi">Lehenga Choli</SelectItem>
+                        {/* <SelectItem value="lehengaCholi">Lehenga Choli</SelectItem> */}
                         <SelectItem value="straight">Straight</SelectItem>
                         <SelectItem value="codeSet">Code-Set</SelectItem>
-                        <SelectItem value="tunique">Tunique</SelectItem>
+                        <SelectItem value="tunique">Tunique + Short Top</SelectItem>
                         <SelectItem value="gaune">Gaune</SelectItem>
                         <SelectItem value="aLineKurti">
-                          A-Line Kurti
+                          Kurti-Dupatta
                         </SelectItem>
-                        <SelectItem value="roundedKurtiPant">
+                        {/* <SelectItem value="roundedKurtiPant">
                           Round & Kurti Pant
-                        </SelectItem>
+                        </SelectItem> */}
                       </SelectContent>
                     </Select>
                   </FormControl>

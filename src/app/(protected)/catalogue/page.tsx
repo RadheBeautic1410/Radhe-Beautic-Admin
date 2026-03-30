@@ -170,22 +170,22 @@ const ListPage = () => {
     totalStockPrice: 0,
   });
   const kurtiTypes = [
-    { key: "roundedPair", value: "Rounded Pair" },
-    { key: "straightPair", value: "Straight Pair" },
-    { key: "plazzaPair", value: "Plazza Pair" },
-    { key: "sararaPair", value: "Sarara Pair" },
+    { key: "roundedPair", value: "Round Kurti-pent dupatta" },
+    { key: "straightPair", value: "Straight Kurti-pent dupatta" },
+    { key: "plazzaPair", value: "A-Line Kurti Plazza + Plazza Pair" },
+    // { key: "sararaPair", value: "Sarara Pair" },
     { key: "straightKurtiPent", value: "Straight Kurti Pent" },
-    { key: "roundKurti", value: "Round Kurti" },
+    { key: "roundKurti", value: "Round + Feeding Kurti" },
     { key: "straightKurti", value: "Straight Kurti" },
     { key: "straight", value: "Straight" },
     { key: "onlyPent", value: "Only Pent" },
-    { key: "lehengaCholi", value: "Lehenga Choli" },
+    // { key: "lehengaCholi", value: "Lehenga Choli" },
     { key: "codeSet", value: "Code-Set" },
-    { key: "tunique", value: "Tunique" },
+    { key: "tunique", value: "Tunique + Short Top" },
     { key: "gaune", value: "Gaune" },
-    { key: "aLineKurti", value: "A-Line Kurti" },
+    { key: "aLineKurti", value: "Dupatta" },
     { key: "aLineKurtiPant", value: "A-Line Kurti Pant" },
-    { key: "roundedKurtiPant", value: "Round & Kurti Pant" },
+    // { key: "roundedKurtiPant", value: "Round & Kurti Pant" },
   ];
 
   const usingDesignSearch = searchType === SEARCH_TYPES.DESIGN;
@@ -1513,22 +1513,22 @@ const ListPage = () => {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="roundedPair">
-                                  Rounded Pair
+                                Round Kurti-pent dupatta
                                 </SelectItem>
                                 <SelectItem value="straightPair">
-                                  Straight Pair
+                                Straight Kurti-pent dupatta
                                 </SelectItem>
                                 <SelectItem value="plazzaPair">
-                                  Plazza Pair
+                                A-Line Kurti Plazza + Plazza Pair
                                 </SelectItem>
-                                <SelectItem value="sararaPair">
+                                {/* <SelectItem value="sararaPair">
                                   Sarara Pair
-                                </SelectItem>
+                                </SelectItem> */}
                                 <SelectItem value="straightKurtiPent">
                                   Straight kurti Pent
                                 </SelectItem>
                                 <SelectItem value="roundKurti">
-                                  Round kurti
+                                  Round + Feeding kurti
                                 </SelectItem>
                                 <SelectItem value="straightKurti">
                                   Straight kurti
@@ -1536,27 +1536,27 @@ const ListPage = () => {
                                 <SelectItem value="onlyPent">
                                   Only Pent
                                 </SelectItem>
-                                <SelectItem value="lehengaCholi">
+                                {/* <SelectItem value="lehengaCholi">
                                   Lehenga Choli
-                                </SelectItem>
+                                </SelectItem> */}
                                 <SelectItem value="straight">
                                   Straight
                                 </SelectItem>
                                 <SelectItem value="codeSet">
                                   Code-Set
                                 </SelectItem>
-                                <SelectItem value="tunique">Tunique</SelectItem>
+                                <SelectItem value="tunique">Tunique + Short Top</SelectItem>
                                 <SelectItem value="gaune">Gaune</SelectItem>
                                 <SelectItem value="aLineKurti">
-                                  A-Line Kurti
+                                  Kurti-Dupatta
                                 </SelectItem>
                                 <SelectItem value="aLineKurtiPant">
                                   A-Line Kurti Pant
                                 </SelectItem>
                                 
-                                <SelectItem value="roundedKurtiPant">
+                                {/* <SelectItem value="roundedKurtiPant">
                                   Round & Kurti Pant
-                                </SelectItem>
+                                </SelectItem> */}
                               </SelectContent>
                             </Select>
                           </FormControl>

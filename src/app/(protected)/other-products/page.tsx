@@ -95,7 +95,7 @@ const productTypes = [
   { key: "threePiece", value: "3 Piece" },
   { key: "kurtiPant", value: "Kurti Pant" },
   { key: "gown", value: "Gown" },
-  { key: "tunique", value: "Tunique" },
+  { key: "tunique", value: "Tunique + Short Top" },
   { key: "chaniya", value: "Chaniya" },
   { key: "dupatta", value: "Dupatta" },
   { key: "kurti", value: "Kurti" },
@@ -130,7 +130,7 @@ const productSubTypes: Record<string, Array<{ key: string; value: string }>> = {
     { key: "jaypuri-cotton-pair", value: "Jaypuri Cotton Pair" },
     { key: "heavy", value: "Heavy" },
     { key: "anarkali", value: "Anarkali" },
-    { key: "sarara-pair", value: "Sarara Pair" },
+    // { key: "sarara-pair", value: "Sarara Pair" },
   ],
   kurtiPant: [
     { key: "plazza-pair", value: "Plazza Pair" },
