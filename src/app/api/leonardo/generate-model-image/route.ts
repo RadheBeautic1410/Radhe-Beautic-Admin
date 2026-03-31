@@ -6,11 +6,118 @@ import { storage } from "@/src/lib/firebase/firebase";
 import { v4 as uuidv4 } from "uuid";
 import { Buffer } from "buffer";
 
-const LEONARDO_ENDPOINT = "https://cloud.leonardo.ai/api/rest/v1/generations";
+const LEONARDO_V1_GENERATIONS_ENDPOINT =
+  "https://cloud.leonardo.ai/api/rest/v1/generations";
+const LEONARDO_V2_GENERATIONS_ENDPOINT =
+  "https://cloud.leonardo.ai/api/rest/v2/generations";
+const LEONARDO_INIT_IMAGE_ENDPOINT =
+  "https://cloud.leonardo.ai/api/rest/v1/init-image";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function pickFirstGeneratedImageUrl(generation: any): string | null {
+async function safeLogFetchResponse(label: string, res: Response) {
+  try {
+    const contentType = res.headers.get("content-type") || "";
+    const text = await res
+      .clone()
+      .text()
+      .catch(() => "");
+
+    // Keep logs short and readable (avoid dumping huge presigned fields / html pages).
+    const truncated =
+      text.length > 2000 ? `${text.slice(0, 2000)}...<truncated>` : text;
+
+    let parsed: any = null;
+    if (contentType.includes("application/json")) {
+      parsed = await res
+        .clone()
+        .json()
+        .catch(() => null);
+    }
+
+    const redact = (obj: any) => {
+      try {
+        if (!obj || typeof obj !== "object") return obj;
+        const copy = JSON.parse(JSON.stringify(obj));
+        const maybe = copy?.uploadInitImage;
+        if (maybe?.fields && typeof maybe.fields === "string") {
+          // Avoid logging huge presigned fields blob.
+          maybe.fields = "<redacted>";
+        }
+        if (maybe?.fields && typeof maybe.fields === "object") {
+          for (const k of Object.keys(maybe.fields)) {
+            if (
+              k.toLowerCase().includes("token") ||
+              k.toLowerCase().includes("signature") ||
+              k.toLowerCase().includes("policy")
+            ) {
+              maybe.fields[k] = "<redacted>";
+            }
+          }
+        }
+        return copy;
+      } catch {
+        return obj;
+      }
+    };
+
+    console.log(`[leonardo] ${label}`, {
+      ok: res.ok,
+      status: res.status,
+      statusText: res.statusText,
+      contentType,
+      bodyPreview: truncated,
+      json: redact(parsed),
+    });
+  } catch (e: any) {
+    console.log(`[leonardo] ${label} (log failed)`, e?.message || e);
+  }
+}
+
+function extFromContentType(contentType: string | null): string {
+  const ct = (contentType || "").toLowerCase();
+  if (ct.includes("png")) return "png";
+  if (ct.includes("webp")) return "webp";
+  if (ct.includes("jpeg") || ct.includes("jpg")) return "jpeg";
+  // Default to jpeg since most references are JPG.
+  return "jpeg";
+}
+
+function normalizePresignedFields(fields: any): Record<string, string> {
+  if (!fields) return {};
+  if (typeof fields === "string") {
+    try {
+      const parsed = JSON.parse(fields);
+      return normalizePresignedFields(parsed);
+    } catch {
+      return {};
+    }
+  }
+  if (typeof fields !== "object") return {};
+
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(fields)) {
+    if (v === undefined || v === null) continue;
+    out[k] = String(v);
+  }
+  return out;
+}
+
+function unwrapLeonardoGeneration(payload: any): any {
+  return (
+    payload?.generations_by_pk ??
+    payload?.generation_by_pk ??
+    payload?.generationByPk ??
+    payload?.generation ??
+    payload?.data?.generation ??
+    payload?.data ??
+    payload?.sdGenerationJob ??
+    payload
+  );
+}
+
+function pickFirstGeneratedImageUrl(payload: any): string | null {
+  const generation = unwrapLeonardoGeneration(payload);
   const candidates =
     generation?.generated_images ??
     generation?.generatedImages ??
@@ -46,30 +153,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Defaults are taken from Leonardo quick-start examples.
-    // You can override via env if you want different model/styling.
-    const modelId =
-      process.env.LEONARDO_MODEL_ID || "7b592283-e8a7-4c5a-9ba6-d18c31f258b9";
+    // Leonardo v2 Gemini model name (not modelId).
+    const leonardoV2Model =
+      process.env.LEONARDO_V2_MODEL || "gemini-2.5-flash-image";
+
     const styleUUID =
-      process.env.LEONARDO_STYLE_UUID || "111dc692-d470-4eec-b791-3475abac4c46";
+      process.env.LEONARDO_STYLE_UUID || "111dc692-d470-4eec-b791-3475abac4c46"; // "111dc692-d470-4eec-b791-3475abac4c46";
 
     const promptText =
       typeof prompt === "string" && prompt.trim().length > 0
         ? prompt
         : [
-            "Create a realistic e-commerce product photo.",
-            "A young adult woman wearing the same kurti design as the reference image.",
-            "Keep the kurti colors, pattern, and look consistent with the reference image.",
-            "Neutral studio background, full body, sharp focus, natural fabric texture.",
-            "No text, no watermark.",
-            `Reference image URL: ${sourceImageUrl}`,
-            category ? `Category: ${category}` : "",
+            "Use the reference image as the exact garment",
+            "A realistic Indian woman model wearing the SAME kurti from the reference image.",
+            "Keep exact color, pattern, embroidery, and fabric unchanged.",
+            "Do not modify the kurti design.",
+            "Full body model, natural pose, studio lighting, ecommerce photoshoot.",
+            "Clean background, high detail, realistic fabric texture.",
+            "No new design, no changes in clothes.",
           ]
             .filter(Boolean)
             .join(" ");
 
-    // 1) Create generation
-    const createRes = await fetch(LEONARDO_ENDPOINT, {
+    // 1) Upload init image (reference image) to Leonardo
+    // Leonardo ControlNet expects an `initImageId` from `/init-image` upload.
+    const sourceRes = await fetch(sourceImageUrl);
+    await safeLogFetchResponse("download reference image", sourceRes);
+    if (!sourceRes.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Failed to download reference image (${sourceRes.status})`,
+        },
+        { status: 400 },
+      );
+    }
+
+    const sourceArrayBuffer = await sourceRes.arrayBuffer();
+    const sourceContentType = sourceRes.headers.get("content-type");
+    const initImageExt = extFromContentType(sourceContentType);
+
+    const initImageRes = await fetch(LEONARDO_INIT_IMAGE_ENDPOINT, {
       method: "POST",
       headers: {
         accept: "application/json",
@@ -77,17 +201,113 @@ export async function POST(request: NextRequest) {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        alchemy: false,
-        height: 1080,
-        width: 1920,
-        modelId,
-        prompt: promptText,
-        num_images: 1,
-        styleUUID,
-        ultra: false,
-        contrast: 3.5,
+        extension: initImageExt,
       }),
     });
+    await safeLogFetchResponse("init-image", initImageRes);
+
+    if (!initImageRes.ok) {
+      const errText = await initImageRes.text().catch(() => "");
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Leonardo init-image failed (${initImageRes.status})`,
+          details: errText,
+        },
+        { status: 500 },
+      );
+    }
+
+    const initImageJson = await initImageRes.json();
+    const uploadInitImage = initImageJson?.uploadInitImage;
+
+    const initImageId = uploadInitImage?.id;
+
+    const uploadUrl = uploadInitImage?.url;
+
+    const uploadFields = normalizePresignedFields(uploadInitImage?.fields);
+
+    if (!initImageId || !uploadUrl) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Leonardo initImage upload info missing",
+          details: initImageJson,
+        },
+        { status: 500 },
+      );
+    }
+
+    // Upload the binary to the presigned URL (multipart/form-data)
+    const formData = new FormData();
+    for (const [k, v] of Object.entries(uploadFields)) {
+      formData.append(k, v);
+    }
+
+    // Most presigned POST targets use `file` field name. If your docs show a different field,
+    // adjust this key accordingly.
+    const fileBlob = new Blob([sourceArrayBuffer], {
+      type: sourceContentType ?? `image/${initImageExt}`,
+    });
+    formData.append("file", fileBlob, `init.${initImageExt}`);
+
+    const presignedUploadRes = await fetch(uploadUrl, {
+      method: "POST",
+      body: formData,
+    });
+    await safeLogFetchResponse(
+      "presigned init-image upload",
+      presignedUploadRes,
+    );
+
+    // Presigned POST upload typically returns 204 No Content on success.
+    if (!presignedUploadRes.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Leonardo init-image upload failed (${presignedUploadRes.status})`,
+        },
+        { status: 500 },
+      );
+    }
+
+    // 2) Create generation (v2 Gemini payload) using the uploaded initImageId
+    const initImageType = process.env.LEONARDO_INIT_IMAGE_TYPE || "UPLOADED";
+    const imageStrength = process.env.LEONARDO_IMAGE_REFERENCE_STRENGTH || "MID";
+    const promptEnhance = process.env.LEONARDO_PROMPT_ENHANCE || "OFF";
+
+    const createRes = await fetch(LEONARDO_V2_GENERATIONS_ENDPOINT, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${leonardoApiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: leonardoV2Model,
+        parameters: {
+          width: 1024,
+          height: 1024,
+          prompt: promptText,
+          quantity: 1,
+          guidances: {
+            image_reference: [
+              {
+                image: {
+                  id: initImageId,
+                  type: initImageType,
+                },
+                strength: imageStrength,
+              },
+            ],
+          },
+          style_ids: styleUUID ? [styleUUID] : [],
+          prompt_enhance: promptEnhance,
+        },
+        public: false,
+      }),
+    });
+    await safeLogFetchResponse("create generation", createRes);
 
     if (!createRes.ok) {
       const errText = await createRes.text().catch(() => "");
@@ -102,8 +322,16 @@ export async function POST(request: NextRequest) {
     }
 
     const createJson = await createRes.json();
-    console.log("createJson", createJson);
-    const generationId = createJson?.generationId ?? createJson?.id;
+    const generationId =
+      createJson?.generationId ??
+      createJson?.id ??
+      createJson?.data?.id ??
+      createJson?.data?.generationId ??
+      createJson?.generation?.id ??
+      createJson?.data?.generation?.id ??
+      createJson?.sdGenerationJob?.generationId ??
+      createJson?.sdGenerationJob?.id;
+
     if (!generationId) {
       return NextResponse.json(
         { success: false, error: "Leonardo generationId missing" },
@@ -111,17 +339,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2) Poll for completion
+    // 3) Poll for completion (v2)
+    let generationPayload: any = null;
     let generation: any = null;
     for (let attempt = 0; attempt < 30; attempt++) {
       await sleep(2000);
-      const statusRes = await fetch(`${LEONARDO_ENDPOINT}/${generationId}`, {
+      const statusRes = await fetch(
+        `${LEONARDO_V2_GENERATIONS_ENDPOINT}/${generationId}`,
+        {
         method: "GET",
         headers: {
           accept: "application/json",
           authorization: `Bearer ${leonardoApiKey}`,
         },
-      });
+        },
+      );
+      if (attempt === 0 || attempt % 5 === 0) {
+        await safeLogFetchResponse(`status poll attempt=${attempt}`, statusRes);
+      }
 
       if (!statusRes.ok) {
         const errText = await statusRes.text().catch(() => "");
@@ -137,7 +372,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      generation = await statusRes.json();
+      generationPayload = await statusRes.json();
+      generation = unwrapLeonardoGeneration(generationPayload);
       const status = generation?.status;
 
       if (status === "COMPLETE") break;
@@ -146,7 +382,11 @@ export async function POST(request: NextRequest) {
           {
             success: false,
             error: "Leonardo generation failed",
-            details: generation?.failureReason ?? generation,
+            details:
+              generation?.failureReason ??
+              generation?.error ??
+              generation?.message ??
+              generation,
           },
           { status: 500 },
         );
@@ -165,7 +405,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3) Get generated image URL
-    const leonardoImageUrl = pickFirstGeneratedImageUrl(generation);
+    const leonardoImageUrl = pickFirstGeneratedImageUrl(generationPayload);
     if (!leonardoImageUrl) {
       return NextResponse.json(
         { success: false, error: "Leonardo generated image URL missing" },
