@@ -409,7 +409,7 @@ export const sellKurti2 = async (data: any) => {
       cmp = code.substring(6);
     }
     console.log("search: ", search);
-    const kurti = await db.kurti.findUnique({
+    const kurti = await db.kurti.findFirst({
       where: { code: search.toUpperCase(), isDeleted: false },
       select: {
         id: true,

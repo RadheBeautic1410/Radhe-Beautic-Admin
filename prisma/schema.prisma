@@ -249,6 +249,7 @@ model Kurti {
   @@index([isDeleted, countOfPiece])
   @@index([lastUpdatedTime])
   @@index([createdAt])
+  @@index([code, isDeleted])
 }
 
 model ShippingRate {
@@ -289,6 +290,12 @@ model Sell {
   batch         SaleBatch? @relation("BatchSales", fields: [batchId], references: [id])
 
   @@map("Sell")
+  @@index([code])
+  @@index([sellTime])
+  @@index([kurtiId])
+  @@index([batchId])
+  @@index([sellerName])
+  @@index([code, sellTime])
 }
 
 // If you need to create a separate table for batch sales (optional)
