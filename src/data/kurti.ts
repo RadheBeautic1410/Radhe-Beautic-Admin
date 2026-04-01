@@ -1445,6 +1445,8 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
       shopId,
       gstType,
       sellType = OfflineSellType.SHOP_SELL_OFFLINE,
+      remark,
+      discountAmount,
     } = data;
     const currTime = await getCurrTime();
     if (!products || products.length === 0) {
@@ -1454,6 +1456,9 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
     const soldProducts = [];
     const errors = [];
     let totalAmount = 0;
+    const discount = Math.max(0, parseInt(String(discountAmount || 0)) || 0);
+    const remarkText =
+      typeof remark === "string" && remark.trim().length > 0 ? remark.trim() : null;
 
     // Create offline sale batch first
     const batchNumber = `OFFLINE-${Date.now()}`;
@@ -1473,6 +1478,8 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         customerName: customerName.trim(),
         customerPhone: customerPhone?.trim() || null,
         billCreatedBy: billCreatedBy.trim(),
+        remark: remarkText,
+        discountAmount: discount,
         totalAmount: 0,
         totalItems: 0,
         saleTime: currTime,
@@ -1655,12 +1662,13 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
       }
     }
 
-    // Update batch with final totals
+    // Update batch with final totals (apply discount on saved totalAmount)
     if (soldProducts.length > 0) {
+      const netTotalAmount = Math.max(0, totalAmount - discount);
       await db.offlineSellBatch.update({
         where: { id: offlineBatch.id },
         data: {
-          totalAmount: totalAmount,
+          totalAmount: netTotalAmount,
           totalItems: soldProducts.reduce(
             (sum, product) => sum + product.quantity,
             0
@@ -1689,7 +1697,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
       return {
         success: "Partial offline sale completed",
         soldProducts,
-        totalAmount,
+        totalAmount: Math.max(0, totalAmount - discount),
         errors,
         customer: {
           name: customerName,
@@ -1707,7 +1715,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
     return {
       success: "All offline products sold successfully",
       soldProducts,
-      totalAmount,
+      totalAmount: Math.max(0, totalAmount - discount),
       customer: {
         name: customerName,
         phone: customerPhone,

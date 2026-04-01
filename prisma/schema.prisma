@@ -328,6 +328,8 @@ model OfflineSellBatch {
   customerName  String
   customerPhone String?
   billCreatedBy String
+  remark        String?
+  discountAmount Int?           @default(0)
   totalAmount   Int
   totalItems    Int
   saleTime      DateTime

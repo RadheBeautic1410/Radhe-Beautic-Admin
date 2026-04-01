@@ -15,20 +15,16 @@ import {
 } from "@/src/components/ui/table";
 import { UserRole } from "@prisma/client";
 import axios from "axios";
-import {
-  Loader2,
-  Search,
-  ShoppingCart,
-  Trash2,
-  Plus,
-} from "lucide-react";
+import { Loader2, Search, ShoppingCart, Trash2 } from "lucide-react";
 import React, { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { getShopList, getUserShop } from "@/src/actions/shop";
 import { useEffect } from "react";
-import InvoicePreview, { InvoicePayload } from "./invoice-preview/InvoicePreview";
+import InvoicePreview, {
+  InvoicePayload,
+} from "./invoice-preview/InvoicePreview";
 
 const getCurrTime = () => {
   const currentTime = new Date();
@@ -42,7 +38,7 @@ interface CartItem {
   kurti: any;
   selectedSize: string;
   quantity: number;
-  sellingPrice: number;
+  sellingPrice: number | null;
   availableStock: number;
 }
 type GSTType = "IGST" | "SGST_CGST";
@@ -85,12 +81,11 @@ const calculateGSTBreakdown = (totalPriceWithGST: number, gstType: GSTType) => {
 };
 function SellPage() {
   const [code, setCode] = useState("");
-  const [kurti, setKurti] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [selling, setSelling] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [invoicePreview, setInvoicePreview] = useState<InvoicePayload | null>(
-    null
+    null,
   );
   const shouldPrintAfterSaveRef = useRef(false);
   const [gstType, setGstType] = useState<GSTType>("SGST_CGST");
@@ -102,11 +97,78 @@ function SellPage() {
   const [shops, setShops] = useState<any[]>([]);
   const [paymentType, setpaymentType] = useState("");
   const [userShop, setUserShop] = useState<any>(null);
+  const [remark, setRemark] = useState("");
+  const [discountAmount, setDiscountAmount] = useState<string>("");
 
-  // Current product selection
-  const [selectedSize, setSelectedSize] = useState("");
-  const [sellingPrice, setSellingPrice] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  // Scan / focus
+  const productCodeInputRef = useRef<HTMLInputElement>(null);
+
+  const focusProductCodeInput = () => {
+    // Let React flush state updates before focusing
+    setTimeout(() => {
+      productCodeInputRef.current?.focus();
+    }, 0);
+  };
+
+  const getSizeFromScannedCode = (rawCode: string) => {
+    if (!rawCode) return "";
+    const trimmed = rawCode.trim();
+    if (trimmed.length <= 7) return "";
+    return trimmed.slice(7).toUpperCase();
+  };
+
+  const addFoundToCart = (foundKurti: any, size: string) => {
+    if (!foundKurti) return false;
+
+    if (!size) {
+      toast.error("Please scan/enter product code with size (e.g. CODEXL)");
+      return false;
+    }
+
+    const sizeInfo = foundKurti.sizes?.find((sz: any) => sz.size === size);
+    if (!sizeInfo || sizeInfo.quantity < 1) {
+      toast.error("Insufficient stock for selected size");
+      return false;
+    }
+
+    // Check if same product+size already exists in cart
+    const existingItemIndex = cart.findIndex(
+      (item) =>
+        item.kurti.code === foundKurti.code && item.selectedSize === size,
+    );
+
+    if (existingItemIndex >= 0) {
+      const updatedCart = [...cart];
+      const existingItem = updatedCart[existingItemIndex];
+      const totalQuantity = existingItem.quantity + 1;
+
+      if (totalQuantity > sizeInfo.quantity) {
+        toast.error("Total quantity exceeds available stock");
+        return false;
+      }
+
+      updatedCart[existingItemIndex] = {
+        ...existingItem,
+        quantity: totalQuantity,
+      };
+      setCart(updatedCart);
+    } else {
+      const newItem: CartItem = {
+        id: `${foundKurti.code}-${size}-${Date.now()}`,
+        kurti: foundKurti,
+        selectedSize: size,
+        quantity: 1,
+        sellingPrice: null, // blank by default
+        availableStock: sizeInfo.quantity,
+      };
+      setCart([...cart, newItem]);
+    }
+
+    // Reset for next scan and keep cursor ready
+    setCode("");
+    focusProductCodeInput();
+    return true;
+  };
 
   const currentUser = useCurrentUser();
 
@@ -158,22 +220,17 @@ function SellPage() {
         toast.error("Please enter correct code!!!");
         return;
       }
-      if (code.length > 7) {
-        setSelectedSize(code.slice(7).toUpperCase());
-      }
+      const scannedSize = getSizeFromScannedCode(code);
 
       const res = await axios.post(`/api/kurti/find-kurti`, { code });
       const data = res.data.data;
       console.log("data", data);
       if (data.error) {
         toast.error(data.error);
-        setKurti(null);
       } else {
-        setKurti(data.kurti);
-        // setSellingPrice("");
-        // setSelectedSize("");
-        setQuantity(1);
-        toast.success("Product found!");
+        // Directly add to shipping details with qty=1 and blank price
+        const added = addFoundToCart(data.kurti, scannedSize);
+        if (added) toast.success("Added to shipping details");
       }
     } catch (error) {
       console.error("Error finding product:", error);
@@ -181,80 +238,6 @@ function SellPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const addToCart = () => {
-    if (!kurti) {
-      toast.error("Please find a product first");
-      return;
-    }
-
-    if (!selectedSize) {
-      toast.error("Please select size");
-      return;
-    }
-
-    if (!sellingPrice || parseInt(sellingPrice) <= 0) {
-      toast.error("Please enter valid selling price");
-      return;
-    }
-
-    if (quantity <= 0) {
-      toast.error("Please enter valid quantity");
-      return;
-    }
-
-    const sizeInfo = kurti.sizes.find((sz: any) => sz.size === selectedSize);
-    if (!sizeInfo || sizeInfo.quantity < quantity) {
-      toast.error("Insufficient stock for selected quantity");
-      return;
-    }
-
-    // Check if same product+size already exists in cart
-    const existingItemIndex = cart.findIndex(
-      (item) =>
-        item.kurti.code === kurti.code && item.selectedSize === selectedSize
-    );
-
-    const newItem: CartItem = {
-      id: `${kurti.code}-${selectedSize}-${Date.now()}`,
-      kurti,
-      selectedSize,
-      quantity,
-      sellingPrice: parseInt(sellingPrice),
-      availableStock: sizeInfo.quantity,
-    };
-
-    if (existingItemIndex >= 0) {
-      // Update existing item
-      const updatedCart = [...cart];
-      const existingItem = updatedCart[existingItemIndex];
-      const totalQuantity = existingItem.quantity + quantity;
-
-      if (totalQuantity > sizeInfo.quantity) {
-        toast.error("Total quantity exceeds available stock");
-        return;
-      }
-
-      updatedCart[existingItemIndex] = {
-        ...existingItem,
-        quantity: totalQuantity,
-        sellingPrice: parseInt(sellingPrice), // Update price if changed
-      };
-      setCart(updatedCart);
-    } else {
-      // Add new item
-      setCart([...cart, newItem]);
-    }
-
-    // Reset current product selection
-    setCode("");
-    setKurti(null);
-    setSelectedSize("");
-    setSellingPrice("");
-    setQuantity(1);
-
-    toast.success("Product added to cart!");
   };
 
   const removeFromCart = (itemId: string) => {
@@ -281,12 +264,7 @@ function SellPage() {
     setCart(updatedCart);
   };
 
-  const updateCartItemPrice = (itemId: string, newPrice: number) => {
-    if (newPrice <= 0) {
-      toast.error("Please enter valid price");
-      return;
-    }
-
+  const updateCartItemPrice = (itemId: string, newPrice: number | null) => {
     const updatedCart = cart.map((item) => {
       if (item.id === itemId) {
         return { ...item, sellingPrice: newPrice };
@@ -296,11 +274,23 @@ function SellPage() {
     setCart(updatedCart);
   };
 
-  const getTotalAmount = () => {
+  const getSubTotalAmount = () => {
     return cart.reduce(
-      (total, item) => total + item.sellingPrice * item.quantity,
-      0
+      (total, item) => total + (item.sellingPrice || 0) * item.quantity,
+      0,
     );
+  };
+
+  const getDiscountValue = () => {
+    const val = Number(discountAmount || 0);
+    if (Number.isNaN(val) || val < 0) return 0;
+    return val;
+  };
+
+  const getNetTotalAmount = () => {
+    const sub = getSubTotalAmount();
+    const disc = getDiscountValue();
+    return Math.max(0, sub - disc);
   };
 
   const draftInvoiceRef = useRef(`DRAFT-${Date.now()}`);
@@ -326,7 +316,9 @@ function SellPage() {
     if (cart.length === 0) return null;
     const displayNo =
       draftDisplayBillNo ||
-      (typeof window !== "undefined" ? "RB-00000000-00" : draftInvoiceRef.current);
+      (typeof window !== "undefined"
+        ? "RB-00000000-00"
+        : draftInvoiceRef.current);
     return {
       batchNumber: draftInvoiceRef.current,
       invoiceNumber: draftInvoiceRef.current,
@@ -335,6 +327,8 @@ function SellPage() {
       customerName: customerName.trim() || "-",
       customerPhone: customerPhone.trim() || "-",
       billCreatedBy: billCreatedBy.trim() || "-",
+      remark: remark.trim() || "",
+      discountAmount: getDiscountValue(),
       gstType,
       soldProducts: cart.map((item) => ({
         kurti: {
@@ -343,10 +337,10 @@ function SellPage() {
         },
         size: item.selectedSize,
         quantity: item.quantity,
-        unitPrice: item.sellingPrice,
-        totalPrice: item.sellingPrice * item.quantity,
+        unitPrice: item.sellingPrice || 0,
+        totalPrice: (item.sellingPrice || 0) * item.quantity,
       })),
-      totalAmount: getTotalAmount(),
+      totalAmount: getNetTotalAmount(),
       shopName: userShop?.shopName || "Radhe Beautic",
       shopLocation: userShop?.shopLocation || "Surat, Gujarat",
     };
@@ -355,7 +349,9 @@ function SellPage() {
     cart,
     customerName,
     customerPhone,
+    discountAmount,
     gstType,
+    remark,
     userShop?.shopLocation,
     userShop?.shopName,
     draftDisplayBillNo,
@@ -367,6 +363,21 @@ function SellPage() {
 
       if (cart.length === 0) {
         toast.error("Please add products to cart");
+        return;
+      }
+
+      const hasMissingPrice = cart.some(
+        (item) => !item.sellingPrice || item.sellingPrice <= 0,
+      );
+      if (hasMissingPrice) {
+        toast.error("Please enter selling price for all items");
+        return;
+      }
+
+      const subTotal = getSubTotalAmount();
+      const discount = getDiscountValue();
+      if (discount > subTotal) {
+        toast.error("Discount cannot be greater than total amount");
         return;
       }
 
@@ -405,7 +416,7 @@ function SellPage() {
         kurti: item.kurti,
         selectedSize: item.selectedSize,
         quantity: item.quantity,
-        sellingPrice: item.sellingPrice,
+        sellingPrice: item.sellingPrice!,
       }));
 
       const res = await axios.post(`/api/sell/offline-retailer`, {
@@ -419,6 +430,8 @@ function SellPage() {
         gstType: gstType,
         shopId: selectedShopId.trim(),
         sellType: "SHOP_SELL_OFFLINE",
+        remark: remark.trim(),
+        discountAmount: getDiscountValue(),
       });
 
       const data = res.data.data;
@@ -455,8 +468,8 @@ function SellPage() {
         },
         size: item.selectedSize,
         quantity: item.quantity,
-        unitPrice: item.sellingPrice,
-        totalPrice: item.sellingPrice * item.quantity,
+        unitPrice: item.sellingPrice || 0,
+        totalPrice: (item.sellingPrice || 0) * item.quantity,
       }));
 
       const displayNo =
@@ -473,9 +486,11 @@ function SellPage() {
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         billCreatedBy: billCreatedBy.trim(),
+        remark: remark.trim() || "",
+        discountAmount: getDiscountValue(),
         gstType,
         soldProducts,
-        totalAmount: getTotalAmount(),
+        totalAmount: getNetTotalAmount(),
         shopName: userShop?.shopName || "Radhe Beautic",
         shopLocation: userShop?.shopLocation || "Surat, Gujarat",
       };
@@ -511,7 +526,6 @@ function SellPage() {
 
   const resetForm = () => {
     setCode("");
-    setKurti(null);
     setCart([]);
     setCustomerName("");
     setCustomerPhone("");
@@ -524,9 +538,8 @@ function SellPage() {
     setBillCreatedBy("");
     setpaymentType("");
     setGstType("SGST_CGST");
-    setSelectedSize("");
-    setSellingPrice("");
-    setQuantity(1);
+    setRemark("");
+    setDiscountAmount("");
   };
 
   const clearAll = () => {
@@ -549,15 +562,9 @@ function SellPage() {
     }, 150);
   }, [invoicePreview]);
 
-  const getAvailableSizes = () => {
-    if (!kurti?.sizes) return [];
-    console.log("kurti.sizes", kurti.sizes);
-
-    return kurti.sizes.filter((sz: any) => sz.quantity > 0);
-  };
-
   const canCompleteSale =
     cart.length > 0 &&
+    cart.every((item) => !!item.sellingPrice && item.sellingPrice > 0) &&
     customerName.trim().length > 0 &&
     selectedShopId.trim().length > 0 &&
     billCreatedBy.trim().length > 0 &&
@@ -567,12 +574,14 @@ function SellPage() {
   const missingCompleteSaleFields = useMemo(() => {
     const missing: string[] = [];
     if (cart.length === 0) missing.push("Add at least 1 item");
+    if (cart.some((item) => !item.sellingPrice || item.sellingPrice <= 0))
+      missing.push("Prices");
     if (!customerName.trim()) missing.push("Customer Name");
     if (!selectedShopId.trim()) missing.push("Shop");
     if (!paymentType.trim()) missing.push("Payment Type");
     if (!billCreatedBy.trim()) missing.push("Bill Created By");
     return missing;
-  }, [billCreatedBy, cart.length, customerName, paymentType, selectedShopId]);
+  }, [billCreatedBy, cart, customerName, paymentType, selectedShopId]);
 
   return (
     <Card className="rounded-none w-full h-full">
@@ -624,7 +633,162 @@ function SellPage() {
             </label>
           </div>
         </div>
+
+        {/* Search Section */}
+        <div className="bg-slate-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">Find Product</h3>
+          <div className="flex flex-row flex-wrap gap-2 items-end">
+            <div className="flex flex-col flex-wrap">
+              <Label htmlFor="product-code" className="mb-[10px]">
+                Product Code
+              </Label>
+              <Input
+                id="product-code"
+                className="w-[250px] p-2"
+                placeholder="Enter product code (without size)"
+                value={code}
+                ref={productCodeInputRef}
+                onKeyUp={(e) => {
+                  if (e.key === "Enter") {
+                    handleFind();
+                  }
+                }}
+                onChange={(e) => {
+                  setCode(e.target.value);
+                }}
+              />
+            </div>
+            <Button
+              type="button"
+              onClick={handleFind}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="mr-2 h-4 w-4" />
+              )}
+              Find Product
+            </Button>
+          </div>
+        </div>
         {/* Customer Details Section */}
+
+        {/* Add-to-cart section removed: scanning/entering code adds directly to shipping details */}
+
+        {/* Shopping Cart (like Hall Sales) */}
+        {cart.length > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-4 text-green-800">
+              Shopping Cart ({cart.length} items)
+            </h3>
+
+            <div className="overflow-x-auto">
+              <Table className="border border-collapse">
+                <TableHeader>
+                  <TableRow className="bg-green-800">
+                    <TableHead className="font-bold border text-white">
+                      Product
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Size
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Quantity
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Unit Price
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Total
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
+                      Actions
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cart.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="border">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={item.kurti.images[0]?.url}
+                            alt={item.kurti.code}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                          <div>
+                            <div className="font-semibold">
+                              {item.kurti.code.toUpperCase()}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {item.kurti.category}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="border">
+                        {item.selectedSize.toUpperCase()}
+                      </TableCell>
+                      <TableCell className="border">
+                        <Input
+                          type="number"
+                          min="1"
+                          max={item.availableStock}
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateCartItemQuantity(
+                              item.id,
+                              parseInt(e.target.value) || 1,
+                            )
+                          }
+                          className="w-20"
+                        />
+                      </TableCell>
+                      <TableCell className="border">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.sellingPrice ?? ""}
+                          onChange={(e) =>
+                            updateCartItemPrice(
+                              item.id,
+                              e.target.value === ""
+                                ? null
+                                : parseInt(e.target.value) || null,
+                            )
+                          }
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell className="border font-semibold">
+                        ₹{(item.sellingPrice || 0) * item.quantity}
+                      </TableCell>
+                      <TableCell className="border">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-green-300">
+              <div className="text-xl font-bold text-green-800">
+                Total Amount: ₹{getNetTotalAmount()}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-blue-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -714,217 +878,31 @@ function SellPage() {
                 onChange={(e) => setBillCreatedBy(e.target.value)}
               />
             </div>
-          </div>
-        </div>
 
-        {/* Search Section */}
-        <div className="bg-slate-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Find Product</h3>
-          <div className="flex flex-row flex-wrap gap-2 items-end">
-            <div className="flex flex-col flex-wrap">
-              <Label htmlFor="product-code" className="mb-[10px]">
-                Product Code
-              </Label>
+            <div>
+              <Label htmlFor="discount-amount">Discount (Amount)</Label>
               <Input
-                id="product-code"
-                className="w-[250px] p-2"
-                placeholder="Enter product code (without size)"
-                value={code}
-                onKeyUp={(e) => {
-                  if (e.key === "Enter") {
-                    handleFind();
-                  }
-                }}
-                onChange={(e) => {
-                  setCode(e.target.value);
-                }}
+                id="discount-amount"
+                type="number"
+                min="0"
+                placeholder="Enter discount amount"
+                value={discountAmount}
+                onChange={(e) => setDiscountAmount(e.target.value)}
               />
             </div>
-            <Button
-              type="button"
-              onClick={handleFind}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="mr-2 h-4 w-4" />
-              )}
-              Find Product
-            </Button>
+
+            <div className="md:col-span-2 lg:col-span-3">
+              <Label htmlFor="remark">Remark</Label>
+              <Input
+                id="remark"
+                placeholder="Enter remark (optional)"
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+              />
+            </div>
           </div>
         </div>
-
-        {/* Add to Cart (no Product Details) */}
-        {kurti && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <h4 className="font-semibold mb-3 text-yellow-800">Add to Cart</h4>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div>
-                <Label htmlFor="size-select">Select Size *</Label>
-                <select
-                  id="size-select"
-                  name="size-select"
-                  aria-label="Select size"
-                  className="w-full p-2 border rounded-md"
-                  value={selectedSize}
-                  onChange={(e) => setSelectedSize(e.target.value)}
-                >
-                  <option value="">Select Size</option>
-                  {getAvailableSizes().map((sz: any, i: number) => (
-                    <option key={i} value={sz.size}>
-                      {sz.size.toUpperCase()} (Stock: {sz.quantity})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="quantity">Quantity *</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="1"
-                  placeholder="Enter quantity"
-                  value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="selling-price">Selling Price *</Label>
-                <Input
-                  id="selling-price"
-                  type="number"
-                  placeholder="Enter selling price"
-                  value={sellingPrice}
-                  onChange={(e) => setSellingPrice(e.target.value)}
-                />
-              </div>
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  onClick={addToCart}
-                  className="w-full bg-yellow-600 hover:bg-yellow-700"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add to Cart
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Shopping Cart (like Hall Sales) */}
-        {cart.length > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold mb-4 text-green-800">
-              Shopping Cart ({cart.length} items)
-            </h3>
-
-            <div className="overflow-x-auto">
-              <Table className="border border-collapse">
-                <TableHeader>
-                  <TableRow className="bg-green-800">
-                    <TableHead className="font-bold border text-white">
-                      Product
-                    </TableHead>
-                    <TableHead className="font-bold border text-white">
-                      Size
-                    </TableHead>
-                    <TableHead className="font-bold border text-white">
-                      Quantity
-                    </TableHead>
-                    <TableHead className="font-bold border text-white">
-                      Unit Price
-                    </TableHead>
-                    <TableHead className="font-bold border text-white">
-                      Total
-                    </TableHead>
-                    <TableHead className="font-bold border text-white">
-                      Actions
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cart.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="border">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={item.kurti.images[0]?.url}
-                            alt={item.kurti.code}
-                            className="w-12 h-12 object-cover rounded"
-                          />
-                          <div>
-                            <div className="font-semibold">
-                              {item.kurti.code.toUpperCase()}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {item.kurti.category}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="border">
-                        {item.selectedSize.toUpperCase()}
-                      </TableCell>
-                      <TableCell className="border">
-                        <Input
-                          type="number"
-                          min="1"
-                          max={item.availableStock}
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateCartItemQuantity(
-                              item.id,
-                              parseInt(e.target.value) || 1
-                            )
-                          }
-                          className="w-20"
-                        />
-                      </TableCell>
-                      <TableCell className="border">
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.sellingPrice}
-                          onChange={(e) =>
-                            updateCartItemPrice(
-                              item.id,
-                              parseInt(e.target.value) || 1
-                            )
-                          }
-                          className="w-24"
-                        />
-                      </TableCell>
-                      <TableCell className="border font-semibold">
-                        ₹{item.sellingPrice * item.quantity}
-                      </TableCell>
-                      <TableCell className="border">
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => removeFromCart(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            <div className="flex justify-between items-center mt-4 pt-4 border-t border-green-300">
-              <div className="text-xl font-bold text-green-800">
-                Total Amount: ₹{getTotalAmount()}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Invoice Preview (shown immediately after Add to Cart) */}
+        {/* Invoice Preview (shown as items are added) */}
         {(invoicePreview || draftInvoicePreview) && (
           <div className="border rounded-lg p-3 bg-white print-area">
             <div className="flex items-center justify-between mb-2 print:hidden">

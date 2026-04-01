@@ -28,6 +28,8 @@ export type InvoicePayload = {
   customerName: string;
   customerPhone: string;
   billCreatedBy: string;
+  remark?: string;
+  discountAmount?: number;
   gstType: GSTType;
   soldProducts: SoldProduct[];
   totalAmount: number;
@@ -393,6 +395,14 @@ export default function InvoicePreview({
               )}
             </div>
             <div className="pt-2 border-t border-black text-sm font-bold">
+              {Number(invoice.discountAmount || 0) > 0 ? (
+                <div className="flex items-center justify-between text-xs font-normal mb-2">
+                  <span className="bg-gray-100 px-2 py-1">DISCOUNT</span>
+                  <span className="bg-gray-100 px-2 py-1">
+                    -{Number(invoice.discountAmount || 0).toFixed(2)}
+                  </span>
+                </div>
+              ) : null}
               <div className="flex items-center justify-between">
                 <span className="bg-gray-100 px-2 py-1">INVOICE TOTAL</span>
                 <span className="bg-gray-100 px-2 py-1">
@@ -402,6 +412,12 @@ export default function InvoicePreview({
             </div>
           </div>
         </div>
+
+        {(invoice.remark || "").trim().length > 0 ? (
+          <div className="border-t border-black px-5 py-2 text-xs">
+            <span className="font-bold">Remark:</span> {invoice.remark}
+          </div>
+        ) : null}
 
         <div className="flex border-t-2 border-black invoice-footer">
           <div className="flex-1 p-4 border-r-2 border-black">
