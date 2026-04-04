@@ -102,7 +102,7 @@ const routes: MenuItem[] = [
   {
     name: "Selling History",
     href: "/sellinghistory",
-    role: [UserRole.ADMIN, UserRole.SELLER],
+    role: [UserRole.ADMIN, UserRole.SELLER, UserRole.SHOP_SELLER],
     icon: "📊",
   },
   {

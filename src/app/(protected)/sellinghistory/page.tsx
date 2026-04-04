@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import PageLoader from "@/src/components/loader";
 import { Card, CardContent, CardHeader } from '@/src/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
@@ -9,6 +9,8 @@ import { UserRole } from '@prisma/client';
 import NotAllowedPage from '../_components/errorPages/NotAllowedPage';
 import { format } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz'
+import { useCurrentUser } from '@/src/hooks/use-current-user';
+import { getUserShop } from '@/src/actions/shop';
 const headerCells = [
     {
         name: 'Sr.',
@@ -36,32 +38,79 @@ function SellingHistory() {
     const [loader, setLoader] = useState(true);
     const [sellData, setSellData] = useState<any[]>([]);
     const [search, setSearch] = useState<string>("");
+    const [shops, setShops] = useState<any[]>([]);
+    const [selectedShopId, setSelectedShopId] = useState<string>("DIRECT"); // 'DIRECT' shows direct sells
+    const [userShop, setUserShop] = useState<any>(null);
+    const [selectedDate, setSelectedDate] = useState<string>(() => {
+        // Default to today's date in YYYY-MM-DD
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    });
+    const currentUser = useCurrentUser();
+    useEffect(() => {
+        // Load shops for dropdown (include Direct Sell option locally)
+        const loadShops = async () => {
+            try {
+                const res = await fetch('/api/shops');
+                const json = await res.json();
+                if (json?.data) setShops(json.data);
+            } catch (e: any) {
+                console.log('Failed to load shops', e?.message || e);
+            }
+        };
+        loadShops();
+    }, []);
+
+    // If role is SHOP_SELLER, lock to their shop and disable filter
+    useEffect(() => {
+        const initForShopSeller = async () => {
+            try {
+                if (currentUser?.id && currentUser.role === UserRole.SHOP_SELLER) {
+                    const shop = await getUserShop(currentUser.id);
+                    if (shop) {
+                        setUserShop(shop);
+                        setSelectedShopId(shop.id);
+                    }
+                }
+            } catch (e: any) {
+                console.log('Failed to init shop for user', e?.message || e);
+            }
+        };
+        initForShopSeller();
+    }, [currentUser]);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch(`/api/sell/history`);// Adjust the API endpoint based on your actual setup
+                setLoader(true);
+                const params = new URLSearchParams();
+                if (selectedDate) params.set('date', selectedDate);
+                if (selectedShopId) params.set('shopId', selectedShopId);
+                const response = await fetch(`/api/sell/history?${params.toString()}`);
                 const result = await response.json();
-                console.log(result.data);
-                let data = result.data.reverse();
+                let data = (result.data || []).slice().reverse();
                 setSellData(data);
-            }
-            catch (e: any) {
+            } catch (e: any) {
                 console.log(e.message);
-            }
-            finally {
+            } finally {
                 setLoader(false);
             }
-        }
+        };
         fetchData();
-    }, []);
+    }, [selectedDate, selectedShopId]);
 
-    const filteredData = sellData.filter((obj) => {
-        if (!search) return true;
-        const q = search.toLowerCase();
-        const name = String(obj.sellerName || "").toLowerCase();
-        const code = String(obj.code || "").toLowerCase();
-        return name.includes(q) || code.includes(q);
-    });
+    const filteredData = useMemo(() => {
+        return sellData.filter((obj) => {
+            if (!search) return true;
+            const q = search.toLowerCase();
+            const name = String(obj.sellerName || "").toLowerCase();
+            const code = String(obj.code || "").toLowerCase();
+            return name.includes(q) || code.includes(q);
+        });
+    }, [sellData, search]);
 
     return (
       <>
@@ -77,13 +126,54 @@ function SellingHistory() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search by name or code"
-                    className="max-w-md"
-                  />
+                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-3">
+                  <div className="flex items-end gap-2">
+                    <div className="flex flex-col">
+                      <label htmlFor="date" className="text-sm mb-1">Date</label>
+                      <Input
+                        id="date"
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label htmlFor="shop" className="text-sm mb-1">Shop</label>
+                      {currentUser?.role === UserRole.SHOP_SELLER ? (
+                        <div className="p-2 border rounded-md bg-gray-50 min-w-[220px]">
+                          {userShop ? (
+                            <span className="text-gray-700 font-medium">
+                              {userShop.shopName} - {userShop.shopLocation}
+                            </span>
+                          ) : (
+                            <span className="text-gray-500">No shop associated</span>
+                          )}
+                        </div>
+                      ) : (
+                        <select
+                          id="shop"
+                          className="p-2 border rounded-md min-w-[220px]"
+                          value={selectedShopId}
+                          onChange={(e) => setSelectedShopId(e.target.value)}
+                        >
+                          <option value="DIRECT">Direct Sell</option>
+                          {shops.map((s: any) => (
+                            <option key={s.id} value={s.id}>
+                              {s.shopName} - {s.shopLocation}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search by name or code"
+                      className="w-full md:max-w-md"
+                    />
+                  </div>
                 </div>
                 <Table>
                   <TableHeader>
@@ -158,7 +248,7 @@ const SellHistoruHelper = () => {
     return (
         <>
 
-            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER,]}>
+            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SHOP_SELLER]}>
                 <SellingHistory />
             </RoleGateForComponent>
             <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.RESELLER]}>

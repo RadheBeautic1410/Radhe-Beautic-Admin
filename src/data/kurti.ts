@@ -1309,6 +1309,75 @@ export const getSellHistory = async () => {
   return sellData;
 };
 
+export const getSellingHistoryFiltered = async (params: {
+  dateISO?: string; // YYYY-MM-DD
+  shopId?: string; // 'DIRECT' for direct sells, or actual Shop id for offline batches
+}) => {
+  const todayIST = (() => {
+    const currentTime = new Date();
+    const ISTOffset = 5.5 * 60 * 60 * 1000;
+    const ISTTime = new Date(currentTime.getTime() + ISTOffset)
+      .toISOString()
+      .slice(0, 10);
+    return ISTTime;
+  })();
+
+  const date = (params.dateISO || todayIST).slice(0, 10);
+  const start = new Date(`${date}T00:00:00.000Z`);
+  const end = new Date(`${date}T23:59:59.999Z`);
+  const targetShopId = params.shopId || "DIRECT";
+
+  if (targetShopId === "DIRECT") {
+    // Direct sells come from Sell table
+    const sellData = await db.sell.findMany({
+      where: {
+        sellTime: {
+          gte: start,
+          lt: end,
+        },
+      },
+      orderBy: { sellTime: "asc" },
+    });
+    // Normalize shape to match UI
+    return sellData.map((s: any) => ({
+      id: s.id,
+      sellTime: s.sellTime,
+      sellerName: s.sellerName || "-",
+      code: s.code,
+      kurtiSize: s.kurtiSize,
+      source: "DIRECT",
+    }));
+  }
+
+  // Shop-based sells come from OfflineSell joined with OfflineSellBatch by shopId
+  const offlineSells = await db.offlineSell.findMany({
+    where: {
+      sellTime: {
+        gte: start,
+        lt: end,
+      },
+      batch: {
+        shopId: targetShopId,
+      },
+    },
+    include: {
+      batch: true,
+    },
+    orderBy: { sellTime: "asc" },
+  });
+
+  return offlineSells.map((s: any) => ({
+    id: s.id,
+    sellTime: s.sellTime,
+    sellerName: s.batch?.sellerName || "-",
+    code: s.code,
+    kurtiSize: s.kurtiSize,
+    source: "OFFLINE_BATCH",
+    shopId: s.batch?.shopId || null,
+    batchNumber: s.batch?.batchNumber || null,
+  }));
+};
+
 export const addStock = async (code: string) => {
   try {
     console.log(code);
