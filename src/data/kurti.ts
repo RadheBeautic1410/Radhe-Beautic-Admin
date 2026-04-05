@@ -1313,18 +1313,33 @@ export const getSellingHistoryFiltered = async (params: {
   dateISO?: string; // YYYY-MM-DD
   shopId?: string; // 'DIRECT' for direct sells, or actual Shop id for offline batches
 }) => {
+  // Compute start/end using IST day boundaries to match how sellTime is saved and how UI expects filtering
   const todayIST = (() => {
-    const currentTime = new Date();
-    const ISTOffset = 5.5 * 60 * 60 * 1000;
-    const ISTTime = new Date(currentTime.getTime() + ISTOffset)
-      .toISOString()
-      .slice(0, 10);
-    return ISTTime;
+    const now = new Date();
+    // Format to YYYY-MM-DD in Asia/Kolkata
+    const y = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+    }).format(now);
+    const m = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      month: "2-digit",
+    }).format(now);
+    const d = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+    }).format(now);
+    // en-GB gives DD/MM/YYYY, so rebuild
+    const yyyy = y;
+    const mm = m;
+    const dd = d;
+    return `${yyyy}-${mm}-${dd}`;
   })();
 
   const date = (params.dateISO || todayIST).slice(0, 10);
-  const start = new Date(`${date}T00:00:00.000Z`);
-  const end = new Date(`${date}T23:59:59.999Z`);
+  // Set explicit IST offset for day window
+  const start = new Date(`${date}T00:00:00.000+05:30`);
+  const end = new Date(`${date}T23:59:59.999+05:30`);
   const targetShopId = params.shopId || "DIRECT";
 
   if (targetShopId === "DIRECT") {
