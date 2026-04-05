@@ -168,10 +168,15 @@ export const stockAddition = async (data: any) => {
 
   // Step 1: Calculate new total count of pieces from sizes
   let newCount = 0;
+  // Build map for new sizes
+  const newSizeToQty: Record<string, number> = {};
   for (let i = 0; i < sizes.length; i++) {
     if (sizes[i].quantity > 0) {
       newCount += sizes[i].quantity;
     }
+    newSizeToQty[String(sizes[i].size).toUpperCase()] = parseInt(
+      String(sizes[i].quantity || 0)
+    );
   }
 
   // Step 2: Fetch existing Kurti
@@ -183,6 +188,15 @@ export const stockAddition = async (data: any) => {
 
   const oldCount = kurti.countOfPiece || 0;
   const diff = newCount - oldCount;
+  const oldSizeToQty: Record<string, number> = {};
+  try {
+    const arr: any[] = (kurti.sizes as any[]) || [];
+    for (let i = 0; i < arr.length; i++) {
+      const sz = String((arr[i] as any).size || "").toUpperCase();
+      const qty = parseInt(String((arr[i] as any).quantity || 0));
+      oldSizeToQty[sz] = qty;
+    }
+  } catch {}
 
   // Step 3: Update Kurti with new sizes and count
   const currTime = await getCurrTime();
@@ -205,6 +219,28 @@ export const stockAddition = async (data: any) => {
           increment: diff, // could be positive or negative
         },
       },
+    });
+  }
+
+  // Step 5: Write stock addition history entries for positive deltas
+  const additions: Array<{ code: string; size: string; quantity: number; kurtiId?: string; createdAt: Date }> = [];
+  Object.keys(newSizeToQty).forEach((sizeKey) => {
+    const before = oldSizeToQty[sizeKey] || 0;
+    const after = newSizeToQty[sizeKey] || 0;
+    const delta = after - before;
+    if (delta > 0) {
+      additions.push({
+        code: code.toUpperCase(),
+        size: sizeKey,
+        quantity: delta,
+        kurtiId: kurti.id,
+        createdAt: currTime,
+      });
+    }
+  });
+  if (additions.length > 0) {
+    await (db as any).stockAddition.createMany({
+      data: additions,
     });
   }
 
