@@ -7,10 +7,8 @@ import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
 
 export const getCurrTime = async () => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-  return ISTTime;
+  // Always store in UTC; handle display/filtering in desired timezone
+  return new Date();
 };
 
 export const kurtiAddition = async (data: any) => {
@@ -638,7 +636,7 @@ export async function toggleKurtiImageVisibility(
       },
       data: {
         images: updatedImages,
-        lastUpdatedTime: new Date(),
+        lastUpdatedTime: await getCurrTime(),
       },
     });
 
@@ -729,7 +727,7 @@ export async function toggleKurtiVideoVisibility(
       },
       data: {
         videos: updatedVideos,
-        lastUpdatedTime: new Date(),
+        lastUpdatedTime: await getCurrTime(),
       },
     });
 

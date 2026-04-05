@@ -193,20 +193,24 @@ function SellingHistory() {
                   <TableBody>
                     {filteredData &&
                       filteredData.map((obj, idx) => {
-                        const iso = String(obj.sellTime);
-                        // Use date-fns-tz for consistent timezone formatting
-                        const formattedIST = formatInTimeZone(
-                          new Date(iso),
-                          "Asia/Kolkata",
-                          "dd/MM/yyyy hh:mm a"
-                        );
+                        const dt = new Date(obj.sellTime);
+                        const dateStr = dt.toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        });
+                        const timeStr = dt.toLocaleTimeString("en-GB", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        });
                         return (
                           <TableRow key={obj.id}>
                             <TableCell className="text-center">
                               {filteredData.length - idx}
                             </TableCell>
                             <TableCell className="text-center">
-                              {formattedIST}
+                              {dateStr} {timeStr}
                             </TableCell>
                             <TableCell className="text-center">
                               {obj.sellerName}

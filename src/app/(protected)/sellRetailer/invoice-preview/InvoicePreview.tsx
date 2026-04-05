@@ -31,6 +31,7 @@ export type InvoicePayload = {
   remark?: string;
   discountAmount?: number;
   gstType: GSTType;
+  paymentType?: string;
   soldProducts: SoldProduct[];
   totalAmount: number;
   shopName: string;
@@ -287,6 +288,10 @@ export default function InvoicePreview({
             <div className="flex justify-between">
               <span className="font-bold">Bill By:</span>
               <span>{invoice.billCreatedBy}</span>
+            </div>
+            <div className="flex justify-between mt-2">
+              <span className="font-bold">Payment:</span>
+              <span>{invoice.paymentType || "-"}</span>
             </div>
           </div>
         </div>
