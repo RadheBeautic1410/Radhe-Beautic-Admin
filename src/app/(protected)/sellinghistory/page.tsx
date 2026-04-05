@@ -193,34 +193,24 @@ function SellingHistory() {
                   <TableBody>
                     {filteredData &&
                       filteredData.map((obj, idx) => {
-                        let isoString = obj.sellTime;
-                        let [date, time] = isoString.split("T");
-                        let [hours, minutes, seconds] = time.split(":");
-                        hours = parseInt(hours, 10);
-                        minutes = parseInt(minutes, 10);
-                        seconds = parseInt(seconds, 10);
-
-                        // Determine AM or PM
-                        const period = hours >= 12 ? "PM" : "AM";
-
-                        // Convert hours to 12-hour format
-                        let displayHours = hours % 12;
-                        displayHours = displayHours === 0 ? 12 : displayHours; // Handle midnight (0) as 12 AM
-
-                        // Format minutes and seconds with leading zeros if needed
-                        const displayMinutes =
-                          minutes < 10 ? `0${minutes}` : minutes;
-
-                        // Construct the final formatted time string
-                        const formattedTime = `${displayHours}:${displayMinutes} ${period}`;
+                        const dt = new Date(obj.sellTime);
+                        const dateStr = dt.toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        });
+                        const timeStr = dt.toLocaleTimeString("en-GB", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        });
                         return (
                           <TableRow key={obj.id}>
                             <TableCell className="text-center">
                               {filteredData.length - idx}
                             </TableCell>
                             <TableCell className="text-center">
-                              {/* {format(new Date(timeIn24HourFormat), 'h:mm aa')} */}
-                              {formattedTime}
+                              {dateStr} {timeStr}
                             </TableCell>
                             <TableCell className="text-center">
                               {obj.sellerName}

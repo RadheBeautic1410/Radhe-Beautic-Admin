@@ -13,6 +13,12 @@ import {
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
+const getCurrTimeIST = () => {
+  const currentTime = new Date();
+  const ISTOffset = 5.5 * 60 * 60 * 1000;
+  return new Date(currentTime.getTime() + ISTOffset);
+};
+
 interface partyAddtionProps {
   name: string;
 }
@@ -535,7 +541,7 @@ export const clearStockData = async (categoryCode: string) => {
         sizes: [],
         countOfPiece: 0,
         reservedSizes: [],
-        lastUpdatedTime: new Date(),
+        lastUpdatedTime: getCurrTimeIST(),
       },
     });
 
