@@ -1466,6 +1466,16 @@ export const addStock = async (code: string) => {
         },
       },
     });
+    // Log stock addition history (UTC timestamp; display in IST on UI)
+    await (db as any).stockAddition.create({
+      data: {
+        code: search.toUpperCase(),
+        size: cmp.toUpperCase(),
+        quantity: 1,
+        kurtiId: KurtiNew?.id || undefined,
+        createdAt: currTime,
+      },
+    });
     return KurtiNew;
   } catch (e: any) {
     console.log(e.message);

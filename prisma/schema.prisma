@@ -233,6 +233,7 @@ model Kurti {
   TopSoldKurti      TopSoldKurti?
   OfflineSell       OfflineSell[]
   OnlineSell        OnlineSell[]
+  StockAddition     StockAddition[]
   createdAt         DateTime?           @default(now())
   updatedAt         DateTime?           @updatedAt
 
@@ -729,4 +730,20 @@ model Expense {
   @@index([createdAt])
   @@index([isPaid])
   @@index([paymentMethod])
+}
+
+// Track stock additions (for history, filters, pagination)
+model StockAddition {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  code      String
+  size      String
+  quantity  Int      @default(1)
+  kurtiId   String?  @db.ObjectId
+  createdAt DateTime @default(now())
+
+  kurti     Kurti?   @relation(fields: [kurtiId], references: [id])
+
+  @@index([code])
+  @@index([createdAt])
+  @@index([kurtiId])
 }
