@@ -206,7 +206,11 @@ export async function PUT(
       removedItems: removedItems?.length || 0,
     });
 
-    const result = await db.$transaction(async (tx) => {
+    // NOTE:
+    // This endpoint can legitimately touch 100+ rows (sales + stock updates).
+    // Prisma interactive transactions default to a 5s timeout, which can be exceeded on large updates.
+    const result = await db.$transaction(
+      async (tx) => {
       // Update the sale batch details
       const updatedSale = await tx.offlineSellBatch.update({
         where: { id },
@@ -223,62 +227,92 @@ export async function PUT(
 
       // Update existing items if provided
       if (updatedItems && Array.isArray(updatedItems)) {
-        for (const item of updatedItems) {
-          if (
-            item.id &&
-            (item.quantity !== undefined || item.sellingPrice !== undefined)
-          ) {
-            const updateData: any = {};
-            if (item.quantity !== undefined)
-              updateData.quantity = item.quantity;
+        // Do updates in small concurrent batches to reduce total wall time without overwhelming DB.
+        const toUpdate = updatedItems
+          .filter(
+            (item: any) =>
+              item?.id &&
+              (item.quantity !== undefined || item.sellingPrice !== undefined)
+          )
+          .map((item: any) => {
+            const updateData: any = { updatedAt: currTime };
+            if (item.quantity !== undefined) updateData.quantity = item.quantity;
             if (item.sellingPrice !== undefined)
               updateData.selledPrice = item.sellingPrice;
-            updateData.updatedAt = currTime;
-            await tx.offlineSell.update({
-              where: { id: item.id },
-              data: updateData,
-            });
-          }
+            return { id: item.id, data: updateData };
+          });
+
+        const BATCH = 25;
+        for (let i = 0; i < toUpdate.length; i += BATCH) {
+          const chunk = toUpdate.slice(i, i + BATCH);
+          await Promise.all(
+            chunk.map((u) =>
+              tx.offlineSell.update({
+                where: { id: u.id },
+                data: u.data,
+              })
+            )
+          );
         }
       }
 
       // Remove items if provided
       if (removedItems && Array.isArray(removedItems)) {
-        for (const itemId of removedItems) {
-          // Get the item details before deletion to restore stock
-          const itemToDelete = await tx.offlineSell.findUnique({
-            where: { id: itemId },
+        const ids = removedItems.filter(Boolean);
+        if (ids.length > 0) {
+          // Fetch all items once (instead of N findUnique calls)
+          const itemsToDelete = await tx.offlineSell.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, kurtiId: true, kurtiSize: true, quantity: true },
           });
 
-          if (itemToDelete) {
-            // Restore kurti stock
-            const kurti = await tx.kurti.findUnique({
-              where: { id: itemToDelete.kurtiId },
-            });
-
-            if (kurti && kurti.sizes) {
-              const updatedSizes = kurti.sizes.map((size: any) => {
-                if ((size as any).size === itemToDelete.kurtiSize) {
-                  return {
-                    ...size,
-                    quantity:
-                      (size as any).quantity + (itemToDelete.quantity || 1),
-                  };
-                }
-                return size;
-              });
-
-              await tx.kurti.update({
-                where: { id: itemToDelete.kurtiId },
-                data: { sizes: updatedSizes },
-              });
+          // Restore stock grouped by kurtiId (update each kurti at most once)
+          const restoreByKurti = new Map<
+            string,
+            Map<string, number>
+          >();
+          for (const it of itemsToDelete) {
+            const size = String(it.kurtiSize || "").toUpperCase();
+            if (!it.kurtiId || !size) continue;
+            const qty = it.quantity || 1;
+            if (!restoreByKurti.has(it.kurtiId)) {
+              restoreByKurti.set(it.kurtiId, new Map());
             }
-
-            // Delete the offline sale record
-            await tx.offlineSell.delete({
-              where: { id: itemId },
-            });
+            const m = restoreByKurti.get(it.kurtiId)!;
+            m.set(size, (m.get(size) || 0) + qty);
           }
+
+          const kurtiIds = Array.from(restoreByKurti.keys());
+          if (kurtiIds.length > 0) {
+            const kurtis = await tx.kurti.findMany({
+              where: { id: { in: kurtiIds } },
+              select: { id: true, sizes: true },
+            });
+
+            await Promise.all(
+              kurtis.map(async (k) => {
+                const restoreMap = restoreByKurti.get(k.id);
+                if (!restoreMap || !k.sizes) return;
+
+                const updatedSizes = (k.sizes as any[]).map((s: any) => {
+                  const key = String(s?.size || "").toUpperCase();
+                  const add = restoreMap.get(key) || 0;
+                  if (!add) return s;
+                  return { ...s, quantity: (s?.quantity || 0) + add };
+                });
+
+                await tx.kurti.update({
+                  where: { id: k.id },
+                  data: { sizes: updatedSizes, updatedAt: currTime },
+                });
+              })
+            );
+          }
+
+          // Delete all removed items in one query
+          await tx.offlineSell.deleteMany({
+            where: { id: { in: ids } },
+          });
         }
       }
 
@@ -286,94 +320,118 @@ export async function PUT(
       if (newProducts && Array.isArray(newProducts)) {
         const currentTime = new Date();
 
-        for (const product of newProducts) {
-          if (
-            product.kurtiId &&
-            product.selectedSize &&
-            product.quantity &&
-            product.sellingPrice
-          ) {
-            // Create new offline sale record
-            await tx.offlineSell.create({
-              data: {
-                sellTime: currentTime,
-                code: product.code || product.kurtiCode,
-                kurtiSize: product.selectedSize,
-                kurtiId: product.kurtiId,
-                batchId: id,
-                quantity: product.quantity,
-                selledPrice: product.sellingPrice,
-                customerName: customerName.trim(),
-                customerPhone: customerPhone?.trim() || null,
-                shopLocation: existingSale.shop?.shopLocation || null,
-                createdAt: currentTime,
-                updatedAt: currentTime,
-              },
-            });
+        const validNewProducts = newProducts.filter(
+          (p: any) =>
+            p?.kurtiId &&
+            p?.selectedSize &&
+            p?.quantity &&
+            p?.sellingPrice
+        );
 
-            // Update kurti stock
-            const kurti = await tx.kurti.findUnique({
-              where: { id: product.kurtiId },
-            });
+        if (validNewProducts.length > 0) {
+          // Group required stock decrements by kurtiId -> size -> qty
+          const decByKurti = new Map<string, Map<string, number>>();
+          for (const p of validNewProducts) {
+            const size = String(p.selectedSize).toUpperCase();
+            const qty = Number(p.quantity) || 0;
+            if (!p.kurtiId || !size || qty <= 0) continue;
+            if (!decByKurti.has(p.kurtiId)) decByKurti.set(p.kurtiId, new Map());
+            const m = decByKurti.get(p.kurtiId)!;
+            m.set(size, (m.get(size) || 0) + qty);
+          }
 
-            if (kurti && kurti.sizes) {
-              const sizeInfo = kurti.sizes.find(
-                (size: any) => (size as any).size === product.selectedSize
+          // Fetch all needed kurtis once
+          const kurtiIds = Array.from(decByKurti.keys());
+          const kurtis = await tx.kurti.findMany({
+            where: { id: { in: kurtiIds } },
+            select: { id: true, sizes: true },
+          });
+
+          const kurtiById = new Map(kurtis.map((k) => [k.id, k]));
+
+          // Validate stock for all products before applying any updates
+          for (const [kurtiId, sizeMap] of decByKurti.entries()) {
+            const k = kurtiById.get(kurtiId);
+            if (!k || !k.sizes) {
+              throw new Error(`Product not found or has no sizes: ${kurtiId}`);
+            }
+            for (const [size, qty] of sizeMap.entries()) {
+              const sizeInfo = (k.sizes as any[]).find(
+                (s: any) => String(s?.size || "").toUpperCase() === size
               );
               if (!sizeInfo) {
+                throw new Error(`Size ${size} not found for product ${kurtiId}`);
+              }
+              const available = Number(sizeInfo?.quantity || 0);
+              if (available < qty) {
                 throw new Error(
-                  `Size ${product.selectedSize} not found for product ${product.kurtiCode}`
+                  `Insufficient stock for product ${kurtiId} size ${size}. Available: ${available}, Requested: ${qty}`
                 );
               }
+            }
+          }
 
-              if ((sizeInfo as any).quantity < product.quantity) {
-                throw new Error(
-                  `Insufficient stock for ${product.kurtiCode} size ${
-                    product.selectedSize
-                  }. Available: ${(sizeInfo as any).quantity}, Requested: ${
-                    product.quantity
-                  }`
-                );
-              }
+          // Apply stock updates (each kurti updated once)
+          await Promise.all(
+            kurtiIds.map(async (kurtiId) => {
+              const k = kurtiById.get(kurtiId);
+              const sizeMap = decByKurti.get(kurtiId);
+              if (!k || !k.sizes || !sizeMap) return;
 
-              const updatedSizes = kurti.sizes.map((size: any) => {
-                if ((size as any).size === product.selectedSize) {
-                  return {
-                    ...size,
-                    quantity: Math.max(
-                      0,
-                      (size as any).quantity - product.quantity
-                    ),
-                  };
-                }
-                return size;
+              const updatedSizes = (k.sizes as any[]).map((s: any) => {
+                const key = String(s?.size || "").toUpperCase();
+                const dec = sizeMap.get(key) || 0;
+                if (!dec) return s;
+                return { ...s, quantity: Math.max(0, (s?.quantity || 0) - dec) };
               });
 
               await tx.kurti.update({
-                where: { id: product.kurtiId },
-                data: { sizes: updatedSizes },
+                where: { id: kurtiId },
+                data: { sizes: updatedSizes, updatedAt: currTime },
               });
-            } else {
-              throw new Error(
-                `Product ${product.kurtiCode} not found or has no sizes`
-              );
-            }
-          }
+            })
+          );
+
+          // Create sale rows in bulk
+          await tx.offlineSell.createMany({
+            data: validNewProducts.map((p: any) => ({
+              sellTime: currentTime,
+              code: p.code || p.kurtiCode,
+              kurtiSize: String(p.selectedSize).toUpperCase(),
+              kurtiId: p.kurtiId,
+              batchId: id,
+              quantity: p.quantity,
+              selledPrice: p.sellingPrice,
+              customerName: customerName.trim(),
+              customerPhone: customerPhone?.trim() || null,
+              shopLocation: existingSale.shop?.shopLocation || null,
+              createdAt: currentTime,
+              updatedAt: currentTime,
+            })),
+          });
         }
       }
 
-      // Recalculate total amount and items
-      const allSales = await tx.offlineSell.findMany({
+      // Recalculate totals efficiently (no need to load every row)
+      const totals = await tx.offlineSell.aggregate({
         where: { batchId: id },
+        _sum: {
+          quantity: true,
+          selledPrice: true, // note: this sums unit prices, not amounts; totalAmount is computed below
+        },
       });
 
-      const totalAmount = allSales.reduce((sum, sale) => {
-        return sum + (sale.selledPrice || 0) * (sale.quantity || 1);
-      }, 0);
-
-      const totalItems = allSales.reduce((sum, sale) => {
-        return sum + (sale.quantity || 1);
-      }, 0);
+      // Prisma doesn't support sum(selledPrice * quantity) directly; do it via lightweight select.
+      // Still cheaper than including entire kurti objects while recalculating.
+      const rowsForTotal = await tx.offlineSell.findMany({
+        where: { batchId: id },
+        select: { selledPrice: true, quantity: true },
+      });
+      const totalAmount = rowsForTotal.reduce(
+        (sum, r) => sum + (r.selledPrice || 0) * (r.quantity || 1),
+        0
+      );
+      const totalItems = totals._sum.quantity || 0;
 
       // Update batch totals
       const finalUpdatedSale = await tx.offlineSellBatch.update({
@@ -393,7 +451,13 @@ export async function PUT(
       });
 
       return finalUpdatedSale;
-    });
+      },
+      {
+        // Increase interactive transaction timeout for large edits
+        timeout: 60000,
+        maxWait: 60000,
+      }
+    );
 
     // Regenerate invoice if there were any changes to products
     let invoiceResult = null;

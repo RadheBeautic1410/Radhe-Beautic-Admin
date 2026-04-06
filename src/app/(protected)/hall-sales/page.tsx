@@ -30,12 +30,11 @@ import {
   Trash2,
   Plus,
 } from "lucide-react";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { getUserShop, getHallSaleShops } from "@/src/actions/shop";
-import { useEffect } from "react";
 import InvoicePreview, {
   InvoicePayload,
 } from "@/src/app/(protected)/sellRetailer/invoice-preview/InvoicePreview";
@@ -75,6 +74,9 @@ function HallSalesPage() {
   const [loading, setLoading] = useState(false);
   const [selling, setSelling] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
+  // Cart pagination (UI-only; totals/invoice still use full cart)
+  const [cartPage, setCartPage] = useState(1);
+  const [cartPageSize, setCartPageSize] = useState(25);
   const [gstType, setGstType] = useState<GSTType>("SGST_CGST");
   // Sale details
   const [customerName, setCustomerName] = useState("");
@@ -98,6 +100,7 @@ function HallSalesPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkSelectedSizes, setBulkSelectedSizes] = useState<string[]>([]);
   const [bulkPrice, setBulkPrice] = useState("");
+  const selectAllSizesRef = useRef<HTMLInputElement | null>(null);
 
   const currentUser = useCurrentUser();
   const selectedShop = useMemo(() => {
@@ -399,6 +402,23 @@ function HallSalesPage() {
     );
   };
 
+  const cartTotalPages = useMemo(() => {
+    const size = Math.max(1, cartPageSize);
+    return Math.max(1, Math.ceil(cart.length / size));
+  }, [cart.length, cartPageSize]);
+
+  useEffect(() => {
+    // Keep page in range when cart changes or page size changes
+    setCartPage((p) => Math.min(Math.max(1, p), cartTotalPages));
+  }, [cartTotalPages, cart.length]);
+
+  const paginatedCart = useMemo(() => {
+    const size = Math.max(1, cartPageSize);
+    const page = Math.min(Math.max(1, cartPage), cartTotalPages);
+    const start = (page - 1) * size;
+    return cart.slice(start, start + size);
+  }, [cart, cartPage, cartPageSize, cartTotalPages]);
+
   const canCompleteSale =
     cart.length > 0 &&
     customerName.trim().length > 0 &&
@@ -671,6 +691,22 @@ function HallSalesPage() {
     return kurti.sizes.filter((sz: any) => sz.quantity > 0);
   };
 
+  const bulkAvailableSizes = useMemo(() => {
+    return getAvailableSizes().map((sz: any) => String(sz.size).toUpperCase());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kurti]);
+
+  const allBulkSelected =
+    bulkAvailableSizes.length > 0 &&
+    bulkAvailableSizes.every((s) => bulkSelectedSizes.includes(s));
+  const someBulkSelected =
+    bulkSelectedSizes.length > 0 && !allBulkSelected;
+
+  useEffect(() => {
+    if (!selectAllSizesRef.current) return;
+    selectAllSizesRef.current.indeterminate = someBulkSelected;
+  }, [someBulkSelected]);
+
   return (
     <Card className="rounded-none w-full h-full">
       <style jsx global>{`
@@ -917,6 +953,27 @@ function HallSalesPage() {
                             </Button>
                           </div>
 
+                          <label className="mt-2 flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer hover:bg-gray-50">
+                            <input
+                              ref={selectAllSizesRef}
+                              type="checkbox"
+                              checked={allBulkSelected}
+                              onChange={(e) => {
+                                const next = e.target.checked;
+                                setBulkSelectedSizes(
+                                  next ? bulkAvailableSizes : []
+                                );
+                              }}
+                              disabled={bulkAvailableSizes.length === 0}
+                            />
+                            <span className="text-sm font-medium">
+                              Select all sizes
+                            </span>
+                            <span className="ml-auto text-xs text-gray-500">
+                              {bulkSelectedSizes.length}/{bulkAvailableSizes.length}
+                            </span>
+                          </label>
+
                           <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {getAvailableSizes().map((sz: any) => {
                               const size = String(sz.size).toUpperCase();
@@ -1091,6 +1148,64 @@ function HallSalesPage() {
               Shopping Cart ({cart.length} items)
             </h3>
 
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+              <div className="text-sm text-gray-700">
+                Showing{" "}
+                <span className="font-medium">
+                  {(cartPage - 1) * cartPageSize + 1}
+                </span>
+                {" "}to{" "}
+                <span className="font-medium">
+                  {Math.min(cartPage * cartPageSize, cart.length)}
+                </span>{" "}
+                of <span className="font-medium">{cart.length}</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Label className="text-sm">Rows</Label>
+                <select
+                  aria-label="Cart rows per page"
+                  className="p-2 border rounded-md bg-white text-sm"
+                  value={cartPageSize}
+                  onChange={(e) => {
+                    const next = parseInt(e.target.value) || 25;
+                    setCartPageSize(next);
+                    setCartPage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCartPage((p) => Math.max(1, p - 1))}
+                  disabled={cartPage <= 1}
+                >
+                  Prev
+                </Button>
+                <div className="text-sm text-gray-700 min-w-[90px] text-center">
+                  Page <span className="font-medium">{cartPage}</span> /{" "}
+                  <span className="font-medium">{cartTotalPages}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCartPage((p) => Math.min(cartTotalPages, p + 1))
+                  }
+                  disabled={cartPage >= cartTotalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+
             <div className="overflow-x-auto">
               <Table className="border border-collapse">
                 <TableHeader>
@@ -1116,7 +1231,7 @@ function HallSalesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cart.map((item) => (
+                  {paginatedCart.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="border">
                         <div className="flex items-center gap-3">
