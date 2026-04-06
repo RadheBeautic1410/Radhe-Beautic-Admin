@@ -50,6 +50,13 @@ import {
 } from "@/src/actions/customer-order";
 import { Badge } from "@/src/components/ui/badge";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/src/components/ui/dropdown-menu";
+import {
   Eye,
   CheckCircle2,
   Truck,
@@ -57,10 +64,11 @@ import {
   X,
   Download,
   XCircle,
+  MoreVertical,
+  Printer,
 } from "lucide-react";
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
-import { generateAddressInfo } from "@/src/actions/generate-pdf";
 import { DeleteConfirmationDialog } from "@/src/components/delete-confirmation-dialog";
 
 interface CartProduct {
@@ -87,6 +95,7 @@ interface CustomerOrder {
   total: number;
   shippingCharge: number;
   paymentStatus?: PaymentStatus | null;
+  paymentTxnId?: string | null;
   paymentType?: string | null;
   note?: string | null;
   paymentScreenshot?: string | null;
@@ -173,6 +182,14 @@ const CustomerOrdersPage = () => {
   // Cancel order confirmation state
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
+
+  // Print address state (same-page printing; avoids popup blockers)
+  const [printOrder, setPrintOrder] = useState<CustomerOrder | null>(null);
+  const [printMeta, setPrintMeta] = useState<{
+    currentDate: string;
+    totalQuantity: number;
+    combinedAddress: string;
+  } | null>(null);
 
   // Fetch orders based on filters and pagination
   const fetchOrders = async () => {
@@ -380,7 +397,7 @@ const CustomerOrdersPage = () => {
   };
 
   // Handle download address PDF
-  const handleDownloadAddressPDF = async (order: CustomerOrder) => {
+  const handlePrintAddress = async (order: CustomerOrder) => {
     try {
       // Calculate total quantity from cart products
       const totalQuantity = order.cart.CartProduct.reduce(
@@ -437,48 +454,28 @@ const CustomerOrdersPage = () => {
         },
       );
 
-      // Prepare request data - only pass address (name, mobile, address combined)
-      const reqData = {
-        orderId: order.orderId,
-        date: currentDate,
-        quantity: totalQuantity,
-        group: "radhe beautic",
-        address: combinedAddress,
-      };
-
-      // Call the generate address PDF API
-      const result = await generateAddressInfo(reqData);
-
-      if (!result.success || !result.pdfBase64) {
-        throw new Error(result.error || "Failed to generate PDF");
-      }
-
-      // Convert base64 string to Blob and trigger download
-      const binaryString = atob(result.pdfBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Address-${order.orderId}-${Date.now()}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success("Address PDF downloaded successfully");
+      // Same-page print: set print data, then trigger window.print()
+      setPrintOrder(order);
+      setPrintMeta({ currentDate, totalQuantity, combinedAddress });
+      setTimeout(() => window.print(), 50);
     } catch (error) {
-      console.error("Error generating address PDF:", error);
+      console.error("Error printing address:", error);
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to download address PDF",
+          : "Failed to print address",
       );
     }
   };
+
+  useEffect(() => {
+    const cleanup = () => {
+      setPrintOrder(null);
+      setPrintMeta(null);
+    };
+    window.addEventListener("afterprint", cleanup);
+    return () => window.removeEventListener("afterprint", cleanup);
+  }, []);
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
@@ -527,6 +524,66 @@ const CustomerOrdersPage = () => {
 
   return (
     <>
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          .print-area,
+          .print-area * {
+            visibility: visible !important;
+          }
+          .print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 24px;
+            background: white;
+          }
+        }
+      `}</style>
+
+      {/* Print Address Area (only visible during printing) */}
+      {printOrder && printMeta && (
+        <div className="print-area">
+          <div className="max-w-[700px] mx-auto">
+            <div className="flex justify-between gap-4 items-start border-b pb-3 mb-4">
+              <div>
+                <div className="text-lg font-bold">Shipping Address</div>
+                <div className="text-xs text-gray-600">
+                  Order: <span className="font-semibold">{printOrder.orderId}</span>
+                </div>
+              </div>
+              <div className="text-xs text-gray-600 text-right">
+                Date: <span className="font-semibold">{printMeta.currentDate}</span>
+                <br />
+                Qty: <span className="font-semibold">{printMeta.totalQuantity}</span>
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-4">
+              <div className="text-xs text-gray-500 mb-2">To</div>
+              <div className="whitespace-pre-wrap text-sm leading-6">
+                {printMeta.combinedAddress}
+              </div>
+            </div>
+
+            <div className="mt-3 flex justify-between gap-3 text-xs text-gray-600">
+              <div>
+                Group: <span className="font-semibold">Radhe Beautic</span>
+              </div>
+              <div>
+                Printed:{" "}
+                <span className="font-semibold">
+                  {new Date().toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Card className="rounded-none w-full h-full">
         <CardHeader>
           <div className="space-y-4">
@@ -694,12 +751,12 @@ const CustomerOrdersPage = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDownloadAddressPDF(order)}
-                          title="Download Address PDF"
+                          onClick={() => handlePrintAddress(order)}
+                          title="Print Address"
                           className="flex-1 min-w-[80px]"
                         >
-                          <Download className="h-4 w-4 mr-1" />
-                          Download
+                          <Printer className="h-4 w-4 mr-1" />
+                          Print
                         </Button>
                         {order.status === OrderStatus.PENDING && (
                           <Button
@@ -757,6 +814,7 @@ const CustomerOrdersPage = () => {
                       <TableHead>Grand Total</TableHead>
                       <TableHead>Order Date</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Payment</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -784,64 +842,82 @@ const CustomerOrdersPage = () => {
                           <TableCell>{formatDate(order.createdAt)}</TableCell>
                           <TableCell>{getStatusBadge(order.status)}</TableCell>
                           <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleViewOrder(order)}
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDownloadAddressPDF(order)}
-                                title="Download Address PDF"
-                              >
-                                <Download className="h-4 w-4 mr-1" />
-                                Download
-                              </Button>
-                              {order.status === OrderStatus.PENDING && (
+                            {order.paymentStatus ? (
+                              getPaymentStatusBadge(order.paymentStatus)
+                            ) : (
+                              <span className="text-xs text-gray-500">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
                                 <Button
-                                  variant="default"
-                                  size="sm"
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  aria-label="Order actions"
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem
                                   onClick={() => handleViewOrder(order)}
-                                  disabled={isPending}
                                 >
-                                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                                  Accept
-                                </Button>
-                              )}
-                              {order.status === OrderStatus.TRACKINGPENDING && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleOpenTrackingDialog(order)
-                                  }
-                                  disabled={updatingTracking}
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handlePrintAddress(order)}
                                 >
-                                  <Truck className="h-4 w-4 mr-1" />
-                                  Assign Tracking
-                                </Button>
-                              )}
-                              {(order.status === OrderStatus.PENDING ||
-                                order.status ===
-                                  OrderStatus.TRACKINGPENDING) && (
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleCancelOrderClick(order.id)
-                                  }
-                                  disabled={isPending}
-                                >
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  Cancel
-                                </Button>
-                              )}
-                            </div>
+                                  <Printer className="h-4 w-4 mr-2" />
+                                  Print Address
+                                </DropdownMenuItem>
+
+                                {(order.status === OrderStatus.PENDING ||
+                                  order.status ===
+                                    OrderStatus.TRACKINGPENDING) && (
+                                  <DropdownMenuSeparator />
+                                )}
+
+                                {order.status === OrderStatus.PENDING && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleViewOrder(order)}
+                                    disabled={isPending}
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Accept
+                                  </DropdownMenuItem>
+                                )}
+
+                                {order.status === OrderStatus.TRACKINGPENDING && (
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      handleOpenTrackingDialog(order)
+                                    }
+                                    disabled={updatingTracking}
+                                  >
+                                    <Truck className="h-4 w-4 mr-2" />
+                                    Assign Tracking
+                                  </DropdownMenuItem>
+                                )}
+
+                                {(order.status === OrderStatus.PENDING ||
+                                  order.status ===
+                                    OrderStatus.TRACKINGPENDING) && (
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      handleCancelOrderClick(order.id)
+                                    }
+                                    disabled={isPending}
+                                    className="text-red-600 focus:text-red-600"
+                                  >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Cancel
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );
@@ -1117,6 +1193,33 @@ const CustomerOrdersPage = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
+                      {/* Customer payment gateway fields (read-only) */}
+                      {(selectedOrder.paymentStatus ||
+                        selectedOrder.paymentTxnId) && (
+                        <div className="rounded-md border p-3 bg-muted/30 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500">
+                              Status:
+                            </span>
+                            {getPaymentStatusBadge(
+                              selectedOrder.paymentStatus,
+                            ) || (
+                              <span className="text-xs text-gray-500">-</span>
+                            )}
+                          </div>
+                          {selectedOrder.paymentTxnId && (
+                            <div className="flex justify-between items-center gap-3">
+                              <span className="text-xs text-gray-500">
+                                Txn ID:
+                              </span>
+                              <span className="font-medium text-xs break-all text-right">
+                                {selectedOrder.paymentTxnId}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <div className="space-y-1.5">
                         <Label htmlFor="payment-status" className="text-sm">
                           Payment Status *
@@ -1212,6 +1315,16 @@ const CustomerOrdersPage = () => {
                                 selectedOrder.paymentStatus,
                               )}
                             </div>
+                            {selectedOrder.paymentTxnId && (
+                              <div className="flex justify-between items-center gap-3">
+                                <span className="text-xs text-gray-500">
+                                  Txn ID:
+                                </span>
+                                <span className="font-medium text-sm break-all ml-2 text-right">
+                                  {selectedOrder.paymentTxnId}
+                                </span>
+                              </div>
+                            )}
                             {selectedOrder.paymentType && (
                               <div className="flex justify-between items-center">
                                 <span className="text-xs text-gray-500">

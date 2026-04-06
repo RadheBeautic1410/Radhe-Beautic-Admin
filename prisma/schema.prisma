@@ -159,23 +159,23 @@ model Party {
 }
 
 model Category {
-  id                  String  @id @default(auto()) @map("_id") @db.ObjectId
-  normalizedLowerCase String  @unique
-  code                String? @unique
-  name                String
-  type                String?
-  kurtiType           String?
-  image               String?
-  countTotal          Int     @default(0)
-  totalItems          Int     @default(0)
-  isDeleted           Boolean @default(false)
-  bigPrice            Float?
-  customerBigPrice    Float?
-  walletDiscount      Int?    @default(0)
-  sellingPrice        Float?
-  actualPrice         Float?
-  customerPrice       Float?
-  isStockReady        Boolean @default(true)
+  id                   String  @id @default(auto()) @map("_id") @db.ObjectId
+  normalizedLowerCase  String  @unique
+  code                 String? @unique
+  name                 String
+  type                 String?
+  kurtiType            String?
+  image                String?
+  countTotal           Int     @default(0)
+  totalItems           Int     @default(0)
+  isDeleted            Boolean @default(false)
+  bigPrice             Float?
+  customerBigPrice     Float?
+  walletDiscount       Int?    @default(0)
+  sellingPrice         Float?
+  actualPrice          Float?
+  customerPrice        Float?
+  isStockReady         Boolean @default(true)
   isVisibleForCustomer Boolean @default(true)
 
   // Indexes for query performance
@@ -255,11 +255,11 @@ model Kurti {
 
 model ShippingRate {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  pincode     String   // Pincode pattern (wildcard like 36**, or range like 364001-364005, or exact)
-  rate        Float    // Shipping rate in currency
-  type        String   // Type: "wildcard", "range", or "exact"
+  pincode     String // Pincode pattern (wildcard like 36**, or range like 364001-364005, or exact)
+  rate        Float // Shipping rate in currency
+  type        String // Type: "wildcard", "range", or "exact"
   isActive    Boolean  @default(true)
-  description String?  // Optional description
+  description String? // Optional description
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -290,13 +290,13 @@ model Sell {
   batchId       String? // Reference to SaleBatch
   batch         SaleBatch? @relation("BatchSales", fields: [batchId], references: [id])
 
-  @@map("Sell")
   @@index([code])
   @@index([sellTime])
   @@index([kurtiId])
   @@index([batchId])
   @@index([sellerName])
   @@index([code, sellTime])
+  @@map("Sell")
 }
 
 // If you need to create a separate table for batch sales (optional)
@@ -324,30 +324,30 @@ model SaleBatch {
 }
 
 model OfflineSellBatch {
-  id            String          @id @default(auto()) @map("_id") @db.ObjectId
-  batchNumber   String          @unique
-  customerName  String
-  customerPhone String?
-  billCreatedBy String
-  remark        String?
-  discountAmount Int?           @default(0)
-  totalAmount   Int
-  totalItems    Int
-  saleTime      DateTime
-  sellerName    String
-  invoiceNumber Int?
-  invoiceUrl    String?
-  sellType      OfflineSellType @default(SHOP_SELL_OFFLINE)
-  sales         OfflineSell[]   @relation("OfflineBatchSales")
-  shopId        String?         @db.ObjectId
-  shop          Shop?           @relation(fields: [shopId], references: [id])
-  createdAt     DateTime?
-  updatedAt     DateTime?
-  paymentType   String?
-  gstType       String?
-  Orders        Orders?         @relation(fields: [ordersId], references: [id])
-  ordersId      String?         @db.ObjectId
-  WalletHistory WalletHistory[]
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  batchNumber    String          @unique
+  customerName   String
+  customerPhone  String?
+  billCreatedBy  String
+  remark         String?
+  discountAmount Int?            @default(0)
+  totalAmount    Int
+  totalItems     Int
+  saleTime       DateTime
+  sellerName     String
+  invoiceNumber  Int?
+  invoiceUrl     String?
+  sellType       OfflineSellType @default(SHOP_SELL_OFFLINE)
+  sales          OfflineSell[]   @relation("OfflineBatchSales")
+  shopId         String?         @db.ObjectId
+  shop           Shop?           @relation(fields: [shopId], references: [id])
+  createdAt      DateTime?
+  updatedAt      DateTime?
+  paymentType    String?
+  gstType        String?
+  Orders         Orders?         @relation(fields: [ordersId], references: [id])
+  ordersId       String?         @db.ObjectId
+  WalletHistory  WalletHistory[]
 
   @@map("offline_sale_batches")
 }
@@ -648,26 +648,28 @@ model Offer {
 }
 
 model CustomerOrder {
-  id               String        @id @default(auto()) @map("_id") @db.ObjectId
-  orderId          String        @unique
-  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId           String        @db.ObjectId
-  cart             Cart          @relation(fields: [cartId], references: [id])
-  cartId           String        @db.ObjectId
-  shippingAddress  Address       @relation(fields: [addressId], references: [id])
-  addressId        String        @db.ObjectId
-  status           OrderStatus   @default(PENDING)
-  total            Float
-  shippingCharge   Float         @default(0)
-  trackingId       String?
-  trackingIdImages Json[]        @default([])
-  courier          String?
-  paymentStatus    PaymentStatus @default(PENDING)
-  paymentType      String?
-  note             String?
+  id                String        @id @default(auto()) @map("_id") @db.ObjectId
+  orderId           String        @unique
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String        @db.ObjectId
+  cart              Cart          @relation(fields: [cartId], references: [id])
+  cartId            String        @db.ObjectId
+  shippingAddress   Address       @relation(fields: [addressId], references: [id])
+  addressId         String        @db.ObjectId
+  status            OrderStatus   @default(PENDING)
+  total             Float
+  paymentStatus     PaymentStatus @default(PENDING)
+  paymentTxnId      String?
+  paymentProvider   String?       @default("PHONEPE")
+  shippingCharge    Float         @default(0)
+  trackingId        String?
+  trackingIdImages  Json[]        @default([])
+  courier           String?
+  paymentType       String?
+  note              String?
   paymentScreenshot String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   // Indexes for query performance
   @@index([userId, status, createdAt])
@@ -678,12 +680,12 @@ model CustomerOrder {
 }
 
 model ExpenseReason {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String   @unique
+  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  name        String             @unique
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   subReasons  ExpenseSubReason[]
   expenses    Expense[]
 
@@ -691,14 +693,14 @@ model ExpenseReason {
 }
 
 model ExpenseSubReason {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
   reason      ExpenseReason @relation(fields: [reasonId], references: [id], onDelete: Cascade)
-  reasonId    String   @db.ObjectId
+  reasonId    String        @db.ObjectId
   name        String
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   expenses    Expense[]
 
   @@unique([reasonId, name])
@@ -707,21 +709,21 @@ model ExpenseSubReason {
 }
 
 model Expense {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  reason      ExpenseReason @relation(fields: [reasonId], references: [id])
-  reasonId    String   @db.ObjectId
-  subReason   ExpenseSubReason? @relation(fields: [subReasonId], references: [id], onDelete: SetNull)
-  subReasonId String?  @db.ObjectId
-  amount      Float
-  description String?
-  date        DateTime @default(now())
-  paymentMethod String @default("CASH")
-  isPaid      Boolean  @default(false)
-  paidDate    DateTime?
-  createdBy   User     @relation(fields: [createdById], references: [id])
-  createdById String   @db.ObjectId
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String            @id @default(auto()) @map("_id") @db.ObjectId
+  reason        ExpenseReason     @relation(fields: [reasonId], references: [id])
+  reasonId      String            @db.ObjectId
+  subReason     ExpenseSubReason? @relation(fields: [subReasonId], references: [id], onDelete: SetNull)
+  subReasonId   String?           @db.ObjectId
+  amount        Float
+  description   String?
+  date          DateTime          @default(now())
+  paymentMethod String            @default("CASH")
+  isPaid        Boolean           @default(false)
+  paidDate      DateTime?
+  createdBy     User              @relation(fields: [createdById], references: [id])
+  createdById   String            @db.ObjectId
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@index([reasonId])
   @@index([subReasonId])
@@ -741,7 +743,7 @@ model StockAddition {
   kurtiId   String?  @db.ObjectId
   createdAt DateTime @default(now())
 
-  kurti     Kurti?   @relation(fields: [kurtiId], references: [id])
+  kurti Kurti? @relation(fields: [kurtiId], references: [id])
 
   @@index([code])
   @@index([createdAt])
