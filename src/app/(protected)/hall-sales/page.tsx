@@ -698,7 +698,7 @@ function HallSalesPage() {
 
   const allBulkSelected =
     bulkAvailableSizes.length > 0 &&
-    bulkAvailableSizes.every((s) => bulkSelectedSizes.includes(s));
+    bulkAvailableSizes.every((s: string) => bulkSelectedSizes.includes(s));
   const someBulkSelected =
     bulkSelectedSizes.length > 0 && !allBulkSelected;
 

@@ -1607,7 +1607,9 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
             return true;
           });
 
-        const uniqueCodes = Array.from(new Set(normalized.map((p: any) => p.search)));
+        const uniqueCodes: string[] = Array.from(
+          new Set(normalized.map((p: any) => String(p.search)))
+        );
 
         const kurtis = await tx.kurti.findMany({
           where: { code: { in: uniqueCodes }, isDeleted: false },
