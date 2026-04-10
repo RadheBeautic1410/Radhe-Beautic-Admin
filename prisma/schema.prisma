@@ -224,7 +224,7 @@ model Kurti {
   videos          Json[]
   isBigPrice      Boolean  @default(false)
   bigPrice        Float?
-  weight          Int?     // Weight in grams
+  weight          Int? // Weight in grams
 
   prices            Prices?             @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   CartProduct       CartProduct[]
@@ -663,6 +663,7 @@ model CustomerOrder {
   paymentProvider   String?       @default("PHONEPE")
   shippingCharge    Float         @default(0)
   trackingId        String?
+  cancleBy          String? // Who cancelled the order: USER / admin user
   trackingIdImages  Json[]        @default([])
   courier           String?
   paymentType       String?

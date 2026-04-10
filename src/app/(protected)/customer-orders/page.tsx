@@ -66,6 +66,8 @@ import {
   XCircle,
   MoreVertical,
   Printer,
+  Clock3,
+  BadgeCheck,
 } from "lucide-react";
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
@@ -101,6 +103,7 @@ interface CustomerOrder {
   paymentScreenshot?: string | null;
   courier?: string | null;
   trackingId?: string | null;
+  cancleBy?: string | null;
   createdAt: Date;
   user: {
     id: string;
@@ -219,13 +222,13 @@ const CustomerOrdersPage = () => {
     }
   };
 
-  // Fetch orders when filters or pagination change (with debounce for text inputs)
+  // Reset to first page only when filters change
   useEffect(() => {
-    // Reset to page 1 when filters change
-    if (page !== 1) {
-      setPage(1);
-      return;
-    }
+    setPage(1);
+  }, [statusFilter, orderIdFilter, phoneFilter]);
+
+  // Fetch orders when filters, pagination, or page size change (with debounce for text inputs)
+  useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchOrders();
     }, 500); // Debounce for 500ms
@@ -497,11 +500,25 @@ const CustomerOrdersPage = () => {
   const getPaymentStatusBadge = (status?: PaymentStatus | null) => {
     if (!status) return null;
     const statusConfig = {
-      PENDING: { label: "Pending", className: "bg-yellow-500" },
-      COMPLETED: { label: "Completed", className: "bg-green-500" },
+      PENDING: {
+        label: "Unpaid",
+        icon: Clock3,
+        className: "bg-slate-100 text-slate-800 border border-slate-300",
+      },
+      COMPLETED: {
+        label: "Paid",
+        icon: BadgeCheck,
+        className: "bg-emerald-100 text-emerald-800 border border-emerald-300",
+      },
     };
     const config = statusConfig[status] || statusConfig.PENDING;
-    return <Badge className={config.className}>{config.label}</Badge>;
+    const Icon = config.icon;
+    return (
+      <Badge className={config.className}>
+        <Icon className="h-3 w-3 mr-1" />
+        {config.label}
+      </Badge>
+    );
   };
 
   if (loading) {
@@ -812,9 +829,9 @@ const CustomerOrdersPage = () => {
                       <TableHead>Quantity</TableHead>
                       <TableHead>Total Amount</TableHead>
                       <TableHead>Grand Total</TableHead>
+                      <TableHead>Payment</TableHead>
                       <TableHead>Order Date</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Payment</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -839,14 +856,24 @@ const CustomerOrdersPage = () => {
                           <TableCell className="font-semibold">
                             ₹{grandTotal.toFixed(2)}
                           </TableCell>
-                          <TableCell>{formatDate(order.createdAt)}</TableCell>
-                          <TableCell>{getStatusBadge(order.status)}</TableCell>
                           <TableCell>
                             {order.paymentStatus ? (
                               getPaymentStatusBadge(order.paymentStatus)
                             ) : (
                               <span className="text-xs text-gray-500">-</span>
                             )}
+                          </TableCell>
+                          <TableCell>{formatDate(order.createdAt)}</TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              {getStatusBadge(order.status)}
+                              {order.status === OrderStatus.CANCELLED &&
+                                order.cancleBy && (
+                                  <div className="text-[11px] text-gray-500">
+                                    By: {order.cancleBy}
+                                  </div>
+                                )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>
@@ -1427,6 +1454,12 @@ const CustomerOrdersPage = () => {
                           ).toFixed(2)}
                         </span>
                       </div>
+                      {selectedOrder.status === OrderStatus.CANCELLED && (
+                        <div className="flex justify-between text-sm">
+                          <span>Cancelled By:</span>
+                          <span>{selectedOrder.cancleBy || "Unknown User"}</span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

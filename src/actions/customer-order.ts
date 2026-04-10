@@ -602,6 +602,8 @@ export const cancelCustomerOrder = async (orderId: string) => {
     if (!curUser) {
       return { error: "Unauthorized" };
     }
+    const cancelledBy =
+      curUser.name?.trim() || curUser.email?.trim() || "Unknown User";
 
     // Check if order exists
     const existingOrder = await db.customerOrder.findUnique({
@@ -711,6 +713,7 @@ export const cancelCustomerOrder = async (orderId: string) => {
         },
         data: {
           status: OrderStatus.CANCELLED,
+          cancleBy: cancelledBy,
         },
         include: {
           user: {
