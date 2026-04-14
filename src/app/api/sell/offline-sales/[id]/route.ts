@@ -427,11 +427,24 @@ export async function PUT(
         where: { batchId: id },
         select: { selledPrice: true, quantity: true },
       });
-      const totalAmount = rowsForTotal.reduce(
+      const manualRowsForTotal = await tx.offlineManualSell.findMany({
+        where: { batchId: id },
+        select: { selledPrice: true, quantity: true },
+      });
+      const trackedAmount = rowsForTotal.reduce(
         (sum, r) => sum + (r.selledPrice || 0) * (r.quantity || 1),
         0
       );
-      const totalItems = totals._sum.quantity || 0;
+      const manualAmount = manualRowsForTotal.reduce(
+        (sum, r) => sum + (r.selledPrice || 0) * (r.quantity || 1),
+        0
+      );
+      const manualItems = manualRowsForTotal.reduce(
+        (sum, r) => sum + (r.quantity || 1),
+        0
+      );
+      const totalAmount = trackedAmount + manualAmount;
+      const totalItems = (totals._sum.quantity || 0) + manualItems;
 
       // Update batch totals
       const finalUpdatedSale = await tx.offlineSellBatch.update({
@@ -442,6 +455,7 @@ export async function PUT(
         },
         include: {
           shop: true,
+          manualSales: true,
           sales: {
             include: {
               kurti: true,

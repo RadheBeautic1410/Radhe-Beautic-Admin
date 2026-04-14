@@ -129,6 +129,7 @@ export const getOfflineSales = async (filters: OfflineSalesFilters): Promise<Off
       where: whereClause,
       include: {
         shop: true,
+        manualSales: true,
         sales: {
           include: {
             kurti: true
@@ -222,6 +223,7 @@ export const getOfflineSalesReport = async (
     const batches = await db.offlineSellBatch.findMany({
       where: whereClause,
       include: {
+        manualSales: true,
         sales: {
           include: {
             kurti: true, // brings sellingPrice
@@ -287,6 +289,7 @@ export const getOfflineSaleById = async (batchId: string) => {
       where: { id: batchId },
       include: {
         shop: true,
+        manualSales: true,
         sales: {
           include: {
             kurti: true

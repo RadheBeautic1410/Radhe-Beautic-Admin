@@ -1514,6 +1514,8 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
   try {
     let {
       products,
+      trackedProducts,
+      untrackedProducts,
       currentUser,
       customerName,
       customerPhone,
@@ -1527,8 +1529,14 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
       remark,
       discountAmount,
     } = data;
+    const tracked = Array.isArray(trackedProducts)
+      ? trackedProducts
+      : Array.isArray(products)
+        ? products
+        : [];
+    const untracked = Array.isArray(untrackedProducts) ? untrackedProducts : [];
     const currTime = await getCurrTime();
-    if (!products || products.length === 0) {
+    if (tracked.length === 0 && untracked.length === 0) {
       return { error: "No products provided" };
     }
 
@@ -1577,7 +1585,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         });
 
         // Normalize inputs and compute kurti search codes
-        const normalized = products
+        const normalized = tracked
           .map((p: any, idx: number) => {
             const rawCode = String(p.code || "").toUpperCase();
             const cmp = String(p.selectedSize || "").toUpperCase();
@@ -1687,14 +1695,6 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
         }
 
         // If everything failed validation, abort early
-        const validCodes = uniqueCodes.filter((c) => kurtiByCode.has(c));
-        if (validCodes.length === 0) {
-          await tx.offlineSellBatch.delete({ where: { id: offlineBatch.id } });
-          return {
-            error: "No products could be sold. Errors: " + errors.join(", "),
-          };
-        }
-
         // Apply stock updates (each kurti updated once)
         for (const [code, sizeMap] of decByKurti.entries()) {
           const k = kurtiByCode.get(code);
@@ -1746,14 +1746,42 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
           })
           .filter(Boolean) as any[];
 
-        if (salesRows.length === 0) {
+        const manualRows = untracked
+          .map((p: any) => {
+            const category = String(p?.category || "").trim();
+            const quantity = Number(p?.quantity || 0);
+            const selledPrice = Number(p?.sellingPrice || 0);
+            const kurtiSize = String(p?.selectedSize || "").trim().toUpperCase();
+            if (!category || quantity <= 0 || selledPrice <= 0) return null;
+            totalAmount += selledPrice * quantity;
+            return {
+              batchId: offlineBatch.id,
+              category,
+              kurtiSize: kurtiSize || null,
+              quantity,
+              selledPrice,
+              hsnCode: String(p?.hsnCode || "6204"),
+              customerName: customerName || null,
+              customerPhone: customerPhone || null,
+              createdAt: currTime,
+              updatedAt: currTime,
+            };
+          })
+          .filter(Boolean) as any[];
+
+        if (salesRows.length === 0 && manualRows.length === 0) {
           await tx.offlineSellBatch.delete({ where: { id: offlineBatch.id } });
           return {
             error: "No products could be sold. Errors: " + errors.join(", "),
           };
         }
 
-        await tx.offlineSell.createMany({ data: salesRows });
+        if (salesRows.length > 0) {
+          await tx.offlineSell.createMany({ data: salesRows });
+        }
+        if (manualRows.length > 0) {
+          await tx.offlineManualSell.createMany({ data: manualRows });
+        }
 
         // Update TopSoldKurti grouped by kurtiId
         const soldCountByKurtiId = new Map<string, number>();
@@ -1794,6 +1822,16 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
             totalPrice: r.selledPrice * r.quantity,
           });
         });
+        manualRows.forEach((r) => {
+          soldProducts.push({
+            kurti: { code: r.category, hsnCode: r.hsnCode || "6204" },
+            sale: { kurtiSize: r.kurtiSize || "", quantity: r.quantity, selledPrice: r.selledPrice },
+            size: r.kurtiSize || "",
+            quantity: r.quantity,
+            unitPrice: r.selledPrice,
+            totalPrice: r.selledPrice * r.quantity,
+          });
+        });
 
         return {
           success:
@@ -1822,7 +1860,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
     try {
       const elapsedMs = Date.now() - startedAt;
       console.log(
-        `sellMultipleOfflineKurtis: processed ${products.length} lines in ${elapsedMs}ms`
+        `sellMultipleOfflineKurtis: processed ${tracked.length + untracked.length} lines in ${elapsedMs}ms`
       );
     } catch {}
 

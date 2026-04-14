@@ -268,11 +268,11 @@ export default function InvoicePreview({
             </div>
           </div>
           <div className="basis-[46%] p-4 text-sm">
-            <div className="flex justify-between mb-2">
+            <div className="flex justify-between mb-1 leading-5">
               <span className="font-bold">Bill No:</span>
               <span>{invoice.displayBatchNumber || invoice.batchNumber}</span>
             </div>
-            <div className="flex justify-between mb-2">
+            <div className="flex justify-between mb-1 leading-5">
               <span className="font-bold">Date:</span>
               <span>
                 {new Date().toLocaleString("en-IN", {
@@ -285,11 +285,11 @@ export default function InvoicePreview({
                 })}
               </span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between mb-1 leading-5">
               <span className="font-bold">Bill By:</span>
               <span>{invoice.billCreatedBy}</span>
             </div>
-            <div className="flex justify-between mt-2">
+            <div className="flex justify-between leading-5">
               <span className="font-bold">Payment:</span>
               <span>{invoice.paymentType || "-"}</span>
             </div>
@@ -401,7 +401,7 @@ export default function InvoicePreview({
             </div>
             <div className="pt-2 border-t border-black text-sm font-bold">
               {Number(invoice.discountAmount || 0) > 0 ? (
-                <div className="flex items-center justify-between text-xs font-normal mb-2">
+                <div className="flex items-center justify-between text-xs font-normal mb-1">
                   <span className="bg-gray-100 px-2 py-1">DISCOUNT</span>
                   <span className="bg-gray-100 px-2 py-1">
                     -{Number(invoice.discountAmount || 0).toFixed(2)}

@@ -35,11 +35,14 @@ const getCurrTime = () => {
 
 interface CartItem {
   id: string;
-  kurti: any;
+  lineType: "TRACKED" | "UNTRACKED";
+  kurti?: any;
+  category: string;
   selectedSize: string;
   quantity: number;
   sellingPrice: number | null;
-  availableStock: number;
+  availableStock: number | null;
+  hsnCode?: string;
 }
 type GSTType = "IGST" | "SGST_CGST";
 
@@ -99,6 +102,11 @@ function SellPage() {
   const [userShop, setUserShop] = useState<any>(null);
   const [remark, setRemark] = useState("");
   const [discountAmount, setDiscountAmount] = useState<string>("");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [untrackedCategory, setUntrackedCategory] = useState("");
+  const [untrackedSize, setUntrackedSize] = useState("");
+  const [untrackedQuantity, setUntrackedQuantity] = useState<string>("1");
+  const [untrackedPrice, setUntrackedPrice] = useState<string>("");
 
   // Scan / focus
   const productCodeInputRef = useRef<HTMLInputElement>(null);
@@ -134,6 +142,7 @@ function SellPage() {
     // Check if same product+size already exists in cart
     const existingItemIndex = cart.findIndex(
       (item) =>
+        item.lineType === "TRACKED" &&
         item.kurti.code === foundKurti.code && item.selectedSize === size,
     );
 
@@ -155,11 +164,14 @@ function SellPage() {
     } else {
       const newItem: CartItem = {
         id: `${foundKurti.code}-${size}-${Date.now()}`,
+        lineType: "TRACKED",
         kurti: foundKurti,
+        category: foundKurti.category || "-",
         selectedSize: size,
         quantity: 1,
         sellingPrice: null, // blank by default
         availableStock: sizeInfo.quantity,
+        hsnCode: foundKurti.hsnCode || "6204",
       };
       setCart([...cart, newItem]);
     }
@@ -191,6 +203,15 @@ function SellPage() {
       try {
         const shopList = await getShopList();
         setShops(shopList);
+        const categoryRes = await axios.get("/api/category?limit=500");
+        const categoryData = Array.isArray(categoryRes?.data?.data)
+          ? categoryRes.data.data
+          : [];
+        setCategories(
+          categoryData
+            .map((c: any) => String(c?.name || "").trim())
+            .filter((name: string) => !!name),
+        );
 
         // If user is SELLER or SELLER_MANAGER, get their associated shop
         if (
@@ -212,6 +233,62 @@ function SellPage() {
     };
     loadShopsAndUserShop();
   }, [currentUser]);
+
+  const addUntrackedToCart = () => {
+    const category = untrackedCategory.trim();
+    const size = untrackedSize.trim().toUpperCase();
+    const quantity = Number(untrackedQuantity || 0);
+    const price = Number(untrackedPrice || 0);
+    if (!category) {
+      toast.error("Please select category for untracked kurti");
+      return;
+    }
+    if (quantity <= 0) {
+      toast.error("Please enter valid quantity");
+      return;
+    }
+    if (price <= 0) {
+      toast.error("Please enter valid unit price");
+      return;
+    }
+
+    const existingItemIndex = cart.findIndex(
+      (item) =>
+        item.lineType === "UNTRACKED" &&
+        item.category.toUpperCase() === category.toUpperCase() &&
+        item.selectedSize.toUpperCase() === size &&
+        item.sellingPrice === price,
+    );
+
+    if (existingItemIndex >= 0) {
+      const updated = [...cart];
+      updated[existingItemIndex] = {
+        ...updated[existingItemIndex],
+        quantity: updated[existingItemIndex].quantity + quantity,
+      };
+      setCart(updated);
+    } else {
+      setCart((prev) => [
+        ...prev,
+        {
+          id: `UNTRACKED-${category}-${size}-${Date.now()}`,
+          lineType: "UNTRACKED",
+          category,
+          selectedSize: size,
+          quantity,
+          sellingPrice: price,
+          availableStock: null,
+          hsnCode: "6204",
+        },
+      ]);
+    }
+
+    setUntrackedCategory("");
+    setUntrackedSize("");
+    setUntrackedQuantity("1");
+    setUntrackedPrice("");
+    toast.success("Untracked kurti added");
+  };
 
   const handleFind = async () => {
     try {
@@ -253,7 +330,11 @@ function SellPage() {
 
     const updatedCart = cart.map((item) => {
       if (item.id === itemId) {
-        if (newQuantity > item.availableStock) {
+        if (
+          item.lineType === "TRACKED" &&
+          item.availableStock !== null &&
+          newQuantity > item.availableStock
+        ) {
           toast.error("Quantity exceeds available stock");
           return item;
         }
@@ -333,8 +414,11 @@ function SellPage() {
       gstType,
       soldProducts: cart.map((item) => ({
         kurti: {
-          code: item.kurti.code,
-          hsnCode: item.kurti.hsnCode || "6204",
+            code:
+              item.lineType === "TRACKED"
+                ? item.kurti.code
+                : item.category,
+            hsnCode: item.hsnCode || "6204",
         },
         size: item.selectedSize,
         quantity: item.quantity,
@@ -412,16 +496,29 @@ function SellPage() {
       const currentTime = getCurrTime();
 
       // Prepare products data for API
-      const products = cart.map((item) => ({
-        code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
-        kurti: item.kurti,
-        selectedSize: item.selectedSize,
-        quantity: item.quantity,
-        sellingPrice: item.sellingPrice!,
-      }));
+      const trackedProducts = cart
+        .filter((item) => item.lineType === "TRACKED")
+        .map((item) => ({
+          code:
+            item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
+          kurti: item.kurti,
+          selectedSize: item.selectedSize,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice!,
+        }));
+      const untrackedProducts = cart
+        .filter((item) => item.lineType === "UNTRACKED")
+        .map((item) => ({
+          category: item.category,
+          selectedSize: item.selectedSize || null,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice!,
+          hsnCode: item.hsnCode || "6204",
+        }));
 
       const res = await axios.post(`/api/sell/offline-retailer`, {
-        products,
+        trackedProducts,
+        untrackedProducts,
         currentUser,
         currentTime: currentTime,
         customerName: customerName.trim(),
@@ -464,8 +561,11 @@ function SellPage() {
     try {
       const soldProducts = cart.map((item) => ({
         kurti: {
-          code: item.kurti.code,
-          hsnCode: item.kurti.hsnCode || "6204",
+          code:
+            item.lineType === "TRACKED"
+              ? item.kurti.code
+              : item.category,
+          hsnCode: item.hsnCode || "6204",
         },
         size: item.selectedSize,
         quantity: item.quantity,
@@ -542,6 +642,10 @@ function SellPage() {
     setGstType("SGST_CGST");
     setRemark("");
     setDiscountAmount("");
+    setUntrackedCategory("");
+    setUntrackedSize("");
+    setUntrackedQuantity("1");
+    setUntrackedPrice("");
   };
 
   const clearAll = () => {
@@ -675,6 +779,59 @@ function SellPage() {
             </Button>
           </div>
         </div>
+        <div className="bg-amber-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">Add Untracked Kurti</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 items-end">
+            <div>
+              <Label htmlFor="untracked-category">Category *</Label>
+              <select
+                id="untracked-category"
+                className="w-full p-2 border rounded-md"
+                value={untrackedCategory}
+                onChange={(e) => setUntrackedCategory(e.target.value)}
+              >
+                <option value="">Select Category</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="untracked-size">Size (Optional)</Label>
+              <Input
+                id="untracked-size"
+                placeholder="e.g. M"
+                value={untrackedSize}
+                onChange={(e) => setUntrackedSize(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="untracked-qty">Quantity *</Label>
+              <Input
+                id="untracked-qty"
+                type="number"
+                min="1"
+                value={untrackedQuantity}
+                onChange={(e) => setUntrackedQuantity(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="untracked-price">Unit Price *</Label>
+              <Input
+                id="untracked-price"
+                type="number"
+                min="1"
+                value={untrackedPrice}
+                onChange={(e) => setUntrackedPrice(e.target.value)}
+              />
+            </div>
+            <Button type="button" onClick={addUntrackedToCart}>
+              Add Untracked
+            </Button>
+          </div>
+        </div>
         {/* Customer Details Section */}
 
         {/* Add-to-cart section removed: scanning/entering code adds directly to shipping details */}
@@ -715,17 +872,26 @@ function SellPage() {
                     <TableRow key={item.id}>
                       <TableCell className="border">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={item.kurti.images[0]?.url}
-                            alt={item.kurti.code}
-                            className="w-12 h-12 object-cover rounded"
-                          />
+                          {item.lineType === "TRACKED" &&
+                          item.kurti?.images?.[0]?.url ? (
+                            <img
+                              src={item.kurti.images[0].url}
+                              alt={item.kurti.code}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                              N/A
+                            </div>
+                          )}
                           <div>
                             <div className="font-semibold">
-                              {item.kurti.code.toUpperCase()}
+                              {item.lineType === "TRACKED"
+                                ? item.kurti.code.toUpperCase()
+                                : item.category.toUpperCase()}
                             </div>
                             <div className="text-sm text-gray-600">
-                              {item.kurti.category}
+                              {item.category}
                             </div>
                           </div>
                         </div>
@@ -737,7 +903,7 @@ function SellPage() {
                         <Input
                           type="number"
                           min="1"
-                          max={item.availableStock}
+                          max={item.availableStock || undefined}
                           value={item.quantity}
                           onChange={(e) =>
                             updateCartItemQuantity(

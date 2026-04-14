@@ -8,12 +8,29 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
 
-    // Validate required fields
-    if (!data.products || !Array.isArray(data.products) || data.products.length === 0) {
+    const trackedProducts = Array.isArray(data.trackedProducts) ? data.trackedProducts : [];
+    const untrackedProducts = Array.isArray(data.untrackedProducts) ? data.untrackedProducts : [];
+
+    // Validate required line items
+    if (trackedProducts.length === 0 && untrackedProducts.length === 0) {
       return new NextResponse(
-        JSON.stringify({ error: "Products array is required and cannot be empty" }),
+        JSON.stringify({ error: "At least one tracked or untracked product is required" }),
         { status: 400 }
       );
+    }
+
+    for (const p of untrackedProducts) {
+      if (!String(p?.category || "").trim()) {
+        return new NextResponse(JSON.stringify({ error: "Category is required for untracked product" }), {
+          status: 400,
+        });
+      }
+      if ((Number(p?.quantity) || 0) <= 0 || (Number(p?.sellingPrice) || 0) <= 0) {
+        return new NextResponse(
+          JSON.stringify({ error: "Untracked product quantity and price must be greater than 0" }),
+          { status: 400 }
+        );
+      }
     }
 
     if (!data.customerName?.trim()) {
