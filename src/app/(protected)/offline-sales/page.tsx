@@ -51,6 +51,10 @@ import { DateRange } from "react-day-picker";
 import { format, addDays } from "date-fns";
 import { cn } from "@/src/lib/utils";
 
+const isHallOfflineSale = (sellType: OfflineSellType) =>
+  sellType === OfflineSellType.HALL_SELL_OFFLINE ||
+  sellType === OfflineSellType.HALL_SELL_ONLINE;
+
 interface OfflineSale {
   id: string;
   batchNumber: string;
@@ -370,6 +374,13 @@ function OfflineSalesPage() {
               </h1>
               <p className="text-gray-600 mt-1">
                 Total Sales: {total} | Page {currentPage} of {totalPages}
+                <span className="ml-2 text-gray-500">
+                  Hall sale bills show a{" "}
+                  <span className="inline-flex align-middle items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                    Hall Sale
+                  </span>{" "}
+                  badge.
+                </span>
                 {debouncedSearchQuery.trim() && (
                   <span className="ml-2 text-blue-600">
                     | Searching: "{debouncedSearchQuery}" ({searchType})
@@ -596,7 +607,7 @@ function OfflineSalesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Invoice Number</TableHead>
+                  <TableHead>Invoice / Type</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Shop</TableHead>
                   <TableHead>Sale Details</TableHead>
@@ -610,18 +621,26 @@ function OfflineSalesPage() {
                   <TableRow
                     key={sale.id}
                     className={
-                      sale.sellType === "HALL_SELL_OFFLINE" ||
-                      sale.sellType === "HALL_SELL_ONLINE"
-                        ? "bg-blue-50 hover:bg-blue-100"
+                      isHallOfflineSale(sale.sellType)
+                        ? "bg-indigo-50/60 hover:bg-indigo-50"
                         : ""
                     }
                   >
-                    <TableCell className="font-mono font-medium">
-                      {sale.invoiceNumber
-                        ? `INV-${sale.invoiceNumber
-                            .toString()
-                            .padStart(6, "0")}`
-                        : sale.batchNumber}
+                    <TableCell>
+                      <div className="flex flex-col gap-1.5">
+                        {isHallOfflineSale(sale.sellType) && (
+                          <span className="inline-flex w-fit items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                            Hall Sale
+                          </span>
+                        )}
+                        <span className="font-mono font-medium">
+                          {sale.invoiceNumber
+                            ? `INV-${sale.invoiceNumber
+                                .toString()
+                                .padStart(6, "0")}`
+                            : sale.batchNumber}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
@@ -645,12 +664,6 @@ function OfflineSalesPage() {
                     <TableCell>
                       {sale.shop ? (
                         <div className="space-y-1">
-                          {sale.sellType === "HALL_SELL_OFFLINE" ||
-                          sale.sellType === "HALL_SELL_ONLINE" && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              Hall Sale
-                            </span>
-                          )}
                           <div className="flex items-center gap-1">
                             <Building className="h-4 w-4 text-gray-500" />
                             <span className="font-medium">

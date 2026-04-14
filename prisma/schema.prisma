@@ -338,6 +338,7 @@ model OfflineSellBatch {
   invoiceNumber  Int?
   invoiceUrl     String?
   sellType       OfflineSellType @default(SHOP_SELL_OFFLINE)
+  paymentStatus  PaymentStatus   @default(PENDING)
   sales          OfflineSell[]   @relation("OfflineBatchSales")
   manualSales    OfflineManualSell[]
   shopId         String?         @db.ObjectId

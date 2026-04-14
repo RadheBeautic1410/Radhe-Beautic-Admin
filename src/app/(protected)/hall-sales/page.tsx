@@ -61,11 +61,14 @@ const fetchNextHallDisplayBillNo = async (): Promise<string> => {
 
 interface CartItem {
   id: string;
-  kurti: any;
+  lineType: "TRACKED" | "UNTRACKED";
+  kurti?: any;
+  category: string;
   selectedSize: string;
   quantity: number;
   sellingPrice: number;
-  availableStock: number;
+  availableStock: number | null;
+  hsnCode?: string;
 }
 type GSTType = "IGST" | "SGST_CGST";
 function HallSalesPage() {
@@ -85,6 +88,9 @@ function HallSalesPage() {
   const [selectedShopId, setSelectedShopId] = useState("");
   const [shops, setShops] = useState<any[]>([]);
   const [paymentType, setpaymentType] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState<"PENDING" | "COMPLETE">(
+    "PENDING"
+  );
   const [userShop, setUserShop] = useState<any>(null);
   const [invoicePreview, setInvoicePreview] = useState<InvoicePayload | null>(
     null
@@ -95,6 +101,11 @@ function HallSalesPage() {
   const [selectedSize, setSelectedSize] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [untrackedCategory, setUntrackedCategory] = useState("");
+  const [untrackedSize, setUntrackedSize] = useState("");
+  const [untrackedQuantity, setUntrackedQuantity] = useState<string>("1");
+  const [untrackedPrice, setUntrackedPrice] = useState<string>("");
 
   // Bulk add sizes modal state
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -136,6 +147,15 @@ function HallSalesPage() {
             }
           }
         }
+        const categoryRes = await axios.get("/api/category?limit=500");
+        const categoryData = Array.isArray(categoryRes?.data?.data)
+          ? categoryRes.data.data
+          : [];
+        setCategories(
+          categoryData
+            .map((c: any) => String(c?.name || "").trim())
+            .filter((name: string) => !!name)
+        );
       } catch (error) {
         console.error("Error loading shops:", error);
         toast.error("Failed to load shops");
@@ -235,6 +255,7 @@ function HallSalesPage() {
     setCart((prev) => {
       const existingIndex = prev.findIndex(
         (item) =>
+          item.lineType === "TRACKED" &&
           item.kurti.code === kurti.code && item.selectedSize === normalizedSize
       );
 
@@ -263,7 +284,9 @@ function HallSalesPage() {
           id: `${kurti.code}-${normalizedSize}-${Date.now()}-${Math.random()
             .toString(16)
             .slice(2)}`,
+          lineType: "TRACKED",
           kurti,
+          category: kurti.category || "-",
           selectedSize: normalizedSize,
           quantity: qty,
           sellingPrice: price,
@@ -309,6 +332,7 @@ function HallSalesPage() {
 
       const existingIndex = nextCart.findIndex(
         (item) =>
+          item.lineType === "TRACKED" &&
           item.kurti.code === kurti.code && item.selectedSize === normalizedSize
       );
 
@@ -333,7 +357,9 @@ function HallSalesPage() {
         id: `${kurti.code}-${normalizedSize}-${Date.now()}-${Math.random()
           .toString(16)
           .slice(2)}`,
+        lineType: "TRACKED",
         kurti,
+        category: kurti.category || "-",
         selectedSize: normalizedSize,
         quantity: 1,
         sellingPrice: price,
@@ -369,7 +395,11 @@ function HallSalesPage() {
 
     const updatedCart = cart.map((item) => {
       if (item.id === itemId) {
-        if (newQuantity > item.availableStock) {
+        if (
+          item.lineType === "TRACKED" &&
+          item.availableStock !== null &&
+          newQuantity > item.availableStock
+        ) {
           toast.error("Quantity exceeds available stock");
           return item;
         }
@@ -400,6 +430,60 @@ function HallSalesPage() {
       (total, item) => total + item.sellingPrice * item.quantity,
       0
     );
+  };
+
+  const addUntrackedToCart = () => {
+    const category = untrackedCategory.trim();
+    const size = untrackedSize.trim().toUpperCase();
+    const quantity = Number(untrackedQuantity || 0);
+    const price = Number(untrackedPrice || 0);
+    if (!category) {
+      toast.error("Please select category for untracked kurti");
+      return;
+    }
+    if (quantity <= 0) {
+      toast.error("Please enter valid quantity");
+      return;
+    }
+    if (price <= 0) {
+      toast.error("Please enter valid unit price");
+      return;
+    }
+
+    const existingItemIndex = cart.findIndex(
+      (item) =>
+        item.lineType === "UNTRACKED" &&
+        item.category.toUpperCase() === category.toUpperCase() &&
+        item.selectedSize.toUpperCase() === size &&
+        item.sellingPrice === price
+    );
+    if (existingItemIndex >= 0) {
+      const updated = [...cart];
+      updated[existingItemIndex] = {
+        ...updated[existingItemIndex],
+        quantity: updated[existingItemIndex].quantity + quantity,
+      };
+      setCart(updated);
+    } else {
+      setCart((prev) => [
+        ...prev,
+        {
+          id: `UNTRACKED-${category}-${size}-${Date.now()}`,
+          lineType: "UNTRACKED",
+          category,
+          selectedSize: size,
+          quantity,
+          sellingPrice: price,
+          availableStock: null,
+          hsnCode: "6204",
+        },
+      ]);
+    }
+    setUntrackedCategory("");
+    setUntrackedSize("");
+    setUntrackedQuantity("1");
+    setUntrackedPrice("");
+    toast.success("Untracked kurti added");
   };
 
   const cartTotalPages = useMemo(() => {
@@ -475,8 +559,9 @@ function HallSalesPage() {
       gstType,
       soldProducts: cart.map((item) => ({
         kurti: {
-          code: item.kurti.code,
-          hsnCode: item.kurti.hsnCode || "6204",
+          code:
+            item.lineType === "TRACKED" ? item.kurti.code : item.category,
+          hsnCode: item.hsnCode || "6204",
         },
         size: item.selectedSize,
         quantity: item.quantity,
@@ -529,6 +614,10 @@ function HallSalesPage() {
         toast.error("Please select payment type");
         return;
       }
+      if (!paymentStatus) {
+        toast.error("Please select payment status");
+        return;
+      }
       // if (!shopName.trim()) {
       //   toast.error("Please enter shop name");
       //   return;
@@ -537,22 +626,35 @@ function HallSalesPage() {
       const currentTime = getCurrTime();
 
       // Prepare products data for API
-      const products = cart.map((item) => ({
-        code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
-        kurti: item.kurti,
-        selectedSize: item.selectedSize,
-        quantity: item.quantity,
-        sellingPrice: item.sellingPrice,
-      }));
+      const trackedProducts = cart
+        .filter((item) => item.lineType === "TRACKED")
+        .map((item) => ({
+          code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
+          kurti: item.kurti,
+          selectedSize: item.selectedSize,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+        }));
+      const untrackedProducts = cart
+        .filter((item) => item.lineType === "UNTRACKED")
+        .map((item) => ({
+          category: item.category,
+          selectedSize: item.selectedSize || null,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+          hsnCode: item.hsnCode || "6204",
+        }));
 
       const res = await axios.post(`/api/sell/offline-retailer`, {
-        products,
+        trackedProducts,
+        untrackedProducts,
         currentUser,
         currentTime: currentTime,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         billCreatedBy: billCreatedBy.trim(),
         paymentType: paymentType.trim(),
+        paymentStatus,
         gstType: gstType,
         shopId: selectedShopId.trim(),
         sellType: "HALL_SELL_OFFLINE", // Mark this as a hall sale
@@ -580,8 +682,9 @@ function HallSalesPage() {
     try {
       const soldProducts = cart.map((item) => ({
         kurti: {
-          code: item.kurti.code,
-          hsnCode: item.kurti.hsnCode || "6204",
+          code:
+            item.lineType === "TRACKED" ? item.kurti.code : item.category,
+          hsnCode: item.hsnCode || "6204",
         },
         size: item.selectedSize,
         quantity: item.quantity,
@@ -661,10 +764,15 @@ function HallSalesPage() {
     }
     setBillCreatedBy("");
     setpaymentType("");
+    setPaymentStatus("PENDING");
     setGstType("SGST_CGST");
     setSelectedSize("");
     setSellingPrice("");
     setQuantity(1);
+    setUntrackedCategory("");
+    setUntrackedSize("");
+    setUntrackedQuantity("1");
+    setUntrackedPrice("");
   };
 
   const clearAll = () => {
@@ -841,6 +949,22 @@ function HallSalesPage() {
                 <option value="Bank Transfer">Bank Transfer</option>
               </select>
             </div>
+            <div>
+              <Label htmlFor="payment-status">Payment Status *</Label>
+              <select
+                id="payment-status"
+                name="payment-status"
+                aria-label="Select payment status"
+                className="w-full p-2 border rounded-md"
+                value={paymentStatus}
+                onChange={(e) =>
+                  setPaymentStatus(e.target.value as "PENDING" | "COMPLETE")
+                }
+              >
+                <option value="PENDING">Pending</option>
+                <option value="COMPLETE">Complete</option>
+              </select>
+            </div>
 
             <div>
               <Label htmlFor="bill-by">Bill Created By *</Label>
@@ -889,6 +1013,60 @@ function HallSalesPage() {
                 <Search className="mr-2 h-4 w-4" />
               )}
               Find Product
+            </Button>
+          </div>
+        </div>
+
+        <div className="bg-amber-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">Add Untracked Kurti</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 items-end">
+            <div>
+              <Label htmlFor="untracked-category">Category *</Label>
+              <select
+                id="untracked-category"
+                className="w-full p-2 border rounded-md"
+                value={untrackedCategory}
+                onChange={(e) => setUntrackedCategory(e.target.value)}
+              >
+                <option value="">Select Category</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="untracked-size">Size (Optional)</Label>
+              <Input
+                id="untracked-size"
+                placeholder="e.g. M"
+                value={untrackedSize}
+                onChange={(e) => setUntrackedSize(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="untracked-qty">Quantity *</Label>
+              <Input
+                id="untracked-qty"
+                type="number"
+                min="1"
+                value={untrackedQuantity}
+                onChange={(e) => setUntrackedQuantity(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="untracked-price">Unit Price *</Label>
+              <Input
+                id="untracked-price"
+                type="number"
+                min="1"
+                value={untrackedPrice}
+                onChange={(e) => setUntrackedPrice(e.target.value)}
+              />
+            </div>
+            <Button type="button" onClick={addUntrackedToCart}>
+              Add Untracked
             </Button>
           </div>
         </div>
@@ -1235,29 +1413,38 @@ function HallSalesPage() {
                     <TableRow key={item.id}>
                       <TableCell className="border">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={item.kurti.images[0]?.url}
-                            alt={item.kurti.code}
-                            className="w-12 h-12 object-cover rounded"
-                          />
+                          {item.lineType === "TRACKED" &&
+                          item.kurti?.images?.[0]?.url ? (
+                            <img
+                              src={item.kurti.images[0].url}
+                              alt={item.kurti.code}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                              N/A
+                            </div>
+                          )}
                           <div>
                             <div className="font-semibold">
-                              {item.kurti.code.toUpperCase()}
+                              {item.lineType === "TRACKED"
+                                ? item.kurti.code.toUpperCase()
+                                : item.category.toUpperCase()}
                             </div>
                             <div className="text-sm text-gray-600">
-                              {item.kurti.category}
+                              {item.category}
                             </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="border">
-                        {item.selectedSize.toUpperCase()}
+                        {item.selectedSize ? item.selectedSize.toUpperCase() : "-"}
                       </TableCell>
                       <TableCell className="border">
                         <Input
                           type="number"
                           min="1"
-                          max={item.availableStock}
+                          max={item.availableStock || undefined}
                           value={item.quantity}
                           onChange={(e) =>
                             updateCartItemQuantity(
