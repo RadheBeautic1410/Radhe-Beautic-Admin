@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/src/components/ui/table";
-import { UserRole } from "@prisma/client";
+import { PaymentStatus, UserRole } from "@prisma/client";
 import axios from "axios";
 import {
   Loader2,
@@ -88,8 +88,8 @@ function HallSalesPage() {
   const [selectedShopId, setSelectedShopId] = useState("");
   const [shops, setShops] = useState<any[]>([]);
   const [paymentType, setpaymentType] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState<"PENDING" | "COMPLETE">(
-    "PENDING"
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(
+    PaymentStatus.PENDING
   );
   const [userShop, setUserShop] = useState<any>(null);
   const [invoicePreview, setInvoicePreview] = useState<InvoicePayload | null>(
@@ -764,7 +764,7 @@ function HallSalesPage() {
     }
     setBillCreatedBy("");
     setpaymentType("");
-    setPaymentStatus("PENDING");
+    setPaymentStatus(PaymentStatus.PENDING);
     setGstType("SGST_CGST");
     setSelectedSize("");
     setSellingPrice("");
@@ -958,11 +958,11 @@ function HallSalesPage() {
                 className="w-full p-2 border rounded-md"
                 value={paymentStatus}
                 onChange={(e) =>
-                  setPaymentStatus(e.target.value as "PENDING" | "COMPLETE")
+                  setPaymentStatus(e.target.value as PaymentStatus)
                 }
               >
-                <option value="PENDING">Pending</option>
-                <option value="COMPLETE">Complete</option>
+                <option value={PaymentStatus.PENDING}>Pending</option>
+                <option value={PaymentStatus.COMPLETED}>Complete</option>
               </select>
             </div>
 

@@ -4,7 +4,12 @@ import {
   deleteInvoiceFromFirebase,
 } from "@/src/lib/firebase/firebase";
 import { generateInvoicePDF } from "@/src/actions/generate-pdf";
-import { OfflineSellType, OnlineSellType, OrderStatus } from "@prisma/client";
+import {
+  OfflineSellType,
+  OnlineSellType,
+  OrderStatus,
+  PaymentStatus,
+} from "@prisma/client";
 import { Buffer } from "buffer";
 import { getCurrTime } from "../actions/kurti";
 
@@ -1579,10 +1584,13 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
             sellType: sellType,
             shopId: shopId,
             paymentType: paymentType,
-            paymentStatus:
-              String(paymentStatus || "").toUpperCase() === "COMPLETE"
-                ? "COMPLETE"
-                : "PENDING",
+            paymentStatus: (() => {
+              const s = String(paymentStatus || "").toUpperCase();
+              if (s === "COMPLETED" || s === "COMPLETE") {
+                return PaymentStatus.COMPLETED;
+              }
+              return PaymentStatus.PENDING;
+            })(),
             gstType: gstType,
             createdAt: currTime,
             updatedAt: currTime,
