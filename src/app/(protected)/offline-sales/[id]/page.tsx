@@ -50,11 +50,12 @@ const getCurrTime = () => {
 
 interface CartItem {
   id: string;
+  lineType: "TRACKED" | "UNTRACKED";
   kurti: any;
   selectedSize: string;
   quantity: number;
   sellingPrice: number;
-  availableStock: number;
+  availableStock: number | null;
 }
 type GSTType = "IGST" | "SGST_CGST";
 
@@ -102,6 +103,37 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   const currentUser = useCurrentUser();
   const router = useRouter();
 
+  const buildCartFromSaleData = (saleData: any): CartItem[] => {
+    const trackedItems: CartItem[] = (saleData?.sales || []).map((sale: any) => ({
+      id: sale.id,
+      lineType: "TRACKED",
+      kurti: sale.kurti,
+      selectedSize: sale.kurtiSize || "",
+      quantity: sale.quantity,
+      sellingPrice: sale.selledPrice,
+      availableStock:
+        typeof sale.availableStock === "number" ? sale.availableStock : 999999,
+    }));
+
+    const manualItems: CartItem[] = (saleData?.manualSales || []).map(
+      (manual: any) => ({
+        id: `manual-${manual.id}`,
+        lineType: "UNTRACKED",
+        kurti: {
+          code: manual.category,
+          category: manual.category,
+          images: [],
+        },
+        selectedSize: manual.kurtiSize || "",
+        quantity: manual.quantity,
+        sellingPrice: manual.selledPrice,
+        availableStock: null,
+      }),
+    );
+
+    return [...trackedItems, ...manualItems];
+  };
+
   useEffect(() => {
     const loadSaleDetails = async () => {
       try {
@@ -126,15 +158,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         console.log("saleData.sales", response.data.data);
 
         // Load existing cart items
-        const existingCartItems = saleData.sales.map((sale: any) => ({
-          id: sale.id,
-          kurti: sale.kurti,
-          selectedSize: sale.kurtiSize,
-          quantity: sale.quantity,
-          sellingPrice: sale.selledPrice,
-          availableStock: sale.availableStock,
-        }));
-        setCart(existingCartItems);
+        setCart(buildCartFromSaleData(saleData));
       } catch (error: any) {
         console.error("Error loading sale details:", error);
         toast.error("Failed to load sale details");
@@ -193,15 +217,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         setSellType(originalSaleData.sellType || "SHOP_SELL_OFFLINE");
 
         // Restore original cart items
-        const originalCartItems = originalSaleData.sales.map((sale: any) => ({
-          id: sale.id,
-          kurti: sale.kurti,
-          selectedSize: sale.kurtiSize,
-          quantity: sale.quantity,
-          sellingPrice: sale.selledPrice,
-          availableStock: sale.availableStock,
-        }));
-        setCart(originalCartItems);
+        setCart(buildCartFromSaleData(originalSaleData));
         setRemovedItems([]);
       }
     } else {
@@ -245,7 +261,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       // Add new products if any are in the cart that weren't in the original data
       const originalSaleIds =
         originalSaleData?.sales?.map((sale: any) => sale.id) || [];
-      const newProducts = cart
+      const trackedCartItems = cart.filter((item) => item.lineType === "TRACKED");
+      const newProducts = trackedCartItems
         .filter((item) => !originalSaleIds.includes(item.id))
         .map((item) => ({
           kurtiId: item.kurti.id,
@@ -261,7 +278,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       }
 
       // Add updated items (existing items that have been modified)
-      const updatedItems = cart
+      const updatedItems = trackedCartItems
         .filter((item) => originalSaleIds.includes(item.id))
         .map((item) => ({
           id: item.id,
@@ -288,15 +305,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         setOriginalSaleData(response.data.data);
 
         // Update cart with the new data from server
-        const updatedCartItems = response.data.data.sales.map((sale: any) => ({
-          id: sale.id,
-          kurti: sale.kurti,
-          selectedSize: sale.kurtiSize,
-          quantity: sale.quantity,
-          sellingPrice: sale.selledPrice,
-          availableStock: sale.availableStock,
-        }));
-        setCart(updatedCartItems);
+        setCart(buildCartFromSaleData(response.data.data));
 
         // Handle invoice regeneration
         if (response.data.invoiceRegenerated && response.data.newInvoiceUrl) {
@@ -452,6 +461,10 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     // For new items (temp IDs), just remove from cart
     // For existing items, track them for removal on save
     if (!itemId.startsWith("temp-")) {
+      if (itemId.startsWith("manual-")) {
+        toast.info("Untracked items can only be viewed here");
+        return;
+      }
       // This is an existing item that was removed
       setRemovedItems((prev) => [...prev, itemId]);
     }
@@ -470,7 +483,11 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
 
     const updatedCart = cart.map((item) => {
       if (item.id === itemId) {
-        if (newQuantity > item.availableStock) {
+        if (
+          item.lineType === "TRACKED" &&
+          item.availableStock !== null &&
+          newQuantity > item.availableStock
+        ) {
           toast.error("Quantity exceeds available stock");
           return item;
         }
@@ -1178,11 +1195,17 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                     <TableRow key={item.id}>
                       <TableCell className="border">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={item.kurti.images[0]?.url}
-                            alt={item.kurti.code}
-                            className="w-12 h-12 object-cover rounded"
-                          />
+                          {item.kurti?.images?.[0]?.url ? (
+                            <img
+                              src={item.kurti.images[0].url}
+                              alt={item.kurti.code}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                              N/A
+                            </div>
+                          )}
                           <div>
                             <div className="font-semibold">
                               {item.kurti.code.toUpperCase()}
@@ -1194,14 +1217,14 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                         </div>
                       </TableCell>
                       <TableCell className="border">
-                        {item.selectedSize.toUpperCase()}
+                        {item.selectedSize ? item.selectedSize.toUpperCase() : "-"}
                       </TableCell>
                       <TableCell className="border">
-                        {isEditMode ? (
+                        {isEditMode && item.lineType === "TRACKED" ? (
                           <Input
                             type="number"
                             min="1"
-                            max={item.availableStock}
+                            max={item.availableStock || undefined}
                             value={item.quantity}
                             onChange={async (e) => {
                               await updateCartItemQuantity(
@@ -1216,7 +1239,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                         )}
                       </TableCell>
                       <TableCell className="border">
-                        {isEditMode ? (
+                        {isEditMode && item.lineType === "TRACKED" ? (
                           <Input
                             type="number"
                             min="1"
@@ -1238,16 +1261,20 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                       </TableCell>
                       {isEditMode && (
                         <TableCell className="border">
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            onClick={async () => {
-                              await removeFromCart(item.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {item.lineType === "TRACKED" ? (
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              onClick={async () => {
+                                await removeFromCart(item.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-gray-500">View only</span>
+                          )}
                         </TableCell>
                       )}
                     </TableRow>

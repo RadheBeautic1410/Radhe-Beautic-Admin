@@ -339,6 +339,7 @@ model OfflineSellBatch {
   invoiceUrl     String?
   sellType       OfflineSellType @default(SHOP_SELL_OFFLINE)
   sales          OfflineSell[]   @relation("OfflineBatchSales")
+  manualSales    OfflineManualSell[]
   shopId         String?         @db.ObjectId
   shop           Shop?           @relation(fields: [shopId], references: [id])
   createdAt      DateTime?
@@ -370,6 +371,21 @@ model OfflineSell {
   customerPhone String?
   quantity      Int?
   selledPrice   Int?
+}
+
+model OfflineManualSell {
+  id            String           @id @default(auto()) @map("_id") @db.ObjectId
+  batchId       String           @db.ObjectId
+  batch         OfflineSellBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  category      String
+  kurtiSize     String?
+  quantity      Int
+  selledPrice   Int
+  hsnCode       String?          @default("6204")
+  customerName  String?
+  customerPhone String?
+  createdAt     DateTime?        @default(now())
+  updatedAt     DateTime?        @updatedAt
 }
 
 model OnlineSellBatch {
