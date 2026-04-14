@@ -52,6 +52,8 @@ interface CartItem {
   id: string;
   lineType: "TRACKED" | "UNTRACKED";
   kurti: any;
+  /** Display / invoice label: kurti code (tracked) or category name (untracked) */
+  category: string;
   selectedSize: string;
   quantity: number;
   sellingPrice: number;
@@ -78,7 +80,13 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   const [updating, setUpdating] = useState(false);
   const [originalSaleData, setOriginalSaleData] = useState<any>(null);
   const [removedItems, setRemovedItems] = useState<string[]>([]);
+  const [removedManualItems, setRemovedManualItems] = useState<string[]>([]);
   const [regeneratingInvoice, setRegeneratingInvoice] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [untrackedCategory, setUntrackedCategory] = useState("");
+  const [untrackedSize, setUntrackedSize] = useState("");
+  const [untrackedQuantity, setUntrackedQuantity] = useState<string>("1");
+  const [untrackedPrice, setUntrackedPrice] = useState<string>("");
 
   // Sale details
   const [customerName, setCustomerName] = useState("");
@@ -108,6 +116,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       id: sale.id,
       lineType: "TRACKED",
       kurti: sale.kurti,
+      category: sale.kurti?.category || "-",
       selectedSize: sale.kurtiSize || "",
       quantity: sale.quantity,
       sellingPrice: sale.selledPrice,
@@ -124,6 +133,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           category: manual.category,
           images: [],
         },
+        category: manual.category,
         selectedSize: manual.kurtiSize || "",
         quantity: manual.quantity,
         sellingPrice: manual.selledPrice,
@@ -172,6 +182,23 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     }
   }, [params.id]);
 
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await axios.get("/api/category?limit=500");
+        const list = Array.isArray(res?.data?.data) ? res.data.data : [];
+        setCategories(
+          list
+            .map((c: any) => String(c?.name || "").trim())
+            .filter((n: string) => !!n)
+        );
+      } catch {
+        /* optional for view-only */
+      }
+    };
+    loadCategories();
+  }, []);
+
   // Load shops and user's shop on component mount
   useEffect(() => {
     const loadShopsAndUserShop = async () => {
@@ -219,10 +246,12 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         // Restore original cart items
         setCart(buildCartFromSaleData(originalSaleData));
         setRemovedItems([]);
+        setRemovedManualItems([]);
       }
     } else {
       // Enter edit mode - clear removed items
       setRemovedItems([]);
+      setRemovedManualItems([]);
     }
     setIsEditMode(!isEditMode);
   };
@@ -295,6 +324,39 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
         updateData.removedItems = removedItems;
       }
 
+      const untrackedCart = cart.filter((item) => item.lineType === "UNTRACKED");
+
+      const newManualProducts = untrackedCart
+        .filter((item) => item.id.startsWith("temp-manual-"))
+        .map((item) => ({
+          category: item.category.trim(),
+          selectedSize: item.selectedSize?.trim() || null,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+        }));
+
+      if (newManualProducts.length > 0) {
+        updateData.newManualProducts = newManualProducts;
+      }
+
+      const updatedManualItems = untrackedCart
+        .filter((item) => item.id.startsWith("manual-"))
+        .map((item) => ({
+          id: item.id.replace(/^manual-/, ""),
+          category: item.category.trim(),
+          selectedSize: item.selectedSize?.trim() || null,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+        }));
+
+      if (updatedManualItems.length > 0) {
+        updateData.updatedManualItems = updatedManualItems;
+      }
+
+      if (removedManualItems.length > 0) {
+        updateData.removedManualItems = removedManualItems;
+      }
+
       const response = await axios.put(
         `/api/sell/offline-sales/${params.id}`,
         updateData
@@ -328,6 +390,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
 
         // Reset removed items and exit edit mode
         setRemovedItems([]);
+        setRemovedManualItems([]);
         setIsEditMode(false);
       } else {
         toast.error("Failed to update sale");
@@ -407,7 +470,9 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     // Check if same product+size already exists in cart
     const existingItemIndex = cart.findIndex(
       (item) =>
-        item.kurti.code === kurti.code && item.selectedSize === selectedSize
+        item.lineType === "TRACKED" &&
+        item.kurti.code === kurti.code &&
+        item.selectedSize === selectedSize
     );
 
     // Create a unique temporary ID for new items (will be replaced with real ID after save)
@@ -415,7 +480,9 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
 
     const newItem: CartItem = {
       id: tempId,
+      lineType: "TRACKED",
       kurti,
+      category: kurti.category || "-",
       selectedSize,
       quantity,
       sellingPrice: parseInt(sellingPrice),
@@ -455,21 +522,72 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   };
 
   const removeFromCart = async (itemId: string) => {
-    const updatedCart = cart.filter((item) => item.id !== itemId);
-    setCart(updatedCart);
+    const removed = cart.find((item) => item.id === itemId);
+    setCart(cart.filter((item) => item.id !== itemId));
 
-    // For new items (temp IDs), just remove from cart
-    // For existing items, track them for removal on save
-    if (!itemId.startsWith("temp-")) {
+    if (removed?.lineType === "UNTRACKED") {
       if (itemId.startsWith("manual-")) {
-        toast.info("Untracked items can only be viewed here");
-        return;
+        const dbId = itemId.replace(/^manual-/, "");
+        if (dbId) setRemovedManualItems((prev) => [...prev, dbId]);
       }
-      // This is an existing item that was removed
-      setRemovedItems((prev) => [...prev, itemId]);
+    } else if (removed?.lineType === "TRACKED") {
+      if (!itemId.startsWith("temp-")) {
+        setRemovedItems((prev) => [...prev, itemId]);
+      }
     }
 
     toast.success("Item removed from cart");
+  };
+
+  const addUntrackedToCart = () => {
+    const category = untrackedCategory.trim();
+    const size = untrackedSize.trim().toUpperCase();
+    const qty = Number(untrackedQuantity || 0);
+    const price = Number(untrackedPrice || 0);
+    if (!category) {
+      toast.error("Please select category");
+      return;
+    }
+    if (qty <= 0) {
+      toast.error("Please enter valid quantity");
+      return;
+    }
+    if (price <= 0) {
+      toast.error("Please enter valid unit price");
+      return;
+    }
+    const id = `temp-manual-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    setCart((prev) => [
+      ...prev,
+      {
+        id,
+        lineType: "UNTRACKED",
+        category,
+        kurti: { code: category, category, images: [] },
+        selectedSize: size,
+        quantity: qty,
+        sellingPrice: price,
+        availableStock: null,
+      },
+    ]);
+    setUntrackedCategory("");
+    setUntrackedSize("");
+    setUntrackedQuantity("1");
+    setUntrackedPrice("");
+    toast.success("Untracked line added (save to persist)");
+  };
+
+  const updateCartItemCategory = (itemId: string, category: string) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId || item.lineType !== "UNTRACKED") return item;
+        return {
+          ...item,
+          category,
+          kurti: { ...item.kurti, code: category, category },
+        };
+      })
+    );
   };
 
   const updateCartItemQuantity = async (
@@ -554,17 +672,27 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
 
       const currentTime = getCurrTime();
 
-      // Prepare products data for API
-      const products = cart.map((item) => ({
-        code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
-        kurti: item.kurti,
-        selectedSize: item.selectedSize,
-        quantity: item.quantity,
-        sellingPrice: item.sellingPrice,
-      }));
+      const trackedProducts = cart
+        .filter((item) => item.lineType === "TRACKED")
+        .map((item) => ({
+          code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
+          kurti: item.kurti,
+          selectedSize: item.selectedSize,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+        }));
+      const untrackedProducts = cart
+        .filter((item) => item.lineType === "UNTRACKED")
+        .map((item) => ({
+          category: item.category,
+          selectedSize: item.selectedSize?.trim() || null,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+        }));
 
       const res = await axios.post(`/api/sell/offline-retailer`, {
-        products,
+        trackedProducts,
+        untrackedProducts,
         currentUser,
         currentTime: currentTime,
         customerName: customerName.trim(),
@@ -1023,6 +1151,62 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           </div>
         )}
 
+        {isEditMode && (
+          <div className="bg-amber-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3">Add Untracked Kurti</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 items-end">
+              <div>
+                <Label htmlFor="edit-untracked-category">Category *</Label>
+                <select
+                  id="edit-untracked-category"
+                  className="w-full p-2 border rounded-md"
+                  value={untrackedCategory}
+                  onChange={(e) => setUntrackedCategory(e.target.value)}
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="edit-untracked-size">Size (Optional)</Label>
+                <Input
+                  id="edit-untracked-size"
+                  placeholder="e.g. M"
+                  value={untrackedSize}
+                  onChange={(e) => setUntrackedSize(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-untracked-qty">Quantity *</Label>
+                <Input
+                  id="edit-untracked-qty"
+                  type="number"
+                  min="1"
+                  value={untrackedQuantity}
+                  onChange={(e) => setUntrackedQuantity(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-untracked-price">Unit Price *</Label>
+                <Input
+                  id="edit-untracked-price"
+                  type="number"
+                  min="1"
+                  value={untrackedPrice}
+                  onChange={(e) => setUntrackedPrice(e.target.value)}
+                />
+              </div>
+              <Button type="button" onClick={addUntrackedToCart}>
+                Add Untracked
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Product Details - Only show in edit mode */}
         {isEditMode && kurti && (
           <div className="bg-white border rounded-lg p-4">
@@ -1198,7 +1382,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                           {item.kurti?.images?.[0]?.url ? (
                             <img
                               src={item.kurti.images[0].url}
-                              alt={item.kurti.code}
+                              alt={item.lineType === "TRACKED" ? item.kurti.code : item.category}
                               className="w-12 h-12 object-cover rounded"
                             />
                           ) : (
@@ -1206,21 +1390,65 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                               N/A
                             </div>
                           )}
-                          <div>
-                            <div className="font-semibold">
-                              {item.kurti.code.toUpperCase()}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {item.kurti.category}
-                            </div>
+                          <div className="min-w-0 flex-1">
+                            {isEditMode && item.lineType === "UNTRACKED" ? (
+                              <select
+                                className="w-full max-w-[200px] p-1 border rounded-md text-sm font-semibold"
+                                value={item.category}
+                                onChange={(e) =>
+                                  updateCartItemCategory(item.id, e.target.value)
+                                }
+                              >
+                                {[
+                                  item.category,
+                                  ...categories.filter((c) => c !== item.category),
+                                ].map((c) => (
+                                  <option key={c} value={c}>
+                                    {c}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <>
+                                <div className="font-semibold">
+                                  {item.lineType === "TRACKED"
+                                    ? item.kurti.code.toUpperCase()
+                                    : item.category.toUpperCase()}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  {item.lineType === "TRACKED"
+                                    ? item.kurti.category
+                                    : item.category}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="border">
-                        {item.selectedSize ? item.selectedSize.toUpperCase() : "-"}
+                        {isEditMode && item.lineType === "UNTRACKED" ? (
+                          <Input
+                            className="w-20"
+                            value={item.selectedSize}
+                            placeholder="-"
+                            onChange={(e) =>
+                              setCart((prev) =>
+                                prev.map((it) =>
+                                  it.id === item.id
+                                    ? { ...it, selectedSize: e.target.value.toUpperCase() }
+                                    : it
+                                )
+                              )
+                            }
+                          />
+                        ) : (
+                          <span>
+                            {item.selectedSize ? item.selectedSize.toUpperCase() : "-"}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="border">
-                        {isEditMode && item.lineType === "TRACKED" ? (
+                        {isEditMode ? (
                           <Input
                             type="number"
                             min="1"
@@ -1239,7 +1467,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                         )}
                       </TableCell>
                       <TableCell className="border">
-                        {isEditMode && item.lineType === "TRACKED" ? (
+                        {isEditMode ? (
                           <Input
                             type="number"
                             min="1"
@@ -1261,20 +1489,16 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                       </TableCell>
                       {isEditMode && (
                         <TableCell className="border">
-                          {item.lineType === "TRACKED" ? (
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              onClick={async () => {
-                                await removeFromCart(item.id);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-gray-500">View only</span>
-                          )}
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={async () => {
+                              await removeFromCart(item.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       )}
                     </TableRow>
@@ -1294,6 +1518,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                     variant="outline"
                     onClick={() => {
                       setCart([]);
+                      setRemovedItems([]);
+                      setRemovedManualItems([]);
                       setCode("");
                       setKurti(null);
                       setSelectedSize("");

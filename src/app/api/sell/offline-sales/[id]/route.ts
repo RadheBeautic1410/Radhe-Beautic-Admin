@@ -104,6 +104,9 @@ export async function PUT(
       newProducts, // Array of new products to add
       updatedItems, // Array of existing items to update
       removedItems, // Array of item IDs to remove
+      newManualProducts,
+      updatedManualItems,
+      removedManualItems,
     } = body;
 
     // Validate required fields
@@ -141,6 +144,52 @@ export async function PUT(
           return new NextResponse(
             JSON.stringify({
               error: "Quantity and selling price must be greater than 0",
+            }),
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    if (newManualProducts && Array.isArray(newManualProducts)) {
+      for (const p of newManualProducts) {
+        if (!String(p?.category || "").trim()) {
+          return new NextResponse(
+            JSON.stringify({ error: "Category is required for new untracked line" }),
+            { status: 400 }
+          );
+        }
+        if ((Number(p?.quantity) || 0) <= 0 || (Number(p?.sellingPrice) || 0) <= 0) {
+          return new NextResponse(
+            JSON.stringify({
+              error: "Untracked quantity and selling price must be greater than 0",
+            }),
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    if (updatedManualItems && Array.isArray(updatedManualItems)) {
+      for (const item of updatedManualItems) {
+        if (!item.id) {
+          return new NextResponse(
+            JSON.stringify({
+              error: "Invalid untracked item update: id is required.",
+            }),
+            { status: 400 }
+          );
+        }
+        if (item.quantity !== undefined && item.quantity <= 0) {
+          return new NextResponse(
+            JSON.stringify({ error: "Untracked quantity must be greater than 0" }),
+            { status: 400 }
+          );
+        }
+        if (item.sellingPrice !== undefined && item.sellingPrice <= 0) {
+          return new NextResponse(
+            JSON.stringify({
+              error: "Untracked selling price must be greater than 0",
             }),
             { status: 400 }
           );
@@ -204,6 +253,9 @@ export async function PUT(
       newProducts: newProducts?.length || 0,
       updatedItems: updatedItems?.length || 0,
       removedItems: removedItems?.length || 0,
+      newManualProducts: newManualProducts?.length || 0,
+      updatedManualItems: updatedManualItems?.length || 0,
+      removedManualItems: removedManualItems?.length || 0,
     });
 
     // NOTE:
@@ -412,6 +464,74 @@ export async function PUT(
         }
       }
 
+      // --- Untracked (manual) lines: no stock changes ---
+      if (removedManualItems && Array.isArray(removedManualItems)) {
+        const mids = removedManualItems.filter(Boolean);
+        if (mids.length > 0) {
+          await tx.offlineManualSell.deleteMany({
+            where: { batchId: id, id: { in: mids } },
+          });
+        }
+      }
+
+      if (updatedManualItems && Array.isArray(updatedManualItems)) {
+        const toUpdateManual = updatedManualItems
+          .filter((item: any) => item?.id)
+          .map((item: any) => {
+            const data: any = { updatedAt: currTime };
+            if (item.quantity !== undefined) data.quantity = item.quantity;
+            if (item.sellingPrice !== undefined) data.selledPrice = item.sellingPrice;
+            if (item.category !== undefined)
+              data.category = String(item.category || "").trim();
+            if (item.selectedSize !== undefined) {
+              const s = String(item.selectedSize || "").trim().toUpperCase();
+              data.kurtiSize = s || null;
+            }
+            return { id: item.id, data };
+          });
+
+        const BATCHM = 25;
+        for (let i = 0; i < toUpdateManual.length; i += BATCHM) {
+          const chunk = toUpdateManual.slice(i, i + BATCHM);
+          await Promise.all(
+            chunk.map((u) =>
+              tx.offlineManualSell.updateMany({
+                where: { id: u.id, batchId: id },
+                data: u.data,
+              })
+            )
+          );
+        }
+      }
+
+      if (newManualProducts && Array.isArray(newManualProducts)) {
+        const validManual = newManualProducts.filter(
+          (p: any) =>
+            String(p?.category || "").trim() &&
+            (Number(p?.quantity) || 0) > 0 &&
+            (Number(p?.sellingPrice) || 0) > 0
+        );
+        if (validManual.length > 0) {
+          await tx.offlineManualSell.createMany({
+            data: validManual.map((p: any) => {
+              const sz = String(p?.selectedSize || "").trim().toUpperCase();
+              return {
+                batchId: id,
+                category: String(p.category).trim(),
+                kurtiSize: sz || null,
+                quantity: Number(p.quantity),
+                selledPrice: Number(p.sellingPrice),
+                hsnCode: String(p?.hsnCode || "6204"),
+                customerName: customerName.trim(),
+                customerPhone: customerPhone?.trim() || null,
+                createdAt: currTime,
+                updatedAt: currTime,
+              };
+            }),
+          });
+        }
+      }
+
       // Recalculate totals efficiently (no need to load every row)
       const totals = await tx.offlineSell.aggregate({
         where: { batchId: id },
@@ -478,7 +598,10 @@ export async function PUT(
     if (
       (newProducts && newProducts.length > 0) ||
       (updatedItems && updatedItems.length > 0) ||
-      (removedItems && removedItems.length > 0)
+      (removedItems && removedItems.length > 0) ||
+      (newManualProducts && newManualProducts.length > 0) ||
+      (updatedManualItems && updatedManualItems.length > 0) ||
+      (removedManualItems && removedManualItems.length > 0)
     ) {
       try {
         console.log("Regenerating invoice due to product changes...");

@@ -1522,6 +1522,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
       selectedLocation,
       billCreatedBy,
       paymentType,
+      paymentStatus,
       shopName,
       shopId,
       gstType,
@@ -1578,6 +1579,10 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
             sellType: sellType,
             shopId: shopId,
             paymentType: paymentType,
+            paymentStatus:
+              String(paymentStatus || "").toUpperCase() === "COMPLETE"
+                ? "COMPLETE"
+                : "PENDING",
             gstType: gstType,
             createdAt: currTime,
             updatedAt: currTime,
