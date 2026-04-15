@@ -1350,6 +1350,9 @@ export const getSellingHistoryFiltered = async (params: {
       sellerName: s.sellerName || "-",
       code: s.code,
       kurtiSize: s.kurtiSize,
+      quantity: s.quantity || 1,
+      selledPrice: s.selledPrice || 0,
+      paymentType: s.paymentType || null,
       source: "DIRECT",
     }));
   }
@@ -1377,6 +1380,9 @@ export const getSellingHistoryFiltered = async (params: {
     sellerName: s.batch?.sellerName || "-",
     code: s.code,
     kurtiSize: s.kurtiSize,
+    quantity: s.quantity || 1,
+    selledPrice: s.selledPrice || 0,
+    paymentType: s.batch?.paymentType || null,
     source: "OFFLINE_BATCH",
     shopId: s.batch?.shopId || null,
     batchNumber: s.batch?.batchNumber || null,

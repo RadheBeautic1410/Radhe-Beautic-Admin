@@ -112,6 +112,40 @@ function SellingHistory() {
         });
     }, [sellData, search]);
 
+    const shouldShowSummary = selectedShopId !== "DIRECT";
+
+    const summary = useMemo(() => {
+      return filteredData.reduce(
+        (acc, row) => {
+          const quantity = Number(row.quantity || 1);
+          const selledPrice = Number(row.selledPrice || 0);
+          const amount = quantity * selledPrice;
+          const paymentType = String(row.paymentType || "").toUpperCase();
+
+          acc.totalPiece += quantity;
+          acc.totalAmount += amount;
+
+          if (paymentType.includes("CASH")) {
+            acc.cashAmount += amount;
+          } else if (
+            paymentType.includes("GPAY") ||
+            paymentType.includes("G-PAY") ||
+            paymentType.includes("GOOGLE PAY")
+          ) {
+            acc.gpayAmount += amount;
+          }
+
+          return acc;
+        },
+        {
+          totalPiece: 0,
+          totalAmount: 0,
+          cashAmount: 0,
+          gpayAmount: 0,
+        }
+      );
+    }, [filteredData]);
+
     return (
       <>
         <PageLoader loading={loader} />
@@ -175,6 +209,26 @@ function SellingHistory() {
                     />
                   </div>
                 </div>
+                {shouldShowSummary && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-1">
+                    <div className="border rounded-md p-3 bg-slate-50">
+                      <p className="text-xs text-slate-600">Total Piece</p>
+                      <p className="text-lg font-semibold">{summary.totalPiece}</p>
+                    </div>
+                    <div className="border rounded-md p-3 bg-slate-50">
+                      <p className="text-xs text-slate-600">Total Amount</p>
+                      <p className="text-lg font-semibold">₹{summary.totalAmount.toFixed(2)}</p>
+                    </div>
+                    <div className="border rounded-md p-3 bg-green-50">
+                      <p className="text-xs text-green-700">Cash Amount</p>
+                      <p className="text-lg font-semibold text-green-800">₹{summary.cashAmount.toFixed(2)}</p>
+                    </div>
+                    <div className="border rounded-md p-3 bg-blue-50">
+                      <p className="text-xs text-blue-700">GPay Amount</p>
+                      <p className="text-lg font-semibold text-blue-800">₹{summary.gpayAmount.toFixed(2)}</p>
+                    </div>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow className="text-black">
