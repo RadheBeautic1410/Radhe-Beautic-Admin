@@ -642,111 +642,158 @@ export const cancelCustomerOrder = async (orderId: string) => {
       return { error: "Cannot cancel a delivered order" };
     }
 
-    // Use transaction to ensure atomicity
-    const result = await db.$transaction(async (tx) => {
-      // Release reserved quantities from kurti reservedSizes
-      const cartProducts = existingOrder.cart.CartProduct;
-      if (cartProducts && cartProducts.length > 0) {
-        // Group by kurti code to handle multiple cart products for same kurti
-        const kurtiMap = new Map<string, SizeQuantity>();
-        
-        for (const cartProduct of cartProducts) {
-          const code = cartProduct.kurti.code;
-          const adminSizes = getSizeObjectFromArray(cartProduct.adminSideSizes || []);
-          
-          if (!kurtiMap.has(code)) {
-            kurtiMap.set(code, {});
-          }
-          
-          const existing = kurtiMap.get(code)!;
-          for (const size in adminSizes) {
-            existing[size] = (existing[size] || 0) + adminSizes[size];
-          }
-        }
-        
-        // Update each kurti's reservedSizes
-        for (const [code, sizesToRelease] of kurtiMap.entries()) {
-          const kurti = await tx.kurti.findUnique({
-            where: { code },
-            select: { id: true, reservedSizes: true },
-          });
-          
-          if (!kurti) {
-            console.warn(`Kurti not found for code: ${code}`);
-            continue;
-          }
-          
-          const currentReserved = getSizeObjectFromArray(kurti.reservedSizes || []);
-          
-          // Subtract released quantities
-          for (const size in sizesToRelease) {
-            currentReserved[size] = (currentReserved[size] || 0) - sizesToRelease[size];
-            if (currentReserved[size] < 0) {
-              console.warn(`Warning: Reserved quantity for ${code}-${size} went negative, setting to 0`);
-              currentReserved[size] = 0;
-            }
-          }
-          
-          // Convert back to array format
-          const finalArray: any[] = [];
-          for (const [size, quantity] of Object.entries(currentReserved)) {
-            if (quantity > 0) {
-              finalArray.push({ size, quantity });
-            }
-          }
-          
-          // Update kurti
-          await tx.kurti.update({
-            where: { code },
-            data: {
-              reservedSizes: finalArray,
-              lastUpdatedTime: getCurrTime(),
-            },
-          });
-        }
+    // Group cart products once to reduce work inside transaction
+    const cartProducts = existingOrder.cart.CartProduct || [];
+    const kurtiMap = new Map<string, SizeQuantity>();
+
+    for (const cartProduct of cartProducts) {
+      const code = cartProduct.kurti.code;
+      const adminSizes = getSizeObjectFromArray(cartProduct.adminSideSizes || []);
+
+      if (!kurtiMap.has(code)) {
+        kurtiMap.set(code, {});
       }
 
-      // Update order status to CANCELLED
-      const updatedOrder = await tx.customerOrder.update({
-        where: {
-          id: orderId,
-        },
-        data: {
-          status: OrderStatus.CANCELLED,
-          cancleBy: cancelledBy,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              phoneNumber: true,
-              email: true,
+      const sizeBucket = kurtiMap.get(code)!;
+      for (const size in adminSizes) {
+        sizeBucket[size] = (sizeBucket[size] || 0) + adminSizes[size];
+      }
+    }
+
+    // If already accepted (TRACKINGPENDING), restore sellable stock too
+    const shouldRestoreActualStock =
+      existingOrder.status === OrderStatus.TRACKINGPENDING;
+
+    // Use transaction to ensure atomicity
+    await db.$transaction(
+      async (tx) => {
+        if (kurtiMap.size > 0) {
+          const codes = Array.from(kurtiMap.keys());
+          const kurtis = await tx.kurti.findMany({
+            where: {
+              code: {
+                in: codes,
+              },
             },
+            select: {
+              code: true,
+              sizes: true,
+              reservedSizes: true,
+              countOfPiece: true,
+            },
+          });
+
+          const kurtiByCode = new Map(kurtis.map((k) => [k.code, k]));
+
+          for (const [code, sizesToRelease] of kurtiMap.entries()) {
+            const kurti = kurtiByCode.get(code);
+
+            if (!kurti) {
+              console.warn(`Kurti not found for code: ${code}`);
+              continue;
+            }
+
+            const currentReserved = getSizeObjectFromArray(kurti.reservedSizes || []);
+            let updatedSizes = [...(kurti.sizes || [])];
+            let totalRestored = 0;
+
+            // Subtract released quantities from reserved stock
+            for (const size in sizesToRelease) {
+              const releaseQty = sizesToRelease[size];
+              currentReserved[size] = (currentReserved[size] || 0) - releaseQty;
+              if (currentReserved[size] < 0) {
+                console.warn(
+                  `Warning: Reserved quantity for ${code}-${size} went negative, setting to 0`
+                );
+                currentReserved[size] = 0;
+              }
+
+              if (shouldRestoreActualStock) {
+                // Accepted orders already reduced stock, so add it back on cancel
+                updatedSizes = updateSizeQuantity(updatedSizes, size, releaseQty);
+                totalRestored += releaseQty;
+              }
+            }
+
+            // Convert reserved object back to array format
+            const finalReservedArray: any[] = [];
+            for (const [size, quantity] of Object.entries(currentReserved)) {
+              if (quantity > 0) {
+                finalReservedArray.push({ size, quantity });
+              }
+            }
+
+            const updateData: any = {
+              reservedSizes: finalReservedArray,
+              lastUpdatedTime: getCurrTime(),
+            };
+
+            if (shouldRestoreActualStock) {
+              updateData.sizes = updatedSizes as any;
+              updateData.countOfPiece = (kurti.countOfPiece || 0) + totalRestored;
+            }
+
+            await tx.kurti.update({
+              where: { code },
+              data: updateData,
+            });
+          }
+        }
+
+        // Keep transaction write lightweight
+        await tx.customerOrder.update({
+          where: {
+            id: orderId,
           },
-          shippingAddress: true,
-          cart: {
-            include: {
-              CartProduct: {
-                include: {
-                  kurti: {
-                    include: {
-                      prices: true,
-                    },
+          data: {
+            status: OrderStatus.CANCELLED,
+            cancleBy: cancelledBy,
+          },
+          select: {
+            id: true,
+          },
+        });
+      },
+      {
+        maxWait: 20000,
+        timeout: 60000,
+      }
+    );
+
+    // Fetch full order details after transaction to avoid timeout pressure
+    const result = await db.customerOrder.findUnique({
+      where: {
+        id: orderId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+            email: true,
+          },
+        },
+        shippingAddress: true,
+        cart: {
+          include: {
+            CartProduct: {
+              include: {
+                kurti: {
+                  include: {
+                    prices: true,
                   },
                 },
               },
             },
           },
         },
-      });
-
-      return updatedOrder;
+      },
     });
 
     return {
       success: true,
-      data: result,
+      data: result || { id: orderId },
       message: "Order cancelled successfully",
     };
   } catch (error: any) {
