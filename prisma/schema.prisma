@@ -177,6 +177,8 @@ model Category {
   customerPrice        Float?
   isStockReady         Boolean @default(true)
   isVisibleForCustomer Boolean @default(true)
+  /// When true, stock sizes use age bands (see CHILDREN_AGE_SIZES) instead of XS/S/M…
+  isForChildren        Boolean @default(false)
 
   // Indexes for query performance
   @@index([isDeleted])

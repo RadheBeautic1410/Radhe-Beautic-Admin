@@ -21,16 +21,15 @@ export const partyAddSchema = z.object({
   }),
 });
 
-export const categoryAddSchema = z.object({
+export const categoryAddSchema = z
+  .object({
   name: z.string().min(1, {
     message: "Category is required",
   }),
   type: z.string().min(1, {
     message: "Type is required",
   }),
-  kurtiType: z.string().min(1, {
-    message: "Kurti Type is required",
-  }),
+  kurtiType: z.string().optional().default(""),
   image: z
     .union([z.string().url({ message: "Image must be a valid URL" }), z.literal("")])
     .optional()
@@ -119,7 +118,17 @@ export const categoryAddSchema = z.object({
       })
       .optional()
   ),
-});
+  isForChildren: z.boolean().optional().default(false),
+})
+  .refine(
+    (data) =>
+      data.isForChildren ||
+      (typeof data.kurtiType === "string" && data.kurtiType.trim().length > 0),
+    {
+      message: "Kurti Type is required",
+      path: ["kurtiType"],
+    }
+  );
 
 export const stockUpdateSchema = z.object({
   sizes: z.array(
@@ -269,4 +278,5 @@ export const categoryEditSchema = z.object({
   customerPrice: z.number().optional(),
   walletDiscount: z.number().min(0, "Discount must be zero or more").optional(),
   kurtiType: z.string(),
+  isForChildren: z.boolean().optional().default(false),
 });

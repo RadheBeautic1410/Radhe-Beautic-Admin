@@ -35,6 +35,7 @@ interface categoryAddtionProps {
   customerBigPrice?: number | null;
   walletDiscount?: number;
   kurtiType?: string;
+  isForChildren?: boolean;
 }
 
 export const categoryAddition = async (data: categoryAddtionProps) => {
@@ -100,6 +101,7 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
       customerBigPrice: customerBigPrice || 0,
       kurtiType: data.kurtiType || null,
       isVisibleForCustomer: true,
+      isForChildren: data.isForChildren ?? false,
     },
   });
 
@@ -215,6 +217,10 @@ export const categoryUpdate = async (
         customerBigPrice: customerBigPrice ?? existingCategory.customerBigPrice,
         walletDiscount: walletDiscount ?? existingCategory.walletDiscount,
         kurtiType: data.kurtiType ?? existingCategory.kurtiType,
+        isForChildren:
+          data.isForChildren !== undefined
+            ? Boolean(data.isForChildren)
+            : Boolean(existingCategory.isForChildren),
       },
     });
 

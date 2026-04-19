@@ -3,6 +3,7 @@
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select";
+import { ADULT_KURTI_SIZES } from "@/src/lib/kurtiSizes";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -10,39 +11,39 @@ interface SingleSizeProps {
     onSetSize: (size: string, quantity: number) => void;
     quantity: any;
     size: any;
+    sizeOptions: string[];
 }
 
-const SingleSize: React.FC<SingleSizeProps> = ({ onSetSize, quantity, size }) => {
-    const selectSizes: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
-    const [selectedSize, setSelectedSize] = useState<string>(size);
-    const [selectedQuantity, setQuantity] = useState(quantity);
-    console.log(quantity, size, selectedSize);
+const SingleSize: React.FC<SingleSizeProps> = ({ onSetSize, quantity, size, sizeOptions }) => {
+    const safeSize = sizeOptions.includes(String(size)) ? String(size) : sizeOptions[0];
+    const [selectedSize, setSelectedSize] = useState<string>(safeSize);
     useEffect(() => {
-        onSetSize(size, quantity);
-    }, [])
+        const next = sizeOptions.includes(String(size)) ? String(size) : sizeOptions[0];
+        setSelectedSize(next);
+    }, [size, sizeOptions]);
     const handleChange = (e: any) => {
         setSelectedSize(e);
-        onSetSize(e, selectedQuantity);
+        const quan = typeof quantity === "number" && !Number.isNaN(quantity) ? quantity : parseInt(String(quantity), 10) || 0;
+        onSetSize(e, quan);
     };
     const handleQuantityChange = (e: any) => {
-        let quan = parseInt(e.target.value)
-        setQuantity(quan);
+        const quan = parseInt(e.target.value, 10) || 0;
         onSetSize(selectedSize, quan);
     }
     return (
         <>
             <Select
                 onValueChange={(e) => handleChange(e)}
-                defaultValue={size}
+                value={selectedSize}
             >
 
                 <SelectTrigger className="w-[20%]">
                     <SelectValue>
-                        {size}
+                        {selectedSize}
                     </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                    {selectSizes.map((org) => (
+                    {sizeOptions.map((org) => (
                         <SelectItem key={org} value={org} >
                             {org}
                         </SelectItem>
@@ -53,7 +54,7 @@ const SingleSize: React.FC<SingleSizeProps> = ({ onSetSize, quantity, size }) =>
                 className="ml-2 w-[30%]"
                 type="number"
                 placeholder="Quantity"
-                value={quantity}
+                value={quantity === undefined || quantity === "" ? "" : quantity}
                 onChange={(e) => handleQuantityChange(e)}
             />
         </>
@@ -64,14 +65,29 @@ interface AddSizeFormProps {
     onAddSize: (sizes: any[]) => void;
     preSizes: any[];
     sizes: any[];
+    /** When omitted, adult XS–10XL sizes are used. */
+    sizeOptions?: string[];
 }
 
-export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes, sizes }) => {
-    // const [sizes, setSizes] = useState<any[]>(preSizes);
-    // console.log(sizes);
+export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes, sizes, sizeOptions = ADULT_KURTI_SIZES }) => {
+    const sizeBandKey = sizeOptions[0] ?? "";
+
+    useEffect(() => {
+        if (!sizes.length) return;
+        const fallback = sizeOptions[0] ?? "XS";
+        const mapped = sizes.map((row) =>
+            sizeOptions.includes(String(row.size))
+                ? row
+                : { ...row, size: fallback }
+        );
+        if (mapped.some((row, i) => row.size !== sizes[i].size)) {
+            onAddSize(mapped);
+        }
+    }, [sizeBandKey]);
 
     const handleAddSize = () => {
-        let obj = { size: 'XS', quantity: 0 };
+        const defaultSize = sizeOptions[0] ?? "XS";
+        let obj = { size: defaultSize, quantity: 0 };
         for (let i = 0; i < sizes.length; i++) {
             for (let j = 0; j < sizes.length; j++) {
                 if (i !== j && sizes[i].size === sizes[j].size) {
@@ -110,6 +126,7 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes, s
                         key={index}
                         quantity={obj.quantity}
                         size={obj.size}
+                        sizeOptions={sizeOptions}
                         onSetSize={(size: any, quantity: any) => {
                             const updatedSizes = [...sizes];
                             updatedSizes[index] = {

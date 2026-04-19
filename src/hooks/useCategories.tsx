@@ -17,6 +17,7 @@ interface Category {
   code?: string;
   isStockReady: boolean;
   isVisibleForCustomer?: boolean;
+  isForChildren?: boolean;
 }
 interface CategoriesPaginationMeta {
   page: number;

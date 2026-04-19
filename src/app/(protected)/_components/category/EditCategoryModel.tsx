@@ -50,6 +50,7 @@ interface Category {
   bigPrice?: number; // Added bigPrice field
   walletDiscount?: number;
   isStockReady: boolean;
+  isForChildren?: boolean;
 }
 
 interface EditCategoryModalProps {
@@ -83,6 +84,7 @@ const EditCategoryModal = ({
       customerBigPrice: category.customerBigPrice || undefined,
       walletDiscount: category.walletDiscount || undefined,
       kurtiType: category.kurtiType || "",
+      isForChildren: category.isForChildren ?? false,
     },
   });
 
@@ -107,6 +109,7 @@ const EditCategoryModal = ({
         customerBigPrice: values.customerBigPrice, // Include customerBigPrice in the update
         walletDiscount: values.walletDiscount || 0,
         kurtiType: values.kurtiType,
+        isForChildren: values.isForChildren,
       })
         .then((data) => {
           console.log("🚀 ~ .then ~ data:", data);
@@ -123,6 +126,7 @@ const EditCategoryModal = ({
               type: values.type || "",
               image: values.image || "/images/no-image.png",
               bigPrice: values.bigPrice, // Include bigPrice in updated category
+              isForChildren: values.isForChildren,
             };
 
             onCategoryUpdate(updatedCategory);
@@ -132,15 +136,16 @@ const EditCategoryModal = ({
               toast.success("Category updated successfully!");
 
               // Update the category in parent component
-              const updatedCategory: Category = {
+              const updatedCategory2: Category = {
                 ...category,
                 name: values.name,
                 type: values.type || "",
                 image: values.image || "/images/no-image.png",
                 bigPrice: values.bigPrice, // Include bigPrice in updated category
+                isForChildren: values.isForChildren,
               };
 
-              onCategoryUpdate(updatedCategory);
+              onCategoryUpdate(updatedCategory2);
               setOpen(false);
             }, 1000);
           }
@@ -166,6 +171,7 @@ const EditCategoryModal = ({
         customerBigPrice: category.customerBigPrice || undefined,
         walletDiscount: category.walletDiscount || 0,
         kurtiType: category.kurtiType || "",
+        isForChildren: category.isForChildren ?? false,
       });
     }
   };
@@ -274,6 +280,29 @@ const EditCategoryModal = ({
                     </Select>
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="isForChildren"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start gap-3 rounded-md border p-3">
+                  <FormControl>
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4"
+                      checked={Boolean(field.value)}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                      disabled={isPending}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Children&apos;s category</FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      Use age bands (2-11 years) for stock sizes instead of XS/S/M.
+                    </p>
+                  </div>
                 </FormItem>
               )}
             />

@@ -4,7 +4,8 @@ import axios from "axios";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
 import { CheckIcon, ChevronsUpDownIcon, Loader2 } from "lucide-react";
-import { useRef, useState, useTransition, useEffect } from "react";
+import { useRef, useState, useTransition, useEffect, useMemo } from "react";
+import { useWatch } from "react-hook-form";
 import { Button } from "@/src/components/ui/button";
 import {
   Form,
@@ -54,6 +55,7 @@ import {
 import React from "react";
 import { v4 as uuidv4 } from "uuid";
 import { updateTotalItem,updateTotalPiece } from "@/src/actions/category";
+import { getSizeOptionsForCategory } from "@/src/lib/kurtiSizes";
 
 // Extended schema for bulk upload
 const BulkKurtiSchema = z.object({
@@ -467,6 +469,23 @@ const BulkUploadPage = () => {
     },
   });
 
+  const categorySlug = useWatch({ control: form.control, name: "category" });
+  const selectedCategory = useMemo(
+    () =>
+      categories.find((c) => c.normalizedLowerCase === categorySlug) as
+        | (Category & { isForChildren?: boolean })
+        | undefined,
+    [categories, categorySlug]
+  );
+  const uploadSizeOptions = useMemo(
+    () => getSizeOptionsForCategory(selectedCategory?.isForChildren),
+    [selectedCategory?.isForChildren]
+  );
+
+  useEffect(() => {
+    setSizes([]);
+  }, [categorySlug]);
+
   const formParty = useForm({
     defaultValues: {
       name: "",
@@ -799,6 +818,7 @@ const BulkUploadPage = () => {
                       preSizes={[]}
                       onAddSize={onAddSize}
                       sizes={sizes}
+                      sizeOptions={uploadSizeOptions}
                     />
                   </div>
 

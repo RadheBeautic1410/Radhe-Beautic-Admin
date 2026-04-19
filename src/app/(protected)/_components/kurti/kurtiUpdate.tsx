@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/src/components/ui/select";
-import React, { useEffect, useRef, useState, useTransition } from "react";
+import React, { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Form, useForm } from "react-hook-form";
 import { start } from "repl";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ import axios from "axios";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AddSizeForm } from "../dynamicFields/sizes";
+import { getSizeOptionsForCategory } from "@/src/lib/kurtiSizes";
 // import ImageUpload,  from '../upload/imageUpload';
 import ImageUpload2, { ImageUploadRef } from "../upload/imageUpload2";
 import { v4 as uuidv4 } from "uuid";
@@ -104,6 +105,20 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
     quantity: number;
   }[]>([]);
   const [allSizes, setAllSizes] = useState([]);
+
+  const activeCategoryMeta = useMemo(() => {
+    const cat = (data?.category || "").toString().trim().toLowerCase();
+    if (!cat) return undefined;
+    return (allCategory as { name?: string; code?: string; isForChildren?: boolean }[]).find(
+      (c) =>
+        (c.name || "").toLowerCase() === cat || (c.code || "").toLowerCase() === cat
+    );
+  }, [allCategory, data?.category]);
+
+  const editStockSizeOptions = useMemo(
+    () => getSizeOptionsForCategory(activeCategoryMeta?.isForChildren),
+    [activeCategoryMeta?.isForChildren]
+  );
 
   useEffect(() => {
     if (data?.sizes) {
@@ -398,6 +413,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                   preSizes={sizes}
                   sizes={sizes}
                   onAddSize={handleAddSize}
+                  sizeOptions={editStockSizeOptions}
                 />
               </div>
               <Button
@@ -621,6 +637,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                   preSizes={[]}
                   sizes={sizesDownload}
                   onAddSize={handleAddSizeDownload}
+                  sizeOptions={editStockSizeOptions}
                 />
               </div>
               <Button

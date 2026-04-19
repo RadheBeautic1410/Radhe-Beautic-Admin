@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import dynamic from "next/dynamic";
 import KurtiPicCard from "@/src/app/(protected)/_components/kurti/kurtiPicCard";
@@ -21,6 +21,7 @@ import { RoleGateForComponent } from "@/src/components/auth/role-gate-component"
 import { UserRole } from "@prisma/client";
 import { SearchBar } from "@/src/components/Searchbar";
 import { Button } from "@/src/components/ui/button";
+import { sortSizesByCatalogueKind } from "@/src/lib/kurtiSizes";
 
 interface kurti {
   id: string;
@@ -39,9 +40,32 @@ function KurtiListPage() {
   const path = usePathname().split("/");
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const code = path[2];
   const pageNum = path[4];
   const baseUrl = pathname.substring(0, pathname.indexOf("page/") + 5);
+
+  /** Sizes live in the URL so pagination remounts do not drop the filter. */
+  const selectedSizes = useMemo(() => {
+    const raw = searchParams.get("sizes");
+    if (!raw) return [];
+    return raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [searchParams]);
+
+  const normSize = (s: string) => s.trim().toLowerCase();
+
+  const buildCatalogueUrl = (page: number, sizesOverride?: string[] | null) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    if (sizesOverride !== undefined && sizesOverride !== null) {
+      if (sizesOverride.length) sp.set("sizes", sizesOverride.join(","));
+      else sp.delete("sizes");
+    }
+    const q = sp.toString();
+    return `${baseUrl}${page}${q ? `?${q}` : ""}`;
+  };
 
   const [valid, setValid] = useState(true);
   const [kurtiData, setKurtiData] = useState<kurti[]>([]);
@@ -51,41 +75,17 @@ function KurtiListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [pageLoader, setPageLoader] = useState(true);
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
-
-  const SIZE_ORDER = [
-    "XS",
-    "S",
-    "M",
-    "L",
-    "XL",
-    "XXL",
-    "3XL",
-    "4XL",
-    "5XL",
-    "6XL",
-    "7XL",
-    "8XL",
-    "9XL",
-    "10XL",
-  ];
+  const [categoryIsForChildren, setCategoryIsForChildren] = useState(false);
 
   const getAvailableSizes = (data: kurti[]) => {
     const set = new Set<string>();
     for (const k of data) {
       for (const s of k.sizes || []) {
         if (!s?.size) continue;
-        if ((s.quantity ?? 0) > 0) set.add(String(s.size).toUpperCase());
+        if ((s.quantity ?? 0) > 0) set.add(String(s.size).trim());
       }
     }
-    return Array.from(set).sort((a, b) => {
-      const ai = SIZE_ORDER.indexOf(a);
-      const bi = SIZE_ORDER.indexOf(b);
-      if (ai === -1 && bi === -1) return a.localeCompare(b);
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
-    });
+    return sortSizesByCatalogueKind(Array.from(set), categoryIsForChildren);
   };
 
   const applyFilters = (data: kurti[]) => {
@@ -94,12 +94,15 @@ function KurtiListPage() {
       const matchesSearch =
         search.length === 0 || row.code.toUpperCase().includes(search.toUpperCase());
 
+      // Multiple sizes = AND: kurti must have every selected size in stock
       const matchesSize =
         selectedSizes.length === 0 ||
-        (row.sizes || []).some(
-          (s) =>
-            selectedSizes.includes(String(s.size).toUpperCase()) &&
-            (s.quantity ?? 0) > 0
+        selectedSizes.every((req) =>
+          (row.sizes || []).some(
+            (s) =>
+              normSize(String(s.size)) === normSize(req) &&
+              (s.quantity ?? 0) > 0
+          )
         );
 
       return matchesSearch && matchesSize;
@@ -117,12 +120,12 @@ function KurtiListPage() {
   const handleSearch = (newVal: string) => {
     setTextFieldValue(newVal);
     // Keep URL + pagination consistent when changing filters
-    router.replace(`${baseUrl}1`);
+    router.replace(buildCatalogueUrl(1));
   };
 
   const cancelSearch = () => {
     setTextFieldValue("");
-    router.replace(`${baseUrl}1`);
+    router.replace(buildCatalogueUrl(1));
   };
 
   const handleKurtiDelete = async (data: kurti[]) => {
@@ -132,7 +135,7 @@ function KurtiListPage() {
 
   const handlePageChange = (page: number) => {
     if (page <= totalPages && page >= 1) {
-      router.replace(`${baseUrl}${page}`);
+      router.replace(buildCatalogueUrl(page));
     }
   };
 
@@ -158,6 +161,7 @@ function KurtiListPage() {
 
         if (result.data) {
           setValid(true);
+          setCategoryIsForChildren(Boolean(result.isForChildren));
 
           const [resPage, resKurti] = await Promise.all([
             fetch(`/api/kurti/countAvail?cat=${code.toLowerCase()}`),
@@ -195,6 +199,7 @@ function KurtiListPage() {
           // displayData/totalPages handled by filter effect
         } else {
           setValid(false);
+          setCategoryIsForChildren(false);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -244,7 +249,9 @@ function KurtiListPage() {
                 <div className="px-3 pb-3">
                   <div className="flex flex-wrap gap-3 pt-2">
                     {getAvailableSizes(kurtiData).map((size) => {
-                      const checked = selectedSizes.includes(size);
+                      const checked = selectedSizes.some(
+                        (s) => normSize(s) === normSize(size)
+                      );
                       return (
                         <label
                           key={size}
@@ -255,13 +262,13 @@ function KurtiListPage() {
                             checked={checked}
                             onChange={(e) => {
                               const nextChecked = e.target.checked;
-                              setSelectedSizes((prev) => {
-                                const next = new Set(prev);
-                                if (nextChecked) next.add(size);
-                                else next.delete(size);
-                                return Array.from(next);
-                              });
-                              router.replace(`${baseUrl}1`);
+                              const next = new Set(
+                                selectedSizes.filter(
+                                  (s) => normSize(s) !== normSize(size)
+                                )
+                              );
+                              if (nextChecked) next.add(size);
+                              router.replace(buildCatalogueUrl(1, Array.from(next)));
                             }}
                           />
                           <span className="text-sm font-medium">{size}</span>
@@ -277,8 +284,7 @@ function KurtiListPage() {
                       size="sm"
                       disabled={selectedSizes.length === 0}
                       onClick={() => {
-                        setSelectedSizes([]);
-                        router.replace(`${baseUrl}1`);
+                        router.replace(buildCatalogueUrl(1, []));
                       }}
                     >
                       Clear sizes

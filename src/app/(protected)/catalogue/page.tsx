@@ -114,6 +114,7 @@ interface Category {
   kurtiType?: string;
   isStockReady: boolean;
   isVisibleForCustomer?: boolean;
+  isForChildren?: boolean;
 }
 
 interface Kurti {
@@ -275,8 +276,11 @@ const ListPage = () => {
       bigPrice: undefined,
       customerBigPrice: undefined,
       price: undefined,
+      isForChildren: false,
     },
   });
+
+  const addCategoryIsForChildren = form.watch("isForChildren");
 
   const isSearching = searchValue.trim().length > 0;
   const showKurtiResults = searchType === SEARCH_TYPES.DESIGN && isSearching;
@@ -361,7 +365,8 @@ const ListPage = () => {
           customerPrice: values.customerPrice
             ? parseFloat(values.customerPrice?.toString())
             : null,
-          kurtiType: values.kurtiType,
+          kurtiType: values.isForChildren ? undefined : values.kurtiType,
+          isForChildren: values.isForChildren ?? false,
         })
           .then((data) => {
             if (data.error) {
@@ -386,6 +391,7 @@ const ListPage = () => {
                   image: data.data.image || undefined,
                   isStockReady: true,
                   isVisibleForCustomer: (data.data as any).isVisibleForCustomer ?? true,
+                  isForChildren: (data.data as any).isForChildren ?? false,
                 };
                 setCategoryData([...categoryList, newCategory]);
               }
@@ -1498,6 +1504,38 @@ const ListPage = () => {
                     />
                     <FormField
                       control={form.control}
+                      name="isForChildren"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start gap-3 rounded-md border p-3">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              className="mt-1 h-4 w-4"
+                              checked={Boolean(field.value)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                field.onChange(checked);
+                                if (checked) {
+                                  form.setValue("kurtiType", "");
+                                  form.clearErrors("kurtiType");
+                                }
+                              }}
+                              disabled={isPending}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>Children&apos;s category</FormLabel>
+                            <p className="text-sm text-muted-foreground">
+                              Stock sizes use age bands (2-11 years) instead of XS/S/M.
+                            </p>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+
+                    {!addCategoryIsForChildren && (
+                    <FormField
+                      control={form.control}
                       name="kurtiType"
                       render={({ field }) => (
                         <FormItem>
@@ -1564,6 +1602,7 @@ const ListPage = () => {
                         </FormItem>
                       )}
                     />
+                    )}
 
                     <FormField
                       control={form.control}

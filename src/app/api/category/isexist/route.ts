@@ -12,8 +12,16 @@ export async function GET(request: NextRequest) {
             });
         }
         else {
-            const data = await getCategorybyName(category? category : "");
-            return new NextResponse(JSON.stringify({ data: data ? true: false }), { status: 200 });
+            const row = await getCategorybyName(category? category : "");
+            const exists = Boolean(row);
+            return new NextResponse(
+                JSON.stringify({
+                    data: exists,
+                    exists,
+                    isForChildren: row ? Boolean(row.isForChildren) : false,
+                }),
+                { status: 200 }
+            );
         }
     } catch (error: any) {
         return new NextResponse(JSON.stringify({ error: error.message }), {

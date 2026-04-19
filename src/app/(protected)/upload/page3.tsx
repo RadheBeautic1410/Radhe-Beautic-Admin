@@ -17,6 +17,7 @@ import {
 import {
   useCallback,
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -36,7 +37,7 @@ import {
   FormDescription,
 } from "@/src/components/ui/form";
 import { KurtiSchema, categoryAddSchema, partyAddSchema } from "@/src/schemas";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Select,
@@ -57,6 +58,7 @@ import { RoleGateForComponent } from "@/src/components/auth/role-gate-component"
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import PageLoader from "@/src/components/loader";
 import { AddSizeForm } from "../_components/dynamicFields/sizes";
+import { getSizeOptionsForCategory } from "@/src/lib/kurtiSizes";
 import { Sriracha } from "next/font/google";
 import ImageUpload2, {
   ImageUploadRef,
@@ -73,6 +75,7 @@ interface category {
   name: string;
   type: string;
   normalizedLowerCase: string;
+  isForChildren?: boolean;
 }
 
 interface Size {
@@ -205,7 +208,7 @@ const UploadPage = () => {
         setPartyLoader(false);
       }
       try {
-        const response = await fetch("/api/category"); // Adjust the API endpoint based on your actual setup
+        const response = await fetch("/api/category?page=1&limit=500");
         const result = await response.json();
         const sortedCategory = (result.data || []).sort((a: party, b: party) =>
           a.name.localeCompare(b.name)
@@ -243,6 +246,20 @@ const UploadPage = () => {
       countOfPiece: 0,
     },
   });
+
+  const watchedCategoryName = useWatch({ control: form.control, name: "category" });
+  const selectedCatForSizes = useMemo(
+    () => category.find((c) => c.name === watchedCategoryName),
+    [category, watchedCategoryName]
+  );
+  const uploadSizeOptionsPage3 = useMemo(
+    () => getSizeOptionsForCategory(selectedCatForSizes?.isForChildren),
+    [selectedCatForSizes?.isForChildren]
+  );
+
+  useEffect(() => {
+    setSizes([]);
+  }, [watchedCategoryName]);
 
   const handleFormSubmit = async () => {
     await CodeGenerator();
@@ -550,6 +567,7 @@ const UploadPage = () => {
                       preSizes={[]}
                       onAddSize={onAddSize}
                       sizes={sizes}
+                      sizeOptions={uploadSizeOptionsPage3}
                     />
                   </div>
 
