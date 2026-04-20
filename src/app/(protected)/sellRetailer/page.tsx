@@ -102,8 +102,7 @@ function SellPage() {
   const [userShop, setUserShop] = useState<any>(null);
   const [remark, setRemark] = useState("");
   const [discountAmount, setDiscountAmount] = useState<string>("");
-  const [categories, setCategories] = useState<string[]>([]);
-  const [untrackedCategory, setUntrackedCategory] = useState("");
+  const [untrackedCategory, setUntrackedCategory] = useState("kurti");
   const [untrackedSize, setUntrackedSize] = useState("");
   const [untrackedQuantity, setUntrackedQuantity] = useState<string>("1");
   const [untrackedPrice, setUntrackedPrice] = useState<string>("");
@@ -127,6 +126,9 @@ function SellPage() {
 
   const addFoundToCart = (foundKurti: any, size: string) => {
     if (!foundKurti) return false;
+    const customerPrice = Number(foundKurti?.customerPrice);
+    const autoFilledPrice =
+      Number.isFinite(customerPrice) && customerPrice > 0 ? customerPrice : null;
 
     if (!size) {
       toast.error("Please scan/enter product code with size (e.g. CODEXL)");
@@ -159,6 +161,7 @@ function SellPage() {
       updatedCart[existingItemIndex] = {
         ...existingItem,
         quantity: totalQuantity,
+        sellingPrice: existingItem.sellingPrice ?? autoFilledPrice,
       };
       setCart(updatedCart);
     } else {
@@ -169,7 +172,7 @@ function SellPage() {
         category: foundKurti.category || "-",
         selectedSize: size,
         quantity: 1,
-        sellingPrice: null, // blank by default
+        sellingPrice: autoFilledPrice,
         availableStock: sizeInfo.quantity,
         hsnCode: foundKurti.hsnCode || "6204",
       };
@@ -203,16 +206,6 @@ function SellPage() {
       try {
         const shopList = await getShopList();
         setShops(shopList);
-        const categoryRes = await axios.get("/api/category?limit=500");
-        const categoryData = Array.isArray(categoryRes?.data?.data)
-          ? categoryRes.data.data
-          : [];
-        setCategories(
-          categoryData
-            .map((c: any) => String(c?.name || "").trim())
-            .filter((name: string) => !!name),
-        );
-
         // If user is SELLER or SELLER_MANAGER, get their associated shop
         if (
           currentUser?.id &&
@@ -283,7 +276,7 @@ function SellPage() {
       ]);
     }
 
-    setUntrackedCategory("");
+    setUntrackedCategory("kurti");
     setUntrackedSize("");
     setUntrackedQuantity("1");
     setUntrackedPrice("");
@@ -642,7 +635,7 @@ function SellPage() {
     setGstType("SGST_CGST");
     setRemark("");
     setDiscountAmount("");
-    setUntrackedCategory("");
+    setUntrackedCategory("kurti");
     setUntrackedSize("");
     setUntrackedQuantity("1");
     setUntrackedPrice("");
@@ -784,19 +777,12 @@ function SellPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 items-end">
             <div>
               <Label htmlFor="untracked-category">Category *</Label>
-              <select
+              <Input
                 id="untracked-category"
-                className="w-full p-2 border rounded-md"
+                placeholder="Category"
                 value={untrackedCategory}
                 onChange={(e) => setUntrackedCategory(e.target.value)}
-              >
-                <option value="">Select Category</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <Label htmlFor="untracked-size">Size (Optional)</Label>
