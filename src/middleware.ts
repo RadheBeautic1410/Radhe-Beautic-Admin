@@ -14,10 +14,11 @@ export default auth(async (req) => {
   const isLoggedIn = !!session;
 
   const isApiAuthRoute = nextUrl.pathname.startsWith(apiAuthPrefix);
+  const isCronRoute = nextUrl.pathname.startsWith("/api/cron/");
   const isPublicRoute = publicRoutes.includes(nextUrl.pathname);
   const isAuthRoute = authRoutes.includes(nextUrl.pathname);
 
-    if (isApiAuthRoute) {
+    if (isApiAuthRoute || isCronRoute) {
         return;
     }
 

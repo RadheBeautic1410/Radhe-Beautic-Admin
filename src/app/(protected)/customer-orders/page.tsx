@@ -68,6 +68,7 @@ import {
   Printer,
   Clock3,
   BadgeCheck,
+  RefreshCcw,
 } from "lucide-react";
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
@@ -185,14 +186,14 @@ const CustomerOrdersPage = () => {
   // Cancel order confirmation state
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
-
-  // Print address state (same-page printing; avoids popup blockers)
   const [printOrder, setPrintOrder] = useState<CustomerOrder | null>(null);
-  const [printMeta, setPrintMeta] = useState<{
-    currentDate: string;
-    totalQuantity: number;
-    combinedAddress: string;
-  } | null>(null);
+  const [printMeta, setPrintMeta] = useState<{ combinedAddress: string } | null>(
+    null,
+  );
+  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
+  const [refreshingPaymentOrderId, setRefreshingPaymentOrderId] = useState<
+    string | null
+  >(null);
 
   // Fetch orders based on filters and pagination
   const fetchOrders = async () => {
@@ -399,21 +400,9 @@ const CustomerOrdersPage = () => {
     }, 0);
   };
 
-  // Handle download address PDF
+  // Prepare address preview
   const handlePrintAddress = async (order: CustomerOrder) => {
     try {
-      // Calculate total quantity from cart products
-      const totalQuantity = order.cart.CartProduct.reduce(
-        (total, cartProduct) => {
-          const productQuantity = cartProduct.sizes.reduce(
-            (sum, size) => sum + size.quantity,
-            0,
-          );
-          return total + productQuantity;
-        },
-        0,
-      );
-
       // Combine name, mobile number, and address into a single string
       // Format: Name, Mobile Number, Address (newline separated for parsing)
       const name = order.shippingAddress.fullName || order.user.name || "";
@@ -447,20 +436,9 @@ const CustomerOrdersPage = () => {
       }
       const combinedAddress = addressParts.join("\n");
 
-      // Format date
-      const currentDate = new Date(order.createdAt).toLocaleDateString(
-        "en-GB",
-        {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        },
-      );
-
-      // Same-page print: set print data, then trigger window.print()
       setPrintOrder(order);
-      setPrintMeta({ currentDate, totalQuantity, combinedAddress });
-      setTimeout(() => window.print(), 50);
+      setPrintMeta({ combinedAddress });
+      setPrintPreviewOpen(true);
     } catch (error) {
       console.error("Error printing address:", error);
       toast.error(
@@ -471,14 +449,90 @@ const CustomerOrdersPage = () => {
     }
   };
 
-  useEffect(() => {
-    const cleanup = () => {
-      setPrintOrder(null);
-      setPrintMeta(null);
-    };
-    window.addEventListener("afterprint", cleanup);
-    return () => window.removeEventListener("afterprint", cleanup);
-  }, []);
+  const handlePrintFromPreview = () => {
+    if (!printOrder || !printMeta) return;
+    setPrintPreviewOpen(false);
+
+    setTimeout(() => {
+      const popup = window.open("", "_blank", "width=600,height=400");
+      if (!popup) {
+        alert("Please allow popups to print the address.");
+        return;
+      }
+
+      const addressLines = printMeta.combinedAddress
+        .split("\n")
+        .map((line) => `<div>${line}</div>`)
+        .join("");
+
+      popup.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <style>
+              * { box-sizing: border-box; margin: 0; padding: 0; }
+              @page { margin: 10mm; size: auto; }
+              body { font-family: Arial, sans-serif; background: white; color: #000; }
+              .header { border-bottom: 1px solid #ccc; padding-bottom: 12px; margin-bottom: 16px; }
+              .title { font-size: 18px; font-weight: bold; }
+              .order-id { font-size: 12px; color: #555; margin-top: 2px; }
+              .address-box { border: 1px solid #ccc; border-radius: 8px; padding: 16px; }
+              .to-label { font-size: 11px; color: #888; margin-bottom: 8px; }
+              .address-line { font-size: 14px; line-height: 1.8; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="title">Shipping Address</div>
+              <div class="order-id">Order: ${printOrder.orderId}</div>
+            </div>
+            <div class="address-box">
+              <div class="to-label">To</div>
+              <div class="address-line">${addressLines}</div>
+            </div>
+          </body>
+        </html>
+      `);
+      popup.document.close();
+      popup.focus();
+      popup.print();
+      popup.addEventListener("afterprint", () => popup.close());
+    }, 350);
+
+    setPrintOrder(null);
+    setPrintMeta(null);
+  };
+
+  const handleRefreshPaymentStatus = async (orderId: string) => {
+    try {
+      setRefreshingPaymentOrderId(orderId);
+      const result = await getCustomerOrderById(orderId);
+      if (result.success && result.data) {
+        const freshOrder = result.data as unknown as CustomerOrder;
+        setOrders((prev) =>
+          prev.map((order) => (order.id === orderId ? freshOrder : order)),
+        );
+
+        if (selectedOrder?.id === orderId) {
+          setSelectedOrder(freshOrder);
+        }
+
+        toast.success(
+          `Payment status refreshed: ${freshOrder.paymentStatus || "PENDING"}`,
+        );
+      } else if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.error("Failed to refresh payment status");
+      }
+    } catch (error) {
+      console.error("Error refreshing payment status:", error);
+      toast.error("Failed to refresh payment status");
+    } finally {
+      setRefreshingPaymentOrderId(null);
+    }
+  };
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
@@ -541,66 +595,7 @@ const CustomerOrdersPage = () => {
 
   return (
     <>
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden !important;
-          }
-          .print-area,
-          .print-area * {
-            visibility: visible !important;
-          }
-          .print-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            padding: 24px;
-            background: white;
-          }
-        }
-      `}</style>
-
-      {/* Print Address Area (only visible during printing) */}
-      {printOrder && printMeta && (
-        <div className="print-area">
-          <div className="max-w-[700px] mx-auto">
-            <div className="flex justify-between gap-4 items-start border-b pb-3 mb-4">
-              <div>
-                <div className="text-lg font-bold">Shipping Address</div>
-                <div className="text-xs text-gray-600">
-                  Order: <span className="font-semibold">{printOrder.orderId}</span>
-                </div>
-              </div>
-              <div className="text-xs text-gray-600 text-right">
-                Date: <span className="font-semibold">{printMeta.currentDate}</span>
-                <br />
-                Qty: <span className="font-semibold">{printMeta.totalQuantity}</span>
-              </div>
-            </div>
-
-            <div className="border rounded-lg p-4">
-              <div className="text-xs text-gray-500 mb-2">To</div>
-              <div className="whitespace-pre-wrap text-sm leading-6">
-                {printMeta.combinedAddress}
-              </div>
-            </div>
-
-            <div className="mt-3 flex justify-between gap-3 text-xs text-gray-600">
-              <div>
-                Group: <span className="font-semibold">Radhe Beautic</span>
-              </div>
-              <div>
-                Printed:{" "}
-                <span className="font-semibold">
-                  {new Date().toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
+      <div className="app-content">
       <Card className="rounded-none w-full h-full">
         <CardHeader>
           <div className="space-y-4">
@@ -899,6 +894,17 @@ const CustomerOrdersPage = () => {
                                 >
                                   <Printer className="h-4 w-4 mr-2" />
                                   Print Address
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleRefreshPaymentStatus(order.id)
+                                  }
+                                  disabled={refreshingPaymentOrderId === order.id}
+                                >
+                                  <RefreshCcw className="h-4 w-4 mr-2" />
+                                  {refreshingPaymentOrderId === order.id
+                                    ? "Refreshing Payment..."
+                                    : "Refresh Payment Status"}
                                 </DropdownMenuItem>
 
                                 {(order.status === OrderStatus.PENDING ||
@@ -1224,15 +1230,35 @@ const CustomerOrdersPage = () => {
                       {(selectedOrder.paymentStatus ||
                         selectedOrder.paymentTxnId) && (
                         <div className="rounded-md border p-3 bg-muted/30 space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-500">
-                              Status:
-                            </span>
-                            {getPaymentStatusBadge(
-                              selectedOrder.paymentStatus,
-                            ) || (
-                              <span className="text-xs text-gray-500">-</span>
-                            )}
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="space-y-1">
+                              <span className="text-xs text-gray-500">
+                                Status:
+                              </span>
+                              <div>
+                                {getPaymentStatusBadge(
+                                  selectedOrder.paymentStatus,
+                                ) || (
+                                  <span className="text-xs text-gray-500">-</span>
+                                )}
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2 text-xs"
+                              onClick={() =>
+                                handleRefreshPaymentStatus(selectedOrder.id)
+                              }
+                              disabled={
+                                refreshingPaymentOrderId === selectedOrder.id
+                              }
+                            >
+                              <RefreshCcw className="h-3.5 w-3.5 mr-1" />
+                              {refreshingPaymentOrderId === selectedOrder.id
+                                ? "Refreshing..."
+                                : "Refresh"}
+                            </Button>
                           </div>
                           {selectedOrder.paymentTxnId && (
                             <div className="flex justify-between items-center gap-3">
@@ -1494,6 +1520,44 @@ const CustomerOrdersPage = () => {
         </SheetContent>
       </Sheet>
 
+      <Dialog open={printPreviewOpen} onOpenChange={setPrintPreviewOpen}>
+        <DialogContent className="max-w-[720px]">
+          <DialogHeader>
+            <DialogTitle>Address Preview</DialogTitle>
+            <DialogDescription>
+              This is exactly what will be printed.
+            </DialogDescription>
+          </DialogHeader>
+          {printOrder && printMeta && (
+            <div className="border rounded-lg p-4 bg-white">
+              <div className="flex justify-between gap-4 items-start border-b pb-3 mb-4">
+                <div>
+                  <div className="text-lg font-bold">Shipping Address</div>
+                  <div className="text-xs text-gray-600">
+                    Order: <span className="font-semibold">{printOrder.orderId}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="border rounded-lg p-4">
+                <div className="text-xs text-gray-500 mb-2">To</div>
+                <div className="whitespace-pre-wrap text-sm leading-6">
+                  {printMeta.combinedAddress}
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setPrintPreviewOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePrintFromPreview}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Full Screen Image Viewer Dialog */}
       <Dialog
         open={!!selectedImageUrl}
@@ -1521,7 +1585,10 @@ const CustomerOrdersPage = () => {
       </Dialog>
 
       {/* Tracking Assignment Dialog */}
-      <Dialog open={trackingDialogOpen} onOpenChange={setTrackingDialogOpen}>
+      <Dialog
+        open={trackingDialogOpen}
+        onOpenChange={setTrackingDialogOpen}
+      >
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
@@ -1633,6 +1700,7 @@ const CustomerOrdersPage = () => {
         cancelButtonText="Keep Order"
         isLoading={isPending}
       />
+      </div>
     </>
   );
 };
