@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,6 +22,7 @@ import {
   FormMessage,
 } from "@/src/components/ui/form";
 import { Input } from "@/src/components/ui/input";
+import { Label } from "@/src/components/ui/label";
 import { Button } from "@/src/components/ui/button";
 import ImageUpload2 from "../upload/imageUpload2";
 import { categoryEditSchema } from "@/src/schemas";
@@ -58,6 +59,36 @@ interface EditCategoryModalProps {
   trigger?: React.ReactNode;
 }
 
+type PriceDraft = {
+  actualPrice: string;
+  sellingPrice: string;
+  customerPrice: string;
+  bigPrice: string;
+  customerBigPrice: string;
+  walletDiscount: string;
+};
+
+function categoryToPriceDraft(cat: Category): PriceDraft {
+  const toStr = (n: number | undefined | null) =>
+    n != null && Number.isFinite(n) ? String(n) : "";
+
+  return {
+    actualPrice: toStr(cat.actualPrice),
+    sellingPrice: toStr(cat.sellingPrice),
+    customerPrice: toStr(cat.customerPrice),
+    bigPrice: toStr(cat.bigPrice),
+    customerBigPrice: toStr(cat.customerBigPrice),
+    walletDiscount: toStr(cat.walletDiscount),
+  };
+}
+
+function parseDraftNumber(raw: string): number | undefined {
+  const trimmed = raw.trim();
+  if (trimmed === "") return undefined;
+  const n = parseFloat(trimmed);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 const EditCategoryModal = ({
   category,
   onCategoryUpdate,
@@ -68,6 +99,9 @@ const EditCategoryModal = ({
   const [currentImage, setCurrentImage] = useState<string>(
     category.image || "/images/no-image.png"
   );
+  const [priceDraft, setPriceDraft] = useState<PriceDraft>(() =>
+    categoryToPriceDraft(category)
+  );
 
   const form = useForm<z.infer<typeof categoryEditSchema>>({
     resolver: zodResolver(categoryEditSchema),
@@ -76,12 +110,12 @@ const EditCategoryModal = ({
       name: category.name,
       type: category.type || "",
       image: category.image || "/images/no-image.png",
-      sellingPrice: category.sellingPrice || undefined,
-      actualPrice: category.actualPrice || undefined,
-      customerPrice: category.customerPrice || undefined,
-      bigPrice: category.bigPrice || undefined,
-      customerBigPrice: category.customerBigPrice || undefined,
-      walletDiscount: category.walletDiscount || undefined,
+      sellingPrice: category.sellingPrice ?? undefined,
+      actualPrice: category.actualPrice ?? undefined,
+      customerPrice: category.customerPrice ?? undefined,
+      bigPrice: category.bigPrice ?? undefined,
+      customerBigPrice: category.customerBigPrice ?? undefined,
+      walletDiscount: category.walletDiscount ?? undefined,
       kurtiType: category.kurtiType || "",
     },
   });
@@ -92,21 +126,60 @@ const EditCategoryModal = ({
     form.setValue("image", newImageUrl);
   };
 
+  const resetFormFromCategory = useCallback(
+    (cat: Category) => {
+      setPriceDraft(categoryToPriceDraft(cat));
+      setCurrentImage(cat.image || "/images/no-image.png");
+      form.reset({
+        id: cat.id,
+        name: cat.name,
+        type: cat.type || "",
+        image: cat.image || "/images/no-image.png",
+        actualPrice: cat.actualPrice ?? undefined,
+        sellingPrice: cat.sellingPrice ?? undefined,
+        customerPrice: cat.customerPrice ?? undefined,
+        bigPrice: cat.bigPrice ?? undefined,
+        customerBigPrice: cat.customerBigPrice ?? undefined,
+        walletDiscount: cat.walletDiscount ?? 0,
+        kurtiType: cat.kurtiType || "",
+      });
+    },
+    [form]
+  );
+
   const handleSubmit = (values: z.infer<typeof categoryEditSchema>) => {
+    const merged: z.infer<typeof categoryEditSchema> = {
+      ...values,
+      actualPrice: parseDraftNumber(priceDraft.actualPrice),
+      sellingPrice: parseDraftNumber(priceDraft.sellingPrice),
+      customerPrice: parseDraftNumber(priceDraft.customerPrice),
+      bigPrice: parseDraftNumber(priceDraft.bigPrice),
+      customerBigPrice: parseDraftNumber(priceDraft.customerBigPrice),
+      walletDiscount: parseDraftNumber(priceDraft.walletDiscount) ?? 0,
+    };
+
+    const parsed = categoryEditSchema.safeParse(merged);
+    if (!parsed.success) {
+      const first = parsed.error.flatten().fieldErrors;
+      const msg = Object.values(first).flat()[0] || "Please check price fields";
+      toast.error(String(msg));
+      return;
+    }
+
     startTransition(() => {
-      console.log("values", values);
+      console.log("values", parsed.data);
 
       categoryUpdate(category.id, {
-        name: values.name,
-        type: values.type || "",
-        image: values.image,
-        sellingPrice: values.sellingPrice,
-        actualPrice: values.actualPrice,
-        customerPrice: values.customerPrice,
-        bigPrice: values.bigPrice, // Include bigPrice in the update
-        customerBigPrice: values.customerBigPrice, // Include customerBigPrice in the update
-        walletDiscount: values.walletDiscount || 0,
-        kurtiType: values.kurtiType,
+        name: parsed.data.name,
+        type: parsed.data.type || "",
+        image: parsed.data.image,
+        sellingPrice: parsed.data.sellingPrice,
+        actualPrice: parsed.data.actualPrice,
+        customerPrice: parsed.data.customerPrice,
+        bigPrice: parsed.data.bigPrice, // Include bigPrice in the update
+        customerBigPrice: parsed.data.customerBigPrice, // Include customerBigPrice in the update
+        walletDiscount: parsed.data.walletDiscount || 0,
+        kurtiType: parsed.data.kurtiType,
       })
         .then((data) => {
           console.log("🚀 ~ .then ~ data:", data);
@@ -119,10 +192,10 @@ const EditCategoryModal = ({
 
             const updatedCategory: Category = {
               ...category,
-              name: values.name,
-              type: values.type || "",
-              image: values.image || "/images/no-image.png",
-              bigPrice: values.bigPrice, // Include bigPrice in updated category
+              name: parsed.data.name,
+              type: parsed.data.type || "",
+              image: parsed.data.image || "/images/no-image.png",
+              bigPrice: parsed.data.bigPrice,
             };
 
             onCategoryUpdate(updatedCategory);
@@ -132,15 +205,15 @@ const EditCategoryModal = ({
               toast.success("Category updated successfully!");
 
               // Update the category in parent component
-              const updatedCategory: Category = {
+              const updatedCategory2: Category = {
                 ...category,
-                name: values.name,
-                type: values.type || "",
-                image: values.image || "/images/no-image.png",
-                bigPrice: values.bigPrice, // Include bigPrice in updated category
+                name: parsed.data.name,
+                type: parsed.data.type || "",
+                image: parsed.data.image || "/images/no-image.png",
+                bigPrice: parsed.data.bigPrice,
               };
 
-              onCategoryUpdate(updatedCategory);
+              onCategoryUpdate(updatedCategory2);
               setOpen(false);
             }, 1000);
           }
@@ -149,25 +222,12 @@ const EditCategoryModal = ({
     });
   };
 
-  // Reset form and image when modal opens
+  // Reset only when transitioning closed -> open (Radix may call onOpenChange(true) again while open)
   const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
-    if (newOpen) {
-      setCurrentImage(category.image || "/images/no-image.png");
-      form.reset({
-        id: category.id, // Fixed: should be category.id, not category.name
-        name: category.name,
-        type: category.type || "",
-        image: category.image || "/images/no-image.png",
-        actualPrice: category.actualPrice,
-        sellingPrice: category.sellingPrice,
-        customerPrice: category.customerPrice,
-        bigPrice: category.bigPrice || undefined,
-        customerBigPrice: category.customerBigPrice || undefined,
-        walletDiscount: category.walletDiscount || 0,
-        kurtiType: category.kurtiType || "",
-      });
+    if (newOpen && !open) {
+      resetFormFromCategory(category);
     }
+    setOpen(newOpen);
   };
 
   return (
@@ -277,158 +337,112 @@ const EditCategoryModal = ({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="actualPrice"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Actual Price</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      disabled={isPending}
-                      placeholder="Enter actual price"
-                      value={field.value || ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        field.onChange(value ? parseFloat(value) : undefined);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="sellingPrice"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Selling Price (Reseller)</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      disabled={isPending}
-                      placeholder="Enter selling price for reseller"
-                      value={field.value || ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        field.onChange(value ? parseFloat(value) : undefined);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="customerPrice"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Customer Price</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      disabled={isPending}
-                      placeholder="Enter customer price"
-                      value={field.value || ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        field.onChange(value ? parseFloat(value) : undefined);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="bigPrice"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Big Price (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      disabled={isPending}
-                      placeholder="Enter big price"
-                      value={field.value || ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        field.onChange(value ? parseFloat(value) : undefined);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="customerBigPrice"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Customer Big Price (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="number"
-                      step="5"
-                      min="0"
-                      disabled={isPending}
-                      placeholder="Enter customer big price"
-                      value={field.value || ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        field.onChange(value ? parseFloat(value) : undefined);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="edit-cat-actual-price">Actual Price</Label>
+              <Input
+                id="edit-cat-actual-price"
+                type="text"
+                inputMode="decimal"
+                disabled={isPending}
+                placeholder="Enter actual price"
+                value={priceDraft.actualPrice}
+                onChange={(e) =>
+                  setPriceDraft((d) => ({
+                    ...d,
+                    actualPrice: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-cat-selling-price">
+                Selling Price (Reseller)
+              </Label>
+              <Input
+                id="edit-cat-selling-price"
+                type="text"
+                inputMode="decimal"
+                disabled={isPending}
+                placeholder="Enter selling price for reseller"
+                value={priceDraft.sellingPrice}
+                onChange={(e) =>
+                  setPriceDraft((d) => ({
+                    ...d,
+                    sellingPrice: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-cat-customer-price">Customer Price</Label>
+              <Input
+                id="edit-cat-customer-price"
+                type="text"
+                inputMode="decimal"
+                disabled={isPending}
+                placeholder="Enter customer price"
+                value={priceDraft.customerPrice}
+                onChange={(e) =>
+                  setPriceDraft((d) => ({
+                    ...d,
+                    customerPrice: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-cat-big-price">Big Price (Optional)</Label>
+              <Input
+                id="edit-cat-big-price"
+                type="text"
+                inputMode="decimal"
+                disabled={isPending}
+                placeholder="Enter big price"
+                value={priceDraft.bigPrice}
+                onChange={(e) =>
+                  setPriceDraft((d) => ({ ...d, bigPrice: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-cat-customer-big-price">
+                Customer Big Price (Optional)
+              </Label>
+              <Input
+                id="edit-cat-customer-big-price"
+                type="text"
+                inputMode="decimal"
+                disabled={isPending}
+                placeholder="Enter customer big price"
+                value={priceDraft.customerBigPrice}
+                onChange={(e) =>
+                  setPriceDraft((d) => ({
+                    ...d,
+                    customerBigPrice: e.target.value,
+                  }))
+                }
+              />
+            </div>
 
-            <FormField
-              control={form.control}
-              name="walletDiscount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Wallet Discount (₹)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={field.value ?? ""}
-                      disabled={isPending}
-                      placeholder="Enter flat discount in ₹"
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value
-                            ? parseFloat(e.target.value)
-                            : undefined
-                        )
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="edit-cat-wallet-discount">
+                Wallet Discount (₹)
+              </Label>
+              <Input
+                id="edit-cat-wallet-discount"
+                type="text"
+                inputMode="decimal"
+                disabled={isPending}
+                placeholder="Enter flat discount in ₹"
+                value={priceDraft.walletDiscount}
+                onChange={(e) =>
+                  setPriceDraft((d) => ({
+                    ...d,
+                    walletDiscount: e.target.value,
+                  }))
+                }
+              />
+            </div>
 
             <FormField
               control={form.control}

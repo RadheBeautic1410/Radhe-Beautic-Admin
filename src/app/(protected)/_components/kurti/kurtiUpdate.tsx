@@ -109,19 +109,31 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
     if (data?.sizes) {
       setAllSizes(data.sizes);
     }
+  }, [data?.sizes]);
+
+  useEffect(() => {
     if (data?.actualPrice !== undefined) {
       setActualPrice(data.actualPrice);
     }
+  }, [data?.actualPrice]);
+
+  useEffect(() => {
     if (data?.sellingPrice !== undefined) {
       setSellingPrice(data.sellingPrice);
     }
+  }, [data?.sellingPrice]);
+
+  useEffect(() => {
     if (data?.customerPrice !== undefined) {
       setCustomerPrice(data.customerPrice);
     }
+  }, [data?.customerPrice]);
+
+  useEffect(() => {
     if (data?.weight !== undefined) {
       setWeight(data.weight);
     }
-  }, [data]);
+  }, [data?.weight]);
   const handleImageChange = (data: any) => {
     setImages(data);
     console.log(data);
@@ -420,7 +432,6 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                 <h2>Selling Price (Reseller)</h2>
                 <Input
                   value={sellingPrice}
-                  defaultValue={sellingPrice}
                   onChange={(e) => {
                     setSellingPrice(e.target.value);
                   }}
@@ -428,26 +439,25 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                 <h2 className="pt-2">Actual Price</h2>
                 <Input
                   value={actualPrice}
-                  defaultValue={actualPrice}
                   onChange={(e) => {
                     setActualPrice(e.target.value);
                   }}
                 ></Input>
                 <h2 className="pt-2">Customer Price</h2>
                 <Input
-                  type="number"
-                  value={customerPrice || ""}
-                  defaultValue={customerPrice}
+                  type="text"
+                  inputMode="decimal"
+                  value={customerPrice ?? ""}
                   onChange={(e) => {
                     setCustomerPrice(e.target.value ? parseFloat(e.target.value) : undefined);
                   }}
                 ></Input>
                 <h2 className="pt-2">Weight (grams)</h2>
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   min="0"
-                  value={weight || ""}
-                  defaultValue={weight}
+                  value={weight ?? ""}
                   onChange={(e) => {
                     setWeight(e.target.value ? parseInt(e.target.value) : undefined);
                   }}
@@ -561,7 +571,8 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                     className="mt-4"
                     placeholder="Set big price"
                     disabled={changedCategory?.bigPrice}
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     onChange={(e) => {
                       setBigPrice(
                         e.target.value ? parseFloat(e.target.value) : 0

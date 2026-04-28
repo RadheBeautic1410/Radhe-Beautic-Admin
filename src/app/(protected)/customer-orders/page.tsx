@@ -40,7 +40,7 @@ import {
   SelectValue,
 } from "@/src/components/ui/select";
 import { toast } from "sonner";
-import { useTransition, useEffect, useState } from "react";
+import { useTransition, useEffect, useState, KeyboardEvent } from "react";
 import {
   getPendingCustomerOrders,
   acceptCustomerOrder,
@@ -163,6 +163,11 @@ const CustomerOrdersPage = () => {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "ALL">("ALL");
   const [orderIdFilter, setOrderIdFilter] = useState<string>("");
   const [phoneFilter, setPhoneFilter] = useState<string>("");
+  const [draftStatusFilter, setDraftStatusFilter] = useState<OrderStatus | "ALL">(
+    "ALL",
+  );
+  const [draftOrderIdFilter, setDraftOrderIdFilter] = useState<string>("");
+  const [draftPhoneFilter, setDraftPhoneFilter] = useState<string>("");
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -223,19 +228,23 @@ const CustomerOrdersPage = () => {
     }
   };
 
-  // Reset to first page only when filters change
+  // Fetch orders when applied filters, pagination, or page size change
   useEffect(() => {
-    setPage(1);
-  }, [statusFilter, orderIdFilter, phoneFilter]);
-
-  // Fetch orders when filters, pagination, or page size change (with debounce for text inputs)
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchOrders();
-    }, 500); // Debounce for 500ms
-
-    return () => clearTimeout(timeoutId);
+    fetchOrders();
   }, [statusFilter, orderIdFilter, phoneFilter, page, pageSize]);
+
+  const applyFilters = () => {
+    setPage(1);
+    setStatusFilter(draftStatusFilter);
+    setOrderIdFilter(draftOrderIdFilter);
+    setPhoneFilter(draftPhoneFilter);
+  };
+
+  const handleFilterInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      applyFilters();
+    }
+  };
 
   // Handle view order details
   const handleViewOrder = async (order: CustomerOrder) => {
@@ -606,9 +615,9 @@ const CustomerOrdersPage = () => {
               <div className="flex items-center gap-2">
                 <Label htmlFor="status-filter">Status:</Label>
                 <Select
-                  value={statusFilter}
+                  value={draftStatusFilter}
                   onValueChange={(value) =>
-                    setStatusFilter(value as OrderStatus | "ALL")
+                    setDraftStatusFilter(value as OrderStatus | "ALL")
                   }
                 >
                   <SelectTrigger className="w-[180px]">
@@ -641,13 +650,14 @@ const CustomerOrdersPage = () => {
                   <Input
                     id="order-id-filter"
                     placeholder="Search Order ID"
-                    value={orderIdFilter}
-                    onChange={(e) => setOrderIdFilter(e.target.value)}
+                    value={draftOrderIdFilter}
+                    onChange={(e) => setDraftOrderIdFilter(e.target.value)}
+                    onKeyDown={handleFilterInputKeyDown}
                     className="w-[200px] pl-8"
                   />
-                  {orderIdFilter && (
+                  {draftOrderIdFilter && (
                     <button
-                      onClick={() => setOrderIdFilter("")}
+                      onClick={() => setDraftOrderIdFilter("")}
                       className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
                       <X className="h-4 w-4" />
@@ -663,13 +673,14 @@ const CustomerOrdersPage = () => {
                   <Input
                     id="phone-filter"
                     placeholder="Search Phone Number"
-                    value={phoneFilter}
-                    onChange={(e) => setPhoneFilter(e.target.value)}
+                    value={draftPhoneFilter}
+                    onChange={(e) => setDraftPhoneFilter(e.target.value)}
+                    onKeyDown={handleFilterInputKeyDown}
                     className="w-[200px] pl-8"
                   />
-                  {phoneFilter && (
+                  {draftPhoneFilter && (
                     <button
-                      onClick={() => setPhoneFilter("")}
+                      onClick={() => setDraftPhoneFilter("")}
                       className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
                       <X className="h-4 w-4" />
@@ -678,14 +689,27 @@ const CustomerOrdersPage = () => {
                 </div>
               </div>
 
+              <Button
+                size="sm"
+                onClick={applyFilters}
+                className="flex items-center gap-2"
+              >
+                <Search className="h-4 w-4" />
+                Search
+              </Button>
+
               {(orderIdFilter || phoneFilter || statusFilter !== "ALL") && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
+                    setDraftStatusFilter("ALL");
+                    setDraftOrderIdFilter("");
+                    setDraftPhoneFilter("");
                     setStatusFilter("ALL");
                     setOrderIdFilter("");
                     setPhoneFilter("");
+                    setPage(1);
                   }}
                   className="flex items-center gap-2"
                 >

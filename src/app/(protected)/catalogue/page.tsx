@@ -1573,7 +1573,8 @@ const ListPage = () => {
                           <FormLabel>Actual price</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
+                              type="text"
+                              inputMode="decimal"
                               value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
                               onChange={(e) => {
                                 const value = e.target.value;
@@ -1605,7 +1606,8 @@ const ListPage = () => {
                           <FormLabel>Selling price (Reseller)</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
+                              type="text"
+                              inputMode="decimal"
                               value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
                               onChange={(e) => {
                                 const value = e.target.value;
@@ -1637,7 +1639,8 @@ const ListPage = () => {
                           <FormLabel>Customer price</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
+                              type="text"
+                              inputMode="decimal"
                               value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
                               onChange={(e) => {
                                 const value = e.target.value;
@@ -1669,7 +1672,8 @@ const ListPage = () => {
                           <FormLabel>Big price</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
+                              type="text"
+                              inputMode="decimal"
                               value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
                               onChange={(e) => {
                                 const value = e.target.value;
@@ -1701,7 +1705,8 @@ const ListPage = () => {
                           <FormLabel>Customer Big price</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
+                              type="text"
+                              inputMode="decimal"
                               value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
                               onChange={(e) => {
                                 const value = e.target.value;
