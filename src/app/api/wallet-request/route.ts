@@ -3,7 +3,12 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
 import { db } from "@/src/lib/db";
-import { UserRole, Status } from "@prisma/client";
+import {
+  UserRole,
+  Status,
+  PaymentStatus,
+  OrderStatus,
+} from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,6 +60,16 @@ export async function GET(request: NextRequest) {
               phoneNumber: true,
               role: true,
               balance: true,
+            },
+          },
+          linkedOrder: {
+            select: {
+              id: true,
+              orderId: true,
+              total: true,
+              shippingCharge: true,
+              paymentStatus: true,
+              paymentType: true,
             },
           },
         },
@@ -125,6 +140,8 @@ export async function PATCH(request: NextRequest) {
         throw new Error("Only pending requests can be updated");
       }
 
+      const isOrderPayment = Boolean(walletReq.linkedOrderId);
+
       if (action === "reject") {
         const updated = await tx.walletRequest.update({
           where: { id },
@@ -134,7 +151,7 @@ export async function PATCH(request: NextRequest) {
             approvedAt: new Date(),
           },
         });
-        return { updated, walletHistory: null, updatedUser: null };
+        return { updated, walletHistory: null, updatedUser: null, isOrderPayment };
       }
 
       const updated = await tx.walletRequest.update({
@@ -146,13 +163,132 @@ export async function PATCH(request: NextRequest) {
         },
       });
 
+      const payee = await tx.user.findUnique({
+        where: { id: walletReq.resellerId },
+        select: { role: true },
+      });
+
+      if (isOrderPayment && walletReq.linkedOrderId) {
+        const linkedOrder = await tx.orders.findUnique({
+          where: { id: walletReq.linkedOrderId },
+          select: {
+            paymentType: true,
+            total: true,
+            shippingCharge: true,
+          },
+        });
+        await tx.orders.update({
+          where: { id: walletReq.linkedOrderId },
+          data: { paymentStatus: PaymentStatus.COMPLETED },
+        });
+        const userPatch: { balance: { increment: number }; creditLimit?: { increment: number } } = {
+          balance: { increment: walletReq.amount },
+        };
+        if (
+          linkedOrder?.paymentType === "credit_limit" &&
+          payee?.role === UserRole.RESELLER
+        ) {
+          const due = Math.round(
+            Number(linkedOrder.total || 0) +
+              Number(linkedOrder.shippingCharge ?? 0)
+          );
+          if (due > 0) {
+            userPatch.creditLimit = { increment: due };
+          }
+        }
+        const updatedUser = await tx.user.update({
+          where: { id: walletReq.resellerId },
+          data: userPatch,
+          select: { id: true, balance: true, creditLimit: true },
+        });
+        const walletHistory = await tx.walletHistory.create({
+          data: {
+            userId: walletReq.resellerId,
+            amount: walletReq.amount,
+            type: "CREDIT",
+            paymentMethod: "order-payment-verified",
+            paymentType: walletReq.paymentType,
+          },
+        });
+        return {
+          updated,
+          walletHistory,
+          updatedUser,
+          isOrderPayment: true,
+        };
+      }
+
+      const isReseller = payee?.role === UserRole.RESELLER;
+      const amountPaid = Number(walletReq.amount);
+
+      /**
+       * Reseller repaying after using credit (GPay etc.):
+       * 1) Apply payment FIFO to fully settle oldest PENDING-payment orders (drops "used credit").
+       * 2) Remainder increases creditLimit (pure top-up / restores udhhar headroom).
+       * Full amount always credits balance so later admin confirm can debit wallet when needed.
+       */
+      let remainingForCreditLine = isReseller ? amountPaid : 0;
+      let allocatedToOrders = 0;
+      let ordersClearedCount = 0;
+
+      if (isReseller && remainingForCreditLine > 0) {
+        const pendingOrders = await tx.orders.findMany({
+          where: {
+            userId: walletReq.resellerId,
+            paymentStatus: PaymentStatus.PENDING,
+            status: { not: OrderStatus.CANCELLED },
+          },
+          orderBy: { createdAt: "asc" },
+          select: { id: true, total: true, shippingCharge: true },
+        });
+
+        for (const ord of pendingOrders) {
+          const due = Math.round(
+            Number(ord.total) + Number(ord.shippingCharge ?? 0)
+          );
+          if (due <= 0) continue;
+          if (remainingForCreditLine >= due) {
+            await tx.orders.update({
+              where: { id: ord.id },
+              data: { paymentStatus: PaymentStatus.COMPLETED },
+            });
+            await tx.user.update({
+              where: { id: walletReq.resellerId },
+              data: { creditLimit: { increment: due } },
+            });
+            remainingForCreditLine -= due;
+            allocatedToOrders += due;
+            ordersClearedCount += 1;
+          } else {
+            break;
+          }
+        }
+      }
+
       const updatedUser = await tx.user.update({
         where: { id: walletReq.resellerId },
         data: {
-          balance: { increment: walletReq.amount },
+          balance: { increment: amountPaid },
+          ...(isReseller && remainingForCreditLine > 0
+            ? { creditLimit: { increment: remainingForCreditLine } }
+            : {}),
         },
-        select: { id: true, balance: true },
+        select: { id: true, balance: true, creditLimit: true },
       });
+
+      const paymentTypeNote = (() => {
+        if (!isReseller) return walletReq.paymentType;
+        const bits: string[] = [walletReq.paymentType];
+        if (ordersClearedCount > 0) {
+          bits.push(
+            `settled ${ordersClearedCount} order(s) ₹${allocatedToOrders}`
+          );
+        }
+        if (remainingForCreditLine > 0) {
+          bits.push(`credit line +₹${remainingForCreditLine}`);
+        }
+        return bits.join(" · ");
+      })();
 
       const walletHistory = await tx.walletHistory.create({
         data: {
@@ -160,11 +296,19 @@ export async function PATCH(request: NextRequest) {
           amount: walletReq.amount,
           type: "CREDIT",
           paymentMethod: "wallet-request",
-          paymentType: walletReq.paymentType,
+          paymentType: paymentTypeNote,
         },
       });
 
-      return { updated, walletHistory, updatedUser };
+      return {
+        updated,
+        walletHistory,
+        updatedUser,
+        isOrderPayment: false,
+        ordersClearedCount,
+        allocatedToOrders,
+        creditLimitIncrement: isReseller ? remainingForCreditLine : 0,
+      };
     });
 
     return new NextResponse(

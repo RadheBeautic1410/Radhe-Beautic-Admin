@@ -66,7 +66,10 @@ const CustomerPendingOrdersPage = () => {
     );
   }
 
-  const selectedTotal = orders.reduce((sum: number, x: any) => sum + ((selected[x.id] ? x.totalAmount : 0) || 0), 0);
+  const selectedTotal = orders.reduce(
+    (sum: number, x: any) => sum + ((selected[x.id] ? x.amountDue : 0) || 0),
+    0
+  );
   const wallet = user?.balance ?? 0;
   const exceeds = selectedTotal > wallet;
 
@@ -102,12 +105,12 @@ const CustomerPendingOrdersPage = () => {
           </div>
         </div>
 
-        {/* Pending Online Orders */}
+        {/* Pending Payment Orders */}
         <div className="bg-green-50 rounded-md p-4">
-          <h3 className="font-semibold mb-3">Pending Online Orders</h3>
+          <h3 className="font-semibold mb-3">Pending Payment Orders</h3>
           {orders.length === 0 ? (
             <div className="text-sm text-gray-600">
-              No pending online orders.
+              No pending payment orders.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -124,10 +127,10 @@ const CustomerPendingOrdersPage = () => {
                       Total Amount
                     </TableHead>
                     <TableHead className="font-bold border text-white">
-                      Total Items
+                      Payment Type
                     </TableHead>
                     <TableHead className="font-bold border text-white">
-                      Sale Time
+                      Order Date
                     </TableHead>
                     {/* <TableHead className="font-bold border text-white">Action</TableHead> */}
                   </TableRow>
@@ -155,11 +158,11 @@ const CustomerPendingOrdersPage = () => {
                       </TableCell>
                       <TableCell className="border">{o.orderId}</TableCell>
                       <TableCell className="border">
-                        ₹{o.totalAmount + o.order.shippingCharge}
+                        ₹{o.amountDue}
                       </TableCell>
-                      <TableCell className="border">{o.totalItems}</TableCell>
+                      <TableCell className="border">{o.paymentType || "-"}</TableCell>
                       <TableCell className="border">
-                        {new Date(o.saleTime).toLocaleString()}
+                        {new Date(o.date).toLocaleString()}
                       </TableCell>
                       {/* <TableCell className="border">
                         <div className="flex gap-2">
@@ -190,12 +193,12 @@ const CustomerPendingOrdersPage = () => {
                   onClick={async () => {
                     try {
                       setSettling(true);
-                      const batchIds = Object.keys(selected).filter(
+                      const orderIds = Object.keys(selected).filter(
                         (k) => selected[k]
                       );
                       const res = await axios.post(
                         `/api/users/${userId}/settle-pending-online-orders`,
-                        { batchIds }
+                        { orderIds }
                       );
                       if (res.data?.success !== false) {
                         // refresh page data

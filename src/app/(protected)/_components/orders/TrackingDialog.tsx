@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react'
-import { useInvalidateQueries } from '../../orders/layout';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { shippedOrder } from '@/src/actions/order';
 import { toast } from 'sonner';
@@ -17,7 +16,6 @@ const TrackingDialog = ({ data }: TrackingDialogProps) => {
     console.log('orderId:', data);
     const [isOpen, setIsOpen] = useState(false);
     const [trackingId, setTrackingId] = useState('');
-    const invalidateQueries = useInvalidateQueries();
     const queryClient = useQueryClient();
     const [shipChrage, setShipChrage] = useState(0);
     const moveMutation = useMutation({
@@ -30,11 +28,9 @@ const TrackingDialog = ({ data }: TrackingDialogProps) => {
             });
         },
         onSuccess: () => {
-            // Invalidate the queries you want to refetch
-            invalidateQueries();
             queryClient.invalidateQueries({
                 predicate: (query) =>
-                    query.queryKey[0] === 'packedOrder' || query.queryKey[0] === 'shippedOrders'
+                    query.queryKey[0] === 'orders' || query.queryKey[0] === 'packedOrder' || query.queryKey[0] === 'shippedOrders'
             });
 
         },

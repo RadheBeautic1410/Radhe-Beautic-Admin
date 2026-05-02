@@ -69,19 +69,20 @@ export const ModeratorRow = ({
 
   const [isPending, startTransition] = useTransition();
 
-  const onSubmit = (values: any) => {
+  const onSubmit = (values: any, closeDialog?: () => void) => {
     const combinedData = { ...values, id };
-    console.log(combinedData);
     startTransition(() => {
       moderatorUpdate(combinedData)
         .then((data) => {
           if (data.error) {
             toast.error(data.error);
+            return;
           }
 
-          if (data.success) {
+          if (data.success && data.updatedUser) {
             toast.success(data.success);
             onUpdateUserData(data.updatedUser);
+            closeDialog?.();
           }
         })
         .catch(() => toast.error("Something went wrong!"));
@@ -148,11 +149,16 @@ export const ModeratorRow = ({
         <DialogDemo
           dialogTrigger="Edit User"
           dialogTitle="Edit User"
-          dialogDescription="Make changes to your profile here. Click save when you're done."
-          ButtonLabel="Save Changes"
+          dialogDescription="Make changes here, then click Save changes."
         >
-          <Form {...form}>
-            <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
+          {(closeDialog) => (
+            <Form {...form}>
+              <form
+                className="space-y-6"
+                onSubmit={form.handleSubmit((values) =>
+                  onSubmit(values, closeDialog)
+                )}
+              >
               <FormField
                 control={form.control}
                 name="isVerified"
@@ -216,10 +222,11 @@ export const ModeratorRow = ({
                 )}
               />
               <Button type="submit" disabled={isPending}>
-                Save Changes
+                Save changes
               </Button>
             </form>
           </Form>
+          )}
         </DialogDemo>
       </TableCell>
     </TableRow>

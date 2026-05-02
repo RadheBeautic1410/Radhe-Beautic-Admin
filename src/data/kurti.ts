@@ -1970,22 +1970,20 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
 
         const user = await tx.user.findUnique({
           where: { id: order.userId },
-          select: { id: true, balance: true, name: true },
+          select: { id: true, balance: true, name: true, creditLimit: true },
         });
 
         if (!user) {
           return { error: "User not found" };
         }
 
-        // Calculate total order amount
+        const orderShippingCharge = Number(order.shippingCharge) || 0;
+
+        // Calculate total order amount (line items only; shipping added at settlement)
         let totalOrderAmount = 0;
         for (const product of products) {
           totalOrderAmount += product.sellingPrice * product.quantity;
         }
-
-        // Check if user has sufficient balance for payment
-        const hasSufficientBalance = user.balance >= totalOrderAmount;
-        const paymentStatus = hasSufficientBalance ? "PENDING" : "PENDING"; // Will be updated based on balance
 
         // Create offline sale batch first
         const batchNumber = `ONLINE-${Date.now()}`;
@@ -2012,7 +2010,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
             sellType: sellType,
             invoiceNumber: invoiceNumber,
             orderId: orderId,
-            paymentStatus: paymentStatus,
+            paymentStatus: "PENDING",
             gstType: gstType,
             createdAt: currTime,
             updatedAt: currTime,
@@ -2285,14 +2283,6 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                 totalPrice: sellingPrice * quantity,
               });
 
-              await db.orders.update({
-                where: { orderId: orderId },
-                data: {
-                  status: OrderStatus.TRACKINGPENDING,
-                  total: totalOrderAmount,
-                },
-              });
-
               totalAmount += sellingPrice * quantity;
 
               console.log(`Product ${i + 1} sold successfully:`, offlineSell);
@@ -2314,19 +2304,48 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
             );
           }
         }
-        console.log(soldProducts, "soldProducts");
 
-        // Update batch with final totals and determine payment status
+        let walletDebitTotal = 0;
+        let hasSufficientBalance = false;
+
+        // Update batch, settle wallet or credit line, and move order forward
         if (soldProducts.length > 0) {
-          // Determine final payment status based on balance sufficiency
-          const finalPaymentStatus = hasSufficientBalance
-            ? "COMPLETED"
-            : "PENDING";
+          walletDebitTotal = Math.round(totalAmount + orderShippingCharge);
+          const isCreditPending =
+            String(order.paymentType || "") === "credit_limit" &&
+            order.paymentStatus === PaymentStatus.PENDING;
+
+          if (isCreditPending) {
+            const creditLimitCap = Number(user.creditLimit ?? 0);
+            const otherPendingAgg = await tx.orders.aggregate({
+              where: {
+                userId: user.id,
+                paymentStatus: PaymentStatus.PENDING,
+                status: { not: OrderStatus.CANCELLED },
+                id: { not: order.id },
+              },
+              _sum: { total: true, shippingCharge: true },
+            });
+            const otherUnpaid = Math.round(
+              Number(otherPendingAgg._sum.total ?? 0) +
+                Number(otherPendingAgg._sum.shippingCharge ?? 0)
+            );
+            if (otherUnpaid + walletDebitTotal > creditLimitCap) {
+              return {
+                error: `Insufficient credit line for this bill (other pending ₹${otherUnpaid}, this bill ₹${walletDebitTotal}, limit ₹${Math.round(creditLimitCap)}).`,
+              } as const;
+            }
+          } else {
+            hasSufficientBalance = user.balance >= walletDebitTotal;
+          }
+
+          /** Credit invoices stay PENDING until cash/wallet settlement; wallet-paid batches COMPLETE here. */
+          const finalPaymentStatus = hasSufficientBalance ? "COMPLETED" : "PENDING";
 
           await tx.onlineSellBatch.update({
             where: { id: offlineBatch.id },
             data: {
-              totalAmount: totalAmount,
+              totalAmount: walletDebitTotal,
               totalItems: soldProducts.reduce(
                 (sum, product) => sum + product.quantity,
                 0
@@ -2336,23 +2355,28 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
             },
           });
 
-          // Only deduct from wallet and create history if balance is sufficient
+          if (isCreditPending) {
+            await tx.user.update({
+              where: { id: user.id },
+              data: {
+                creditLimit: { decrement: walletDebitTotal },
+              },
+            });
+          }
+
           if (hasSufficientBalance) {
-            // Deduct money from user's wallet
             await tx.user.update({
               where: { id: user.id },
               data: {
                 balance: {
-                  decrement: totalAmount,
+                  decrement: walletDebitTotal,
                 },
               },
             });
-
-            // Create wallet history entry
             await tx.walletHistory.create({
               data: {
                 userId: user.id,
-                amount: totalAmount,
+                amount: walletDebitTotal,
                 type: "DEBIT",
                 paymentMethod: "wallet",
                 onlineSellBatchId: offlineBatch.id,
@@ -2360,6 +2384,14 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               },
             });
           }
+
+          await tx.orders.update({
+            where: { orderId },
+            data: {
+              status: OrderStatus.TRACKINGPENDING,
+              total: Math.round(totalOrderAmount),
+            },
+          });
         }
 
         // Check if any products were sold successfully
@@ -2426,66 +2458,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
       return txResult;
     }
 
-    // Post-transaction: generate and upload invoice (non-transactional, to avoid timeouts)
-    try {
-      const { batchNumber, batchId, invoiceNumber } = txResult as any;
-
-      // Fetch all sales for the batch to prepare invoice data
-      const allSales = await db.onlineSell.findMany({
-        where: { batchId },
-        include: { kurti: true },
-      });
-
-      const soldProductsForInvoice = allSales.map((sale) => ({
-        kurti: sale.kurti,
-        size: sale.kurtiSize,
-        quantity: sale.quantity || 0,
-        selledPrice: sale.selledPrice || 0,
-        unitPrice: sale.selledPrice || 0,
-        totalPrice: (sale.selledPrice || 0) * (sale.quantity || 0),
-      }));
-
-      const totalAmount = soldProductsForInvoice.reduce(
-        (sum, p) => sum + (p.totalPrice || 0),
-        0
-      );
-
-      const result = await generateInvoicePDF({
-        saleData: data,
-        batchNumber,
-        customerName,
-        customerPhone,
-        selectedLocation,
-        billCreatedBy,
-        currentUser,
-        soldProducts: soldProductsForInvoice,
-        totalAmount,
-        gstType: gstType || "SGST_CGST",
-        invoiceNumber: invoiceNumber.toString(),
-        sellType,
-      });
-
-      if (!result.success || !result.pdfBase64) {
-        throw new Error(result.error || "Failed to generate PDF");
-      }
-
-      const pdfBuffer = Buffer.from(result.pdfBase64, "base64");
-      const invoiceUrl = await uploadInvoicePDFToFirebase(
-        pdfBuffer,
-        batchNumber
-      );
-
-      await db.onlineSellBatch.update({
-        where: { id: batchId },
-        data: { invoiceUrl, updatedAt: currTime },
-      });
-    } catch (invoiceError) {
-      console.error(
-        "Error generating or uploading invoice to Firebase:",
-        invoiceError
-      );
-      // Do not fail the sale if invoice upload fails
-    }
+    // No PDF/Firebase here — use POST /api/sell/online-sales/[batchId]/regenerate-invoice if needed.
 
     return txResult;
   } catch (error: any) {

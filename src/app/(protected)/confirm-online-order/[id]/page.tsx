@@ -19,7 +19,6 @@ import {
   Loader2,
   Search,
   ShoppingCart,
-  FileText,
   Trash2,
   Plus,
 } from "lucide-react";
@@ -27,7 +26,6 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
-import { generateInvoicePDF } from "@/src/actions/generate-pdf";
 import { shippedOrder } from "@/src/actions/order";
 import { getShopList, getUserShop } from "@/src/actions/shop";
 import { useEffect } from "react";
@@ -78,7 +76,6 @@ function SellPage() {
   const [orderLoading, setOrderLoading] = useState(true);
   const [userBalance, setUserBalance] = useState<number | null>(null);
   const [trackingId, setTrackingId] = useState("");
-  const [shippingCharge, setShippingCharge] = useState<number>(0);
 
   const currentUser = useCurrentUser();
   const [selectedCourier, setSelectedCourier] = useState<string>("indianpost");
@@ -403,6 +400,15 @@ function SellPage() {
     );
   };
 
+  /** Shipping from the order record (set at checkout); not editable on this screen. */
+  const getOrderShippingCharge = () => {
+    if (!orderData || orderData.shippingCharge == null) return 0;
+    return Number(orderData.shippingCharge) || 0;
+  };
+
+  const getGrandTotalWithShipping = () =>
+    getTotalAmount() + getOrderShippingCharge();
+
   const handleSell = async () => {
     try {
       setSelling(true);
@@ -429,10 +435,11 @@ function SellPage() {
 
       const currentTime = getCurrTime();
 
-      if (trackingId.trim().length === 0 || shippingCharge <= 0) {
-        toast.error("Enter valid tracking id and shipping charge");
+      if (trackingId.trim().length === 0) {
+        toast.error("Enter valid tracking id");
         return;
       }
+      const shipCharge = getOrderShippingCharge();
 
       // Prepare products data for API
       const products = cart.map((item) => {
@@ -474,9 +481,13 @@ function SellPage() {
           toast.success(
             "Sale completed successfully! Payment processed via wallet."
           );
+        } else if (orderData?.paymentType === "credit_limit") {
+          toast.success(
+            "Sale recorded on credit (udhhar). Reseller payment stays pending until they pay or you settle from their wallet on the request page."
+          );
         } else {
           toast.success(
-            "Sale completed successfully! Order marked as PENDING due to insufficient wallet balance."
+            "Sale completed. Order payment is still pending (insufficient wallet balance at billing)."
           );
         }
 
@@ -485,7 +496,7 @@ function SellPage() {
           const shipRes: any = await shippedOrder(
             orderId,
             trackingId,
-            shippingCharge,
+            shipCharge,
             selectedCourier
           );
           if (shipRes?.error) {
@@ -498,14 +509,6 @@ function SellPage() {
           toast.error("Failed to mark order as shipped");
         }
 
-        // Generate invoice including shipping details
-        await generateInvoice({ ...data, trackingId, shippingCharge });
-
-        // Show invoice URL if available
-        if (data.batchNumber) {
-          toast.success(`Invoice saved with batch number: ${data.batchNumber}`);
-        }
-
         resetForm();
       }
     } catch (error) {
@@ -513,103 +516,6 @@ function SellPage() {
       toast.error("Error processing sale");
     } finally {
       setSelling(false);
-    }
-  };
-
-  const generateInvoice = async (saleData: any) => {
-    try {
-      const soldProducts = cart.map((item) => ({
-        kurti: item.kurti,
-        size: item.orderedSize || item.selectedSize, // Use orderedSize (lower size) for PDF, fallback to selectedSize
-        quantity: item.quantity,
-        selledPrice: item.sellingPrice
-          ? parseFloat(item.sellingPrice?.toString())
-          : 0,
-        unitPrice: item.sellingPrice
-          ? parseFloat(item.sellingPrice?.toString())
-          : 0,
-        totalPrice: item.sellingPrice
-          ? parseFloat(item.sellingPrice?.toString()) * item.quantity
-          : 0,
-      }));
-
-      const result = await generateInvoicePDF({
-        saleData,
-        batchNumber: saleData.batchNumber || `OFFLINE-INV-${Date.now()}`,
-        customerName,
-        customerPhone,
-        selectedLocation: "",
-        billCreatedBy,
-        currentUser,
-        soldProducts,
-        totalAmount: getTotalAmount() + (saleData?.shippingCharge || 0),
-        gstType,
-        invoiceNumber: saleData.invoiceNumber || "",
-        sellType: "HALL_SELL_ONLINE",
-        shippingCharge: saleData?.shippingCharge || 0,
-        trackingId: saleData?.trackingId || trackingId,
-      } as any);
-
-      if (!result.success || !result.pdfBase64) {
-        throw new Error(result.error || "Failed to generate PDF");
-      }
-
-      // Convert base64 string to Blob (PDF)
-      const binaryString = atob(result.pdfBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: "application/pdf" });
-
-      // Trigger download
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `invoice-${
-        saleData.batchNumber || `ONLINE-INV-${Date.now()}`
-      }.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success("Invoice PDF downloaded successfully!");
-
-      // Send to WhatsApp API
-      // Create a File object from the Blob to simulate file upload
-      const pdfFile = new File(
-        [blob],
-        `invoice-${saleData.batchNumber || `ONLINE-INV-${Date.now()}`}.pdf`,
-        {
-          type: "application/pdf",
-        }
-      );
-
-      const formData = new FormData();
-      formData.append("type", "media"); // as per your API example
-      formData.append("to", customerPhone); // or the target WhatsApp number
-      formData.append("file", pdfFile);
-      formData.append("caption", "Here is your PDF document");
-
-      // Call your WhatsApp send API endpoint
-      // const response = await fetch("http://localhost:3000/api/whatsapp", {
-      //   method: "POST",
-      //   body: formData,
-      // });
-
-      // const whatsappResult = await response.json();
-
-      // if (!response.ok) {
-      //   throw new Error(
-      //     whatsappResult.error || "Failed to send invoice to WhatsApp"
-      //   );
-      // }
-
-    //  toast.success("Invoice PDF sent via WhatsApp!");
-    } catch (error) {
-      console.error("Error generating PDF or sending WhatsApp message:", error);
-      toast.error("Failed to generate or send invoice PDF");
     }
   };
 
@@ -660,6 +566,12 @@ function SellPage() {
       </Card>
     );
   }
+
+  const isCreditLimitOrder = orderData?.paymentType === "credit_limit";
+  const resellerCreditLine =
+    orderData?.user?.creditLimit != null
+      ? Number(orderData.user.creditLimit)
+      : null;
 
   // Show error state if order not found
   if (!orderData) {
@@ -713,38 +625,92 @@ function SellPage() {
       <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
         <div className="bg-purple-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-3">GST Configuration</h3>
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              💳 <strong>Payment Method:</strong> Orders will be automatically
-              paid using the customer's wallet balance.
-              <br />
-              📊 <strong>Balance Check:</strong> The system will verify
-              sufficient funds before confirming the order.
-            </p>
-            {userBalance !== null && (
-              <div className="mt-3 p-2 bg-white border border-blue-300 rounded">
-                <p className="text-sm font-medium text-blue-900">
-                  💰 Customer Wallet Balance:{" "}
-                  <span className="font-bold">₹{userBalance}</span>
+          <div
+            className={`mb-4 p-3 border rounded-lg ${
+              isCreditLimitOrder
+                ? "bg-amber-50 border-amber-200"
+                : "bg-blue-50 border-blue-200"
+            }`}
+          >
+            {isCreditLimitOrder ? (
+              <>
+                <p className="text-sm text-amber-900">
+                  💳 <strong>Payment:</strong> This order was placed on the
+                  reseller&apos;s <strong>admin credit line</strong> (udhhar).
+                  Confirming the sale keeps <strong>payment pending</strong> until
+                  they pay or you settle from wallet — but their{" "}
+                  <strong>credit limit is reduced</strong> by this bill so they
+                  cannot exceed the udhhar cap. Settle later on{" "}
+                  <strong>/request/customer/[their user id]</strong> or via an
+                  approved wallet request.
                 </p>
-                {cart.length > 0 && (
-                  <p className="text-xs text-blue-700 mt-1">
-                    Order Total: ₹{getTotalAmount()} |
-                    {userBalance >= getTotalAmount() ? (
-                      <span className="text-green-600">
-                        {" "}
-                        ✅ Sufficient Balance - Payment will be completed
+                {resellerCreditLine !== null && (
+                  <div className="mt-3 p-2 bg-white border border-amber-300 rounded">
+                    <p className="text-sm font-medium text-amber-950">
+                      📎 Current credit line:{" "}
+                      <span className="font-bold">
+                        ₹{resellerCreditLine.toFixed(2)}
                       </span>
-                    ) : (
-                      <span className="text-orange-600">
-                        {" "}
-                        ⚠️ Insufficient Balance - Order will be marked as
-                        PENDING
-                      </span>
+                    </p>
+                    {cart.length > 0 && (
+                      <p className="text-xs text-amber-900 mt-1">
+                        Bill total (incl. shipping ₹
+                        {getOrderShippingCharge().toFixed(2)}): ₹
+                        {getGrandTotalWithShipping().toFixed(2)}
+                        {resellerCreditLine < getGrandTotalWithShipping() ? (
+                          <span className="text-red-700 font-medium">
+                            {" "}
+                            — Not enough credit line for this bill; sale will be
+                            rejected.
+                          </span>
+                        ) : (
+                          <span className="text-green-700">
+                            {" "}
+                            — OK to settle on credit
+                          </span>
+                        )}
+                      </p>
                     )}
-                  </p>
+                  </div>
                 )}
-              </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-blue-800">
+                  💳 <strong>Payment Method:</strong> Orders will be
+                  automatically paid using the customer&apos;s wallet balance.
+                  <br />
+                  📊 <strong>Balance Check:</strong> The system will verify
+                  sufficient funds before confirming the order.
+                </p>
+                {userBalance !== null && (
+                  <div className="mt-3 p-2 bg-white border border-blue-300 rounded">
+                    <p className="text-sm font-medium text-blue-900">
+                      💰 Customer Wallet Balance:{" "}
+                      <span className="font-bold">₹{userBalance}</span>
+                    </p>
+                    {cart.length > 0 && (
+                      <p className="text-xs text-blue-700 mt-1">
+                        Order total (incl. shipping ₹
+                        {getOrderShippingCharge().toFixed(2)}): ₹
+                        {getGrandTotalWithShipping().toFixed(2)} |
+                        {userBalance >= getGrandTotalWithShipping() ? (
+                          <span className="text-green-600">
+                            {" "}
+                            ✅ Sufficient Balance - Payment will be completed
+                          </span>
+                        ) : (
+                          <span className="text-orange-600">
+                            {" "}
+                            ⚠️ Insufficient Balance - Order will be marked as
+                            PENDING
+                          </span>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
           <div className="flex gap-4">
@@ -812,12 +778,23 @@ function SellPage() {
                   {new Date(orderData.date).toLocaleDateString()}
                 </div>
               </div>
-              <div>
+              <div className="md:col-span-2">
                 <Label className="text-sm font-medium text-green-700">
-                  Total Amount
+                  Order totals
                 </Label>
-                <div className="text-lg font-semibold text-green-800">
-                  ₹{getTotalAmount()}
+                <div className="mt-1 space-y-0.5 text-sm text-green-800">
+                  <div className="flex justify-between gap-4">
+                    <span>Subtotal</span>
+                    <span>₹{getTotalAmount().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Shipping</span>
+                    <span>₹{getOrderShippingCharge().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between gap-4 font-semibold border-t border-green-200 pt-1 mt-1">
+                    <span>Grand total</span>
+                    <span>₹{getGrandTotalWithShipping().toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -844,17 +821,14 @@ function SellPage() {
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-green-700">
-                      Shipping Charge *
+                      Shipping charge
                     </Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="Enter shipping charge"
-                      value={shippingCharge}
-                      onChange={(e) =>
-                        setShippingCharge(parseInt(e.target.value || "0"))
-                      }
-                    />
+                    <div className="mt-1 rounded-md border border-green-200 bg-white px-3 py-2 text-sm font-semibold text-green-900">
+                      ₹{getOrderShippingCharge().toFixed(2)}
+                      <span className="ml-2 font-normal text-green-700">
+                        (from order)
+                      </span>
+                    </div>
                   </div>
                   <div>
                     <Label
@@ -1257,9 +1231,14 @@ function SellPage() {
             </div>
 
             <div className="flex justify-between items-center mt-4 pt-4 border-t border-green-300">
-              <div className="text-xl font-bold text-green-800">
-                Total Amount: ₹{getTotalAmount()}{" "}
-                {shippingCharge > 0 ? `+ Shipping ₹${shippingCharge}` : ""}
+              <div className="text-sm font-bold text-green-800 space-y-0.5">
+                <div>
+                  Subtotal: ₹{getTotalAmount().toFixed(2)} · Shipping: ₹
+                  {getOrderShippingCharge().toFixed(2)}
+                </div>
+                <div className="text-xl">
+                  Grand total: ₹{getGrandTotalWithShipping().toFixed(2)}
+                </div>
               </div>
               <div className="flex gap-3">
                 <Button
@@ -1274,7 +1253,7 @@ function SellPage() {
                   ) : (
                     <ShoppingCart className="mr-2 h-4 w-4" />
                   )}
-                  Complete Sale & Generate Invoice
+                  Complete sale & ship
                 </Button>
                 <Button
                   type="button"
@@ -1292,7 +1271,7 @@ function SellPage() {
               <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="text-sm text-blue-800">
                   <p className="font-medium mb-1">💡 Payment Information:</p>
-                  {userBalance >= getTotalAmount() ? (
+                  {userBalance >= getGrandTotalWithShipping() ? (
                     <p>
                       ✅ <strong>Sufficient Balance:</strong> Payment will be
                       automatically completed and amount deducted from wallet.

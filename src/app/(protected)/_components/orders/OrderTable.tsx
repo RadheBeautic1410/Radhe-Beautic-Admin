@@ -10,17 +10,14 @@ import {
     flexRender,
     SortingState,
 } from '@tanstack/react-table';
-import { format, addDays } from 'date-fns';
-import { Button } from '@/src/components/ui/button';
-import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
-import { DateRange } from "react-day-picker";
 import {
-    Popover, PopoverContent,
-    PopoverTrigger,
-} from '@/src/components/ui/popover';
-import { cn } from '@/src/lib/utils';
-import { Calendar } from '@/src/components/ui/calendar';
-import { Select, SelectContent, SelectValue, SelectTrigger, SelectItem } from '@/src/components/ui/select';
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/src/components/ui/table';
 
 interface Order {
     id: string;
@@ -50,31 +47,37 @@ const OrderTable: React.FC<{ data: Order[], columns: any[] }> = ({ data, columns
 
     return (
         <div className='w-full p-3'>
-           
-            <div className="w-full overflow-auto">
-                <div className="flex flex-col">
-                    {table.getRowModel().rows.map((row, idx) => (
-                        <div
-                            key={row.id}
-                            className="bg-white rounded-lg shadow-md p-4 mb-4 border border-gray-200 hover:bg-gray-50 transition duration-150 ease-in-out"
-                            role="button"
-                            aria-label={`Order ${row.original.orderId}`}
-                        >
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                                {row.getVisibleCells().map((cell) => {
-                                    return (
-                                        <div className="text-left w-full sm:w-auto">
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </div>
-                                    )
-                                })}
-                                
-                            </div>
-                        </div>
-                    ))}
-                </div>
+            <div className="w-full overflow-auto rounded-md border">
+                <Table>
+                    <TableHeader>
+                        {table.getHeaderGroups().map((headerGroup) => (
+                            <TableRow key={headerGroup.id}>
+                                {headerGroup.headers.map((header) => (
+                                    <TableHead key={header.id}>
+                                        {header.isPlaceholder
+                                            ? null
+                                            : flexRender(
+                                                  header.column.columnDef.header,
+                                                  header.getContext()
+                                              )}
+                                    </TableHead>
+                                ))}
+                            </TableRow>
+                        ))}
+                    </TableHeader>
+                    <TableBody>
+                        {table.getRowModel().rows.map((row) => (
+                            <TableRow key={row.id}>
+                                {row.getVisibleCells().map((cell) => (
+                                    <TableCell key={cell.id}>
+                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </div>
-            
         </div>
     );
 };

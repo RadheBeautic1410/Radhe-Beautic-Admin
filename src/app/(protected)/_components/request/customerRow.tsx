@@ -49,6 +49,7 @@ interface userProps {
   isVerified: boolean;
   verifiedBy: string | null;
   balance: number | null;
+  creditLimit: number | null;
   role: UserRole;
   groupName: string | null; // 👈 added field
   isTwoFactorEnabled: boolean;
@@ -63,9 +64,10 @@ const editSchema = z.object({
   isVerified: z.boolean(),
   role: z.nativeEnum(UserRole),
   groupName: z.string().optional(), // 👈 added here
+  creditLimit: z.coerce.number().min(0, "Credit limit must be 0 or more"),
 });
 
-const addMoneySchema = z.object({
+const addCreditSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
   paymentMethod: z.enum(["cash", "bank_transfer", "gpay"]),
 });
@@ -84,10 +86,14 @@ export const CustomerRow = ({
       isVerified: userData.isVerified,
       role: userData.role,
       groupName: userData.groupName || "",
+      creditLimit: userData.creditLimit || 0,
     },
   });
 
-  const handleEditSubmit = (values: z.infer<typeof editSchema>) => {
+  const handleEditSubmit = (
+    values: z.infer<typeof editSchema>,
+    closeDialog?: () => void
+  ) => {
     const combinedData = { ...values, id };
     startTransition(() => {
       moderatorUpdate(combinedData)
@@ -100,23 +106,24 @@ export const CustomerRow = ({
           if (data.success && data.updatedUser) {
             toast.success(data.success);
             onUpdateUserData(data.updatedUser);
+            closeDialog?.();
           }
         })
         .catch(() => toast.error("Something went wrong!"));
     });
   };
 
-  // Form for adding money
-  const moneyForm = useForm<z.infer<typeof addMoneySchema>>({
-    resolver: zodResolver(addMoneySchema),
+  // Form for extending reseller credit (credit limit + wallet DEBIT audit row)
+  const creditForm = useForm<z.infer<typeof addCreditSchema>>({
+    resolver: zodResolver(addCreditSchema),
     defaultValues: {
       amount: "",
       paymentMethod: "cash",
     },
   });
 
-  const handleAddMoney = async (
-    values: z.infer<typeof addMoneySchema>,
+  const handleAddCredit = async (
+    values: z.infer<typeof addCreditSchema>,
     closeDialog: () => void
   ) => {
     const payload = {
@@ -127,7 +134,7 @@ export const CustomerRow = ({
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/wallet/add-money", {
+        const res = await fetch("/api/wallet/add-reseller-credit", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -141,11 +148,20 @@ export const CustomerRow = ({
           return;
         }
 
-        toast.success(data.success || "Money added successfully!");
-        moneyForm.reset();
+        toast.success(
+          data.success ||
+            "Credit added. Reseller wallet shows a debit line for this extension."
+        );
+        if (data.updatedUser) {
+          onUpdateUserData({
+            ...userData,
+            creditLimit: data.updatedUser.creditLimit ?? userData.creditLimit,
+          });
+        }
+        creditForm.reset();
         closeDialog();
       } catch (err) {
-        toast.error("Something went wrong while adding money.");
+        toast.error("Something went wrong while adding credit.");
         console.error("API Error:", err);
       }
     });
@@ -200,14 +216,16 @@ export const CustomerRow = ({
         <DialogDemo
           dialogTrigger="Edit User"
           dialogTitle="Edit User"
-          dialogDescription="Make changes to the user's profile. Click save when done."
-          ButtonLabel="Save Changes"
+          dialogDescription="Make changes to the user's profile, then click Save changes."
         >
-          <Form {...editForm}>
-            <form
-              className="space-y-6"
-              onSubmit={editForm.handleSubmit(handleEditSubmit)}
-            >
+          {(closeDialog) => (
+            <Form {...editForm}>
+              <form
+                className="space-y-6"
+                onSubmit={editForm.handleSubmit((values) =>
+                  handleEditSubmit(values, closeDialog)
+                )}
+              >
               {/* Verified Switch */}
               <FormField
                 control={editForm.control}
@@ -278,33 +296,54 @@ export const CustomerRow = ({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={editForm.control}
+                name="creditLimit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Credit Limit (INR)</FormLabel>
+                    <FormControl>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Enter credit limit"
+                        className="w-full rounded-md border px-3 py-2"
+                        {...field}
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <Button type="submit" disabled={isPending}>
-                Save Changes
+                Save changes
               </Button>
             </form>
           </Form>
+          )}
         </DialogDemo>
       </TableCell>
 
       <TableCell className="text-center">{userData.balance}</TableCell>
 
-      {/* Add Money Dialog */}
+      {/* Add reseller credit (credit limit + wallet DEBIT for tracking) */}
       <TableCell className="text-center">
         <DialogDemo
-          dialogTrigger="Add Money"
-          dialogTitle="Add Money"
-          dialogDescription="Add money to the user's account."
+          dialogTrigger="Add credit"
+          dialogTitle="Add reseller credit"
+          dialogDescription="Adds to the reseller’s buy-now-pay-later cap. Their prepaid cash balance is unchanged. Wallet history shows a red DEBIT line so they see how much credit you extended."
         >
           {(closeDialog) => (
-            <Form {...moneyForm}>
+            <Form {...creditForm}>
               <form
                 className="space-y-6"
-                onSubmit={moneyForm.handleSubmit((values) =>
-                  handleAddMoney(values, closeDialog)
+                onSubmit={creditForm.handleSubmit((values) =>
+                  handleAddCredit(values, closeDialog)
                 )}
               >
                 <FormField
-                  control={moneyForm.control}
+                  control={creditForm.control}
                   name="amount"
                   render={({ field }) => (
                     <FormItem>
@@ -324,7 +363,7 @@ export const CustomerRow = ({
                 />
 
                 <FormField
-                  control={moneyForm.control}
+                  control={creditForm.control}
                   name="paymentMethod"
                   render={({ field }) => (
                     <FormItem>
@@ -353,7 +392,7 @@ export const CustomerRow = ({
                 />
 
                 <Button type="submit" disabled={isPending}>
-                  Add Money
+                  Add credit
                 </Button>
               </form>
             </Form>
@@ -361,6 +400,7 @@ export const CustomerRow = ({
         </DialogDemo>
       </TableCell>
       <TableCell className="text-center">{userData.groupName ?? "-"}</TableCell>
+      <TableCell className="text-center">{userData.creditLimit ?? 0}</TableCell>
 
       <TableCell className="text-center">
         <Link href={`/balance-history/${id}`}>

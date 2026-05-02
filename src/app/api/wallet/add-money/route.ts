@@ -1,8 +1,23 @@
 import { db } from "@/src/lib/db";
 import { NextResponse } from "next/server";
+import { auth } from "@/src/auth";
+import { UserRole } from "@prisma/client";
 
+/**
+ * Admin wallet top-up: increments balance + wallet history CREDIT.
+ * For RESELLER users, also increments creditLimit by the same amount so udhhar headroom
+ * is restored when they pay (matches decrements from confirmed credit orders).
+ */
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.MOD) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
     const { amount, paymentMethod, userId } = body;
 
@@ -19,18 +34,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // Step 1: Fetch user with balance
     const existingUser = await db.user.findUnique({
       where: { id: userId },
+      select: { id: true, balance: true, role: true },
     });
+
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found." }, { status: 400 });
+    }
 
     console.log("Raw amount:", amount, typeof amount);
     console.log("Parsed amount:", numericAmount);
     console.log("User balance before update:", existingUser?.balance);
 
-    // Step 2: Ensure balance field is set to number if missing or invalid
     if (
-      !existingUser?.balance ||
+      existingUser.balance == null ||
       typeof existingUser.balance !== "number" ||
       isNaN(existingUser.balance)
     ) {
@@ -41,28 +59,33 @@ export async function POST(req: Request) {
       console.log("Balance field was missing or invalid. Set to 0.");
     }
 
-    // Step 3: Create transaction + update balance in a transaction
-    const [transaction, updatedUser] = await db.$transaction([
-      db.walletHistory.create({
+    const isReseller = existingUser.role === UserRole.RESELLER;
+
+    const { transaction, updatedUser } = await db.$transaction(async (tx) => {
+      const wh = await tx.walletHistory.create({
         data: {
           userId: userId,
           amount: numericAmount,
           type: "CREDIT",
           paymentMethod: paymentMethod,
-          paymentType: "Added From Admin",
+          paymentType: isReseller
+            ? `Added From Admin · credit line +₹${numericAmount}`
+            : "Added From Admin",
         },
-      }),
-      db.user.update({
-        where: {
-          id: userId,
-        },
+      });
+      const user = await tx.user.update({
+        where: { id: userId },
         data: {
-          balance: {
-            increment: numericAmount,
-          },
+          balance: { increment: numericAmount },
+          ...(isReseller
+            ? { creditLimit: { increment: numericAmount } }
+            : {}),
         },
-      }),
-    ]);
+        select: { id: true, balance: true, creditLimit: true },
+      });
+      return { transaction: wh, updatedUser: user };
+    });
+
     console.log("Transaction id:", updatedUser.id);
     console.log("Updated User Balance:", updatedUser.balance);
 
@@ -71,6 +94,7 @@ export async function POST(req: Request) {
         success: "Money added to wallet successfully.",
         transaction,
         newBalance: updatedUser.balance,
+        ...(isReseller ? { newCreditLimit: updatedUser.creditLimit } : {}),
       },
       { status: 201 }
     );

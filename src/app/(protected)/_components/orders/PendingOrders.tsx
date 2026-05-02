@@ -1,15 +1,11 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-	ColumnDef,
-} from '@tanstack/react-table';
-
-import { format, parseISO, addDays } from 'date-fns';
-import { getOrdersOfUserbyStatus } from '@/src/actions/orders';
+import React, { useState } from 'react';
+import { ColumnDef } from '@tanstack/react-table';
+import { format, addDays } from 'date-fns';
 import DataLoader from '@/src/components/DataLoader';
 import { Button } from '@/src/components/ui/button';
-import { ArrowUpDown, MoreHorizontal, Trash2, CheckCheck } from "lucide-react"
+import { Trash2, CheckCheck, Eye, MoreVertical } from "lucide-react"
 import OrderTable from './OrderTable';
 import ViewOrderDialog from './ViewOrderDialog';
 import { deleteOrder, readyOrder } from '@/src/actions/order';
@@ -18,9 +14,6 @@ import {
 	useQuery,
 	useMutation,
 	useQueryClient,
-	QueryClient,
-	QueryClientProvider,
-	useInfiniteQuery,
 	keepPreviousData
 } from '@tanstack/react-query';
 import { Select, SelectContent, SelectValue, SelectTrigger, SelectItem } from '@/src/components/ui/select';
@@ -34,36 +27,78 @@ import {
 } from '@/src/components/ui/popover';
 import { cn } from '@/src/lib/utils';
 import { Calendar } from '@/src/components/ui/calendar';
-import { useInvalidateQueries } from '../../orders/layout';
 import { Input } from '@/src/components/ui/input';
 import axios from 'axios';
-import { Dialog, DialogTitle, DialogTrigger, DialogContent } from '@/src/components/ui/dialog';
+import { useRouter } from 'next/navigation';
+import TrackingDialog from './TrackingDialog';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from '@/src/components/ui/dropdown-menu';
+import {
+	Sheet,
+	SheetContent,
+	SheetFooter,
+	SheetHeader,
+	SheetTitle,
+} from '@/src/components/ui/sheet';
+import { Badge } from '@/src/components/ui/badge';
 
 interface Order {
 	id: string;
 	orderId: string;
 	date: Date;
+	status: string;
+	paymentStatus?: string;
+	paymentType?: string | null;
+	paymentProofImage?: string | null;
+	shippingCharge?: number;
 	cart: {
 		CartProduct: any[];
 	};
 	total: number;
 	shippingAddress: any;
 	user: any;
+	walletPaymentRequests?: {
+		id: string;
+		status: string;
+		amount: number;
+		image: string;
+		paymentType: string;
+	}[];
 }
 
-const getCurrTime = () => {
-	const currentTime = new Date();
-	const ISTOffset = 5.5 * 60 * 60 * 1000;
-	const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-	return ISTTime;
+function getPaymentStatusDisplay(order: Order) {
+	if (order.paymentType === 'credit_limit') {
+		return { label: 'Credit', tone: 'secondary' as const };
+	}
+	if (order.paymentStatus === 'COMPLETED') {
+		return { label: 'Paid / verified', tone: 'success' as const };
+	}
+	const hasPendingWallet = order.walletPaymentRequests?.some(
+		(w) => w.status === 'PENDING'
+	);
+	if (hasPendingWallet || order.paymentProofImage) {
+		return { label: 'Verification pending', tone: 'destructive' as const };
+	}
+	return { label: 'Pending', tone: 'outline' as const };
 }
+
+function getPendingPaymentWalletRequest(order: Order) {
+	return order.walletPaymentRequests?.find((w) => w.status === 'PENDING');
+}
+
 const todatDate = new Date();
 
 const PendingOrders = () => {
-	// const [isError, setIsError] = useState(false);
+	const router = useRouter();
 	const queryClient = useQueryClient();
-	const invalidateQueries = useInvalidateQueries();
+	const [verifyOpen, setVerifyOpen] = useState(false);
+	const [verifyOrder, setVerifyOrder] = useState<Order | null>(null);
 	const [search, setSearch] = useState('');
+	const [statusFilter, setStatusFilter] = useState('ALL');
 	const [downloading, setDownloading] = useState(false);
 	const [firstTime, setFirstTime] = useState(true);
 	const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -78,7 +113,7 @@ const PendingOrders = () => {
 			"/api/orders/getOrderslist", {
 			method: "POST",
 			body: JSON.stringify({
-				status: "PENDING",
+				status: statusFilter,
 				pageNum: pageParam,
 				pageSize: pageSizeParam,
 				dateRange: dateRange,
@@ -99,9 +134,9 @@ const PendingOrders = () => {
 		return data;
 	}
 
-	const { isPending, isError, error, data, isFetching, isPlaceholderData } =
+	const { data, isFetching } =
 		useQuery({
-			queryKey: ['pendingOrders', page, pageSize, dateRange],
+			queryKey: ['orders', page, pageSize, dateRange, statusFilter],
 			queryFn: () => fetchPendingOrders(page, pageSize, dateRange),
 			placeholderData: keepPreviousData,
 			// staleTime: 5 * 60 * 1000,
@@ -125,10 +160,10 @@ const PendingOrders = () => {
 		mutationFn: (id: string) => deleteOrder(id),
 		onMutate: async (id: string) => {
 			console.log(id);
-			await queryClient.cancelQueries({ queryKey: ['pendingOrders', page, pageSize, dateRange] });
-			const previousOrders = queryClient.getQueryData(['pendingOrders', page, pageSize, dateRange]);
+			await queryClient.cancelQueries({ queryKey: ['orders', page, pageSize, dateRange, statusFilter] });
+			const previousOrders = queryClient.getQueryData(['orders', page, pageSize, dateRange, statusFilter]);
 			console.log(previousOrders);
-			queryClient.setQueryData(['pendingOrders', page, pageSize, dateRange], (old: any) => {
+			queryClient.setQueryData(['orders', page, pageSize, dateRange, statusFilter], (old: any) => {
 				console.log(old);
 				old.data.pendingOrders = old.data.pendingOrders.filter((order: any) => order.id !== id)
 				return old;
@@ -138,14 +173,12 @@ const PendingOrders = () => {
 		},
 		onError: (err, newTodo, context: any) => {
 			console.log(err);
-			queryClient.setQueryData(['pendingOrders', page, pageSize], context.previousOrders);
+			queryClient.setQueryData(['orders', page, pageSize], context.previousOrders);
 		},
 		onSuccess: () => {
-			// Invalidate the queries you want to refetch
-			invalidateQueries();
 			queryClient.invalidateQueries({
                 predicate: (query) =>
-                    query.queryKey[0] === 'pendingOrders' || query.queryKey[0] === 'rejectedOrders'
+                    query.queryKey[0] === 'orders'
             });
 		},
 	})
@@ -156,16 +189,49 @@ const PendingOrders = () => {
 			console.log(err);
 			queryClient.invalidateQueries({
                 predicate: (query) =>
-                    query.queryKey[0] === 'pendingOrders' || query.queryKey[0] === 'readyOrders'
+                    query.queryKey[0] === 'orders'
             });
 		},
 		onSuccess: () => {
-			// Invalidate the queries you want to refetch
-			invalidateQueries();
 			queryClient.invalidateQueries({
                 predicate: (query) =>
-                    query.queryKey[0] === 'pendingOrders' || query.queryKey[0] === 'readyOrders'
+                    query.queryKey[0] === 'orders'
             });
+		},
+	});
+
+	const verifyPaymentMutation = useMutation({
+		mutationFn: async ({
+			id,
+			action,
+		}: {
+			id: string;
+			action: 'approve' | 'reject';
+		}) => {
+			const res = await fetch('/api/wallet-request', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+				body: JSON.stringify({ id, action }),
+			});
+			const json = await res.json();
+			if (!res.ok) {
+				throw new Error(json.error || 'Request failed');
+			}
+			return json;
+		},
+		onSuccess: () => {
+			toast.success('Wallet / payment updated');
+			setVerifyOpen(false);
+			setVerifyOrder(null);
+			queryClient.invalidateQueries({
+				predicate: (query) => query.queryKey[0] === 'orders',
+			});
+			queryClient.invalidateQueries({
+				predicate: (query) => query.queryKey[0] === 'wallet-requests',
+			});
+		},
+		onError: (err: Error) => {
+			toast.error(err.message || 'Verification failed');
 		},
 	});
 
@@ -178,7 +244,7 @@ const PendingOrders = () => {
 	const fetchOrderById = async (orderId: string) => {
 		const res = await fetch("/api/orders/getOrderById", {
 			method: "POST",
-			body: JSON.stringify({ orderId, status: 'PENDING' }),
+			body: JSON.stringify({ orderId, status: statusFilter === 'ALL' ? undefined : statusFilter }),
 			headers: {
 				"Content-type": "application/json; charset=UTF-8"
 			}
@@ -194,16 +260,7 @@ const PendingOrders = () => {
 		}
 		else {
 			await searchOrderQuery.refetch();
-			if (searchOrderQuery.isSuccess && searchOrderQuery.data && searchOrderQuery.data.success) {
-				// If the order is found, update the local state to show this order
-				queryClient.setQueryData(['pendingOrders', page, pageSize, dateRange], (old: any) => ({
-					...old,
-					data: {
-						...old.data,
-						pendingOrders: [searchOrderQuery.data]
-					}
-				}));
-			} else if (searchOrderQuery.isError || (searchOrderQuery.data && !searchOrderQuery.data.success)) {
+			if (searchOrderQuery.isError || (searchOrderQuery.data && !searchOrderQuery.data.success)) {
 				if ((searchOrderQuery.data && !searchOrderQuery.data.success)) {
 					toast.error(searchOrderQuery.data.message);
 				}
@@ -216,6 +273,23 @@ const PendingOrders = () => {
 	const ordersToDisplay = searchOrderQuery.isSuccess && searchOrderQuery.data && searchOrderQuery.data.success
 		? [searchOrderQuery.data.data]
 		: data?.data?.pendingOrders || [];
+
+	const getStatusLabel = (status: string) => {
+		switch (status) {
+			case 'PENDING':
+				return 'Pending';
+			case 'PROCESSING':
+				return 'Accepted';
+			case 'TRACKINGPENDING':
+				return 'Tracking Pending';
+			case 'SHIPPED':
+				return 'Shipped';
+			case 'CANCELLED':
+				return 'Rejected';
+			default:
+				return status;
+		}
+	};
 	console.log('ordersToDisplay:', ordersToDisplay);
 	const columns: ColumnDef<Order>[] = [
 		{
@@ -223,10 +297,7 @@ const PendingOrders = () => {
 			accessorKey: 'orderId',
 			cell: ({ row }) => {
 				return (
-					<>
-						<div className="text-gray-600">Order Id:</div>
-						<ViewOrderDialog data={row.original} />
-					</>
+					<div className="font-semibold text-gray-800">{row.original.orderId}</div>
 				)
 			}
 		},
@@ -235,12 +306,9 @@ const PendingOrders = () => {
 			accessorKey: 'date',
 			cell: ({ row }) => {
 				return (
-					<>
-						<div className="text-gray-600">Order Date:</div>
-						<div className="font-semibold text-gray-800">
-							{format(new Date(row.original.date), "dd/MM/yyyy")}
-						</div>
-					</>
+					<div className="font-semibold text-gray-800">
+						{format(new Date(row.original.date), "dd/MM/yyyy")}
+					</div>
 				)
 			}
 		},
@@ -249,12 +317,9 @@ const PendingOrders = () => {
 			accessorKey: 'orderId',
 			cell: ({ row }) => {
 				return (
-					<>
-						<div className="text-gray-600">Customer:</div>
-						<div className="font-semibold text-gray-800">
-							{row.original.user.name}
-						</div>
-					</>
+					<div className="font-semibold text-gray-800">
+						{row.original.user.name}
+					</div>
 				)
 			}
 		},
@@ -262,14 +327,11 @@ const PendingOrders = () => {
 			header: 'Units',
 			cell: ({ row }) => {
 				return (
-					<>
-						<div className="text-gray-600">Units:</div>
-						<div className="font-semibold text-gray-800">
-							{row.original.cart.CartProduct.reduce((sum, product) =>
-								sum + product.sizes.reduce((sizeSum: number, size: any) => sizeSum + size.quantity, 0)
-								, 0)}
-						</div>
-					</>
+					<div className="font-semibold text-gray-800">
+						{row.original.cart.CartProduct.reduce((sum, product) =>
+							sum + product.sizes.reduce((sizeSum: number, size: any) => sizeSum + size.quantity, 0)
+							, 0)}
+					</div>
 				)
 			}
 		},
@@ -277,75 +339,119 @@ const PendingOrders = () => {
 			header: 'Amounts',
 			accessorKey: 'total',
 			cell: ({ row }) => {
-				console.log(row);
-				const amount = row.original.total;
-				const formatted = new Intl.NumberFormat("en-IN", {
+				const sub = Number(row.original.total) || 0;
+				const ship = Number(row.original.shippingCharge ?? 0) || 0;
+				const grand = sub + ship;
+				const fmt = new Intl.NumberFormat("en-IN", {
 					style: "currency",
 					currency: "INR",
-				}).format(amount)
+				});
 				return (
-					<>
-						<>
-							<div className="text-gray-600">Amount:</div>
-							<div className="font-semibold text-gray-800">
-								{`${formatted} + shipping`}
-							</div>
-						</>
-					</>
-				)
+					<div className="font-semibold text-gray-800 text-xs leading-snug space-y-0.5">
+						<div>Subtotal {fmt.format(sub)}</div>
+						<div>Shipping {fmt.format(ship)}</div>
+						<div className="border-t border-gray-200 pt-0.5 mt-0.5">
+							Total {fmt.format(grand)}
+						</div>
+					</div>
+				);
 			},
 		},
 		{
-			header: 'Ready Order',
+			header: 'Status',
+			accessorKey: 'status',
 			cell: ({ row }) => {
 				return (
-					<Dialog>
-						<DialogTrigger asChild>
-							<Button
-								// variant={'destructive'}
-								className='bg-green-500 hover:bg-green-700'
-								aria-label='delete order'
-								disabled={moveMutation.isPending || deleteMutation.isPending}
-							>
-								<CheckCheck className="h-5 w-5 mr-2" />
-								Order Ready
-							</Button>
-						</DialogTrigger>
-						<DialogContent>
-							<DialogTitle>
-								{`Is order ${row.original.orderId} ready?`}
-							</DialogTitle>
-							<div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
-								<div className="flex items-center">
-									<svg className="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-										<path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-									</svg>
-									<p className="font-bold text-lg">Warning!</p>
-								</div>
-								<p className="mt-2 font-semibold">
-									⚠️ This process is irreversible! ⚠️
-								</p>
-							</div>
-							<Button
-								// variant={'destructive'}
-								className='bg-green-500 hover:bg-green-700'
-								aria-label='delete order'
-								onClick={async (e: any) => {
-									e.preventDefault();
-									await moveMutation.mutate(row.original.id)
-								}}
-								disabled={moveMutation.isPending || deleteMutation.isPending}
-							>
-								<CheckCheck className="h-5 w-5 mr-2" />
-								Order Ready
-							</Button>
-						</DialogContent>
-					</Dialog>
-
+					<div className="font-semibold text-gray-800">
+						{getStatusLabel(row.original.status)}
+					</div>
 				)
 			},
 		},
 		{
+			header: 'Payment',
+			cell: ({ row }) => {
+				const pay = getPaymentStatusDisplay(row.original);
+				return (
+					<Badge variant={pay.tone}>{pay.label}</Badge>
+				);
+			},
+		},
+		{
+			header: 'Actions',
+			cell: ({ row }) => {
+				const orderStatus = row.original.status;
+				const pendingWr = getPendingPaymentWalletRequest(row.original);
+				return (
+					<div className="flex flex-wrap items-center gap-2">
+						<ViewOrderDialog
+							data={row.original}
+							triggerContent={
+								<Button variant="outline" size="sm">
+									<Eye className="h-4 w-4 mr-1" />
+									View
+								</Button>
+							}
+						/>
+						{pendingWr && (
+							<Button
+								variant="secondary"
+								size="sm"
+								onClick={() => {
+									setVerifyOrder(row.original);
+									setVerifyOpen(true);
+								}}
+							>
+								Verify payment
+							</Button>
+						)}
+						{orderStatus === 'PENDING' && (
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant="outline" size="icon" className="h-8 w-8">
+										<MoreVertical className="h-4 w-4" />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end" className="w-44">
+									<DropdownMenuItem
+										onClick={async () => {
+											await moveMutation.mutate(row.original.id)
+										}}
+										disabled={moveMutation.isPending || deleteMutation.isPending}
+									>
+										<CheckCheck className="h-4 w-4 mr-2" />
+										Accept Order
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										onClick={async () => {
+											await deleteMutation.mutate(row.original.id)
+										}}
+										disabled={moveMutation.isPending || deleteMutation.isPending}
+										className="text-red-600 focus:text-red-600"
+									>
+										<Trash2 className="h-4 w-4 mr-2" />
+										Reject Order
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						)}
+						{orderStatus === 'PROCESSING' && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => router.push(`/confirm-online-order/${row.original.orderId}`)}
+							>
+								Accept Order
+							</Button>
+						)}
+						{orderStatus === 'TRACKINGPENDING' && (
+							<TrackingDialog data={row.original.orderId} />
+						)}
+					</div>
+				)
+			},
+		},
+		/*{
 			header: 'Delete Order',
 			cell: ({ row }) => {
 				return (
@@ -392,7 +498,7 @@ const PendingOrders = () => {
 					</Dialog>
 				)
 			},
-		},
+		},*/
 	];
 
 	if (isFetching || searchOrderQuery.isFetching) {
@@ -455,6 +561,19 @@ const PendingOrders = () => {
 						}
 						onChange={(e) => { setSearch(e.target.value); }}
 					></Input>
+					<Select value={statusFilter} onValueChange={setStatusFilter}>
+						<SelectTrigger className="w-48">
+							<SelectValue placeholder="Filter by status" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="ALL">All Status</SelectItem>
+							<SelectItem value="PENDING">Pending</SelectItem>
+							<SelectItem value="PROCESSING">Accepted</SelectItem>
+							<SelectItem value="TRACKINGPENDING">Tracking Pending</SelectItem>
+							<SelectItem value="SHIPPED">Shipped</SelectItem>
+							<SelectItem value="CANCELLED">Rejected</SelectItem>
+						</SelectContent>
+					</Select>
 				</div>
 				<Card className="w-full max-w-md mx-auto mt-8 mb-2">
 					<CardContent className="flex flex-col items-center justify-center p-6">
@@ -463,7 +582,7 @@ const PendingOrders = () => {
 							No pending Orders
 						</h3>
 						<p className="text-sm text-gray-500 text-center">
-							There are currently no orders in the pending state.
+							There are currently no orders for selected filters.
 						</p>
 					</CardContent>
 				</Card>
@@ -555,6 +674,19 @@ const PendingOrders = () => {
 					}
 					onChange={(e) => { setSearch(e.target.value); }}
 				></Input>
+				<Select value={statusFilter} onValueChange={setStatusFilter}>
+					<SelectTrigger className="w-48">
+						<SelectValue placeholder="Filter by status" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="ALL">All Status</SelectItem>
+						<SelectItem value="PENDING">Pending</SelectItem>
+						<SelectItem value="PROCESSING">Accepted</SelectItem>
+						<SelectItem value="TRACKINGPENDING">Tracking Pending</SelectItem>
+						<SelectItem value="SHIPPED">Shipped</SelectItem>
+						<SelectItem value="CANCELLED">Rejected</SelectItem>
+					</SelectContent>
+				</Select>
 				<Button
 					type='button'
 					disabled={!(!addressQuery.isFetching && addressQuery.data && addressQuery.data.data) || downloading}
@@ -625,6 +757,76 @@ const PendingOrders = () => {
 					</div>
 				</div>
 			</div>
+			<Sheet
+				open={verifyOpen}
+				onOpenChange={(open) => {
+					setVerifyOpen(open);
+					if (!open) setVerifyOrder(null);
+				}}
+			>
+				<SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+					<SheetHeader>
+						<SheetTitle>Verify order payment</SheetTitle>
+					</SheetHeader>
+					{verifyOrder && (() => {
+						const wr = getPendingPaymentWalletRequest(verifyOrder);
+						const proofUrl = wr?.image || verifyOrder.paymentProofImage || '';
+						const amount =
+							wr?.amount ??
+							(verifyOrder.total + (verifyOrder.shippingCharge || 0));
+						return (
+							<div className="mt-4 space-y-4">
+								<p className="text-sm text-muted-foreground">
+									Order <span className="font-mono font-semibold">{verifyOrder.orderId}</span>
+									{' · '}
+									Reseller: {verifyOrder.user?.name || verifyOrder.user?.phoneNumber || '—'}
+								</p>
+								<p className="text-sm">
+									Amount:{' '}
+									<span className="font-semibold">
+										{new Intl.NumberFormat('en-IN', {
+											style: 'currency',
+											currency: 'INR',
+										}).format(amount)}
+									</span>
+									{wr?.paymentType && (
+										<span className="ml-2 text-muted-foreground">
+											via {wr.paymentType}
+										</span>
+									)}
+								</p>
+								{proofUrl ? (
+									<div className="rounded-md border p-2">
+										{/* eslint-disable-next-line @next/next/no-img-element */}
+										<img
+											src={proofUrl}
+											alt="Payment proof"
+											className="max-h-[60vh] w-full object-contain"
+										/>
+									</div>
+								) : (
+									<p className="text-sm text-muted-foreground">No screenshot on file.</p>
+								)}
+								<SheetFooter className="flex flex-row gap-2 sm:justify-end pt-4">
+									<Button
+										variant="outline"
+										disabled={verifyPaymentMutation.isPending || !wr}
+										onClick={() => wr && verifyPaymentMutation.mutate({ id: wr.id, action: 'reject' })}
+									>
+										Reject
+									</Button>
+									<Button
+										disabled={verifyPaymentMutation.isPending || !wr}
+										onClick={() => wr && verifyPaymentMutation.mutate({ id: wr.id, action: 'approve' })}
+									>
+										Approve payment
+									</Button>
+								</SheetFooter>
+							</div>
+						);
+					})()}
+				</SheetContent>
+			</Sheet>
 		</>
 	)
 }
