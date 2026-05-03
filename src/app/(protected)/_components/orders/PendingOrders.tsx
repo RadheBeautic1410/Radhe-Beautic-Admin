@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ColumnDef } from '@tanstack/react-table';
 import { format, addDays } from 'date-fns';
 import DataLoader from '@/src/components/DataLoader';
 import { Button } from '@/src/components/ui/button';
-import { Trash2, CheckCheck, Eye, MoreVertical } from "lucide-react"
+import { Trash2, CheckCheck, Eye, MoreVertical, Download, FileText } from "lucide-react"
 import OrderTable from './OrderTable';
 import ViewOrderDialog from './ViewOrderDialog';
 import { deleteOrder, readyOrder } from '@/src/actions/order';
@@ -28,13 +29,13 @@ import {
 import { cn } from '@/src/lib/utils';
 import { Calendar } from '@/src/components/ui/calendar';
 import { Input } from '@/src/components/ui/input';
-import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import TrackingDialog from './TrackingDialog';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/src/components/ui/dropdown-menu';
 import {
@@ -90,6 +91,88 @@ function getPendingPaymentWalletRequest(order: Order) {
 	return order.walletPaymentRequests?.find((w) => w.status === 'PENDING');
 }
 
+/** Label row (same shape as bulk `getAddresses()` for pending orders). */
+type ShippingLabelRow = {
+	orderId: string;
+	shippingAddress: { address: string };
+};
+
+function buildOrderLabelPayload(order: Order): ShippingLabelRow[] {
+	return [
+		{
+			orderId: order.orderId,
+			shippingAddress: {
+				address: order.shippingAddress?.address || '',
+			},
+		},
+	];
+}
+
+/** Same barcode image source as legacy PDF server (`Radhe-Beutic-Server` /generate-label). */
+function shippingLabelBarcodeUrl(orderId: string) {
+	return `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(orderId)}&scale=10&height=8&width=29&includetext&padding=6&textcolor=000`;
+}
+
+/** Portaled to document.body so print CSS can hide `body > #__next` without hiding the label. */
+const LABEL_PRINT_PORTAL_ID = 'labels-print-portal';
+
+/** 4×6 @page like sellRetailer invoice. */
+const LABEL_PRINT_CSS = `
+@page {
+  size: 4in 6in;
+  margin: 0;
+}
+@media print {
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  body > *:not(#${LABEL_PRINT_PORTAL_ID}) {
+    display: none !important;
+  }
+  #${LABEL_PRINT_PORTAL_ID} {
+    display: block !important;
+    position: static !important;
+    width: 4in !important;
+    max-width: 4in !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  #${LABEL_PRINT_PORTAL_ID} .labels-print-toolbar,
+  #${LABEL_PRINT_PORTAL_ID} .labels-print-toolbar * {
+    display: none !important;
+  }
+  #${LABEL_PRINT_PORTAL_ID} .labels-print-sheet {
+    display: block !important;
+    width: 4in !important;
+    height: 6in !important;
+    box-sizing: border-box !important;
+    padding: 3mm !important;
+    margin: 0 !important;
+    page-break-after: always !important;
+    break-inside: avoid !important;
+    overflow: hidden !important;
+    border: none !important;
+  }
+  #${LABEL_PRINT_PORTAL_ID} .labels-print-sheet:last-of-type {
+    page-break-after: auto !important;
+  }
+  #${LABEL_PRINT_PORTAL_ID} .labels-print-sheet img {
+    display: block !important;
+    max-width: 100% !important;
+  }
+  #${LABEL_PRINT_PORTAL_ID} .labels-print-sheet p {
+    display: block !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+`;
+
 const todatDate = new Date();
 
 const PendingOrders = () => {
@@ -99,7 +182,11 @@ const PendingOrders = () => {
 	const [verifyOrder, setVerifyOrder] = useState<Order | null>(null);
 	const [search, setSearch] = useState('');
 	const [statusFilter, setStatusFilter] = useState('ALL');
-	const [downloading, setDownloading] = useState(false);
+	const [labelsPrintBatch, setLabelsPrintBatch] = useState<ShippingLabelRow[] | null>(null);
+	const [labelPortalReady, setLabelPortalReady] = useState(false);
+	useEffect(() => {
+		setLabelPortalReady(true);
+	}, []);
 	const [firstTime, setFirstTime] = useState(true);
 	const [dateRange, setDateRange] = useState<DateRange | undefined>({
 		from: addDays(todatDate, -20),
@@ -154,6 +241,76 @@ const PendingOrders = () => {
 		staleTime: 5 * 60 * 1000,
 	})
 
+	const printShippingLabels = (labelsData: ShippingLabelRow[]) => {
+		if (!labelsData || labelsData.length === 0) {
+			toast.error('No labels to print');
+			return;
+		}
+		setLabelsPrintBatch(labelsData);
+	};
+
+	useEffect(() => {
+		if (!labelsPrintBatch?.length) return;
+		let cancelled = false;
+		const onAfterPrint = () => {
+			if (!cancelled) setLabelsPrintBatch(null);
+		};
+		window.addEventListener('afterprint', onAfterPrint);
+		const t = window.setTimeout(() => {
+			if (!cancelled) window.print();
+		}, 150);
+		return () => {
+			cancelled = true;
+			window.clearTimeout(t);
+			window.removeEventListener('afterprint', onAfterPrint);
+		};
+	}, [labelsPrintBatch]);
+
+	const labelsPrintPortal =
+		labelPortalReady &&
+		labelsPrintBatch &&
+		labelsPrintBatch.length > 0 &&
+		typeof document !== 'undefined'
+			? createPortal(
+					<div
+						id={LABEL_PRINT_PORTAL_ID}
+						className="labels-print-area fixed left-1/2 top-20 z-[200] w-[4in] max-w-[calc(100vw-1.5rem)] -translate-x-1/2 rounded-lg border bg-white p-4 shadow-lg print:static print:left-auto print:top-auto print:z-auto print:max-w-none print:translate-x-0 print:rounded-none print:border-0 print:p-0 print:shadow-none"
+					>
+						<style dangerouslySetInnerHTML={{ __html: LABEL_PRINT_CSS }} />
+						<div className="labels-print-toolbar mb-4 flex justify-end">
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => setLabelsPrintBatch(null)}
+							>
+								Close preview
+							</Button>
+						</div>
+						{labelsPrintBatch.map((row, index) => (
+							<div
+								key={`${row.orderId}-${index}`}
+								className="labels-print-sheet mb-4 box-border min-h-[6in] w-[4in] max-w-full border border-dashed border-gray-200 last:mb-0 print:mb-0 print:min-h-0"
+							>
+								{/* eslint-disable-next-line @next/next/no-img-element */}
+								<img
+									src={shippingLabelBarcodeUrl(row.orderId)}
+									alt=""
+									className="mb-2 h-[48px] w-[140px] max-w-full object-contain print:mb-1 print:h-[44px]"
+								/>
+								<p className="text-xs font-semibold leading-tight print:text-[10px]">
+									Order ID: {row.orderId}
+								</p>
+								<p className="mt-1 text-xs text-gray-600 print:text-[9px]">Address</p>
+								<p className="mt-0.5 max-h-[3.2in] overflow-hidden text-xs leading-snug print:text-[9px] print:leading-tight">
+									{row.shippingAddress?.address || '—'}
+								</p>
+							</div>
+						))}
+					</div>,
+					document.body
+				)
+			: null;
 
 	console.log('query-data', data);
 	const deleteMutation = useMutation({
@@ -178,7 +335,8 @@ const PendingOrders = () => {
 		onSuccess: () => {
 			queryClient.invalidateQueries({
                 predicate: (query) =>
-                    query.queryKey[0] === 'orders'
+                    query.queryKey[0] === 'orders' ||
+                    query.queryKey[0] === 'wallet-requests'
             });
 		},
 	})
@@ -382,6 +540,9 @@ const PendingOrders = () => {
 			cell: ({ row }) => {
 				const orderStatus = row.original.status;
 				const pendingWr = getPendingPaymentWalletRequest(row.original);
+				const showPendingActions = orderStatus === 'PENDING';
+				const showProcessingActions = orderStatus === 'PROCESSING';
+				const showExtraSeparator = showPendingActions || showProcessingActions;
 				return (
 					<div className="flex flex-wrap items-center gap-2">
 						<ViewOrderDialog
@@ -405,48 +566,84 @@ const PendingOrders = () => {
 								Verify payment
 							</Button>
 						)}
-						{orderStatus === 'PENDING' && (
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button variant="outline" size="icon" className="h-8 w-8">
-										<MoreVertical className="h-4 w-4" />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end" className="w-44">
-									<DropdownMenuItem
-										onClick={async () => {
-											await moveMutation.mutate(row.original.id)
-										}}
-										disabled={moveMutation.isPending || deleteMutation.isPending}
-									>
-										<CheckCheck className="h-4 w-4 mr-2" />
-										Accept Order
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onClick={async () => {
-											await deleteMutation.mutate(row.original.id)
-										}}
-										disabled={moveMutation.isPending || deleteMutation.isPending}
-										className="text-red-600 focus:text-red-600"
-									>
-										<Trash2 className="h-4 w-4 mr-2" />
-										Reject Order
-									</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
-						)}
-						{orderStatus === 'PROCESSING' && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => router.push(`/confirm-online-order/${row.original.orderId}`)}
-							>
-								Accept Order
-							</Button>
-						)}
 						{orderStatus === 'TRACKINGPENDING' && (
 							<TrackingDialog data={row.original.orderId} />
 						)}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="outline"
+									size="icon"
+									className="h-8 w-8"
+									aria-label="More actions"
+								>
+									<MoreVertical className="h-4 w-4" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-52">
+								<DropdownMenuItem
+									onClick={() =>
+										printShippingLabels(buildOrderLabelPayload(row.original))
+									}
+									disabled={!!labelsPrintBatch}
+								>
+									<Download className="h-4 w-4 mr-2" />
+									Print label
+								</DropdownMenuItem>
+								{showExtraSeparator ? <DropdownMenuSeparator /> : null}
+								{showPendingActions && (
+									<>
+										<DropdownMenuItem
+											onClick={async () => {
+												await moveMutation.mutate(row.original.id);
+											}}
+											disabled={
+												moveMutation.isPending || deleteMutation.isPending
+											}
+										>
+											<CheckCheck className="h-4 w-4 mr-2" />
+											Accept order
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={async () => {
+												await deleteMutation.mutate(row.original.id);
+											}}
+											disabled={
+												moveMutation.isPending || deleteMutation.isPending
+											}
+											className="text-red-600 focus:text-red-600"
+										>
+											<Trash2 className="h-4 w-4 mr-2" />
+											Reject order
+										</DropdownMenuItem>
+									</>
+								)}
+								{showProcessingActions && (
+									<>
+										<DropdownMenuItem
+											onClick={() =>
+												router.push(
+													`/confirm-online-order/${row.original.orderId}`
+												)
+											}
+										>
+											<FileText className="h-4 w-4 mr-2" />
+											Create bill
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={() => deleteMutation.mutate(row.original.id)}
+											disabled={
+												moveMutation.isPending || deleteMutation.isPending
+											}
+											className="text-red-600 focus:text-red-600"
+										>
+											<Trash2 className="h-4 w-4 mr-2" />
+											Reject order
+										</DropdownMenuItem>
+									</>
+								)}
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 				)
 			},
@@ -503,13 +700,17 @@ const PendingOrders = () => {
 
 	if (isFetching || searchOrderQuery.isFetching) {
 		return (
-			<DataLoader loading={isFetching || searchOrderQuery.isFetching} />
+			<>
+				{labelsPrintPortal}
+				<DataLoader loading={isFetching || searchOrderQuery.isFetching} />
+			</>
 		)
 	}
 
 	if (!data.data?.pendingOrders || data.data?.pendingOrders.length === 0) {
 		return (
 			<>
+				{labelsPrintPortal}
 				<div className="flex flex-row gap-2 items-center m-3">
 					<Popover>
 						<PopoverTrigger asChild>
@@ -590,39 +791,9 @@ const PendingOrders = () => {
 		)
 	}
 
-	const downlodLabels = async (labelsData: any) => {
-		try {
-			if (!labelsData || labelsData.length === 0) {
-				toast.error('Labels no available');
-				return;
-			}
-			setDownloading(true);
-			let obj = JSON.stringify(labelsData);
-			const res = await axios.get(`${process.env.NEXT_PUBLIC_SERVER_URL}/generate-label?data=${obj}`, {
-				responseType: 'blob'
-			});
-			console.log(res);
-			let blob = res.data;
-			console.log(blob);
-			const url = window.URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = 'labels.pdf';
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			window.URL.revokeObjectURL(url);
-		}
-		catch (e) {
-			console.log(e);
-		}
-		finally {
-			setDownloading(false);
-		}
-	}
-
 	return (
 		<>
+			{labelsPrintPortal}
 			<div className="flex flex-row gap-2 items-center m-3">
 				<Popover>
 					<PopoverTrigger asChild>
@@ -689,10 +860,13 @@ const PendingOrders = () => {
 				</Select>
 				<Button
 					type='button'
-					disabled={!(!addressQuery.isFetching && addressQuery.data && addressQuery.data.data) || downloading}
-					onClick={() => downlodLabels(addressQuery.data.data)}
+					disabled={
+						!(!addressQuery.isFetching && addressQuery.data && addressQuery.data.data) ||
+						!!labelsPrintBatch
+					}
+					onClick={() => printShippingLabels(addressQuery.data.data)}
 				>
-					Download Labels
+					Print labels
 				</Button>
 			</div>
 			<OrderTable data={ordersToDisplay} columns={columns} />

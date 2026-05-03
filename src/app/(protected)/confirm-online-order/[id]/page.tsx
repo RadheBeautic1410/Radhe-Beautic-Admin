@@ -513,7 +513,15 @@ function SellPage() {
       }
     } catch (error) {
       console.error("Error selling products:", error);
-      toast.error("Error processing sale");
+      let detail: string | null = null;
+      if (axios.isAxiosError(error) && error.response?.data) {
+        const body = error.response.data as {
+          error?: string;
+          data?: { error?: string };
+        };
+        detail = body.error ?? body.data?.error ?? null;
+      }
+      toast.error(detail || "Error processing sale");
     } finally {
       setSelling(false);
     }

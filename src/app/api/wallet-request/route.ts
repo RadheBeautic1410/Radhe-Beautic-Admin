@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
               shippingCharge: true,
               paymentStatus: true,
               paymentType: true,
+              status: true,
             },
           },
         },

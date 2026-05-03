@@ -297,10 +297,9 @@ export const deleteOrder = async (orderId: string) => {
       const cartProducts = await transaction.orders.findUnique({
         where: {
           id: orderId,
-          // userId: curUser.id,
-          status: "PENDING",
         },
         select: {
+          status: true,
           cartId: true,
           cart: {
             select: {
@@ -318,6 +317,13 @@ export const deleteOrder = async (orderId: string) => {
           },
         },
       });
+      if (
+        !cartProducts ||
+        (cartProducts.status !== "PENDING" &&
+          cartProducts.status !== "PROCESSING")
+      ) {
+        return null;
+      }
       const cartId: any = cartProducts?.cartId;
       const products: any = cartProducts?.cart.CartProduct;
       if (cartId && products?.length && products.length > 0) {
@@ -333,6 +339,17 @@ export const deleteOrder = async (orderId: string) => {
           }
         }
         if (cnt === products.length) {
+          await transaction.walletRequest.updateMany({
+            where: {
+              linkedOrderId: orderId,
+              status: "PENDING",
+            },
+            data: {
+              status: "REJECTED",
+              approvedBy: curUser.id,
+              approvedAt: new Date(),
+            },
+          });
           await transaction.orders.update({
             where: {
               id: orderId,

@@ -1906,6 +1906,17 @@ function updateSizeQuantity(sizes: any[], size: string, change: number): any[] {
   return sizes;
 }
 
+/** Match `sizes` / `reservedSizes` rows when casing differs (e.g. DB `s` vs UI `S`). */
+function findSizeRowInsensitive(
+  sizes: any[] | null | undefined,
+  sizeKey: string
+) {
+  const u = String(sizeKey).toUpperCase();
+  return (
+    (sizes || []).find((s: any) => String(s.size).toUpperCase() === u) ?? null
+  );
+}
+
 /**
  * Sell multiple online kurtis with optimized transaction handling
  *
@@ -2058,7 +2069,10 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                 if (cp.kurtiId !== kurtiId) return false;
                 const sizesArr = (cp.sizes || []) as any[];
                 return sizesArr.some(
-                  (s) => s.size.toUpperCase() === cmp.toUpperCase()
+                  (s) =>
+                    String(s.size || "").toUpperCase() === cmp.toUpperCase() ||
+                    String(s.actualSize || "").toUpperCase() ===
+                      cmp.toUpperCase()
                 );
               }
             );
@@ -2096,28 +2110,9 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               order.cart.CartProduct.push({
                 ...newCP,
               });
-            } else {
-              // increase quantity in cart if already there
-              const sizesArr = (existingCartProduct.sizes || []) as any[];
-              const idx = sizesArr.findIndex((s) => s.size === cmp);
-
-              if (idx >= 0) {
-                sizesArr[idx] = {
-                  ...sizesArr[idx],
-                  quantity: (sizesArr[idx].quantity || 0) + quantity,
-                };
-
-                const updatedCP = await tx.cartProduct.update({
-                  where: { id: existingCartProduct.id },
-                  data: {
-                    sizes: sizesArr,
-                  },
-                });
-
-                // sync local
-                Object.assign(existingCartProduct, updatedCP);
-              }
             }
+            // Fulfilling a line that already exists on the order: do not mutate CartProduct.sizes.
+            // Those quantities are the order snapshot; adding sold qty here doubled units on /orders/pending.
 
             // Find the Kurti with reservedSizes
             const kurtiFromDB = await tx.kurti.findUnique({
@@ -2138,10 +2133,12 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
 
             // 🔴 CHANGED: unified stock check + conditional reservedSizes check
 
-            // ✅ Always validate main stock
-            const sizeInSizes: any = kurtiFromDB.sizes.find(
-              (s: any) => s.size === cmp
+            // ✅ Always validate main stock (total physical qty includes reserved)
+            const sizeInSizes: any = findSizeRowInsensitive(
+              kurtiFromDB.sizes,
+              cmp
             );
+            const stockSizeKey = sizeInSizes?.size ?? cmp;
             console.log(
               "🚀 ~ sellMultipleOnlineKurtis ~ kurtiFromDB:",
               kurtiFromDB
@@ -2158,25 +2155,28 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
             }
             console.log("its after sizeInSizes");
 
-            // ✅ Only validate reservedSizes if this flow actually uses reservation
-            let sizeInReservedSizes: any = null;
-
+            /**
+             * Order lines that exist on the cart snapshot should release reservation,
+             * but reservedSizes can drift (manual edits, older flows, casing). Never
+             * block billing if main stock is OK: release min(reserved, qty) only.
+             */
+            let reservedRelease = 0;
+            let reservedSizeKeyForUpdate: string | null = null;
             if (shouldUseReservedSizes) {
-              const reservedArr = kurtiFromDB.reservedSizes || [];
-              sizeInReservedSizes = reservedArr.find(
-                (s: any) => s.size === cmp
+              const resRow = findSizeRowInsensitive(
+                kurtiFromDB.reservedSizes,
+                cmp
               );
-
-              if (
-                !sizeInReservedSizes ||
-                sizeInReservedSizes.quantity < quantity
-              ) {
-                errors.push(
-                  `System problem: Reserved size not available for ${search}-${cmp}. Please contact the owner.`
+              const reservedQty = resRow ? Number(resRow.quantity) || 0 : 0;
+              reservedRelease = Math.min(quantity, reservedQty);
+              reservedSizeKeyForUpdate = resRow?.size ?? null;
+              if (reservedQty < quantity) {
+                console.warn(
+                  `[sellMultipleOnlineKurtis] reservedSizes shortfall ${search}-${stockSizeKey}: reserved=${reservedQty}, billing=${quantity}, orderId=${orderId}. Releasing ${reservedRelease} from reserved; deducting ${quantity} from main sizes.`
                 );
-                continue;
+              } else {
+                console.log("reserved size OK", resRow);
               }
-              console.log("reserved size OK", sizeInReservedSizes);
             }
 
             // 🔽 continue with your existing stock deduction + sale logic
@@ -2184,17 +2184,24 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               // 🔴 CHANGED: update reservedSizes only when required
               const updatedSizes = updateSizeQuantity(
                 kurtiFromDB.sizes,
-                cmp,
+                stockSizeKey,
                 -quantity
               );
 
-              const updatedReservedSizes = shouldUseReservedSizes
-                ? updateSizeQuantity(
-                    kurtiFromDB.reservedSizes || [],
-                    cmp,
-                    -quantity
-                  )
-                : kurtiFromDB.reservedSizes || []; // keep same when not using reservedSizes
+              let updatedReservedSizes: any[];
+              if (
+                shouldUseReservedSizes &&
+                reservedRelease > 0 &&
+                reservedSizeKeyForUpdate
+              ) {
+                updatedReservedSizes = updateSizeQuantity(
+                  kurtiFromDB.reservedSizes || [],
+                  reservedSizeKeyForUpdate,
+                  -reservedRelease
+                );
+              } else {
+                updatedReservedSizes = kurtiFromDB.reservedSizes || [];
+              }
 
               // Update kurti stock
               const updateUser = await tx.kurti.update({
@@ -2247,7 +2254,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                   kurtiId: updateUser.id,
                   batchId: offlineBatch.id,
                   pricesId: prices.id,
-                  kurtiSize: cmp,
+                  kurtiSize: stockSizeKey,
                   shopLocation: selectedLocation,
                   customerName: customerName,
                   customerPhone: customerPhone,
@@ -2277,7 +2284,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               soldProducts.push({
                 kurti: updateUser,
                 sale: offlineSell,
-                size: cmp,
+                size: stockSizeKey,
                 quantity: quantity,
                 unitPrice: sellingPrice,
                 totalPrice: sellingPrice * quantity,
@@ -2292,7 +2299,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                 e.message,
                 e.stack
               );
-              errors.push(`Error selling ${search}-${cmp}: ${e.message}`);
+              errors.push(`Error selling ${search}-${stockSizeKey}: ${e.message}`);
             }
           } catch (productError: any) {
             console.error(
@@ -2316,25 +2323,9 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
             order.paymentStatus === PaymentStatus.PENDING;
 
           if (isCreditPending) {
-            const creditLimitCap = Number(user.creditLimit ?? 0);
-            const otherPendingAgg = await tx.orders.aggregate({
-              where: {
-                userId: user.id,
-                paymentStatus: PaymentStatus.PENDING,
-                status: { not: OrderStatus.CANCELLED },
-                id: { not: order.id },
-              },
-              _sum: { total: true, shippingCharge: true },
-            });
-            const otherUnpaid = Math.round(
-              Number(otherPendingAgg._sum.total ?? 0) +
-                Number(otherPendingAgg._sum.shippingCharge ?? 0)
-            );
-            if (otherUnpaid + walletDebitTotal > creditLimitCap) {
-              return {
-                error: `Insufficient credit line for this bill (other pending ₹${otherUnpaid}, this bill ₹${walletDebitTotal}, limit ₹${Math.round(creditLimitCap)}).`,
-              } as const;
-            }
+            // Credit exposure is enforced when the reseller checks out (reseller app: orders
+            // with status PENDING vs credit limit). Billing here must not block on other
+            // orders' paymentStatus PENDING totals — those stay pending until settlement.
           } else {
             hasSufficientBalance = user.balance >= walletDebitTotal;
           }
