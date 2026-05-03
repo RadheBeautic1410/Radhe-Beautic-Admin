@@ -29,11 +29,11 @@ export const getCountFromStatus: any = async (status: any) => {
 }
 
 export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number, pageSize: number, dateRange: DateRange, firstTime: Boolean) => {
-    
-    let [lastOrder] = !firstTime? [] : await db.orders.findMany({
-        where: {
-            status: status,
-        },
+    const statusFilter = status && status !== "ALL" ? status : undefined;
+    const orderWhere = statusFilter ? { status: statusFilter } : {};
+
+    let [lastOrder] = !firstTime ? [] : await db.orders.findMany({
+        where: orderWhere,
         orderBy: {
           createdAt: 'desc', // Sort by createdAt field in descending order
         },
@@ -51,7 +51,7 @@ export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number,
         pages = await db.orders.count({
             where: {
                 // userId: currUser.id, 
-                status: status,
+                ...orderWhere,
                 createdAt: {
                     gte: lastOrder ? addDays(lastOrder.date, -20): dateRange.from ? dateRange.from : addDays(new Date(), -20),
                     lte: dateRange.to ? dateRange.to : new Date(),
@@ -68,7 +68,7 @@ export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number,
     const ordersOfUser = await db.orders.findMany({
         where: {
             // userId: currUser.id, 
-            status: status,
+            ...orderWhere,
             createdAt: {
                 gte: lastOrder ? addDays(lastOrder.date, -20): dateRange.from ? dateRange.from : addDays(new Date(), -20),
                 lte: dateRange.to ? dateRange.to : currTIme,
@@ -89,7 +89,12 @@ export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number,
                 }
             },
             shippingAddress: true,
-            user: true
+            user: true,
+            walletPaymentRequests: {
+                where: { status: "PENDING" },
+                orderBy: { createdAt: "desc" },
+                take: 3,
+            },
         },
         orderBy: [
             {
@@ -134,12 +139,13 @@ export const getOrderForPacking = async (orderId: string) => {
     return order;
 }
 
-export const getOrderByOrderId = async (orderId: string, status: any) => {
-    const order = await db.orders.findUnique({
-        where: {
-            orderId: orderId,
-            status: status
-        },
+export const getOrderByOrderId = async (orderId: string, status?: any) => {
+    const whereClause = status && status !== "ALL"
+        ? { orderId: orderId, status: status }
+        : { orderId: orderId };
+
+    const order = await db.orders.findFirst({
+        where: whereClause,
         include: {
             cart: {
                 include: {
@@ -155,7 +161,12 @@ export const getOrderByOrderId = async (orderId: string, status: any) => {
                 }
             },
             shippingAddress: true,
-            user: true
+            user: true,
+            walletPaymentRequests: {
+                where: { status: "PENDING" },
+                orderBy: { createdAt: "desc" },
+                take: 3,
+            },
         },
     });
     return order;

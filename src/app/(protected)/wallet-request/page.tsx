@@ -51,6 +51,13 @@ interface WalletRequestItem {
     role: UserRole;
     balance: number;
   };
+  linkedOrder?: {
+    id: string;
+    orderId: string;
+    status?: string;
+    paymentStatus?: string;
+    paymentType?: string | null;
+  } | null;
   // Optional known image fields if backend provides them
   image?: string | null;
   imageUrl?: string | null;
@@ -191,6 +198,25 @@ const WalletRequest = () => {
     approveRejectMutation.mutate({ id, action });
   };
 
+  const sourceCell = (req: WalletRequestItem) => {
+    const oid = req.linkedOrder?.orderId;
+    if (oid) {
+      return (
+        <div className="text-black/90">
+          <div className="text-xs font-medium uppercase tracking-wide text-black/50">
+            Order
+          </div>
+          <div className="font-mono text-sm font-semibold">{oid}</div>
+        </div>
+      );
+    }
+    return (
+      <Badge variant="outline" className="border-dashed text-black/80">
+        Manual
+      </Badge>
+    );
+  };
+
   return (
     <div className="p-4 space-y-4 bg-white">
       <div className="flex items-center justify-between">
@@ -226,6 +252,9 @@ const WalletRequest = () => {
                   Amount
                 </TableHead>
                 <TableHead className="text-black/80 font-medium">
+                  Source
+                </TableHead>
+                <TableHead className="text-black/80 font-medium">
                   Status
                 </TableHead>
                 <TableHead className="text-right text-black/80 font-medium">
@@ -237,7 +266,7 @@ const WalletRequest = () => {
               {(isLoading || isFetching) && (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="text-center py-4 text-black/70"
                   >
                     Loading...
@@ -247,7 +276,7 @@ const WalletRequest = () => {
               {!isLoading && items.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="text-center py-4 text-black/70"
                   >
                     No requests found.
@@ -274,10 +303,17 @@ const WalletRequest = () => {
                     <TableCell className="text-black/90">
                       ₹ {req.amount.toFixed(2)}
                     </TableCell>
+                    <TableCell>{sourceCell(req)}</TableCell>
                     <TableCell>
                       <Badge variant={getStatusBadgeVariant(req.status)}>
                         {req.status}
                       </Badge>
+                      {req.status === "REJECTED" &&
+                        req.linkedOrder?.status === "CANCELLED" && (
+                          <div className="mt-1 text-xs text-black/60">
+                            Order rejected by admin (linked order cancelled)
+                          </div>
+                        )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -353,6 +389,12 @@ const WalletRequest = () => {
                     {req.status}
                   </Badge>
                 </CardTitle>
+                {req.status === "REJECTED" &&
+                  req.linkedOrder?.status === "CANCELLED" && (
+                    <p className="text-xs text-white/60 font-normal pt-1">
+                      Order rejected by admin (linked order cancelled)
+                    </p>
+                  )}
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between items-center">
@@ -366,6 +408,23 @@ const WalletRequest = () => {
                   <span className="text-sm text-white/90 font-medium">
                     ₹ {req.amount.toFixed(2)}
                   </span>
+                </div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-sm text-white/60 shrink-0">Source</span>
+                  <div className="text-right text-sm text-white/90">
+                    {req.linkedOrder?.orderId ? (
+                      <>
+                        <div className="text-xs text-white/50">Order</div>
+                        <div className="font-mono font-medium">
+                          {req.linkedOrder.orderId}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="inline-flex rounded border border-dashed border-white/40 px-2 py-0.5 text-xs">
+                        Manual
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-2 pt-2 border-t border-white/10">
                   {imgUrl && (

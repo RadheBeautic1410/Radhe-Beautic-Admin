@@ -2,8 +2,8 @@
 
  import { NextRequest, NextResponse } from "next/server";
  import { auth } from "@/src/auth";
- import { db } from "@/src/lib/db";
-import { PaymentStatus } from "@prisma/client";
+import { db } from "@/src/lib/db";
+import { PaymentStatus, OrderStatus } from "@prisma/client";
 
  export async function GET(
    request: NextRequest,
@@ -33,23 +33,33 @@ import { PaymentStatus } from "@prisma/client";
        return new NextResponse(JSON.stringify({ error: "User not found" }), { status: 404 });
      }
 
-     const orders = await db.onlineSellBatch.findMany({
+    const orders = await db.orders.findMany({
        where: {
-         order: {
-           user: { id },
-         },
+        userId: id,
          paymentStatus: PaymentStatus.PENDING,
+        status: { not: OrderStatus.CANCELLED },
        },
-       include: {
-         sales: true,
-         order: true,
+      select: {
+        id: true,
+        orderId: true,
+        total: true,
+        shippingCharge: true,
+        date: true,
+        status: true,
+        paymentType: true,
+        paymentStatus: true,
        },
-       orderBy: { saleTime: "desc" },
+      orderBy: { date: "desc" },
      });
-     console.log("🚀 ~ GET ~ orders:", orders)
+
+    const normalizedOrders = orders.map((o) => ({
+      ...o,
+      totalAmount: Number(o.total || 0),
+      amountDue: Number(o.total || 0) + Number(o.shippingCharge || 0),
+    }));
 
      return new NextResponse(
-       JSON.stringify({ success: true, data: { user, orders } }),
+      JSON.stringify({ success: true, data: { user, orders: normalizedOrders } }),
        { status: 200 }
      );
    } catch (error: any) {

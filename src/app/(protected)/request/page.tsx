@@ -37,6 +37,7 @@ export interface userProps {
   isTwoFactorEnabled: boolean;
   balance: number | null;
   groupName: string | null;
+  creditLimit: number | null;
 }
 
 const ModeratorPage = () => {
@@ -246,6 +247,7 @@ const ModeratorPage = () => {
                     <TableHead className="text-center">Balance</TableHead>
                     <TableHead className="text-center">Add Money</TableHead>
                     <TableHead className="text-center">Group Name</TableHead>
+                    <TableHead className="text-center">Credit Limit</TableHead>
 
                     <TableHead className="text-center">
                       Balance History

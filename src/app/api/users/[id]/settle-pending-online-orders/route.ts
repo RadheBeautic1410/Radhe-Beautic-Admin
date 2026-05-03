@@ -3,14 +3,12 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
 import { db } from "@/src/lib/db";
-import { PaymentStatus } from "@prisma/client";
-import { getCurrTime } from "@/src/actions/kurti";
+import { PaymentStatus, UserRole } from "@prisma/client";
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const currTime = await getCurrTime();
     const session = await auth();
     if (!session?.user) {
       return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
@@ -20,11 +18,11 @@ export async function POST(
 
     const { id: userId } = await params;
     const body = await request.json();
-    const batchIds: string[] = body?.batchIds || [];
+    const orderIds: string[] = body?.orderIds || [];
 
-    if (!Array.isArray(batchIds) || batchIds.length === 0) {
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
       return new NextResponse(
-        JSON.stringify({ error: "No batches provided" }),
+        JSON.stringify({ error: "No orders provided" }),
         { status: 400 }
       );
     }
@@ -33,32 +31,32 @@ export async function POST(
       // Validate user
       const user = await tx.user.findUnique({
         where: { id: userId },
-        select: { id: true, balance: true },
+        select: { id: true, balance: true, role: true },
       });
       if (!user) throw new Error("User not found");
 
-      // Fetch pending batches that belong to this user via order relation
-      const batches = await tx.onlineSellBatch.findMany({
+      // Fetch pending orders selected by admin
+      const orders = await tx.orders.findMany({
         where: {
-          id: { in: batchIds },
+          id: { in: orderIds },
+          userId,
           paymentStatus: PaymentStatus.PENDING,
-          order: { userId: userId },
         },
-        select: { id: true, totalAmount: true },
+        select: { id: true, orderId: true, total: true, shippingCharge: true },
       });
 
-      if (batches.length !== batchIds.length) {
+      if (orders.length !== orderIds.length) {
         throw new Error(
-          "Some selected batches are not pending or not accessible"
+          "Some selected orders are not pending or not accessible"
         );
       }
 
-      const totalToDeduct = batches.reduce(
-        (sum, b) => sum + (b.totalAmount || 0),
+      const totalToDeduct = orders.reduce(
+        (sum, o) => sum + Number(o.total || 0) + Number(o.shippingCharge || 0),
         0
       );
       if ((user.balance || 0) < totalToDeduct) {
-        throw new Error("Insufficient wallet balance for selected batches");
+        throw new Error("Insufficient wallet balance for selected orders");
       }
 
       // Deduct total from wallet
@@ -69,21 +67,29 @@ export async function POST(
         },
       });
 
-      // Update batches to COMPLETED and create wallet history per batch
-      for (const b of batches) {
-        await tx.onlineSellBatch.update({
-          where: { id: b.id },
-          data: { paymentStatus: PaymentStatus.COMPLETED, updatedAt: currTime },
+      // Mark selected orders paid and write one wallet ledger row per order
+      for (const o of orders) {
+        const orderAmount =
+          Number(o.total || 0) + Number(o.shippingCharge || 0);
+        await tx.orders.update({
+          where: { id: o.id },
+          data: { paymentStatus: PaymentStatus.COMPLETED },
         });
+
+        if (user.role === UserRole.RESELLER) {
+          await tx.user.update({
+            where: { id: userId },
+            data: { creditLimit: { increment: orderAmount } },
+          });
+        }
 
         await tx.walletHistory.create({
           data: {
             userId,
-            amount: b.totalAmount || 0,
+            amount: orderAmount,
             type: "DEBIT",
-            paymentMethod: "Order-Settled",
-            onlineSellBatchId: b.id,
-            paymentType: "Diduct From Wallet",
+            paymentMethod: "order-settlement-manual",
+            paymentType: `Manual settle ${o.orderId}`,
           },
         });
       }

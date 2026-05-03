@@ -81,6 +81,7 @@ model User {
   orders             Orders[]
   Address            Address[]
   balance            Float               @default(0)
+  creditLimit        Float               @default(0)
   WalletHistory      WalletHistory[]     @relation(name: "UserWalletHistory")
   shop               Shop?               @relation("ShopOwner")
   ShippingChangeLog  ShippingChangeLog[]
@@ -413,6 +414,8 @@ model OnlineSellBatch {
   order         Orders?         @relation(fields: [orderId], references: [orderId])
   WalletHistory WalletHistory[]
 
+  @@index([invoiceNumber])
+  @@index([orderId])
   @@map("online_sale_batches")
 }
 
@@ -434,6 +437,9 @@ model OnlineSell {
   selledPrice   Int?
   createdAt     DateTime?
   updatedAt     DateTime?
+
+  @@index([batchId])
+  @@index([kurtiId])
 }
 
 model Deletetime {
@@ -462,6 +468,9 @@ model CartProduct {
   scannedSizes   Json[]
   Cart           Cart?   @relation(fields: [cartId], references: [id], onDelete: Cascade)
   cartId         String? @db.ObjectId
+
+  @@index([cartId])
+  @@index([kurtiId])
 }
 
 model Orders {
@@ -476,6 +485,9 @@ model Orders {
   total              Int
   shippingAddress    Address             @relation(fields: [addressId], references: [id])
   shippingCharge     Int                 @default(0)
+  paymentStatus      PaymentStatus       @default(PENDING)
+  paymentType        String?
+  paymentProofImage  String?
   addressId          String              @db.ObjectId
   trackingId         String?
   courier            String?
@@ -487,6 +499,9 @@ model Orders {
   OfflineSellBatch   OfflineSellBatch[]
   OnlineSellBatch    OnlineSellBatch[]
   ShippingChangeLog  ShippingChangeLog[]
+  walletPaymentRequests WalletRequest[]  @relation("WalletRequestOrder")
+
+  @@index([userId, paymentStatus])
 }
 
 model Address {
@@ -609,6 +624,12 @@ model WalletRequest {
   approvedAt  DateTime?
   image       String
   paymentType String
+  /// When set, this request verifies order payment; on approve wallet is credited and order marked paid.
+  linkedOrderId String? @db.ObjectId
+  linkedOrder   Orders? @relation("WalletRequestOrder", fields: [linkedOrderId], references: [id], onDelete: SetNull)
+
+  @@index([linkedOrderId])
+  @@index([resellerId, status])
 }
 
 model NewReleseSetting {

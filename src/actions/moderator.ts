@@ -11,6 +11,7 @@ interface moderatorUpdateProps {
   isVerified: boolean;
   id: string;
   groupName?: string; // 👈 allow groupName
+  creditLimit?: number;
 }
 
 export const moderatorUpdate = async (data: moderatorUpdateProps) => {
@@ -20,7 +21,7 @@ export const moderatorUpdate = async (data: moderatorUpdateProps) => {
     return { error: "Unauthorized" };
   }
 
-  const { role, isVerified, id, groupName } = data;
+  const { role, isVerified, id, groupName, creditLimit } = data;
 
   const dbUser = await getUserById(id);
 
@@ -28,16 +29,39 @@ export const moderatorUpdate = async (data: moderatorUpdateProps) => {
     return { error: "Unauthorized" };
   }
 
-  const updatedUser = await db.user.update({
-    where: { id: id },
-    data: {
-      role: role,
-      isVerified: isVerified,
-      groupName: groupName,
-      verifiedBy: user.id,
-      verifiedAt: new Date(),
-      emailVerified: new Date(),
-    },
+  const oldCreditLimit = Number(dbUser.creditLimit ?? 0);
+
+  const updatedUser = await db.$transaction(async (tx) => {
+    const u = await tx.user.update({
+      where: { id: id },
+      data: {
+        role: role,
+        isVerified: isVerified,
+        groupName: groupName,
+        creditLimit: typeof creditLimit === "number" ? creditLimit : undefined,
+        verifiedBy: user.id,
+        verifiedAt: new Date(),
+        emailVerified: new Date(),
+      } as any,
+    });
+
+    const newCreditLimit = Number(u.creditLimit ?? 0);
+    if (
+      u.role === UserRole.RESELLER &&
+      newCreditLimit > oldCreditLimit
+    ) {
+      await tx.walletHistory.create({
+        data: {
+          userId: id,
+          amount: newCreditLimit - oldCreditLimit,
+          type: "DEBIT",
+          paymentMethod: "admin-credit-line",
+          paymentType: "Credit limit set (admin)",
+        },
+      });
+    }
+
+    return u;
   });
 
   if (role == UserRole.RESELLER) {
