@@ -23,7 +23,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { error } from 'console';
 import { packedOrder } from '@/src/actions/order';
-import { useInvalidateQueries } from '../../orders/layout';
+import { useInvalidateQueries } from '../../orders/useInvalidateQueries';
 interface ViewOrderDialogProps {
     data: any
 }

@@ -7,10 +7,6 @@ interface ProtectedLayoutProps {
     children: React.ReactNode;
 }
 
-export const useInvalidateQueries = () => {
-    return () => {};
-};
-
 const OrdersLayout = ({ children }: ProtectedLayoutProps) => {
     return (
         <Card className="w-full h-full rounded-none">

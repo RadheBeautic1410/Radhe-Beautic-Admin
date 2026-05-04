@@ -47,6 +47,7 @@ interface userProps {
   isTwoFactorEnabled: boolean;
   balance: number | null;
   groupName: string | null;
+  creditLimit: number | null;
 }
 
 interface moderatorRowProps {
