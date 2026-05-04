@@ -37,7 +37,7 @@ import { Calendar } from '@/src/components/ui/calendar';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/src/components/ui/dialog';
 import PackingPending from './PackingPendingDialog';
 import { Input } from '@/src/components/ui/input';
-import { useInvalidateQueries } from '../../orders/layout';
+import { useInvalidateQueries } from '../../orders/useInvalidateQueries';
 import TrackingDialog from './TrackingDialog';
 
 interface Order {
