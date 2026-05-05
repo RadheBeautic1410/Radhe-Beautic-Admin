@@ -443,6 +443,8 @@ const PendingOrders = () => {
 			case 'SHIPPED':
 				return 'Shipped';
 			case 'CANCELLED':
+				return 'Cancelled';
+			case 'REJECTED':
 				return 'Rejected';
 			default:
 				return status;
@@ -540,6 +542,8 @@ const PendingOrders = () => {
 			cell: ({ row }) => {
 				const orderStatus = row.original.status;
 				const pendingWr = getPendingPaymentWalletRequest(row.original);
+				const isFinalStatus =
+					orderStatus === 'CANCELLED' || orderStatus === 'REJECTED';
 				const showPendingActions = orderStatus === 'PENDING';
 				const showProcessingActions = orderStatus === 'PROCESSING';
 				const showExtraSeparator = showPendingActions || showProcessingActions;
@@ -554,7 +558,7 @@ const PendingOrders = () => {
 								</Button>
 							}
 						/>
-						{pendingWr && (
+						{!isFinalStatus && pendingWr && (
 							<Button
 								variant="secondary"
 								size="sm"
@@ -566,10 +570,10 @@ const PendingOrders = () => {
 								Verify payment
 							</Button>
 						)}
-						{orderStatus === 'TRACKINGPENDING' && (
+						{!isFinalStatus && orderStatus === 'TRACKINGPENDING' && (
 							<TrackingDialog data={row.original.orderId} />
 						)}
-						<DropdownMenu>
+						{!isFinalStatus && <DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<Button
 									variant="outline"
@@ -643,7 +647,7 @@ const PendingOrders = () => {
 									</>
 								)}
 							</DropdownMenuContent>
-						</DropdownMenu>
+						</DropdownMenu>}
 					</div>
 				)
 			},
@@ -772,7 +776,8 @@ const PendingOrders = () => {
 							<SelectItem value="PROCESSING">Accepted</SelectItem>
 							<SelectItem value="TRACKINGPENDING">Tracking Pending</SelectItem>
 							<SelectItem value="SHIPPED">Shipped</SelectItem>
-							<SelectItem value="CANCELLED">Rejected</SelectItem>
+							<SelectItem value="CANCELLED">Cancelled</SelectItem>
+							<SelectItem value="REJECTED">Rejected</SelectItem>
 						</SelectContent>
 					</Select>
 				</div>
@@ -855,7 +860,8 @@ const PendingOrders = () => {
 						<SelectItem value="PROCESSING">Accepted</SelectItem>
 						<SelectItem value="TRACKINGPENDING">Tracking Pending</SelectItem>
 						<SelectItem value="SHIPPED">Shipped</SelectItem>
-						<SelectItem value="CANCELLED">Rejected</SelectItem>
+						<SelectItem value="CANCELLED">Cancelled</SelectItem>
+						<SelectItem value="REJECTED">Rejected</SelectItem>
 					</SelectContent>
 				</Select>
 				<Button

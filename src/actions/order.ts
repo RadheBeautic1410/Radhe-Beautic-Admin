@@ -356,7 +356,7 @@ export const deleteOrder = async (orderId: string) => {
               // userId: curUser.id
             },
             data: {
-              status: "CANCELLED",
+              status: "REJECTED",
             },
           });
           return "true";
