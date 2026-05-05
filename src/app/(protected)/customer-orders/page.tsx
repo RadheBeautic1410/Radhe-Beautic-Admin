@@ -544,7 +544,7 @@ const CustomerOrdersPage = () => {
   };
 
   const getStatusBadge = (status: OrderStatus) => {
-    const statusConfig = {
+    const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
       PENDING: { label: "Pending", className: "bg-yellow-500" },
       PROCESSING: { label: "Processing", className: "bg-blue-500" },
       SHIPPED: { label: "Shipped", className: "bg-purple-500" },
@@ -557,7 +557,7 @@ const CustomerOrdersPage = () => {
       REJECTED: { label: "Rejected", className: "bg-rose-600" },
     };
 
-    const config = statusConfig[status] || statusConfig.PENDING;
+    const config = statusConfig[status];
     return <Badge className={config.className}>{config.label}</Badge>;
   };
 
