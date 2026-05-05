@@ -554,6 +554,7 @@ const CustomerOrdersPage = () => {
       },
       DELIVERED: { label: "Delivered", className: "bg-green-500" },
       CANCELLED: { label: "Cancelled", className: "bg-red-500" },
+      REJECTED: { label: "Rejected", className: "bg-rose-600" },
     };
 
     const config = statusConfig[status] || statusConfig.PENDING;
