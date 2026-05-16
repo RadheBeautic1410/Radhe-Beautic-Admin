@@ -54,6 +54,7 @@ import {
   Filter,
   Eye,
   EyeOff,
+  Share2,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
@@ -1199,6 +1200,18 @@ const ListPage = () => {
     }
   };
 
+  const handleShareToReseller = (categoryName: string) => {
+    const link = `https://reseller.radhebeautic.com/catalogue/${categoryName}/page/1`;
+    navigator.clipboard.writeText(link)
+      .then(() => {
+        toast.success("Link copied to clipboard!");
+      })
+      .catch((err) => {
+        console.error("Failed to copy link: ", err);
+        toast.error("Failed to copy link");
+      });
+  };
+
   const CategoryCard = ({
     cat,
     index,
@@ -1306,6 +1319,13 @@ const ListPage = () => {
                   >
                     <FileDownIcon className="mr-2 h-4 w-4 text-blue-600" />
                     Generate PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onSelect={() => handleShareToReseller(cat.name)}
+                  >
+                    <Share2 className="mr-2 h-4 w-4 text-blue-600" />
+                    Share to Reseller
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -2122,6 +2142,13 @@ const ListPage = () => {
                                     >
                                       <FileDownIcon className="mr-2 h-4 w-4 text-blue-600" />
                                       Generate PDF
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="cursor-pointer"
+                                      onSelect={() => handleShareToReseller(cat.name)}
+                                    >
+                                      <Share2 className="mr-2 h-4 w-4 text-blue-600" />
+                                      Share to Reseller
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem

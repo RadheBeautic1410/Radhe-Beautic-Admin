@@ -4,6 +4,7 @@ import { Button } from '@/src/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/src/components/ui/dialog'
 // import {  } from '@radix-ui/react-dialog'
+import { Download } from 'lucide-react';
 import React, { useState } from 'react'
 
 interface ViewOrderDialogProps {
@@ -58,6 +59,58 @@ export function ViewOrderDialog({ data, triggerContent }: ViewOrderDialogProps) 
                                         )}
                                     </CardContent>
                                 </Card>
+
+                                {data.paymentProofImage && (
+                                    <Card>
+                                        <CardHeader className="pb-2">
+                                            <CardTitle className="text-base">Payment Proof</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3 text-sm">
+                                            <div className="relative aspect-video max-h-[160px] overflow-hidden rounded-md border bg-gray-50">
+                                                <img 
+                                                    src={data.paymentProofImage} 
+                                                    alt="Payment Proof" 
+                                                    className="w-full h-full object-contain cursor-pointer hover:opacity-90"
+                                                    onClick={() => setSelectedImageUrl(data.paymentProofImage)}
+                                                />
+                                            </div>
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                className="w-full h-8"
+                                                onClick={() => {
+                                                    const link = document.createElement('a');
+                                                    link.href = data.paymentProofImage;
+                                                    link.download = `Payment_${data.orderId}.jpg`;
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    document.body.removeChild(link);
+                                                }}
+                                            >
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Download Screenshot
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                )}
+
+                                {(data.trackingId || data.courier) && (
+                                    <Card>
+                                        <CardHeader className="pb-2">
+                                            <CardTitle className="text-base">Tracking Information</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2 text-sm">
+                                            <div>
+                                                <span className="text-gray-500">Courier Service: </span>
+                                                <span className="font-medium uppercase">{data.courier || "-"}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-500">Tracking Number: </span>
+                                                <span className="font-medium">{data.trackingId || "-"}</span>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
                             </div>
 
                             <Card>
