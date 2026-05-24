@@ -87,6 +87,23 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     return getSizesWithDummy(data.sizes);
   }, [data.sizes]);
 
+  const sortedAvailableSizes = useMemo(() => {
+    const sizesArray: any[] = data.sizes || [];
+    const reservedArray: any[] = data.reservedSizes || [];
+    
+    const getStockForSize = (sizeName: string) => {
+      const szObj = sizesArray.find((s) => s.size?.toUpperCase() === sizeName.toUpperCase());
+      const resObj = reservedArray.find((r) => r.size?.toUpperCase() === sizeName.toUpperCase());
+      const qty = szObj ? szObj.quantity : 0;
+      const res = resObj ? resObj.quantity : 0;
+      return Math.max(0, qty - res);
+    };
+
+    return sizesArray
+      .filter((s) => s.quantity > 0)
+      .sort((a, b) => getStockForSize(b.size) - getStockForSize(a.size));
+  }, [data.sizes, data.reservedSizes]);
+
   useEffect(() => {
     if (!data?.images?.[0]?.url) {
       console.error("Image URL is not available");
@@ -532,9 +549,9 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
             </TableHead>
           </TableHeader>
           <TableBody>
-            {data.sizes.map((sz: any, i: number) => {
-              if (i >= Math.ceil(sizes / 2) || sz.quantity === 0) {
-                return "";
+            {sortedAvailableSizes.map((sz: any, i: number) => {
+              if (i >= Math.ceil(sortedAvailableSizes.length / 2)) {
+                return null;
               }
               return (
                 <TableRow key={i}>
@@ -559,9 +576,9 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
             </TableHead>
           </TableHeader>
           <TableBody>
-            {data.sizes.map((sz: any, i: number) => {
-              if (i < Math.ceil(sizes / 2) || sz.quantity === 0) {
-                return "";
+            {sortedAvailableSizes.map((sz: any, i: number) => {
+              if (i < Math.ceil(sortedAvailableSizes.length / 2)) {
+                return null;
               }
               return (
                 <TableRow key={i}>
