@@ -159,6 +159,20 @@ function SellPage() {
     }
   }, [orderData]);
 
+  // Set selling price automatically when size is selected
+  useEffect(() => {
+    if (kurti && selectedSize) {
+      const size = selectedSize.toUpperCase();
+      const isBigSize = ["3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"].includes(size);
+      const basePrice = parseInt(kurti.sellingPrice) || 0;
+      const categoryBigPrice = kurti.isBigPrice && kurti.bigPrice ? Number(kurti.bigPrice) : 0;
+      const price = isBigSize ? (basePrice + categoryBigPrice) : basePrice;
+      setSellingPrice(String(price));
+    } else {
+      setSellingPrice("");
+    }
+  }, [selectedSize, kurti]);
+
   const fetchUserBalance = async (userId: string) => {
     try {
       const response = await axios.post("/api/wallet/get-balance", { userId });
@@ -197,6 +211,12 @@ function SellPage() {
 
           orderedSizes.forEach((sizeInfo: any) => {
             if (sizeInfo.quantity > 0) {
+              const size = (sizeInfo.size || "").toUpperCase();
+              const isBigSize = ["3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"].includes(size);
+              const basePrice = parseInt(kurti.sellingPrice) || 0;
+              const categoryBigPrice = kurti.isBigPrice && kurti.bigPrice ? Number(kurti.bigPrice) : 0;
+              const itemPrice = isBigSize ? (basePrice + categoryBigPrice) : basePrice;
+
               // Check if this is a lower size replacement
               if (sizeInfo.isLowerSize && sizeInfo.actualSize) {
                 // For lower sizes, use actualSize for stock deduction
@@ -213,7 +233,7 @@ function SellPage() {
                     selectedSize: sizeInfo.actualSize, // Use actual size for stock deduction
                     orderedSize: sizeInfo.size, // Keep ordered size for PDF
                     quantity: sizeInfo.quantity,
-                    sellingPrice: kurti.sellingPrice || 0,
+                    sellingPrice: itemPrice,
                     availableStock: actualSizeStock.quantity,
                     isLowerSize: true,
                   });
@@ -232,7 +252,7 @@ function SellPage() {
                     kurti: kurti,
                     selectedSize: sizeInfo.size,
                     quantity: sizeInfo.quantity,
-                    sellingPrice: kurti.sellingPrice || 0,
+                    sellingPrice: itemPrice,
                     availableStock: currentSize.quantity,
                     isLowerSize: false,
                   });

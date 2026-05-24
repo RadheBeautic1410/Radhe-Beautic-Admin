@@ -391,7 +391,7 @@ const EditCategoryModal = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-cat-big-price">Big Price (Optional)</Label>
+              <Label htmlFor="edit-cat-big-price">Reseller Big Price (Optional)</Label>
               <Input
                 id="edit-cat-big-price"
                 type="text"

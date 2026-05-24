@@ -169,6 +169,42 @@ export const getOrderByOrderId = async (orderId: string, status?: any) => {
             },
         },
     });
+
+    if (!order) return null;
+
+    // Fetch categories to get bigPrice
+    const categories = await db.category.findMany({
+        where: {
+            isDeleted: false,
+        },
+        select: {
+            code: true,
+            name: true,
+            bigPrice: true,
+        }
+    });
+
+    // Enrich kurtis with bigPrice from category
+    if (order.cart?.CartProduct) {
+        order.cart.CartProduct = order.cart.CartProduct.map((cp: any) => {
+            const kurti = cp.kurti;
+            if (kurti) {
+                const cat = categories.find(
+                    (c) =>
+                        c.code?.toLowerCase() === kurti.category.toLowerCase() ||
+                        c.name.toLowerCase() === kurti.category.toLowerCase()
+                );
+                const categoryBigPrice = cat?.bigPrice || null;
+                cp.kurti = {
+                    ...kurti,
+                    isBigPrice: categoryBigPrice !== null && categoryBigPrice > 0,
+                    bigPrice: categoryBigPrice,
+                };
+            }
+            return cp;
+        });
+    }
+
     return order;
 }
 
