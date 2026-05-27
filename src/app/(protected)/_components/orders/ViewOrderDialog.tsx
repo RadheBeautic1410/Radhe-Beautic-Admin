@@ -48,7 +48,7 @@ export function ViewOrderDialog({ data, triggerContent }: ViewOrderDialogProps) 
                                         <CardTitle className="text-base">Shipping Address</CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-1 text-sm">
-                                        <div className="font-medium">{data?.shippingAddress?.fullName || data?.user?.name || "-"}</div>
+                                        <div className="font-medium">{data?.resellerCustomer?.name || data?.shippingAddress?.fullName || data?.user?.name || "-"}</div>
                                         <div>{data?.shippingAddress?.address || "-"}</div>
                                         <div>
                                             {[data?.shippingAddress?.city, data?.shippingAddress?.state].filter(Boolean).join(", ")}
