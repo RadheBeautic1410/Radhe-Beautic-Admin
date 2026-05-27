@@ -69,6 +69,9 @@ interface Order {
 		image: string;
 		paymentType: string;
 	}[];
+	resellerCustomer?: {
+		name?: string | null;
+	} | null;
 }
 
 function getPaymentStatusDisplay(order: Order) {
@@ -94,15 +97,19 @@ function getPendingPaymentWalletRequest(order: Order) {
 /** Label row (same shape as bulk `getAddresses()` for pending orders). */
 type ShippingLabelRow = {
 	orderId: string;
-	shippingAddress: { address: string };
+	customerName?: string | null;
+	shippingAddress: { address: string; zipCode?: string | null };
+	resellerCustomer?: { name?: string | null } | null;
 };
 
 function buildOrderLabelPayload(order: Order): ShippingLabelRow[] {
 	return [
 		{
 			orderId: order.orderId,
+			customerName: order.resellerCustomer?.name || null,
 			shippingAddress: {
 				address: order.shippingAddress?.address || '',
+				zipCode: order.shippingAddress?.zipCode || null,
 			},
 		},
 	];
@@ -287,26 +294,35 @@ const PendingOrders = () => {
 								Close preview
 							</Button>
 						</div>
-						{labelsPrintBatch.map((row, index) => (
-							<div
-								key={`${row.orderId}-${index}`}
-								className="labels-print-sheet mb-4 box-border min-h-[6in] w-[4in] max-w-full border border-dashed border-gray-200 last:mb-0 print:mb-0 print:min-h-0"
-							>
-								{/* eslint-disable-next-line @next/next/no-img-element */}
-								<img
-									src={shippingLabelBarcodeUrl(row.orderId)}
-									alt=""
-									className="mb-2 h-[48px] w-[140px] max-w-full object-contain print:mb-1 print:h-[44px]"
-								/>
-								<p className="text-xs font-semibold leading-tight print:text-[10px]">
-									Order ID: {row.orderId}
-								</p>
-								<p className="mt-1 text-xs text-gray-600 print:text-[9px]">Address</p>
-								<p className="mt-0.5 max-h-[3.2in] overflow-hidden text-xs leading-snug print:text-[9px] print:leading-tight">
-									{row.shippingAddress?.address || '—'}
-								</p>
-							</div>
-						))}
+						{labelsPrintBatch.map((row, index) => {
+							const customerName = row.customerName || row.resellerCustomer?.name;
+							return (
+								<div
+									key={`${row.orderId}-${index}`}
+									className="labels-print-sheet mb-4 box-border min-h-[6in] w-[4in] max-w-full border border-dashed border-gray-200 last:mb-0 print:mb-0 print:min-h-0"
+								>
+									{/* eslint-disable-next-line @next/next/no-img-element */}
+									<img
+										src={shippingLabelBarcodeUrl(row.orderId)}
+										alt=""
+										className="mb-2 h-[48px] w-[140px] max-w-full object-contain print:mb-1 print:h-[44px]"
+									/>
+									<p className="text-xs font-semibold leading-tight print:text-[10px]">
+										Order ID: {row.orderId}
+									</p>
+									<p className="mt-1 text-xs text-gray-600 print:text-[9px]">Address</p>
+									<div className="mt-0.5 max-h-[3.2in] overflow-hidden text-xs leading-snug print:text-[9px] print:leading-tight">
+										{customerName ? (
+											<div className="font-semibold">{customerName}</div>
+										) : null}
+										<div>{row.shippingAddress?.address || '—'}</div>
+										{row.shippingAddress?.zipCode ? (
+											<div className="font-semibold mt-1">Pincode: {row.shippingAddress.zipCode}</div>
+										) : null}
+									</div>
+								</div>
+							);
+						})}
 					</div>,
 					document.body
 				)

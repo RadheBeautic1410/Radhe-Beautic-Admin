@@ -90,6 +90,7 @@ export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number,
             },
             shippingAddress: true,
             user: true,
+            resellerCustomer: true,
             walletPaymentRequests: {
                 where: { status: "PENDING" },
                 orderBy: { createdAt: "desc" },
@@ -162,6 +163,7 @@ export const getOrderByOrderId = async (orderId: string, status?: any) => {
             },
             shippingAddress: true,
             user: true,
+            resellerCustomer: true,
             walletPaymentRequests: {
                 where: { status: "PENDING" },
                 orderBy: { createdAt: "desc" },
@@ -314,6 +316,12 @@ export const getAddresses = async () => {
             shippingAddress: {
                 select: {
                     address: true,
+                    zipCode: true,
+                }
+            },
+            resellerCustomer: {
+                select: {
+                    name: true,
                 }
             }
         }
