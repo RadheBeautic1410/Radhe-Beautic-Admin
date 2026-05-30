@@ -2029,8 +2029,70 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
         });
 
         // Process each product in the cart with optimized batch operations
-        const batchOperations: any[] = [];
-        const kurtiUpdates: any[] = [];
+        const onlineSellRows: any[] = [];
+        const topSoldAccumulator = new Map<string, number>();
+
+        // Pre-fetch all kurtis and their prices in a single query
+        const uniqueCodes = Array.from(
+          new Set(
+            products
+              .map((p: any) => {
+                const rawCode = String(p.code || "").toUpperCase();
+                let search = rawCode.substring(0, 7).toUpperCase();
+                if (
+                  rawCode.substring(0, 2) === "CK" &&
+                  rawCode[2] === "0" &&
+                  isSize(rawCode.substring(6))
+                ) {
+                  search = rawCode.substring(0, 6).toUpperCase();
+                }
+                return search;
+              })
+              .filter(Boolean)
+          )
+        ) as string[];
+
+        const kurtis: any[] = await tx.kurti.findMany({
+          where: { code: { in: uniqueCodes }, isDeleted: false },
+          include: {
+            prices: true,
+          },
+        });
+
+        // Ensure all retrieved kurtis have valid prices in a separate loop/transaction updates
+        for (const k of kurtis) {
+          if (!k.prices || !k.prices.actualPrice1 || !k.prices.sellingPrice1) {
+            const sellPrice = parseInt(String(k.sellingPrice || "0")) || 0;
+            const actualP = parseInt(String(k.actualPrice || "0")) || 0;
+            const newPrices = await tx.prices.create({
+              data: {
+                sellingPrice1: sellPrice,
+                sellingPrice2: sellPrice,
+                sellingPrice3: sellPrice,
+                actualPrice1: actualP,
+                actualPrice2: actualP,
+                actualPrice3: actualP,
+              },
+            });
+            await tx.kurti.update({
+              where: { id: k.id },
+              data: { pricesId: newPrices.id, updatedAt: currTime },
+            });
+            k.pricesId = newPrices.id;
+            k.prices = newPrices;
+          }
+        }
+
+        const kurtiMap = new Map<string, any>(
+          kurtis.map((k: any) => [k.code.toUpperCase(), k])
+        );
+
+        // Pre-clone working copies of sizes and reservedSizes for in-memory tracking
+        for (const k of kurtis) {
+          k.workingSizes = JSON.parse(JSON.stringify(k.sizes || []));
+          k.workingReservedSizes = JSON.parse(JSON.stringify(k.reservedSizes || []));
+          k.isModified = false;
+        }
 
         for (let i = 0; i < products.length; i++) {
           const product = products[i];
@@ -2064,6 +2126,29 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               quantity
             );
 
+            const kurtiFromDB = kurtiMap.get(search);
+            if (!kurtiFromDB) {
+              errors.push(`Product ${search} not found`);
+              continue;
+            }
+
+            // Always validate main stock (against workingSizes in memory)
+            const sizeInSizes: any = findSizeRowInsensitive(
+              kurtiFromDB.workingSizes,
+              cmp
+            );
+            const stockSizeKey = sizeInSizes?.size ?? cmp;
+            console.log("sizeInSizes", sizeInSizes);
+
+            if (!sizeInSizes || sizeInSizes.quantity < quantity) {
+              errors.push(
+                `Insufficient stock for ${search}-${cmp}. Available: ${
+                  sizeInSizes?.quantity || 0
+                }, Requested: ${quantity}`
+              );
+              continue;
+            }
+
             const existingCartProduct = order.cart.CartProduct.find(
               (cp: any) => {
                 if (cp.kurtiId !== kurtiId) return false;
@@ -2076,8 +2161,6 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                 );
               }
             );
-            // 🔴 CHANGED: decide if this flow should use reservedSizes or not
-            // For admin direct-order edit, keep main stock only → no reservedSizes check / update
             const shouldUseReservedSizes = existingCartProduct ? true : false;
             console.log("existingCartProduct", existingCartProduct);
 
@@ -2111,49 +2194,6 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                 ...newCP,
               });
             }
-            // Fulfilling a line that already exists on the order: do not mutate CartProduct.sizes.
-            // Those quantities are the order snapshot; adding sold qty here doubled units on /orders/pending.
-
-            // Find the Kurti with reservedSizes
-            const kurtiFromDB = await tx.kurti.findUnique({
-              where: { code: search.toUpperCase(), isDeleted: false },
-              select: {
-                id: true,
-                sizes: true,
-                reservedSizes: true,
-                prices: true,
-              },
-            });
-            console.log("kurtiFromDB", JSON.stringify(kurtiFromDB));
-
-            if (!kurtiFromDB) {
-              errors.push(`Product ${search} not found`);
-              continue;
-            }
-
-            // 🔴 CHANGED: unified stock check + conditional reservedSizes check
-
-            // ✅ Always validate main stock (total physical qty includes reserved)
-            const sizeInSizes: any = findSizeRowInsensitive(
-              kurtiFromDB.sizes,
-              cmp
-            );
-            const stockSizeKey = sizeInSizes?.size ?? cmp;
-            console.log(
-              "🚀 ~ sellMultipleOnlineKurtis ~ kurtiFromDB:",
-              kurtiFromDB
-            );
-            console.log("sizeInSizes", sizeInSizes);
-
-            if (!sizeInSizes || sizeInSizes.quantity < quantity) {
-              errors.push(
-                `Insufficient stock for ${search}-${cmp}. Available: ${
-                  sizeInSizes?.quantity || 0
-                }, Requested: ${quantity}`
-              );
-              continue;
-            }
-            console.log("its after sizeInSizes");
 
             /**
              * Order lines that exist on the cart snapshot should release reservation,
@@ -2164,7 +2204,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
             let reservedSizeKeyForUpdate: string | null = null;
             if (shouldUseReservedSizes) {
               const resRow = findSizeRowInsensitive(
-                kurtiFromDB.reservedSizes,
+                kurtiFromDB.workingReservedSizes,
                 cmp
               );
               const reservedQty = resRow ? Number(resRow.quantity) || 0 : 0;
@@ -2179,111 +2219,59 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               }
             }
 
-            // 🔽 continue with your existing stock deduction + sale logic
             try {
-              // 🔴 CHANGED: update reservedSizes only when required
+              // Update working stock sizes
               const updatedSizes = updateSizeQuantity(
-                kurtiFromDB.sizes,
+                kurtiFromDB.workingSizes,
                 stockSizeKey,
                 -quantity
               );
+              kurtiFromDB.workingSizes = updatedSizes;
 
-              let updatedReservedSizes: any[];
               if (
                 shouldUseReservedSizes &&
                 reservedRelease > 0 &&
                 reservedSizeKeyForUpdate
               ) {
-                updatedReservedSizes = updateSizeQuantity(
-                  kurtiFromDB.reservedSizes || [],
+                const updatedReservedSizes = updateSizeQuantity(
+                  kurtiFromDB.workingReservedSizes || [],
                   reservedSizeKeyForUpdate,
                   -reservedRelease
                 );
-              } else {
-                updatedReservedSizes = kurtiFromDB.reservedSizes || [];
+                kurtiFromDB.workingReservedSizes = updatedReservedSizes;
               }
 
-              // Update kurti stock
-              const updateUser = await tx.kurti.update({
-                where: {
-                  id: kurtiFromDB.id,
-                },
-                data: {
-                  sizes: updatedSizes,
-                  reservedSizes: updatedReservedSizes,
-                  lastUpdatedTime: currTime,
-                },
-                include: {
-                  prices: true,
-                },
+              kurtiFromDB.isModified = true;
+
+              const prices = kurtiFromDB.prices;
+
+              // Push onlineSell row creation data
+              onlineSellRows.push({
+                sellTime: currTime,
+                code: search.toUpperCase(),
+                kurtiId: kurtiFromDB.id,
+                batchId: offlineBatch.id,
+                pricesId: prices.id,
+                kurtiSize: stockSizeKey,
+                shopLocation: selectedLocation || null,
+                customerName: customerName,
+                customerPhone: customerPhone || null,
+                selledPrice: parseInt(sellingPrice.toString()),
+                quantity: quantity,
+                createdAt: currTime,
+                updatedAt: currTime,
               });
 
-              // Handle prices
-              let prices = updateUser.prices;
-              if (!prices || !prices.actualPrice1 || !prices.sellingPrice1) {
-                const sellPrice = parseInt(updateUser.sellingPrice || "0");
-                const actualP = parseInt(updateUser.actualPrice || "0");
+              // Track TopSoldKurti quantity
+              topSoldAccumulator.set(
+                kurtiFromDB.id,
+                (topSoldAccumulator.get(kurtiFromDB.id) || 0) + quantity
+              );
 
-                prices = await tx.prices.create({
-                  data: {
-                    sellingPrice1: sellPrice,
-                    sellingPrice2: sellPrice,
-                    sellingPrice3: sellPrice,
-                    actualPrice1: actualP,
-                    actualPrice2: actualP,
-                    actualPrice3: actualP,
-                  },
-                });
-
-                await tx.kurti.update({
-                  where: {
-                    id: updateUser.id,
-                  },
-                  data: {
-                    pricesId: prices.id,
-                  },
-                });
-              }
-              console.log("its adding online sell kurti", updateUser.id);
-
-              // Create individual offline sell record for each product
-              const offlineSell = await tx.onlineSell.create({
-                data: {
-                  sellTime: currTime,
-                  code: search.toUpperCase(),
-                  kurtiId: updateUser.id,
-                  batchId: offlineBatch.id,
-                  pricesId: prices.id,
-                  kurtiSize: stockSizeKey,
-                  shopLocation: selectedLocation,
-                  customerName: customerName,
-                  customerPhone: customerPhone,
-                  selledPrice: parseInt(sellingPrice.toString()),
-                  quantity: quantity,
-                  createdAt: currTime,
-                  updatedAt: currTime,
-                },
-              });
-
-              // Update or create TopSoldKurti record
-              await tx.topSoldKurti.upsert({
-                where: {
-                  kurtiId: updateUser.id,
-                },
-                update: {
-                  soldCount: {
-                    increment: quantity,
-                  },
-                },
-                create: {
-                  kurtiId: updateUser.id,
-                  soldCount: quantity,
-                },
-              });
-
+              // We push a placeholder soldProduct for result collection; 
+              // we will populate the actual sale record after bulk insertion if needed
               soldProducts.push({
-                kurti: updateUser,
-                sale: offlineSell,
+                kurti: kurtiFromDB,
                 size: stockSizeKey,
                 quantity: quantity,
                 unitPrice: sellingPrice,
@@ -2292,10 +2280,10 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
 
               totalAmount += sellingPrice * quantity;
 
-              console.log(`Product ${i + 1} sold successfully:`, offlineSell);
+              console.log(`Product ${i + 1} processed in memory successfully.`);
             } catch (e: any) {
               console.error(
-                `Error during offline sale of product ${i + 1}:`,
+                `Error during offline sale processing of product ${i + 1}:`,
                 e.message,
                 e.stack
               );
@@ -2310,6 +2298,43 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               `Error processing product ${i + 1}: ${productError.message}`
             );
           }
+        }
+
+        // Apply all modified kurti stock changes to the database (one update per modified kurti)
+        for (const k of kurtiMap.values()) {
+          if (k.isModified) {
+            await tx.kurti.update({
+              where: { id: k.id },
+              data: {
+                sizes: k.workingSizes,
+                reservedSizes: k.workingReservedSizes,
+                lastUpdatedTime: currTime,
+              },
+            });
+          }
+        }
+
+        // Bulk insert all onlineSell records
+        if (onlineSellRows.length > 0) {
+          await tx.onlineSell.createMany({
+            data: onlineSellRows,
+          });
+
+          // Attach mapped sale records to returned soldProducts
+          soldProducts.forEach((sp, idx) => {
+            sp.sale = {
+              ...onlineSellRows[idx],
+            };
+          });
+        }
+
+        // Update top sold kurtis (one upsert per unique kurti)
+        for (const [kurtiId, qty] of topSoldAccumulator.entries()) {
+          await tx.topSoldKurti.upsert({
+            where: { kurtiId },
+            update: { soldCount: { increment: qty } },
+            create: { kurtiId, soldCount: qty },
+          });
         }
 
         let walletDebitTotal = 0;
