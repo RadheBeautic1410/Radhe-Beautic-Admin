@@ -12,6 +12,7 @@ enum UserRole {
   MOD
   REFERRER
   USER
+  CUSTOMER
   SELLER
   UPLOADER
   RESELLER

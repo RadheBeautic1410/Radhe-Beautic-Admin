@@ -1,8 +1,6 @@
 "use server";
 
 import * as z from "zod";
-import bcrypt from "bcryptjs";
-
 import { db } from "@/src/lib/db";
 import { SettingSchema } from "@/src/schemas";
 import { getUserById } from "@/src/data/user";
