@@ -179,6 +179,7 @@ model Category {
   customerPrice        Float?
   isStockReady         Boolean @default(true)
   isVisibleForCustomer Boolean @default(true)
+  mrpPercentage        Float?  @default(30.0)
 
   // Indexes for query performance
   @@index([isDeleted])

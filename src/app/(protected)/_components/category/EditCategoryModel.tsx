@@ -6,13 +6,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/src/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/src/components/ui/sheet";
 import {
   Form,
   FormControl,
@@ -48,9 +48,10 @@ interface Category {
   customerPrice?: number;
   customerBigPrice?: number;
   image?: string;
-  bigPrice?: number; // Added bigPrice field
+  bigPrice?: number;
   walletDiscount?: number;
   isStockReady: boolean;
+  mrpPercentage?: number;
 }
 
 interface EditCategoryModalProps {
@@ -66,6 +67,7 @@ type PriceDraft = {
   bigPrice: string;
   customerBigPrice: string;
   walletDiscount: string;
+  mrpPercentage: string;
 };
 
 function categoryToPriceDraft(cat: Category): PriceDraft {
@@ -79,6 +81,7 @@ function categoryToPriceDraft(cat: Category): PriceDraft {
     bigPrice: toStr(cat.bigPrice),
     customerBigPrice: toStr(cat.customerBigPrice),
     walletDiscount: toStr(cat.walletDiscount),
+    mrpPercentage: toStr(cat.mrpPercentage),
   };
 }
 
@@ -117,6 +120,7 @@ const EditCategoryModal = ({
       customerBigPrice: category.customerBigPrice ?? undefined,
       walletDiscount: category.walletDiscount ?? undefined,
       kurtiType: category.kurtiType || "",
+      mrpPercentage: category.mrpPercentage ?? undefined,
     },
   });
 
@@ -142,6 +146,7 @@ const EditCategoryModal = ({
         customerBigPrice: cat.customerBigPrice ?? undefined,
         walletDiscount: cat.walletDiscount ?? 0,
         kurtiType: cat.kurtiType || "",
+        mrpPercentage: cat.mrpPercentage ?? undefined,
       });
     },
     [form]
@@ -156,6 +161,7 @@ const EditCategoryModal = ({
       bigPrice: parseDraftNumber(priceDraft.bigPrice),
       customerBigPrice: parseDraftNumber(priceDraft.customerBigPrice),
       walletDiscount: parseDraftNumber(priceDraft.walletDiscount) ?? 0,
+      mrpPercentage: parseDraftNumber(priceDraft.mrpPercentage),
     };
 
     const parsed = categoryEditSchema.safeParse(merged);
@@ -176,10 +182,11 @@ const EditCategoryModal = ({
         sellingPrice: parsed.data.sellingPrice,
         actualPrice: parsed.data.actualPrice,
         customerPrice: parsed.data.customerPrice,
-        bigPrice: parsed.data.bigPrice, // Include bigPrice in the update
-        customerBigPrice: parsed.data.customerBigPrice, // Include customerBigPrice in the update
+        bigPrice: parsed.data.bigPrice,
+        customerBigPrice: parsed.data.customerBigPrice,
         walletDiscount: parsed.data.walletDiscount || 0,
         kurtiType: parsed.data.kurtiType,
+        mrpPercentage: parsed.data.mrpPercentage,
       })
         .then((data) => {
           console.log("🚀 ~ .then ~ data:", data);
@@ -196,6 +203,7 @@ const EditCategoryModal = ({
               type: parsed.data.type || "",
               image: parsed.data.image || "/images/no-image.png",
               bigPrice: parsed.data.bigPrice,
+              mrpPercentage: parsed.data.mrpPercentage,
             };
 
             onCategoryUpdate(updatedCategory);
@@ -211,6 +219,7 @@ const EditCategoryModal = ({
                 type: parsed.data.type || "",
                 image: parsed.data.image || "/images/no-image.png",
                 bigPrice: parsed.data.bigPrice,
+                mrpPercentage: parsed.data.mrpPercentage,
               };
 
               onCategoryUpdate(updatedCategory2);
@@ -231,21 +240,21 @@ const EditCategoryModal = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetTrigger asChild>
         {trigger || (
           <Button variant="outline" size="sm">
             Edit
           </Button>
         )}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] max-h-[95%] overflow-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Category</DialogTitle>
-          <DialogDescription>
+      </SheetTrigger>
+      <SheetContent side="right" className="w-[100%] sm:max-w-[550px] h-full overflow-y-auto flex flex-col gap-4">
+        <SheetHeader>
+          <SheetTitle>Edit Category</SheetTitle>
+          <SheetDescription>
             Update category information and click save changes.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
         <Form {...form}>
           <form
@@ -425,6 +434,26 @@ const EditCategoryModal = ({
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="edit-cat-mrp-percentage">
+                MRP In percentage (%)
+              </Label>
+              <Input
+                id="edit-cat-mrp-percentage"
+                type="text"
+                inputMode="decimal"
+                disabled={isPending}
+                placeholder="Enter MRP percentage (default 30)"
+                value={priceDraft.mrpPercentage}
+                onChange={(e) =>
+                  setPriceDraft((d) => ({
+                    ...d,
+                    mrpPercentage: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="edit-cat-wallet-discount">
                 Wallet Discount (₹)
               </Label>
@@ -499,8 +528,8 @@ const EditCategoryModal = ({
             </div>
           </form>
         </Form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 };
 

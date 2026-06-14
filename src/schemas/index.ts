@@ -119,6 +119,20 @@ export const categoryAddSchema = z.object({
       })
       .optional()
   ),
+  mrpPercentage: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return 30;
+      if (typeof val === "number") return val;
+      const num = parseFloat(val as string);
+      return isNaN(num) ? 30 : num;
+    },
+    z
+      .number()
+      .min(0, {
+        message: "MRP percentage must be 0 or greater",
+      })
+      .optional()
+  ),
 });
 
 export const stockUpdateSchema = z.object({
@@ -269,4 +283,5 @@ export const categoryEditSchema = z.object({
   customerPrice: z.number().optional(),
   walletDiscount: z.number().min(0, "Discount must be zero or more").optional(),
   kurtiType: z.string(),
+  mrpPercentage: z.number().min(0, "MRP percentage must be zero or more").optional(),
 });
