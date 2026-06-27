@@ -6,17 +6,21 @@ import {
   priceChange,
   stockAddition,
   toggleKurtiBigPrice,
+  specificationsChange,
 } from "@/src/actions/kurti";
-import { DialogDemo } from "@/src/components/dialog-demo";
-import { Button } from "@/src/components/ui/button";
 import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/src/components/ui/form";
+  FABRICS,
+  FIT_SHAPES,
+  LENGTHS,
+  NECKS,
+  OCCASIONS,
+  PATTERNS,
+  SLEEVES,
+  STITCH_TYPES,
+} from "@/src/lib/constants";
+import axios from "axios";
+import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
+import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import {
   Select,
@@ -25,21 +29,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/src/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/src/components/ui/dialog";
 import React, { useEffect, useRef, useState, useTransition } from "react";
-import { Form, useForm } from "react-hook-form";
-import { start } from "repl";
 import { toast } from "sonner";
-import fs from "fs";
-import Link from "next/link";
-import axios from "axios";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AddSizeForm } from "../dynamicFields/sizes";
-// import ImageUpload,  from '../upload/imageUpload';
 import ImageUpload2, { ImageUploadRef } from "../upload/imageUpload2";
 import { v4 as uuidv4 } from "uuid";
 import { Switch } from "@/src/components/ui/switch";
-import { SwitchThumb } from "@radix-ui/react-switch";
+import PageLoader from "@/src/components/loader";
 
 interface category {
   id: string;
@@ -59,26 +66,36 @@ interface Size {
 
 const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [sizes, setSizes] = useState<Size[]>(data?.sizes || []);
-  const [components, setComponents] = useState<any[]>([]);
   const [isPending, startTransition] = useTransition();
   const [actualPrice, setActualPrice] = useState(data?.actualPrice);
   const [sellingPrice, setSellingPrice] = useState(data?.sellingPrice);
   const [customerPrice, setCustomerPrice] = useState(data?.customerPrice);
   const [weight, setWeight] = useState(data?.weight);
   const [downloadSize, setDownloadSize] = useState("");
-  const [downloadQuantity, setDownloadQuanitity] = useState(0);
+  const [downloadQuantity, setDownloadQuantity] = useState(0);
   const [downloading1, setDownloading1] = useState(false);
   const [downloading2, setDownloading2] = useState(false);
   const [allCategory, setAllCategory] = useState<any[]>([]);
-  const [changedCategory, setCategory] = useState(data?.category?.toLowerCase());
+  const [changedCategory, setCategory] = useState(data?.category?.toLowerCase() || "");
   const [uploading, setUploading] = useState(false);
+  const [name, setName] = useState(data?.name || "");
+  const [description, setDescription] = useState(data?.description || "");
+  const [fabric, setFabric] = useState(data?.fabric || "");
+  const [fitShape, setFitShape] = useState(data?.fitShape || "");
+  const [length, setLength] = useState(data?.length || "");
+  const [neck, setNeck] = useState(data?.neck || "");
+  const [occasion, setOccasion] = useState(data?.occasion || "");
+  const [pattern, setPattern] = useState(data?.pattern || "");
+  const [sleeve, setSleeve] = useState(data?.sleeve || "");
+  const [stitchType, setStitchType] = useState(data?.stitchType || "");
+  const [color, setColor] = useState(data?.color || "");
+  const [colors, setColors] = useState<any[]>([]);
+  const [newColorName, setNewColorName] = useState("");
   const [isBigPrice, setIsBigPrice] = useState(data?.isBigPrice || false);
-
   const router = useRouter();
 
   const [sizesDownload, setSizesDownload] = useState<Size[]>([]);
-  const [componentsDownload, setComponentsDownload] = useState<any[]>([]);
-  let selectSizes: string[] = [
+  const selectSizes = [
     "XS",
     "S",
     "M",
@@ -134,15 +151,43 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
       setWeight(data.weight);
     }
   }, [data?.weight]);
+
+  useEffect(() => {
+    setName(data?.name || "");
+    setDescription(data?.description || "");
+    setFabric(data?.fabric || "");
+    setFitShape(data?.fitShape || "");
+    setLength(data?.length || "");
+    setNeck(data?.neck || "");
+    setOccasion(data?.occasion || "");
+    setPattern(data?.pattern || "");
+    setSleeve(data?.sleeve || "");
+    setStitchType(data?.stitchType || "");
+    setColor(data?.color || "");
+    setCategory(data?.category?.toLowerCase() || "");
+  }, [data]);
+
+  useEffect(() => {
+    const fetchColors = async () => {
+      try {
+        const res = await fetch("/api/color");
+        const json = await res.json();
+        if (Array.isArray(json.data)) {
+          setColors(json.data);
+        }
+      } catch (err) {
+        console.error("Failed to load colors", err);
+      }
+    };
+    fetchColors();
+  }, []);
+
   const handleImageChange = (data: any) => {
     setImages(data);
-    console.log(data);
   };
 
   const handleVideoChange = (data: any) => {
-    console.log("🚀 ~ handleVideoChange ~ data:", data);
     setVideos(data);
-    console.log(data);
   };
 
   const handleAddSize = (sizes: Size[]) => {
@@ -153,75 +198,31 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
     setSizesDownload(sizes);
   };
 
-  const handleUpload = () => {
-    if (images.length === 0 && videos.length === 0) {
-      toast.error("Upload some images");
-    } else {
-      let allImages: any[] = data.images || [];
-      for (let i = 0; i < images.length; i++) {
-        allImages.push(images[i]);
-      }
-      console.log(allImages);
-      startTransition(() => {
-        addNewImages({
-          images: allImages?.map((img) => ({
-            url: img.url,
-            id: uuidv4(),
-            is_hidden: false,
-          })),
-          code: data.code,
-          videos: videos.map((v) => ({
-            url: v.url,
-            id: uuidv4(),
-            is_hidden: false,
-          })),
-        })
-          .then(async (data) => {
-            if (data.success) {
-              toast.success(data.success);
-              setImages([]);
-              if (imageUploadRef.current) {
-                imageUploadRef.current.reset();
-              }
-              await onKurtiUpdate(data.kurti);
-            }
-          })
-          .catch((e: any) => {
-            toast.error("Something went wrong!!!");
-            console.log(e.message);
-          });
-      });
-    }
-  };
-
   const handleDownload = async () => {
-    // console.log(sizesDownload)
-    // return;
+    if (sizesDownload.length === 0) {
+      toast.error("Please add sizes first");
+      return;
+    }
     try {
       setDownloading2(true);
-      let obj = JSON.stringify(sizesDownload);
+      const obj = JSON.stringify(sizesDownload);
       const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${data.code}`,
-        {
-          responseType: "blob",
-        }
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${data?.code}`,
+        { responseType: "blob" }
       );
-      console.log(res);
-      let blob = res.data;
-      console.log(blob);
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(res.data);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "document.pdf";
+      a.download = `${data?.code}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (e) {
-      console.log(e);
+      toast.success("Barcodes downloaded!");
+    } catch (e: any) {
+      console.error(e.message);
+      toast.error("Failed to download barcodes");
     } finally {
-      setComponentsDownload([]);
-      setSizesDownload([]);
       setDownloading2(false);
     }
   };
@@ -229,75 +230,85 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const handleDownload2 = async () => {
     try {
       setDownloading1(true);
-      let obj = JSON.stringify(data.sizes);
+      const obj = JSON.stringify(sizes);
       const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${data.code}`,
-        {
-          responseType: "blob",
-        }
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${data?.code}`,
+        { responseType: "blob" }
       );
-      console.log(res);
-      let blob = res.data;
-      console.log(blob);
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(res.data);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "document.pdf";
+      a.download = `${data?.code}_full_stock.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (e) {
-      console.log(e);
+      toast.success("Full stock barcode downloaded!");
+    } catch (e: any) {
+      console.error(e.message);
+      toast.error("Failed to download barcodes");
     } finally {
-      setDownloadQuanitity(0);
-      setDownloadSize("");
       setDownloading1(false);
     }
   };
+
+  const handleUpload = async () => {
+    setUploading(true);
+    try {
+      const res = await addNewImages({
+        code: data?.code,
+        images: images,
+        videos: videos,
+      });
+      if (res && (res as any).error) {
+        toast.error((res as any).error);
+      }
+      if (res && res.success) {
+        toast.success(res.success);
+        onKurtiUpdate(res.kurti);
+        setImages([]);
+        setVideos([]);
+        if (imageUploadRef.current) {
+          imageUploadRef.current.reset();
+        }
+      }
+    } catch (e) {
+      toast.error("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-         const query = new URLSearchParams({
-           page: "1",
-           limit: "500",
-         })
-        const response = await fetch(`/api/category?${query.toString()}`); // Adjust the API endpoint based on your actual setup
+        const query = new URLSearchParams({ page: "1", limit: "500" });
+        const response = await fetch(`/api/category?${query.toString()}`);
         const result = await response.json();
         const sortedCategory = (result.data || []).sort((a: any, b: any) =>
           a.name.localeCompare(b.name)
         );
-        setAllCategory(sortedCategory); // Use an empty array as a default value if result.data is undefined or null
+        setAllCategory(sortedCategory);
       } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        // setCategoryLoader(false);
+        console.error("Error fetching categories:", error);
       }
     };
-
     fetchData();
-    return () => {
-      setComponents([]);
-    };
-  }, [sizes, sizesDownload]);
+  }, []);
 
   const handleStockUpdate = () => {
     startTransition(() => {
       stockAddition({ code: data?.code, sizes: sizes })
-        .then((data: any) => {
-          console.log(data);
-          if (data.error) {
-            // formCategory.reset();
-            toast.error(data.error);
+        .then((res: any) => {
+          if (res.error) {
+            toast.error(res.error);
           }
-          if (data.success) {
-            // formCategory.reset();
-            toast.success(data.success);
-            setSizes(data.data);
+          if (res.success) {
+            toast.success(res.success);
+            setSizes(res.data);
           }
         })
-        .catch((e: any) => {
-          console.log(e.message);
+        .catch(() => {
           toast.error("Something went wrong!");
         });
     });
@@ -312,16 +323,42 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
         customerPrice: customerPrice,
         weight: weight,
       })
-        .then((data: any) => {
-          console.log(data);
-          if (data.error) {
-            // formCategory.reset();
-            toast.error(data.error);
+        .then((res: any) => {
+          if (res.error) {
+            toast.error(res.error);
           }
-          if (data.success) {
-            // formCategory.reset();
-            toast.success(data.success);
-            setSizes(data.data);
+          if (res.success) {
+            toast.success(res.success);
+            setSizes(res.data);
+          }
+        })
+        .catch(() => toast.error("Something went wrong!"));
+    });
+  };
+
+  const handleSpecificationsChange = () => {
+    startTransition(() => {
+      specificationsChange({
+        code: data?.code,
+        name,
+        description,
+        fabric,
+        fitShape,
+        length,
+        neck,
+        occasion,
+        pattern,
+        sleeve,
+        stitchType,
+        color,
+      })
+        .then((res: any) => {
+          if (res.error) {
+            toast.error(res.error);
+          }
+          if (res.success) {
+            toast.success(res.success);
+            onKurtiUpdate(res.data);
           }
         })
         .catch(() => toast.error("Something went wrong!"));
@@ -332,38 +369,38 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [generatorLoader, setGeneratorLoader] = useState(false);
   const CodeGenerator = async () => {
     try {
-      if (changedCategory === data?.category) {
+      if (changedCategory === data?.category?.toLowerCase()) {
         setGeneratorLoader(true);
-        setGeneratedCode(data?.code);
+        setGeneratedCode(data?.code || "");
         setGeneratorLoader(false);
         return;
       }
 
       const categorySelected = changedCategory;
       if (categorySelected === "") {
-        toast.error("Please select the cateory first");
+        toast.error("Please select a category first");
+        return;
       }
+      setGeneratorLoader(true);
       const response = await fetch(
         `/api/kurti/generateCode?cat=${categorySelected}`
-      ); // Adjust the API endpoint based on your actual setup
+      );
       const result = await response.json();
       setGeneratedCode(result.code);
       return result;
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error generating code:", error);
     } finally {
       setGeneratorLoader(false);
     }
   };
 
   const handleCategoryChange = async () => {
-    const generatedCode = await CodeGenerator();
-    console.log("🚀 ~ handleCategoryChange ~ generatedCode:", generatedCode)
-    if (!generatedCode.code) {
+    const generated = await CodeGenerator();
+    if (!generated || !generated.code) {
       return;
     }
 
-    // Check if any sizes are selected
     const isPartialMove =
       selectedSizes.length > 0 && selectedSizes.length < allSizes.length;
 
@@ -371,20 +408,19 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
       categoryChange({
         code: data?.code,
         category: changedCategory,
-        newCode: generatedCode.code,
-        selectedSizes: selectedSizes, // Pass selected sizes
+        newCode: generated.code,
+        selectedSizes: selectedSizes,
         isPartialMove: isPartialMove,
-        bigPrice: bigPrice, // Pass big price if needed
+        bigPrice: bigPrice,
       })
-        .then((data: any) => {
-          console.log("🚀 ~ .then ~ data:", data);
-          if (data.error) {
-            toast.error(data.error);
+        .then((res: any) => {
+          if (res.error) {
+            toast.error(res.error);
           }
-          if (data.success) {
-            toast.success(data.success);
+          if (res.success) {
+            toast.success(res.success);
             router.replace(
-              `/catalogue/${data.category}/${data.code.toLowerCase()}`
+              `/catalogue/${res.category}/${res.code.toLowerCase()}`
             );
           }
         })
@@ -392,159 +428,497 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
     });
   };
 
-
   return (
     <>
+      <PageLoader loading={isPending || uploading} />
       {data ? (
-        <div className="flex flex-row flex-wrap space-evenely gap-3">
-          <Button className="mr-3" asChild>
-            <DialogDemo
-              dialogTrigger="Edit Stock"
-              dialogTitle="Edit Stock"
-              dialogDescription="Edit previous stock or add new stock"
-              bgColor="destructive"
-            >
-              <div className="h-72 overflow-y-scroll w-full">
-                <h2>Sizes</h2>
-                <AddSizeForm
-                  preSizes={sizes}
-                  sizes={sizes}
-                  onAddSize={handleAddSize}
+        <div className="space-y-6 w-full text-left">
+          
+          {/* Top Options Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">
+                Product Specifications & Controls: <span className="text-blue-600 uppercase">{data.code}</span>
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Category: {data.category?.toUpperCase()} | Normalized Color: {data.color || "None"}
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Big Size Price Toggle */}
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg">
+                <span className="text-xs font-bold text-gray-600">Big Size Price Modifier</span>
+                <Switch
+                  checked={isBigPrice}
+                  onCheckedChange={async (e: boolean) => {
+                    const res = await toggleKurtiBigPrice(data?.id, e);
+                    if (!res.success) {
+                      toast.error(res.error);
+                      return;
+                    }
+                    setIsBigPrice(e);
+                    onKurtiUpdate({ ...data, isBigPrice: e });
+                  }}
                 />
               </div>
-              <Button
-                type="button"
-                onClick={handleStockUpdate}
-                disabled={isPending}
-              >
-                Save
-              </Button>
-            </DialogDemo>
-          </Button>
-          <Button asChild className="ml-3">
-            <DialogDemo
-              dialogTrigger="Edit Price and Weight"
-              dialogTitle="Edit Price and Weight"
-              dialogDescription="Edit previous prices and weight"
-              bgColor="destructive"
-            >
-              <div>
-                <h2>Selling Price (Reseller)</h2>
-                <Input
-                  value={sellingPrice}
-                  onChange={(e) => {
-                    setSellingPrice(e.target.value);
-                  }}
-                ></Input>
-                <h2 className="pt-2">Actual Price</h2>
-                <Input
-                  value={actualPrice}
-                  onChange={(e) => {
-                    setActualPrice(e.target.value);
-                  }}
-                ></Input>
-                <h2 className="pt-2">Customer Price</h2>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={customerPrice ?? ""}
-                  onChange={(e) => {
-                    setCustomerPrice(e.target.value ? parseFloat(e.target.value) : undefined);
-                  }}
-                ></Input>
-                <h2 className="pt-2">Weight (grams)</h2>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  min="0"
-                  value={weight ?? ""}
-                  onChange={(e) => {
-                    setWeight(e.target.value ? parseInt(e.target.value) : undefined);
-                  }}
-                ></Input>
-              </div>
-              <Button
-                type="button"
-                onClick={handlePriceChange}
-                disabled={isPending}
-                // onClick={formCategory.handleSubmit(handleSubmitCategory)}
-              >
-                Save
-              </Button>
-            </DialogDemo>
-          </Button>
-          <Button asChild className="ml-3">
-            <DialogDemo
-              dialogTrigger="Upload New Images/Videos"
-              dialogTitle="upload images"
-              dialogDescription=""
-              bgColor="destructive"
-            >
-              <div className="h-72 overflow-y-scroll p-1">
-                <h2>Images</h2>
-                <ImageUpload2
-                  allowVideos
-                  onImageChange={handleImageChange}
-                  images={images}
-                  ref={imageUploadRef}
-                  onVideoChange={handleVideoChange}
-                  videos={videos}
-                />
-              </div>
-              <Button
-                type="button"
-                onClick={handleUpload}
-                disabled={uploading || isPending}
-                // onClick={formCategory.handleSubmit(handleSubmitCategory)}
-              >
-                {uploading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  ""
-                )}
-                Upload
-              </Button>
-            </DialogDemo>
-          </Button>
-          <Button asChild className="ml-3">
-            <DialogDemo
-              dialogTrigger="Move Catalogue"
-              dialogTitle="Edit Catalogue"
-              dialogDescription="Edit previous catalogue"
-              bgColor="destructive"
-            >
-              <div>
-                {console.log(changedCategory,"llllllllllllllllllllllllllllllll")}
-                <Select
-                  disabled={isPending}
-                  onValueChange={(val) => {
-                    setCategory(val);
-                  }}
-                  defaultValue={changedCategory?.toUpperCase()}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allCategory.map((org) => (
-                      <SelectItem key={org.id} value={org.name}>
-                        {org.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
 
-                {/* Size Selection */}
-                <div className="mt-4">
-                  <label className="text-sm font-medium mb-2 block">
-                    Select Sizes to Move (Leave empty to move all)
-                  </label>
-                  <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto">
-                    {allSizes.map(
-                      (size: { size: string; quantity: number }) => (
+              {/* Barcode / Print */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="text-xs h-9 border-gray-200 hover:bg-gray-50 font-semibold">
+                    🏷️ Custom Barcodes
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Download Custom Barcodes</DialogTitle>
+                    <DialogDescription>Add size and quantity to generate custom barcode labels</DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4 max-h-60 overflow-y-auto pr-1">
+                    <AddSizeForm
+                      preSizes={[]}
+                      sizes={sizesDownload}
+                      onAddSize={handleAddSizeDownload}
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      onClick={handleDownload}
+                      disabled={downloading2}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                    >
+                      {downloading2 && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+                      Generate & Download
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleDownload2}
+                disabled={downloading1}
+                className="text-xs h-9 border-gray-200 hover:bg-gray-50 font-semibold"
+              >
+                {downloading1 && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+                📥 Print Full Stock Barcodes
+              </Button>
+            </div>
+          </div>
+
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Card 1: Specifications */}
+            <Card className="shadow-sm border-gray-200 bg-white">
+              <CardHeader className="border-b py-3 bg-gray-50">
+                <CardTitle className="text-sm font-bold text-gray-800">👗 Specs & Attributes</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">Product Title</label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Product Title"
+                    className="border-gray-300 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">Description</label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Product Description"
+                    className="w-full min-h-[80px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 mt-1"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Color</label>
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex-1">
+                        <Select value={color} onValueChange={(val) => setColor(val)}>
+                          <SelectTrigger className="w-full bg-white border-gray-300">
+                            <SelectValue placeholder="Select Color" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-40 overflow-y-auto bg-white border border-gray-200">
+                            {colors.map((c) => (
+                              <SelectItem key={c.id} value={c.normalizedLowerCase}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="px-2.5 border-gray-300 font-bold">+</Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                          <DialogHeader>
+                            <DialogTitle>Add New Color</DialogTitle>
+                          </DialogHeader>
+                          <div className="py-4 space-y-2">
+                            <label className="text-xs font-semibold text-gray-700">Color Name</label>
+                            <Input
+                              value={newColorName}
+                              onChange={(e) => setNewColorName(e.target.value)}
+                              placeholder="e.g. Navy Blue"
+                              className="border-gray-300"
+                            />
+                          </div>
+                          <DialogFooter>
+                            <Button
+                              type="button"
+                              onClick={async () => {
+                                if (!newColorName) return toast.error("Name is required");
+                                try {
+                                  const res = await fetch("/api/color/add", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ name: newColorName }),
+                                  });
+                                  const json = await res.json();
+                                  if (res.ok && json.data) {
+                                    toast.success("Color Added!");
+                                    setColors((prev) =>
+                                      [...prev, json.data].sort((a, b) =>
+                                        a.name.localeCompare(b.name)
+                                      )
+                                    );
+                                    setColor(json.data.normalizedLowerCase);
+                                    setNewColorName("");
+                                    // Click active overlay close
+                                    const closeBtn = document.querySelector('[data-radix-collection-item]') as HTMLElement;
+                                    closeBtn?.click();
+                                  } else {
+                                    toast.error(json.error || "Failed to add color");
+                                  }
+                                } catch (err) {
+                                  toast.error("Failed to add color");
+                                }
+                              }}
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                            >
+                              Add Color
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Fabric</label>
+                    <Select value={fabric} onValueChange={(val) => setFabric(val)}>
+                      <SelectTrigger className="w-full bg-white border-gray-300">
+                        <SelectValue placeholder="Select Fabric" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
+                        {FABRICS.map((fab) => (
+                          <SelectItem key={fab} value={fab}>
+                            {fab}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Fit / Shape</label>
+                    <Select value={fitShape} onValueChange={(val) => setFitShape(val)}>
+                      <SelectTrigger className="w-full bg-white border-gray-300">
+                        <SelectValue placeholder="Select Fit" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
+                        {FIT_SHAPES.map((fit) => (
+                          <SelectItem key={fit} value={fit}>
+                            {fit}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Length</label>
+                    <Select value={length} onValueChange={(val) => setLength(val)}>
+                      <SelectTrigger className="w-full bg-white border-gray-300">
+                        <SelectValue placeholder="Select Length" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
+                        {LENGTHS.map((len) => (
+                          <SelectItem key={len} value={len}>
+                            {len}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Neck</label>
+                    <Select value={neck} onValueChange={(val) => setNeck(val)}>
+                      <SelectTrigger className="w-full bg-white border-gray-300">
+                        <SelectValue placeholder="Select Neck" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
+                        {NECKS.map((nk) => (
+                          <SelectItem key={nk} value={nk}>
+                            {nk}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Occasion</label>
+                    <Select value={occasion} onValueChange={(val) => setOccasion(val)}>
+                      <SelectTrigger className="w-full bg-white border-gray-300">
+                        <SelectValue placeholder="Select Occasion" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
+                        {OCCASIONS.map((occ) => (
+                          <SelectItem key={occ} value={occ}>
+                            {occ}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Pattern</label>
+                    <Select value={pattern} onValueChange={(val) => setPattern(val)}>
+                      <SelectTrigger className="w-full bg-white border-gray-300">
+                        <SelectValue placeholder="Select Pattern" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
+                        {PATTERNS.map((pat) => (
+                          <SelectItem key={pat} value={pat}>
+                            {pat}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Sleeve</label>
+                    <Select value={sleeve} onValueChange={(val) => setSleeve(val)}>
+                      <SelectTrigger className="w-full bg-white border-gray-300">
+                        <SelectValue placeholder="Select Sleeve" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
+                        {SLEEVES.map((slv) => (
+                          <SelectItem key={slv} value={slv}>
+                            {slv}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Stitch Type</label>
+                    <Select value={stitchType} onValueChange={(val) => setStitchType(val)}>
+                      <SelectTrigger className="w-full bg-white border-gray-300">
+                        <SelectValue placeholder="Select Stitch Type" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
+                        {STITCH_TYPES.map((st) => (
+                          <SelectItem key={st} value={st}>
+                            {st}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-gray-100 flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={handleSpecificationsChange}
+                    disabled={isPending}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-9 px-4 rounded-lg shadow-sm"
+                  >
+                    Save Specifications
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Right Column Cards */}
+            <div className="space-y-6">
+              
+              {/* Card 2: Pricing & Weight */}
+              <Card className="shadow-sm border-gray-200 bg-white">
+                <CardHeader className="border-b py-3 bg-gray-50">
+                  <CardTitle className="text-sm font-bold text-gray-800">💰 Pricing & Weight</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-gray-600 block mb-1">Selling Price (Reseller)</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={sellingPrice}
+                        onChange={(e) => setSellingPrice(e.target.value)}
+                        className="border-gray-300 bg-white"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-bold text-gray-600 block mb-1">Actual Purchase Price</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={actualPrice}
+                        onChange={(e) => setActualPrice(e.target.value)}
+                        className="border-gray-300 bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-gray-600 block mb-1">Customer Showcase Price</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={customerPrice ?? ""}
+                        onChange={(e) => setCustomerPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
+                        className="border-gray-300 bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-gray-600 block mb-1">Weight (grams)</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={weight ?? ""}
+                        onChange={(e) => setWeight(e.target.value ? parseInt(e.target.value) : undefined)}
+                        className="border-gray-300 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100 flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={handlePriceChange}
+                      disabled={isPending}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-9 px-4 rounded-lg shadow-sm"
+                    >
+                      Save Pricing & Weight
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Card 3: Stock Inventory */}
+              <Card className="shadow-sm border-gray-200 bg-white">
+                <CardHeader className="border-b py-3 bg-gray-50">
+                  <CardTitle className="text-sm font-bold text-gray-800">📊 Size Stocks Inventory</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-4">
+                  <div className="max-h-60 overflow-y-auto pr-1">
+                    <AddSizeForm
+                      preSizes={sizes}
+                      sizes={sizes}
+                      onAddSize={handleAddSize}
+                    />
+                  </div>
+                  
+                  <div className="pt-3 border-t border-gray-100 flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={handleStockUpdate}
+                      disabled={isPending}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-9 px-4 rounded-lg shadow-sm"
+                    >
+                      Save Stock
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Card 4: Upload Media */}
+              <Card className="shadow-sm border-gray-200 bg-white">
+                <CardHeader className="border-b py-3 bg-gray-50">
+                  <CardTitle className="text-sm font-bold text-gray-800">📸 Upload New Media</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-4">
+                  <div className="max-h-60 overflow-y-auto pr-1">
+                    <ImageUpload2
+                      allowVideos
+                      onImageChange={handleImageChange}
+                      images={images}
+                      ref={imageUploadRef}
+                      onVideoChange={handleVideoChange}
+                      videos={videos}
+                    />
+                  </div>
+                  
+                  <div className="pt-3 border-t border-gray-100 flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={handleUpload}
+                      disabled={uploading || isPending}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-9 px-4 rounded-lg shadow-sm flex items-center justify-center gap-1.5"
+                    >
+                      {uploading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      Upload files
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Card 5: Migrate Category */}
+              <Card className="shadow-sm border-gray-200 bg-white">
+                <CardHeader className="border-b py-3 bg-gray-50">
+                  <CardTitle className="text-sm font-bold text-gray-800">🔄 Migrate Product Category</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">New Category</label>
+                    <Select
+                      disabled={isPending}
+                      onValueChange={(val) => setCategory(val)}
+                      defaultValue={changedCategory?.toUpperCase()}
+                    >
+                      <SelectTrigger className="w-full bg-white border-gray-300">
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-50 overflow-y-auto bg-white border border-gray-200">
+                        {allCategory.map((org) => (
+                          <SelectItem key={org.id} value={org.name}>
+                            {org.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Size Checklist */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-2">
+                      Select Sizes to Move (Leave empty to move all)
+                    </label>
+                    <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto bg-gray-50 p-2.5 rounded-lg border border-gray-200">
+                      {allSizes.map((size: { size: string; quantity: number }) => (
                         <label
                           key={size.size}
-                          className="flex items-center space-x-2"
+                          className="flex items-center space-x-2 cursor-pointer select-none"
                         >
                           <input
                             type="checkbox"
@@ -558,113 +932,64 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                                 );
                               }
                             }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
-                          <span className="text-sm">{size.size}</span>
+                          <span className="text-xs font-medium text-gray-700">{size.size}</span>
                         </label>
-                      )
-                    )}
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {data?.isBigPrice && !changedCategory.bigPrice && (
-                  <Input
-                    className="mt-4"
-                    placeholder="Set big price"
-                    disabled={changedCategory?.bigPrice}
-                    type="text"
-                    inputMode="decimal"
-                    onChange={(e) => {
-                      setBigPrice(
-                        e.target.value ? parseFloat(e.target.value) : 0
-                      );
-                    }}
-                  />
-                )}
-
-                <Input
-                  disabled
-                  className="mt-1 mb-1"
-                  placeholder={"Generate the code"}
-                  value={generatedCode.toUpperCase()}
-                />
-
-                <Button
-                  onClick={CodeGenerator}
-                  disabled={generatorLoader}
-                  type="button"
-                >
-                  {generatorLoader ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    ""
+                  {data?.isBigPrice && !changedCategory.bigPrice && (
+                    <div>
+                      <label className="text-xs font-bold text-gray-600 block mb-1">Big Size Price Modifier</label>
+                      <Input
+                        placeholder="Set big price"
+                        disabled={changedCategory?.bigPrice}
+                        type="number"
+                        min="0"
+                        onChange={(e) => setBigPrice(e.target.value ? parseFloat(e.target.value) : 0)}
+                        className="border-gray-300 bg-white"
+                      />
+                    </div>
                   )}
-                  Generate Code
-                </Button>
-              </div>
 
-              <Button
-                type="button"
-                onClick={handleCategoryChange}
-                disabled={isPending}
-              >
-                Save
-              </Button>
-            </DialogDemo>
-          </Button>
-          <Button onClick={handleDownload2} disabled={downloading1}>
-            {downloading1 ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              ""
-            )}
-            Download Full Stock
-          </Button>
-          <Button asChild className="ml-3">
-            <DialogDemo
-              dialogTrigger="Download Barcodes"
-              dialogTitle="Enter Size and Quantity"
-              dialogDescription=""
-              bgColor="destructive"
-            >
-              <div>
-                <h2>Size</h2>
-                <AddSizeForm
-                  preSizes={[]}
-                  sizes={sizesDownload}
-                  onAddSize={handleAddSizeDownload}
-                />
-              </div>
-              <Button
-                type="button"
-                onClick={handleDownload}
-                disabled={downloading2}
-                // onClick={formCategory.handleSubmit(handleSubmitCategory)}
-              >
-                {downloading2 ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  ""
-                )}
-                Download
-              </Button>
-            </DialogDemo>
-          </Button>
-          <div className="flex flex-row items-center gap-4">
-            <h2>Big Size Price</h2>
-            <Switch
-              checked={isBigPrice}
-              onCheckedChange={async (e: boolean) => {
-                const res = await toggleKurtiBigPrice(data?.id, e);
-                if (!res.success) {
-                  toast.error(res.error);
-                  return;
-                }
-                setIsBigPrice(e);
-                onKurtiUpdate({ ...data, isBigPrice: e });
-              }}
-            >
-              <SwitchThumb />
-            </Switch>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-600 block">Generated Migration Code</label>
+                    <div className="flex gap-2">
+                      <Input
+                        disabled
+                        className="border-gray-300 bg-gray-50"
+                        placeholder="Generate the code"
+                        value={generatedCode.toUpperCase()}
+                      />
+                      <Button
+                        type="button"
+                        onClick={CodeGenerator}
+                        disabled={generatorLoader}
+                        variant="outline"
+                        className="text-xs border-gray-300 h-9 font-semibold flex items-center justify-center gap-1.5"
+                      >
+                        {generatorLoader && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        Generate
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100 flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={handleCategoryChange}
+                      disabled={isPending}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-9 px-4 rounded-lg shadow-sm"
+                    >
+                      Save Migration
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+            </div>
           </div>
         </div>
       ) : (

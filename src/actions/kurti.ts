@@ -293,6 +293,64 @@ export const priceChange = async (data: any) => {
   return { success: "Price Changed!", data: dbpartyFetch?.sizes };
 };
 
+export const specificationsChange = async (data: any) => {
+  const { code } = data;
+  const currTime = await getCurrTime();
+
+  const updateData: any = {
+    name: data.name,
+    description: data.description,
+    fabric: data.fabric,
+    fitShape: data.fitShape,
+    length: data.length,
+    neck: data.neck,
+    occasion: data.occasion,
+    pattern: data.pattern,
+    sleeve: data.sleeve,
+    stitchType: data.stitchType,
+    color: data.color,
+    lastUpdatedTime: currTime,
+  };
+
+  try {
+    const updatedKurti = await db.kurti.update({
+      where: { code },
+      data: updateData,
+    });
+    
+    // If it has variants, update the shared specifications on all active sibling variants
+    if (updatedKurti.parentCode) {
+      const sharedData = {
+        name: data.name,
+        description: data.description,
+        fabric: data.fabric,
+        fitShape: data.fitShape,
+        length: data.length,
+        neck: data.neck,
+        occasion: data.occasion,
+        pattern: data.pattern,
+        sleeve: data.sleeve,
+        stitchType: data.stitchType,
+        lastUpdatedTime: currTime,
+      };
+      await db.kurti.updateMany({
+        where: {
+          parentCode: updatedKurti.parentCode,
+          isDeleted: false,
+        },
+        data: sharedData,
+      });
+    }
+
+    const dbpartyFetch = await getKurtiByCode(code);
+    return { success: "Specifications Updated!", data: dbpartyFetch };
+  } catch (error: any) {
+    console.error("Specifications change error:", error);
+    return { error: error.message || "Failed to update specifications" };
+  }
+};
+
+
 export const categoryChange = async (data: any) => {
   const { code, newCode, category, selectedSizes, isPartialMove, bigPrice } =
     data;

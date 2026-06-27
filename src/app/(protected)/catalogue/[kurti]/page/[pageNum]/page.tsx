@@ -45,7 +45,7 @@ function KurtiListPage() {
 
   const [valid, setValid] = useState(true);
   const [kurtiData, setKurtiData] = useState<kurti[]>([]);
-  const [displayData, setDisplayData] = useState<kurti[]>([]);
+  const [displayData, setDisplayData] = useState<any[]>([]);
   const [textFieldValue, setTextFieldValue] = useState("");
   const [currentPage, setCurrentPage] = useState(parseInt(pageNum));
   const [totalPages, setTotalPages] = useState(1);
@@ -108,10 +108,31 @@ function KurtiListPage() {
 
   const updatePaginationView = (allRows: kurti[], page: number) => {
     const filtered = applyFilters(allRows);
-    const pages = Math.max(1, Math.ceil(filtered.length / 20));
+    
+    // Group filtered kurtis by parentCode || code
+    const groupedMap = new Map<string, kurti[]>();
+    filtered.forEach((item) => {
+      const key = (item as any).parentCode || item.code;
+      if (!groupedMap.has(key)) {
+        groupedMap.set(key, []);
+      }
+      groupedMap.get(key)!.push(item);
+    });
+
+    const groupedList: kurti[][] = [];
+    groupedMap.forEach((variants, parentCode) => {
+      const sorted = [...variants].sort((a, b) => {
+        if (a.code === parentCode) return -1;
+        if (b.code === parentCode) return 1;
+        return a.code.localeCompare(b.code);
+      });
+      groupedList.push(sorted);
+    });
+
+    const pages = Math.max(1, Math.ceil(groupedList.length / 20));
     const safePage = Math.min(Math.max(page, 1), pages);
     setTotalPages(pages);
-    setDisplayData(filtered.slice(20 * (safePage - 1), 20 * (safePage - 1) + 20));
+    setDisplayData(groupedList.slice(20 * (safePage - 1), 20 * (safePage - 1) + 20));
   };
 
   const handleSearch = (newVal: string) => {

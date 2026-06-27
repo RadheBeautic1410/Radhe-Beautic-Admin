@@ -9,23 +9,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/src/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/src/components/ui/table";
 import { UserRole } from "@prisma/client";
 import axios from "axios";
-import { log } from "console";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
-import { getSizesWithDummy } from "@/src/data/kurti";
 import { ImageWatermark } from "watermark-js-plus";
 import {
   Dialog,
@@ -43,21 +33,70 @@ interface kurti {
   code: string;
   images: any[];
   sizes: any[];
+  reservedSizes?: any[];
   party: string;
   sellingPrice: string;
   actualPrice: string;
+  color?: string;
+  isBigPrice?: boolean;
+  bigPrice?: string;
+  videos?: any[];
 }
 
 interface KurtiPicCardProps {
-  data: any;
+  data: any; // A single kurti object or a list of grouped variant kurtis
   onKurtiDelete: (data: any) => void;
 }
 
+const getColorHex = (colorName: string) => {
+  const colorsMap: Record<string, string> = {
+    black: "#1a1a1a",
+    white: "#ffffff",
+    red: "#ef4444",
+    blue: "#3b82f6",
+    green: "#22c55e",
+    yellow: "#eab308",
+    pink: "#ec4899",
+    orange: "#f97316",
+    purple: "#a855f7",
+    brown: "#78350f",
+    grey: "#6b7280",
+    gray: "#6b7280",
+    navyblue: "#1e3a8a",
+    maroon: "#7f1d1d",
+    beige: "#f5f5dc",
+    mustard: "#ca8a04",
+    peach: "#ffdbac",
+    olivegreen: "#556b2f",
+    indigo: "#4f46e5",
+    turquoise: "#06b6d4",
+  };
+  const normalized = colorName.toLowerCase().replace(/\s+/g, "");
+  return colorsMap[normalized] || "#cbd5e1";
+};
+
 const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
+  const variants = useMemo<kurti[]>(() => {
+    return Array.isArray(data) ? data : [data];
+  }, [data]);
+
+  const [activeIdx, setActiveIdx] = useState(0);
+  
+  // Reset active index if variants list changes
+  useEffect(() => {
+    setActiveIdx(0);
+  }, [variants]);
+
+  const activeVariant = useMemo<kurti>(() => {
+    return variants[activeIdx] || variants[0] || data;
+  }, [variants, activeIdx, data]);
+
   const [downloading, setDownloading] = useState(false);
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [stockString, setStockString] = useState(``);
-  let selectSizes: string[] = [
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  const selectSizes = useMemo(() => [
     "XS",
     "S",
     "M",
@@ -72,24 +111,13 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     "8XL",
     "9XL",
     "10XL",
-  ];
-  const pathname = usePathname();
-  let sizes = data.sizes.length;
-  const [isBrowserMobile, setIsBrowserMobile] = useState(false);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  ], []);
 
-  // Get sizes with dummy sizes included for marketing
-  // This includes one lower level size for each available size (if it doesn't exist)
-  // Dummy sizes have isDummy: true flag and quantity: 0
-  // Use this for backend operations (orders/add to cart) to identify dummy sizes
-  // Note: Dummy sizes are NOT displayed in UI, only real sizes are shown in the table
-  const sizesWithDummy = useMemo(() => {
-    return getSizesWithDummy(data.sizes);
-  }, [data.sizes]);
+  const pathname = usePathname();
 
   const sortedAvailableSizes = useMemo(() => {
-    const sizesArray: any[] = data.sizes || [];
-    const reservedArray: any[] = data.reservedSizes || [];
+    const sizesArray: any[] = activeVariant.sizes || [];
+    const reservedArray: any[] = activeVariant.reservedSizes || [];
     
     const getStockForSize = (sizeName: string) => {
       const szObj = sizesArray.find((s) => s.size?.toUpperCase() === sizeName.toUpperCase());
@@ -99,22 +127,21 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       return Math.max(0, qty - res);
     };
 
-    return sizesArray
-      .filter((s) => s.quantity > 0)
-      .sort((a, b) => getStockForSize(b.size) - getStockForSize(a.size));
-  }, [data.sizes, data.reservedSizes]);
+    return selectSizes.map(sizeName => {
+      const stock = getStockForSize(sizeName);
+      return { size: sizeName, stock };
+    });
+  }, [activeVariant.sizes, activeVariant.reservedSizes, selectSizes]);
 
   useEffect(() => {
-    if (!data?.images?.[0]?.url) {
-      console.error("Image URL is not available");
+    if (!activeVariant?.images?.[0]?.url) {
       return;
     }
 
     const img = new Image();
-    img.src = data.images[0].url;
+    img.src = activeVariant.images[0].url;
 
     img.onload = () => {
-      console.log("Image loaded:", img.width, img.height);
       setDimensions({ width: img.width, height: img.height });
     };
 
@@ -126,98 +153,44 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       img.onload = null;
       img.onerror = null;
     };
-  }, [data.images]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsBrowserMobile(window.innerWidth < 992);
-    };
-
-    window.addEventListener("resize", handleResize);
-    handleResize();
-
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [activeVariant.images]);
 
   const handleDelete = async () => {
     try {
-      console.log("data", data);
       const res = await fetch(
-        `/api/kurti/delete?cat=${data?.category}&code=${data?.code}`
+        `/api/kurti/delete?cat=${activeVariant?.category}&code=${activeVariant?.code}`
       );
       const result = await res.json();
-      console.log("res", result);
       await onKurtiDelete(result.data);
+      toast.success("Successfully deleted product");
     } catch (e: any) {
-      console.log(e.message);
+      console.error(e.message);
       toast.error("Failed to delete");
     }
   };
 
-  // Helper function to convert image to canvas and get blob
-  const imageToBlob = async (
-    imageSrc: string,
-    imageId: string
-  ): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        canvas.width = img.width;
-        canvas.height = img.height;
-
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error("Failed to convert image to blob"));
-            }
-          },
-          "image/jpeg",
-          0.9
-        );
-      };
-
-      img.onerror = () => reject(new Error("Failed to load image"));
-      img.src = imageSrc;
-    });
-  };
-
-  // Helper function to apply watermark to image and return blob
   const applyWatermarkToImage = async (
     imageSrc: string,
     rightText: string,
     leftText: string
   ): Promise<Blob> => {
-    
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
 
       img.onload = async () => {
         try {
-          // Get original dimensions
           const originalWidth = img.naturalWidth || img.width;
           const originalHeight = img.naturalHeight || img.height;
 
-          // Create canvas with original dimensions
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
 
           canvas.width = originalWidth;
           canvas.height = originalHeight;
 
-          // Draw original image at full resolution
           ctx?.drawImage(img, 0, 0, originalWidth, originalHeight);
 
-          // Create temporary container for watermarking
           const tempContainer = document.createElement("div");
           tempContainer.style.position = "absolute";
           tempContainer.style.left = "-9999px";
@@ -230,10 +203,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
           tempImg.height = originalHeight;
           tempContainer.appendChild(tempImg);
 
-          // Wait for temp image to load
           tempImg.onload = async () => {
             try {
-              // Apply watermarks with original dimensions
               const watermark1 = new ImageWatermark({
                 contentType: "image",
                 image: rightText,
@@ -263,7 +234,6 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
               await watermark1.create();
               await watermark2.create();
 
-              // Create final canvas with original dimensions
               const finalCanvas = document.createElement("canvas");
               const finalCtx = finalCanvas.getContext("2d");
               finalCanvas.width = originalWidth;
@@ -285,7 +255,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
                   }
                 },
                 "image/jpeg",
-                0.95 // Higher quality
+                0.95
               );
             } catch (error) {
               if (tempContainer && tempContainer.parentNode) {
@@ -312,7 +282,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
   };
 
   const findBlocks = async () => {
-    let sizesArray: any[] = data.sizes;
+    let sizesArray: any[] = [...(activeVariant.sizes || [])];
     sizesArray.sort(
       (a, b) => selectSizes.indexOf(a.size) - selectSizes.indexOf(b.size)
     );
@@ -328,22 +298,18 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
         sizesArray[i].quantity
       }\n`;
     }
-    console.log(stk);
     setStockString(stk);
     ele.sort((a, b) => a - b);
-    let S1 = ``;
     for (let i = 0; i < ele.length; i++) {
       if (i === 0 || ele[i] !== ele[i - 1]) {
         blocks += `\u2063  ${selectSizes[ele[i]]}`;
       }
     }
-    console.log(blocks, blocks.length);
     let url = process.env.NEXT_PUBLIC_SERVER_URL + `/genImg?text=${blocks}`;
     const res = await axios.get(url);
-    console.log(res.data);
     let url2 =
       process.env.NEXT_PUBLIC_SERVER_URL +
-      `/genImg2?text=${data.code?.toUpperCase()}`;
+      `/genImg2?text=${activeVariant.code?.toUpperCase()}`;
     const res2 = await axios.get(url2);
 
     return { leftText: res.data, rightText: res2.data };
@@ -354,19 +320,18 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
 
     try {
       setDownloading(true);
-
       processingToastId = toast.loading("Starting download process...");
 
       const { leftText, rightText } = await findBlocks();
 
-      const filteredData = data.images?.filter(
+      const filteredData = activeVariant.images?.filter(
         (image: { url: string; is_hidden: boolean; id: string }) =>
           image.is_hidden === false
-      );
+      ) || [];
 
       for (let i = 0; i < filteredData.length; i++) {
         const imageUrl = filteredData[i].url;
-        const filename = `${data.code.toLowerCase()}_image_${i + 1}.jpg`;
+        const filename = `${activeVariant.code.toLowerCase()}_image_${i + 1}.jpg`;
 
         toast.loading(`Processing image ${i + 1}/${filteredData.length}...`, {
           id: processingToastId,
@@ -379,7 +344,6 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
             leftText
           );
 
-          // Create download link for individual image
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
@@ -391,7 +355,6 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
           }
 
           URL.revokeObjectURL(url);
-
           await new Promise((resolve) => setTimeout(resolve, 100));
         } catch (error) {
           console.error(`Error processing image ${i + 1}:`, error);
@@ -417,58 +380,43 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     let processingToastId: string | number | undefined;
 
     try {
-      if(data.videos.length > 0) {
+      if (activeVariant.videos && activeVariant.videos.length > 0) {
+        setDownloading(true);
+        processingToastId = toast.loading("Starting video download process...");
+        const videoData = activeVariant.videos;
 
-      setDownloading(true);
+        for (let i = 0; i < videoData.length; i++) {
+          const videoUrl = videoData[i].url;
+          const filename = `${activeVariant.code.toLowerCase()}_video_${i + 1}.mp4`;
 
-      processingToastId = toast.loading("Starting video download process...");
+          toast.loading(`Processing video ${i + 1}/${videoData.length}...`, {
+            id: processingToastId,
+          });
 
-      // Filter for video files (assuming there's a videos array or video URLs in your data)
-      // You'll need to adjust this based on your actual data structure
-      const videoData = data.videos || []; // Adjust this based on your data structure
+          try {
+            const response = await fetch(videoUrl);
+            const blob = await response.blob();
 
-      if (videoData.length === 0) {
-        toast.error("No videos found to download");
-        setDownloading(false);
-        setDownloadDialogOpen(false);
-        return;
-      }
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            if (link.parentNode) {
+              document.body.removeChild(link);
+            }
 
-      for (let i = 0; i < videoData.length; i++) {
-        const videoUrl = videoData[i].url;
-        const filename = `${data.code.toLowerCase()}_video_${i + 1}.mp4`;
-
-        toast.loading(`Processing video ${i + 1}/${videoData.length}...`, {
-          id: processingToastId,
-        });
-
-        try {
-          const response = await fetch(videoUrl);
-          const blob = await response.blob();
-
-          // Create download link for individual video
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          if (link.parentNode) {
-            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          } catch (error) {
+            console.error(`Error processing video ${i + 1}:`, error);
+            toast.error(`Failed to process video ${i + 1}`, { duration: 2000 });
           }
-
-          URL.revokeObjectURL(url);
-
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        } catch (error) {
-          console.error(`Error processing video ${i + 1}:`, error);
-          toast.error(`Failed to process video ${i + 1}`, { duration: 2000 });
         }
-      }
 
-      toast.dismiss(processingToastId);
-      toast.success("All videos downloaded successfully!");
-      
+        toast.dismiss(processingToastId);
+        toast.success("All videos downloaded successfully!");
       }
     } catch (error) {
       console.error("Error downloading videos:", error);
@@ -482,265 +430,208 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
     }
   };
 
-  const handleDownloadClick = () => {
-    const imgDom = document.querySelector(
-      `#download${data.code}`
-    ) as HTMLImageElement;
-    console.log(imgDom?.complete, dimensions);
-
-    if (dimensions.width !== 0 && dimensions.height !== 0) {
-      setDownloadDialogOpen(true);
-    } else {
-      toast.error("Images not loaded yet");
-    }
-  };
-
   return (
-    <div id="container" className="p-3 bg-slate-300">
+    <div
+      id="container"
+      className="group w-[300px] bg-white rounded-2xl shadow-md hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 flex flex-col justify-between"
+    >
+      {/* Hidden container for watermark source image */}
       <div className="w-[2200px] h-[2200px]" hidden>
-        <img
-          id={`download${data.code}`}
-          className="w-full h-full object-cover"
-          src={data.images[0].url}
-          crossOrigin="anonymous"
-          width={dimensions.width}
-          height={dimensions.height}
-        ></img>
+        {activeVariant.images?.[0]?.url && (
+          <img
+            id={`download${activeVariant.code}`}
+            className="w-full h-full object-cover"
+            src={activeVariant.images[0].url}
+            crossOrigin="anonymous"
+            width={dimensions.width}
+            height={dimensions.height}
+            alt=""
+          />
+        )}
       </div>
-      <img
-        src={data.images[0].url}
-        id={`${data.code}-visible`}
-        alt=""
-        crossOrigin="anonymous"
-        loading="lazy"
-        className="object-contain w-[250px] h-[250px]"
-        width={dimensions.width}
-        height={dimensions.height}
-        style={{
-          width: "300px",
-          height: "300px",
-        }}
-      />
 
-      <p
-        key={"code"}
-        className="font-bold"
-      >{`Code: ${data.code?.toUpperCase()} (${data.images.length} Images)`}</p>
-      <p
-        key={"price"}
-        className="text-base font-bold mt-2 mb-1"
-      >{`Price - ${data.sellingPrice}/-`}</p>
-      {data.isBigPrice && data.bigPrice && (
-        <p
-          key={"bigprice"}
-          className="text-base text-[#1e40af] font-bold mb-1"
-        >{`Big Size Price - ${
-          parseFloat(data.bigPrice) + parseFloat(data.sellingPrice)
-        }/-`}</p>
-      )}
-      <div className="flex flex-row space-evenely mb-2 gap-2">
-        <Table className="border border-collapse border-red">
-          <TableHeader className="border border-red text-white bg-slate-800">
-            <TableHead className="font-bold border border-red text-white bg-slate-800">
-              SIZE
-            </TableHead>
-            <TableHead className="font-bold border border-red text-white bg-slate-800">
-              STOCK
-            </TableHead>
-          </TableHeader>
-          <TableBody>
-            {sortedAvailableSizes.map((sz: any, i: number) => {
-              if (i >= Math.ceil(sortedAvailableSizes.length / 2)) {
-                return null;
-              }
-              return (
-                <TableRow key={i}>
-                  <TableCell className="border border-red">
-                    {sz.size?.toUpperCase()}
-                  </TableCell>
-                  <TableCell className="border border-red">
-                    {sz.quantity}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-        <Table className="border border-collapse border-red">
-          <TableHeader className="border border-red text-white bg-slate-800">
-            <TableHead className="font-bold border border-red text-white bg-slate-800">
-              SIZE
-            </TableHead>
-            <TableHead className="font-bold border border-red text-white bg-slate-800">
-              STOCK
-            </TableHead>
-          </TableHeader>
-          <TableBody>
-            {sortedAvailableSizes.map((sz: any, i: number) => {
-              if (i < Math.ceil(sortedAvailableSizes.length / 2)) {
-                return null;
-              }
-              return (
-                <TableRow key={i}>
-                  <TableCell className="border border-red">
-                    {sz.size?.toUpperCase()}
-                  </TableCell>
-                  <TableCell className="border border-red">
-                    {sz.quantity}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+      {/* Main Image */}
+      <div className="relative h-72 w-full overflow-hidden bg-gray-50 border-b border-gray-100">
+        {activeVariant.images?.[0]?.url ? (
+          <img
+            src={activeVariant.images[0].url}
+            id={`${activeVariant.code}-visible`}
+            alt={activeVariant.code}
+            crossOrigin="anonymous"
+            loading="lazy"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">
+            No Image
+          </div>
+        )}
+        
+        {/* Category Label */}
+        <span className="absolute top-3 left-3 bg-black/75 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+          {activeVariant.category}
+        </span>
+        
+        {/* Color Badge */}
+        {activeVariant.color && (
+          <span className="absolute top-3 right-3 bg-blue-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded capitalize shadow-sm">
+            {activeVariant.color}
+          </span>
+        )}
       </div>
-      <div className="flex flex-row space-evenely gap-3">
-        {/* Download Options Dialog */}
-        {/* <Dialog open={downloadDialogOpen} onOpenChange={setDownloadDialogOpen}>
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              onClick={handleDownloadClick}
-              variant={"outline"}
-              key={"download"}
-              disabled={downloading}
-            >
-              {downloading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="mr-2 h-4 w-4" />
-              )}
-              Download
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Download Options</DialogTitle>
-              <DialogDescription>
-                Choose what you want to download for{" "}
-                <span className="font-bold">{data.code?.toUpperCase()}</span>
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-3 py-4">
-              {data.images?.length > 0 && (
-                <Button
-                  type="button"
-                  onClick={downloadAllImagesDirectly}
-                  variant="outline"
-                  disabled={downloading}
-                  className="flex items-center justify-center"
-                >
-                  {downloading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="mr-2 h-4 w-4" />
-                  )}
-                  📸 Download Images
-                </Button>
-              )}
-              {data.videos?.length > 0 && (
-                <Button
-                  type="button"
-                  onClick={downloadAllVideosDirectly}
-                  variant="outline"
-                  disabled={downloading}
-                  className="flex items-center justify-center"
-                >
-                  {downloading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="mr-2 h-4 w-4" />
-                  )}
-                  🎥 Download Videos
-                </Button>
-              )}
+
+      {/* Details Box */}
+      <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+        <div className="space-y-2">
+          {/* Title / Code */}
+          <div className="flex items-center justify-between">
+            <span className="bg-gray-100 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-md border border-gray-200">
+              Code: {activeVariant.code?.toUpperCase()}
+            </span>
+            <span className="text-[10px] text-gray-500 font-medium">
+              {activeVariant.images?.length || 0} Images
+            </span>
+          </div>
+
+          {/* Pricing */}
+          <div className="flex flex-col gap-0.5">
+            <span className="text-lg font-bold text-gray-900">
+              ₹{activeVariant.sellingPrice}/-
+            </span>
+            {activeVariant.isBigPrice && activeVariant.bigPrice && (
+              <span className="text-xs text-blue-600 font-semibold">
+                Big Size: ₹{parseFloat(activeVariant.bigPrice) + parseFloat(activeVariant.sellingPrice)}/-
+              </span>
+            )}
+          </div>
+
+          {/* Swatch circle indicators */}
+          {variants.length > 1 && (
+            <div className="space-y-1.5 pt-1">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                Available Colors ({variants.length})
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {variants.map((v, idx) => {
+                  const hex = getColorHex(v.color || "");
+                  const isActive = idx === activeIdx;
+                  return (
+                    <button
+                      key={v.code}
+                      type="button"
+                      onClick={() => setActiveIdx(idx)}
+                      title={`${v.color || "Variant"} (${v.code})`}
+                      className={`w-6 h-6 rounded-full border transition-all ${
+                        isActive
+                          ? "ring-2 ring-blue-500 ring-offset-1 border-transparent scale-110 shadow-sm"
+                          : "border-gray-200 hover:scale-105"
+                      }`}
+                      style={{ backgroundColor: hex }}
+                    />
+                  );
+                })}
+              </div>
             </div>
-            <DialogFooter>
+          )}
+
+          {/* Size badging system */}
+          <div className="space-y-1 pt-1.5">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+              Stock Inventory
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {sortedAvailableSizes.map((item) => (
+                <div
+                  key={item.size}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded border transition-colors flex items-center gap-1 ${
+                    item.stock > 0
+                      ? "bg-green-50 text-green-700 border-green-200"
+                      : "bg-gray-50 text-gray-400 border-gray-100 opacity-50"
+                  }`}
+                >
+                  <span>{item.size}</span>
+                  <span className={`px-1 rounded text-[9px] font-extrabold ${
+                    item.stock > 0 
+                      ? "bg-green-200 text-green-800" 
+                      : "bg-gray-200 text-gray-500"
+                  }`}>
+                    {item.stock}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Buttons footer */}
+        <div className="flex items-center gap-2 pt-3 border-t border-gray-100 mt-2">
+          <Button
+            type="button"
+            onClick={async () => {
+              await downloadAllImagesDirectly();
+              await downloadAllVideosDirectly();
+            }}
+            variant="outline"
+            disabled={downloading}
+            className="flex-1 text-xs border-gray-200 text-gray-700 hover:bg-gray-50 h-9 font-medium"
+          >
+            {downloading ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5 mr-1.5" />
+            )}
+            Download
+          </Button>
+
+          <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+            <Link
+              href={
+                pathname.split("/").length !== 2
+                  ? `${pathname}/${activeVariant.code.toLowerCase()}`
+                  : `${pathname}/${activeVariant.category.toLowerCase()}/${activeVariant.code.toLowerCase()}`
+              }
+              className="flex-shrink-0"
+            >
               <Button
                 type="button"
-                variant="secondary"
-                onClick={() => setDownloadDialogOpen(false)}
-                disabled={downloading}
+                variant="outline"
+                className="w-9 h-9 p-0 border-gray-200 hover:bg-gray-50 text-gray-600"
               >
-                Cancel
+                ✏️
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog> */}
+            </Link>
 
-        <Button
-          type="button"
-          onClick={async () => {
-            await downloadAllImagesDirectly();
-            await downloadAllVideosDirectly();
-          }}
-          variant={"outline"}
-          key={"download"}
-          disabled={downloading}
-        >
-          {downloading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="mr-2 h-4 w-4" />
-          )}
-          Download
-        </Button>
-        <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-          <Link
-            href={
-              pathname.split("/").length !== 2
-                ? `${pathname}/${data.code.toLowerCase()}`
-                : `${pathname}/${data.category.toLowerCase()}/${data.code.toLowerCase()}`
-            }
-            className="mt-0 pt-0 mr-3"
-          >
-            <Button
-              type="button"
-              className="ml-3"
-              variant={"outline"}
-              key={"edit"}
-            >
-              ✏️
-            </Button>
-          </Link>
-          <Button className="mt-0" asChild>
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant={"destructive"}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    x="0px"
-                    y="0px"
-                    width="25"
-                    height="25"
-                    viewBox="0 0 30 30"
-                    style={{
-                      fill: "#ffffff",
-                    }}
-                  >
-                    <path d="M 14.984375 2.4863281 A 1.0001 1.0001 0 0 0 14 3.5 L 14 4 L 8.5 4 A 1.0001 1.0001 0 0 0 7.4863281 5 L 6 5 A 1.0001 1.0001 0 1 0 6 7 L 24 7 A 1.0001 1.0001 0 1 0 24 5 L 22.513672 5 A 1.0001 1.0001 0 0 0 21.5 4 L 16 4 L 16 3.5 A 1.0001 1.0001 0 0 0 14.984375 2.4863281 z M 6 9 L 7.7929688 24.234375 C 7.9109687 25.241375 8.7633438 26 9.7773438 26 L 20.222656 26 C 21.236656 26 22.088031 25.241375 22.207031 24.234375 L 24 9 L 6 9 z"></path>
-                  </svg>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="w-9 h-9 p-0 bg-red-50 hover:bg-red-100 text-red-600 border-none shadow-none"
+                >
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Delete Kurti</DialogTitle>
+                  <DialogTitle>Delete Variant</DialogTitle>
                   <DialogDescription>
-                    Delete the kurti{" "}
-                    <span className="font-bold">{data.code}</span>
+                    Are you sure you want to delete this variant <span className="font-bold text-gray-900">{activeVariant.code}</span>?
                   </DialogDescription>
                 </DialogHeader>
-                <Button
-                  type={"button"}
-                  variant={"destructive"}
-                  onClick={handleDelete}
-                >
-                  Delete
-                </Button>
+                <DialogFooter className="gap-2">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleDelete}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Delete
+                  </Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
-          </Button>
-        </RoleGateForComponent>
+          </RoleGateForComponent>
+        </div>
       </div>
     </div>
   );

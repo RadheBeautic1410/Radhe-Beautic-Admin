@@ -230,6 +230,20 @@ model Kurti {
   bigPrice        Float?
   weight          Int? // Weight in grams
 
+  // Specifications & Variants
+  name            String?
+  description     String?
+  fabric          String?
+  fitShape        String?
+  length          String?
+  neck            String?
+  occasion        String?
+  pattern         String?
+  sleeve          String?
+  stitchType      String?
+  color           String?
+  parentCode      String?
+
   prices            Prices?             @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   CartProduct       CartProduct[]
   Sell              Sell[]
@@ -255,6 +269,7 @@ model Kurti {
   @@index([lastUpdatedTime])
   @@index([createdAt])
   @@index([code, isDeleted])
+  @@index([parentCode])
 }
 
 model ShippingRate {
@@ -652,6 +667,12 @@ model QRCodeImage {
   is_active Boolean
 }
 
+model Color {
+  id                  String @id @default(auto()) @map("_id") @db.ObjectId
+  normalizedLowerCase String @unique
+  name                String
+}
+
 model ResellersCustomer {
   id         String    @id @default(auto()) @map("_id") @db.ObjectId
   name       String
@@ -790,4 +811,24 @@ model StockAddition {
   @@index([code])
   @@index([createdAt])
   @@index([kurtiId])
+}
+
+model HomepageSlider {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  imageUrl   String
+  mobileUrl  String?
+  imagePath  String
+  mobilePath String?
+  title      String?
+  subtitle   String?
+  createdAt  DateTime @default(now())
+}
+
+model KurtiTypeImage {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  key        String   @unique
+  imageUrl   String
+  imagePath  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

@@ -269,6 +269,18 @@ export const KurtiSchema = z.object({
   category: z.string().min(1, { message: "Please select the category." }),
   code: z.string(),
   weight: z.number().min(0, { message: "Weight must be 0 or greater" }).optional(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  fabric: z.string().optional(),
+  fitShape: z.string().optional(),
+  length: z.string().optional(),
+  neck: z.string().optional(),
+  occasion: z.string().optional(),
+  pattern: z.string().optional(),
+  sleeve: z.string().optional(),
+  stitchType: z.string().optional(),
+  color: z.string().optional(),
+  parentCode: z.string().optional(),
 });
 
 export const categoryEditSchema = z.object({
