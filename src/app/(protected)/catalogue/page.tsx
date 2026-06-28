@@ -12,6 +12,37 @@ import { deleteCategory, fetchKurtiByCategory } from "@/src/actions/kurti";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
+import { Skeleton } from "@/src/components/ui/skeleton";
+
+function KurtiCardSkeleton() {
+  return (
+    <div className="w-[300px] bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden flex flex-col justify-between h-[637px] text-left">
+      <Skeleton className="h-72 w-full bg-gray-200 animate-pulse rounded-t-2xl" />
+      <div className="p-4 space-y-4 flex-1 flex flex-col justify-between bg-white">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
+            <Skeleton className="h-4 w-12 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <Skeleton className="h-7 w-20 bg-gray-200 rounded animate-pulse" />
+          <div className="space-y-1.5 pt-2">
+            <Skeleton className="h-3.5 w-16 bg-gray-150 rounded mb-1 animate-pulse" />
+            <div className="flex flex-wrap gap-1.5">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-5 w-12 bg-gray-200 rounded animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+          <Skeleton className="h-9 flex-1 bg-gray-200 rounded animate-pulse" />
+          <Skeleton className="h-9 w-9 bg-gray-200 rounded animate-pulse" />
+          <Skeleton className="h-9 w-9 bg-gray-200 rounded animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+}
 import {
   Pagination,
   PaginationContent,
@@ -1950,12 +1981,56 @@ const ListPage = () => {
           </div>
         )}
         {catLoading || kurtiLoading ? (
-          <div className="flex items-center justify-center w-full h-96">
-            <HashLoader
-              color="black"
-              loading={catLoading || kurtiLoading}
-              size={50}
-            />
+          <div className="flex-col gap-6 flex">
+            {showKurtiResults ? (
+              <div className="w-full flex flex-row justify-center flex-wrap gap-3">
+                {Array.from({ length: 8 }).map((_, idx) => (
+                  <KurtiCardSkeleton key={idx} />
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="hidden sm:block">
+                  <Table className="bg-white rounded-xl shadow-xs border">
+                    <TableHeader>
+                      <TableRow className="bg-gray-50 border-b">
+                        {Array.from({ length: 11 }).map((_, i) => (
+                          <TableHead key={i} className="text-center font-bold">
+                            <Skeleton className="h-6 w-16 bg-gray-200 mx-auto rounded animate-pulse" />
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Array.from({ length: 10 }).map((_, idx) => (
+                        <TableRow key={idx} className="border-b">
+                          {Array.from({ length: 11 }).map((_, col) => (
+                            <TableCell key={col} className="p-4 text-center">
+                              {col === 2 ? (
+                                <Skeleton className="h-16 w-16 bg-gray-200 mx-auto rounded animate-pulse" />
+                              ) : (
+                                <Skeleton className="h-6 w-20 bg-gray-200 mx-auto rounded animate-pulse" />
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="sm:hidden flex flex-col gap-3">
+                  {Array.from({ length: 5 }).map((_, idx) => (
+                    <div key={idx} className="bg-white border border-gray-150 rounded-2xl p-4 flex gap-3 shadow-xs">
+                      <Skeleton className="h-16 w-16 bg-gray-200 rounded-lg shrink-0 animate-pulse" />
+                      <div className="space-y-2 flex-grow">
+                        <Skeleton className="h-5 w-24 bg-gray-200 rounded animate-pulse" />
+                        <Skeleton className="h-4 w-40 bg-gray-200 rounded animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <>

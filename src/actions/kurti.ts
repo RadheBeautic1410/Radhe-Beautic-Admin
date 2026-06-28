@@ -309,6 +309,7 @@ export const specificationsChange = async (data: any) => {
     sleeve: data.sleeve,
     stitchType: data.stitchType,
     color: data.color,
+    parentCode: data.parentCode ? data.parentCode.trim().toLowerCase() : null,
     lastUpdatedTime: currTime,
   };
 

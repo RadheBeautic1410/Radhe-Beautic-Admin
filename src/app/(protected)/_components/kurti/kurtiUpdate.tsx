@@ -22,13 +22,16 @@ import axios from "axios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/src/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/src/components/ui/select";
+  Command,
+  CommandInput,
+  CommandEmpty,
+  CommandGroup,
+  CommandList,
+  CommandItem,
+} from "@/src/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +67,87 @@ interface Size {
   quantity: number;
 }
 
+interface SearchableSelectProps {
+  value: string;
+  onValueChange: (val: string) => void;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  emptyText?: string;
+  className?: string;
+}
+
+const SearchableSelect: React.FC<SearchableSelectProps> = ({
+  value,
+  onValueChange,
+  options,
+  placeholder,
+  emptyText = "No results found.",
+  className = ""
+}) => {
+  const [open, setOpen] = useState(false);
+  const selectedOption = options.find((opt) => opt.value.toLowerCase() === (value || "").toLowerCase());
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={`w-full justify-between bg-white border-gray-300 font-normal text-xs h-10 px-3 text-left ${className}`}
+        >
+          <span className="truncate">
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-[--radix-popover-trigger-width] p-0 bg-white border border-gray-200 shadow-md z-50"
+      >
+        <Command className="bg-white">
+          <CommandInput placeholder={`Search...`} className="h-9" />
+          <CommandEmpty className="py-2 text-center text-xs text-gray-500">{emptyText}</CommandEmpty>
+          <CommandGroup>
+            <CommandList className="max-h-50 overflow-y-auto">
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt.value}
+                  value={opt.label}
+                  onSelect={(currentValue) => {
+                    const matched = options.find(
+                      (o) => o.label.toLowerCase() === currentValue.toLowerCase()
+                    );
+                    if (matched) {
+                      onValueChange(matched.value);
+                    } else {
+                      const matchedVal = options.find(
+                        (o) => o.value.toLowerCase() === currentValue.toLowerCase()
+                      );
+                      if (matchedVal) onValueChange(matchedVal.value);
+                    }
+                    setOpen(false);
+                  }}
+                  className="flex items-center justify-between px-3 py-2 text-xs cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <span className="truncate">{opt.label}</span>
+                  <Check
+                    className={`h-4 w-4 text-blue-600 ${
+                      (value || "").toLowerCase() === opt.value.toLowerCase() ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
+                </CommandItem>
+              ))}
+            </CommandList>
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [sizes, setSizes] = useState<Size[]>(data?.sizes || []);
   const [isPending, startTransition] = useTransition();
@@ -89,6 +173,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [sleeve, setSleeve] = useState(data?.sleeve || "");
   const [stitchType, setStitchType] = useState(data?.stitchType || "");
   const [color, setColor] = useState(data?.color || "");
+  const [parentCode, setParentCode] = useState(data?.parentCode || "");
   const [colors, setColors] = useState<any[]>([]);
   const [newColorName, setNewColorName] = useState("");
   const [isBigPrice, setIsBigPrice] = useState(data?.isBigPrice || false);
@@ -164,6 +249,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
     setSleeve(data?.sleeve || "");
     setStitchType(data?.stitchType || "");
     setColor(data?.color || "");
+    setParentCode(data?.parentCode || "");
     setCategory(data?.category?.toLowerCase() || "");
   }, [data]);
 
@@ -351,6 +437,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
         sleeve,
         stitchType,
         color,
+        parentCode: parentCode || "",
       })
         .then((res: any) => {
           if (res.error) {
@@ -542,20 +629,13 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                   <div>
                     <label className="text-xs font-bold text-gray-600 block mb-1">Color</label>
                     <div className="flex items-center gap-1.5">
-                      <div className="flex-1">
-                        <Select value={color} onValueChange={(val) => setColor(val)}>
-                          <SelectTrigger className="w-full bg-white border-gray-300">
-                            <SelectValue placeholder="Select Color" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-40 overflow-y-auto bg-white border border-gray-200">
-                            {colors.map((c) => (
-                              <SelectItem key={c.id} value={c.normalizedLowerCase}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                        <SearchableSelect
+                          value={color}
+                          onValueChange={(val) => setColor(val)}
+                          options={colors.map((c) => ({ value: c.normalizedLowerCase, label: c.name }))}
+                          placeholder="Select Color"
+                          emptyText="No color found."
+                        />
                       
                       <Dialog>
                         <DialogTrigger asChild>
@@ -617,130 +697,95 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
 
                   <div>
                     <label className="text-xs font-bold text-gray-600 block mb-1">Fabric</label>
-                    <Select value={fabric} onValueChange={(val) => setFabric(val)}>
-                      <SelectTrigger className="w-full bg-white border-gray-300">
-                        <SelectValue placeholder="Select Fabric" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
-                        {FABRICS.map((fab) => (
-                          <SelectItem key={fab} value={fab}>
-                            {fab}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={fabric}
+                      onValueChange={(val) => setFabric(val)}
+                      options={FABRICS.map((fab) => ({ value: fab, label: fab }))}
+                      placeholder="Select Fabric"
+                    />
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-gray-600 block mb-1">Fit / Shape</label>
-                    <Select value={fitShape} onValueChange={(val) => setFitShape(val)}>
-                      <SelectTrigger className="w-full bg-white border-gray-300">
-                        <SelectValue placeholder="Select Fit" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
-                        {FIT_SHAPES.map((fit) => (
-                          <SelectItem key={fit} value={fit}>
-                            {fit}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={fitShape}
+                      onValueChange={(val) => setFitShape(val)}
+                      options={FIT_SHAPES.map((fit) => ({ value: fit, label: fit }))}
+                      placeholder="Select Fit"
+                    />
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-gray-600 block mb-1">Length</label>
-                    <Select value={length} onValueChange={(val) => setLength(val)}>
-                      <SelectTrigger className="w-full bg-white border-gray-300">
-                        <SelectValue placeholder="Select Length" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
-                        {LENGTHS.map((len) => (
-                          <SelectItem key={len} value={len}>
-                            {len}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={length}
+                      onValueChange={(val) => setLength(val)}
+                      options={LENGTHS.map((len) => ({ value: len, label: len }))}
+                      placeholder="Select Length"
+                    />
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-gray-600 block mb-1">Neck</label>
-                    <Select value={neck} onValueChange={(val) => setNeck(val)}>
-                      <SelectTrigger className="w-full bg-white border-gray-300">
-                        <SelectValue placeholder="Select Neck" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
-                        {NECKS.map((nk) => (
-                          <SelectItem key={nk} value={nk}>
-                            {nk}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={neck}
+                      onValueChange={(val) => setNeck(val)}
+                      options={NECKS.map((nk) => ({ value: nk, label: nk }))}
+                      placeholder="Select Neck"
+                    />
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-gray-600 block mb-1">Occasion</label>
-                    <Select value={occasion} onValueChange={(val) => setOccasion(val)}>
-                      <SelectTrigger className="w-full bg-white border-gray-300">
-                        <SelectValue placeholder="Select Occasion" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
-                        {OCCASIONS.map((occ) => (
-                          <SelectItem key={occ} value={occ}>
-                            {occ}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={occasion}
+                      onValueChange={(val) => setOccasion(val)}
+                      options={OCCASIONS.map((occ) => ({ value: occ, label: occ }))}
+                      placeholder="Select Occasion"
+                    />
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-gray-600 block mb-1">Pattern</label>
-                    <Select value={pattern} onValueChange={(val) => setPattern(val)}>
-                      <SelectTrigger className="w-full bg-white border-gray-300">
-                        <SelectValue placeholder="Select Pattern" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
-                        {PATTERNS.map((pat) => (
-                          <SelectItem key={pat} value={pat}>
-                            {pat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={pattern}
+                      onValueChange={(val) => setPattern(val)}
+                      options={PATTERNS.map((pat) => ({ value: pat, label: pat }))}
+                      placeholder="Select Pattern"
+                    />
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-gray-600 block mb-1">Sleeve</label>
-                    <Select value={sleeve} onValueChange={(val) => setSleeve(val)}>
-                      <SelectTrigger className="w-full bg-white border-gray-300">
-                        <SelectValue placeholder="Select Sleeve" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
-                        {SLEEVES.map((slv) => (
-                          <SelectItem key={slv} value={slv}>
-                            {slv}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={sleeve}
+                      onValueChange={(val) => setSleeve(val)}
+                      options={SLEEVES.map((slv) => ({ value: slv, label: slv }))}
+                      placeholder="Select Sleeve"
+                    />
                   </div>
 
-                  <div className="col-span-2">
+                  <div>
                     <label className="text-xs font-bold text-gray-600 block mb-1">Stitch Type</label>
-                    <Select value={stitchType} onValueChange={(val) => setStitchType(val)}>
-                      <SelectTrigger className="w-full bg-white border-gray-300">
-                        <SelectValue placeholder="Select Stitch Type" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-45 overflow-y-auto bg-white border border-gray-200">
-                        {STITCH_TYPES.map((st) => (
-                          <SelectItem key={st} value={st}>
-                            {st}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={stitchType}
+                      onValueChange={(val) => setStitchType(val)}
+                      options={STITCH_TYPES.map((st) => ({ value: st, label: st }))}
+                      placeholder="Select Stitch Type"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Parent Product Code / Variant Grouping (Optional)</label>
+                    <Input
+                      placeholder="e.g. cr70020"
+                      value={parentCode}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setParentCode(e.target.value)}
+                      className="bg-white border-gray-300 text-xs h-9"
+                    />
+                    <span className="text-[10px] text-gray-400 block mt-1 font-semibold leading-tight">
+                      Set this to a shared product code to group multiple color variants together.
+                    </span>
                   </div>
                 </div>
 
@@ -891,22 +936,13 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                 <CardContent className="p-4 space-y-4">
                   <div>
                     <label className="text-xs font-bold text-gray-600 block mb-1">New Category</label>
-                    <Select
-                      disabled={isPending}
+                    <SearchableSelect
+                      value={changedCategory}
                       onValueChange={(val) => setCategory(val)}
-                      defaultValue={changedCategory?.toUpperCase()}
-                    >
-                      <SelectTrigger className="w-full bg-white border-gray-300">
-                        <SelectValue placeholder="Select Category" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-50 overflow-y-auto bg-white border border-gray-200">
-                        {allCategory.map((org) => (
-                          <SelectItem key={org.id} value={org.name}>
-                            {org.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={allCategory.map((org) => ({ value: org.name, label: org.name }))}
+                      placeholder="Select Category"
+                      emptyText="No category found."
+                    />
                   </div>
 
                   {/* Size Checklist */}

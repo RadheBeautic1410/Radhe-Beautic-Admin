@@ -9,13 +9,15 @@ import { Button } from "@/src/components/ui/button";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { KurtiSchema } from "@/src/schemas";
+import { Popover, PopoverContent, PopoverTrigger } from "@/src/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/src/components/ui/select";
+  Command,
+  CommandInput,
+  CommandEmpty,
+  CommandGroup,
+  CommandList,
+  CommandItem,
+} from "@/src/components/ui/command";
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { toast } from "sonner";
 import { kurtiAddition } from "@/src/actions/kurti";
@@ -63,6 +65,87 @@ interface ProductDesignInput {
   sleeve: string;
   stitchType: string;
   variants: ColorVariantInput[];
+}
+
+interface SearchableSelectProps {
+  value: string;
+  onValueChange: (val: string) => void;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  emptyText?: string;
+  className?: string;
+}
+
+function SearchableSelect({
+  value,
+  onValueChange,
+  options,
+  placeholder,
+  emptyText = "No results found.",
+  className = ""
+}: SearchableSelectProps) {
+  const [open, setOpen] = useState(false);
+  const selectedOption = options.find((opt) => opt.value.toLowerCase() === (value || "").toLowerCase());
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={`w-full justify-between bg-white border-gray-300 font-normal text-xs h-10 px-3 text-left ${className}`}
+        >
+          <span className="truncate">
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+          <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-[--radix-popover-trigger-width] p-0 bg-white border border-gray-200 shadow-md z-50"
+      >
+        <Command className="bg-white">
+          <CommandInput placeholder={`Search...`} className="h-9" />
+          <CommandEmpty className="py-2 text-center text-xs text-gray-500">{emptyText}</CommandEmpty>
+          <CommandGroup>
+            <CommandList className="max-h-50 overflow-y-auto">
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt.value}
+                  value={opt.label}
+                  onSelect={(currentValue) => {
+                    const matched = options.find(
+                      (o) => o.label.toLowerCase() === currentValue.toLowerCase()
+                    );
+                    if (matched) {
+                      onValueChange(matched.value);
+                    } else {
+                      const matchedVal = options.find(
+                        (o) => o.value.toLowerCase() === currentValue.toLowerCase()
+                      );
+                      if (matchedVal) onValueChange(matchedVal.value);
+                    }
+                    setOpen(false);
+                  }}
+                  className="flex items-center justify-between px-3 py-2 text-xs cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <span className="truncate">{opt.label}</span>
+                  <CheckIcon
+                    className={`h-4 w-4 text-blue-600 ${
+                      (value || "").toLowerCase() === opt.value.toLowerCase() ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
+                </CommandItem>
+              ))}
+            </CommandList>
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 const BulkUploadPage = () => {
@@ -549,40 +632,24 @@ const BulkUploadPage = () => {
               <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-bold text-gray-700 block mb-1">Category</label>
-                  <Select
-                    value={form.watch("category")}
+                  <SearchableSelect
+                    value={form.watch("category") || ""}
                     onValueChange={(val) => form.setValue("category", val)}
-                  >
-                    <SelectTrigger className="bg-white border-gray-300">
-                      <SelectValue placeholder="Select Category" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60 overflow-y-auto bg-white border border-gray-200">
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.name}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={categories.map((cat) => ({ value: cat.name, label: cat.name }))}
+                    placeholder="Select Category"
+                    emptyText="No category found."
+                  />
                 </div>
 
                 <div>
                   <label className="text-xs font-bold text-gray-700 block mb-1">Supplier / Party</label>
-                  <Select
-                    value={form.watch("party")}
+                  <SearchableSelect
+                    value={form.watch("party") || ""}
                     onValueChange={(val) => form.setValue("party", val)}
-                  >
-                    <SelectTrigger className="bg-white border-gray-300">
-                      <SelectValue placeholder="Select Supplier" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60 overflow-y-auto bg-white border border-gray-200">
-                      {parties.map((pty) => (
-                        <SelectItem key={pty.id} value={pty.name}>
-                          {pty.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={parties.map((pty) => ({ value: pty.name, label: pty.name }))}
+                    placeholder="Select Supplier"
+                    emptyText="No supplier found."
+                  />
                 </div>
 
                 <div>
@@ -683,154 +750,82 @@ const BulkUploadPage = () => {
 
                         <div>
                           <label className="text-xs font-bold text-gray-600 block mb-1">Fabric</label>
-                          <Select
+                          <SearchableSelect
                             value={design.fabric}
                             onValueChange={(val) => handleDesignFieldChange(dIdx, "fabric", val)}
-                          >
-                            <SelectTrigger className="bg-white border-gray-300">
-                              <SelectValue placeholder="Select Fabric" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-50 overflow-y-auto bg-white border border-gray-200">
-                              {FABRICS.map((fab) => (
-                                <SelectItem key={fab} value={fab}>
-                                  {fab}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            options={FABRICS.map((fab) => ({ value: fab, label: fab }))}
+                            placeholder="Select Fabric"
+                          />
                         </div>
 
                         <div>
                           <label className="text-xs font-bold text-gray-600 block mb-1">Fit / Shape</label>
-                          <Select
+                          <SearchableSelect
                             value={design.fitShape}
                             onValueChange={(val) => handleDesignFieldChange(dIdx, "fitShape", val)}
-                          >
-                            <SelectTrigger className="bg-white border-gray-300">
-                              <SelectValue placeholder="Select Fit" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-50 overflow-y-auto bg-white border border-gray-200">
-                              {FIT_SHAPES.map((fit) => (
-                                <SelectItem key={fit} value={fit}>
-                                  {fit}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            options={FIT_SHAPES.map((fit) => ({ value: fit, label: fit }))}
+                            placeholder="Select Fit"
+                          />
                         </div>
 
                         <div>
                           <label className="text-xs font-bold text-gray-600 block mb-1">Length</label>
-                          <Select
+                          <SearchableSelect
                             value={design.length}
                             onValueChange={(val) => handleDesignFieldChange(dIdx, "length", val)}
-                          >
-                            <SelectTrigger className="bg-white border-gray-300">
-                              <SelectValue placeholder="Select Length" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-50 overflow-y-auto bg-white border border-gray-200">
-                              {LENGTHS.map((len) => (
-                                <SelectItem key={len} value={len}>
-                                  {len}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            options={LENGTHS.map((len) => ({ value: len, label: len }))}
+                            placeholder="Select Length"
+                          />
                         </div>
 
                         <div>
                           <label className="text-xs font-bold text-gray-600 block mb-1">Neck</label>
-                          <Select
+                          <SearchableSelect
                             value={design.neck}
                             onValueChange={(val) => handleDesignFieldChange(dIdx, "neck", val)}
-                          >
-                            <SelectTrigger className="bg-white border-gray-300">
-                              <SelectValue placeholder="Select Neck" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-50 overflow-y-auto bg-white border border-gray-200">
-                              {NECKS.map((nk) => (
-                                <SelectItem key={nk} value={nk}>
-                                  {nk}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            options={NECKS.map((nk) => ({ value: nk, label: nk }))}
+                            placeholder="Select Neck"
+                          />
                         </div>
 
                         <div>
                           <label className="text-xs font-bold text-gray-600 block mb-1">Occasion</label>
-                          <Select
+                          <SearchableSelect
                             value={design.occasion}
                             onValueChange={(val) => handleDesignFieldChange(dIdx, "occasion", val)}
-                          >
-                            <SelectTrigger className="bg-white border-gray-300">
-                              <SelectValue placeholder="Select Occasion" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-50 overflow-y-auto bg-white border border-gray-200">
-                              {OCCASIONS.map((occ) => (
-                                <SelectItem key={occ} value={occ}>
-                                  {occ}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            options={OCCASIONS.map((occ) => ({ value: occ, label: occ }))}
+                            placeholder="Select Occasion"
+                          />
                         </div>
 
                         <div>
                           <label className="text-xs font-bold text-gray-600 block mb-1">Pattern</label>
-                          <Select
+                          <SearchableSelect
                             value={design.pattern}
                             onValueChange={(val) => handleDesignFieldChange(dIdx, "pattern", val)}
-                          >
-                            <SelectTrigger className="bg-white border-gray-300">
-                              <SelectValue placeholder="Select Pattern" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-50 overflow-y-auto bg-white border border-gray-200">
-                              {PATTERNS.map((pat) => (
-                                <SelectItem key={pat} value={pat}>
-                                  {pat}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            options={PATTERNS.map((pat) => ({ value: pat, label: pat }))}
+                            placeholder="Select Pattern"
+                          />
                         </div>
 
                         <div>
                           <label className="text-xs font-bold text-gray-600 block mb-1">Sleeve</label>
-                          <Select
+                          <SearchableSelect
                             value={design.sleeve}
                             onValueChange={(val) => handleDesignFieldChange(dIdx, "sleeve", val)}
-                          >
-                            <SelectTrigger className="bg-white border-gray-300">
-                              <SelectValue placeholder="Select Sleeve" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-50 overflow-y-auto bg-white border border-gray-200">
-                              {SLEEVES.map((slv) => (
-                                <SelectItem key={slv} value={slv}>
-                                  {slv}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            options={SLEEVES.map((slv) => ({ value: slv, label: slv }))}
+                            placeholder="Select Sleeve"
+                          />
                         </div>
 
                         <div>
                           <label className="text-xs font-bold text-gray-600 block mb-1">Stitch Type</label>
-                          <Select
+                          <SearchableSelect
                             value={design.stitchType}
                             onValueChange={(val) => handleDesignFieldChange(dIdx, "stitchType", val)}
-                          >
-                            <SelectTrigger className="bg-white border-gray-300">
-                              <SelectValue placeholder="Select Stitch Type" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-50 overflow-y-auto bg-white border border-gray-200">
-                              {STITCH_TYPES.map((st) => (
-                                <SelectItem key={st} value={st}>
-                                  {st}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            options={STITCH_TYPES.map((st) => ({ value: st, label: st }))}
+                            placeholder="Select Stitch Type"
+                          />
                         </div>
                       </div>
                     </div>
@@ -866,21 +861,13 @@ const BulkUploadPage = () => {
                                 <label className="text-xs font-semibold text-gray-600 block">Select Color</label>
                                 <div className="flex items-center gap-1.5 w-full">
                                   <div className="flex-1">
-                                    <Select
+                                    <SearchableSelect
                                       value={variant.color}
                                       onValueChange={(val) => handleVariantFieldChange(dIdx, vIdx, "color", val)}
-                                    >
-                                      <SelectTrigger className="w-full bg-white border-gray-300">
-                                        <SelectValue placeholder="Select Color" />
-                                      </SelectTrigger>
-                                      <SelectContent className="max-h-40 overflow-y-auto bg-white border border-gray-200">
-                                        {colors.map((c) => (
-                                          <SelectItem key={c.id} value={c.normalizedLowerCase}>
-                                            {c.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                      options={colors.map((c) => ({ value: c.normalizedLowerCase, label: c.name }))}
+                                      placeholder="Select Color"
+                                      emptyText="No color found."
+                                    />
                                   </div>
                                   
                                   <DialogDemo
