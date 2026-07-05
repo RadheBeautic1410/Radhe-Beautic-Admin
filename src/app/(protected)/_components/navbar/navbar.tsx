@@ -211,6 +211,18 @@ const routes: MenuItem[] = [
         role: [UserRole.ADMIN],
         icon: "📦",
       },
+      {
+        name: "All Customers",
+        href: "/all-customers",
+        role: [UserRole.ADMIN],
+        icon: "👥",
+      },
+      {
+        name: "Settings",
+        href: "/customer-settings",
+        role: [UserRole.ADMIN],
+        icon: "⚙️",
+      },
     ],
   },
 ];

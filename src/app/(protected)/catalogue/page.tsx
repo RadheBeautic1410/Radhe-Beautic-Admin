@@ -12,6 +12,37 @@ import { deleteCategory, fetchKurtiByCategory } from "@/src/actions/kurti";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
+import { Skeleton } from "@/src/components/ui/skeleton";
+
+function KurtiCardSkeleton() {
+  return (
+    <div className="w-[300px] bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden flex flex-col justify-between h-[637px] text-left">
+      <Skeleton className="h-72 w-full bg-gray-200 animate-pulse rounded-t-2xl" />
+      <div className="p-4 space-y-4 flex-1 flex flex-col justify-between bg-white">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
+            <Skeleton className="h-4 w-12 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <Skeleton className="h-7 w-20 bg-gray-200 rounded animate-pulse" />
+          <div className="space-y-1.5 pt-2">
+            <Skeleton className="h-3.5 w-16 bg-gray-150 rounded mb-1 animate-pulse" />
+            <div className="flex flex-wrap gap-1.5">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-5 w-12 bg-gray-200 rounded animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+          <Skeleton className="h-9 flex-1 bg-gray-200 rounded animate-pulse" />
+          <Skeleton className="h-9 w-9 bg-gray-200 rounded animate-pulse" />
+          <Skeleton className="h-9 w-9 bg-gray-200 rounded animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+}
 import {
   Pagination,
   PaginationContent,
@@ -63,6 +94,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 import EditCategoryModal from "../_components/category/EditCategoryModel";
 import { DialogDemo } from "@/src/components/dialog-demo";
+import { SheetDemo } from "@/src/components/sheet-demo";
 import Link from "next/link";
 import TypeEdit from "../_components/kurti/typeEdit";
 import axios from "axios";
@@ -115,6 +147,8 @@ interface Category {
   kurtiType?: string;
   isStockReady: boolean;
   isVisibleForCustomer?: boolean;
+  mrpPercentage?: number;
+  description?: string | null;
 }
 
 interface Kurti {
@@ -276,6 +310,7 @@ const ListPage = () => {
       bigPrice: undefined,
       customerBigPrice: undefined,
       price: undefined,
+      mrpPercentage: 30,
     },
   });
 
@@ -363,6 +398,9 @@ const ListPage = () => {
             ? parseFloat(values.customerPrice?.toString())
             : null,
           kurtiType: values.kurtiType,
+          mrpPercentage: values.mrpPercentage
+            ? parseFloat(values.mrpPercentage?.toString())
+            : null,
         })
           .then((data) => {
             if (data.error) {
@@ -387,6 +425,7 @@ const ListPage = () => {
                   image: data.data.image || undefined,
                   isStockReady: true,
                   isVisibleForCustomer: (data.data as any).isVisibleForCustomer ?? true,
+                  mrpPercentage: data.data.mrpPercentage || undefined,
                 };
                 setCategoryData([...categoryList, newCategory]);
               }
@@ -1474,313 +1513,345 @@ const ListPage = () => {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
           <p className="text-2xl font-semibold text-center">👜 Catalogue</p>
           <div>
-            <Button asChild>
-              <DialogDemo
-                dialogTrigger="+ Add Category"
-                dialogTitle="New Category Addition"
-                dialogDescription="Give category name and click add category"
-              >
-                <Form {...form}>
-                  <form className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              disabled={isPending}
-                              placeholder="Enter category name"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="type"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Type</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              disabled={isPending}
-                              placeholder="Enter category type"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="kurtiType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Kurti Type</FormLabel>
-                          <FormControl>
-                            <Select
-                              onValueChange={field.onChange}
-                              value={field.value}
-                              disabled={isPending}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select kurti type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="roundedPair">
-                                  Rounded Pair
-                                </SelectItem>
-                                <SelectItem value="straightPair">
-                                  Straight Pair
-                                </SelectItem>
-                                <SelectItem value="plazzaPair">
-                                  Plazza Pair
-                                </SelectItem>
-                                <SelectItem value="sararaPair">
-                                  Sarara Pair
-                                </SelectItem>
-                                <SelectItem value="straightKurtiPent">
-                                  Straight kurti Pent
-                                </SelectItem>
-                                <SelectItem value="roundKurti">
-                                  Round kurti
-                                </SelectItem>
-                                <SelectItem value="straightKurti">
-                                  Straight kurti
-                                </SelectItem>
-                                <SelectItem value="onlyPent">
-                                  Only Pent
-                                </SelectItem>
-                                <SelectItem value="lehengaCholi">
-                                  Lehenga Choli
-                                </SelectItem>
-                                <SelectItem value="straight">
-                                  Straight
-                                </SelectItem>
-                                <SelectItem value="codeSet">
-                                  Code-Set
-                                </SelectItem>
-                                <SelectItem value="tunique">Tunique</SelectItem>
-                                <SelectItem value="gaune">Gaune</SelectItem>
-                                <SelectItem value="aLineKurti">
-                                  A-Line Kurti
-                                </SelectItem>
-                                <SelectItem value="aLineKurtiPant">
-                                  A-Line Kurti Pant
-                                </SelectItem>
-                                
-                                <SelectItem value="roundedKurtiPant">
-                                  Round & Kurti Pant
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+            <SheetDemo
+              sheetTrigger="+ Add Category"
+              sheetTitle="New Category Addition"
+              sheetDescription="Give category name and click add category"
+              bgColor="default"
+            >
+              <Form {...form}>
+                <form className="space-y-6 max-h-[80vh] overflow-y-auto pr-2">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            disabled={isPending}
+                            placeholder="Enter category name"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Type</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            disabled={isPending}
+                            placeholder="Enter category type"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="kurtiType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Kurti Type</FormLabel>
+                        <FormControl>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                            disabled={isPending}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select kurti type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="roundedPair">
+                                Rounded Pair
+                              </SelectItem>
+                              <SelectItem value="straightPair">
+                                Straight Pair
+                              </SelectItem>
+                              <SelectItem value="plazzaPair">
+                                Plazza Pair
+                              </SelectItem>
+                              <SelectItem value="sararaPair">
+                                Sarara Pair
+                              </SelectItem>
+                              <SelectItem value="straightKurtiPent">
+                                Straight kurti Pent
+                              </SelectItem>
+                              <SelectItem value="roundKurti">
+                                Round kurti
+                              </SelectItem>
+                              <SelectItem value="straightKurti">
+                                Straight kurti
+                              </SelectItem>
+                              <SelectItem value="onlyPent">
+                                Only Pent
+                              </SelectItem>
+                              <SelectItem value="lehengaCholi">
+                                Lehenga Choli
+                              </SelectItem>
+                              <SelectItem value="straight">
+                                Straight
+                              </SelectItem>
+                              <SelectItem value="codeSet">
+                                Code-Set
+                              </SelectItem>
+                              <SelectItem value="tunique">Tunique</SelectItem>
+                              <SelectItem value="gaune">Gaune</SelectItem>
+                              <SelectItem value="aLineKurti">
+                                A-Line Kurti
+                              </SelectItem>
+                              <SelectItem value="aLineKurtiPant">
+                                A-Line Kurti Pant
+                              </SelectItem>
+                              
+                              <SelectItem value="roundedKurtiPant">
+                                Round & Kurti Pant
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={form.control}
-                      name="actualPrice"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Actual price</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              inputMode="decimal"
-                              value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === "" || value === null) {
-                                  field.onChange(undefined);
+                  <FormField
+                    control={form.control}
+                    name="actualPrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Actual price</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === null) {
+                                field.onChange(undefined);
+                              } else {
+                                const numValue = parseFloat(value);
+                                if (!isNaN(numValue)) {
+                                  field.onChange(numValue);
                                 } else {
-                                  const numValue = parseFloat(value);
-                                  if (!isNaN(numValue)) {
-                                    field.onChange(numValue);
-                                  } else {
-                                    field.onChange(undefined);
-                                  }
-                                }
-                              }}
-                              onBlur={field.onBlur}
-                              disabled={isPending}
-                              placeholder="Enter price of big size"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="sellingPrice"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Selling price (Reseller)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              inputMode="decimal"
-                              value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === "" || value === null) {
                                   field.onChange(undefined);
-                                } else {
-                                  const numValue = parseFloat(value);
-                                  if (!isNaN(numValue)) {
-                                    field.onChange(numValue);
-                                  } else {
-                                    field.onChange(undefined);
-                                  }
                                 }
-                              }}
-                              onBlur={field.onBlur}
-                              disabled={isPending}
-                              placeholder="Enter selling price for reseller"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="customerPrice"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Customer price</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              inputMode="decimal"
-                              value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === "" || value === null) {
+                              }
+                            }}
+                            onBlur={field.onBlur}
+                            disabled={isPending}
+                            placeholder="Enter price of big size"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="sellingPrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Selling price (Reseller)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === null) {
+                                field.onChange(undefined);
+                              } else {
+                                const numValue = parseFloat(value);
+                                if (!isNaN(numValue)) {
+                                  field.onChange(numValue);
+                                } else {
                                   field.onChange(undefined);
-                                } else {
-                                  const numValue = parseFloat(value);
-                                  if (!isNaN(numValue)) {
-                                    field.onChange(numValue);
-                                  } else {
-                                    field.onChange(undefined);
-                                  }
                                 }
-                              }}
-                              onBlur={field.onBlur}
-                              disabled={isPending}
-                              placeholder="Enter customer price"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="bigPrice"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Big price</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              inputMode="decimal"
-                              value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === "" || value === null) {
+                              }
+                            }}
+                            onBlur={field.onBlur}
+                            disabled={isPending}
+                            placeholder="Enter selling price for reseller"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="customerPrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer price</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === null) {
+                                field.onChange(undefined);
+                              } else {
+                                const numValue = parseFloat(value);
+                                if (!isNaN(numValue)) {
+                                  field.onChange(numValue);
+                                } else {
                                   field.onChange(undefined);
-                                } else {
-                                  const numValue = parseFloat(value);
-                                  if (!isNaN(numValue)) {
-                                    field.onChange(numValue);
-                                  } else {
-                                    field.onChange(undefined);
-                                  }
                                 }
-                              }}
-                              onBlur={field.onBlur}
-                              disabled={isPending}
-                              placeholder="Enter price of big size"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="customerBigPrice"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Customer Big price</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              inputMode="decimal"
-                              value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === "" || value === null) {
+                              }
+                            }}
+                            onBlur={field.onBlur}
+                            disabled={isPending}
+                            placeholder="Enter customer price"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="bigPrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Big price</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === null) {
+                                field.onChange(undefined);
+                              } else {
+                                const numValue = parseFloat(value);
+                                if (!isNaN(numValue)) {
+                                  field.onChange(numValue);
+                                } else {
                                   field.onChange(undefined);
-                                } else {
-                                  const numValue = parseFloat(value);
-                                  if (!isNaN(numValue)) {
-                                    field.onChange(numValue);
-                                  } else {
-                                    field.onChange(undefined);
-                                  }
                                 }
-                              }}
-                              onBlur={field.onBlur}
-                              disabled={isPending}
-                              placeholder="Enter customer big price"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="image"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Image (Optional)</FormLabel>
-                          <FormControl>
-                            <ImageUpload2
-                              images={field.value ? [field.value] : []}
-                              singleFile
-                              onImageChange={(data) => {
-                                const url = data[0]?.url;
-                                field.onChange(url && url.trim() !== "" ? url : undefined);
-                              }}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="button"
-                      disabled={isPending}
-                      onClick={form.handleSubmit(handleSubmitCategory)}
-                    >
-                      Add Category
-                    </Button>
-                  </form>
-                </Form>
-              </DialogDemo>
-            </Button>
+                              }
+                            }}
+                            onBlur={field.onBlur}
+                            disabled={isPending}
+                            placeholder="Enter price of big size"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="customerBigPrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer Big price</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === null) {
+                                field.onChange(undefined);
+                              } else {
+                                const numValue = parseFloat(value);
+                                if (!isNaN(numValue)) {
+                                  field.onChange(numValue);
+                                } else {
+                                  field.onChange(undefined);
+                                }
+                              }
+                            }}
+                            onBlur={field.onBlur}
+                            disabled={isPending}
+                            placeholder="Enter customer big price"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="mrpPercentage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>MRP In percentage (%)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === null) {
+                                field.onChange(undefined);
+                              } else {
+                                const numValue = parseFloat(value);
+                                if (!isNaN(numValue)) {
+                                  field.onChange(numValue);
+                                } else {
+                                  field.onChange(undefined);
+                                }
+                              }
+                            }}
+                            onBlur={field.onBlur}
+                            disabled={isPending}
+                            placeholder="Enter MRP percentage (default 30)"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="image"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Image (Optional)</FormLabel>
+                        <FormControl>
+                          <ImageUpload2
+                            images={field.value ? [field.value] : []}
+                            singleFile
+                            onImageChange={(data) => {
+                              const url = data[0]?.url;
+                              field.onChange(url && url.trim() !== "" ? url : undefined);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    disabled={isPending}
+                    onClick={form.handleSubmit(handleSubmitCategory)}
+                  >
+                    Add Category
+                  </Button>
+                </form>
+              </Form>
+            </SheetDemo>
             <Button
               type="button"
               className="sm:ml-2"
@@ -1911,12 +1982,56 @@ const ListPage = () => {
           </div>
         )}
         {catLoading || kurtiLoading ? (
-          <div className="flex items-center justify-center w-full h-96">
-            <HashLoader
-              color="black"
-              loading={catLoading || kurtiLoading}
-              size={50}
-            />
+          <div className="flex-col gap-6 flex">
+            {showKurtiResults ? (
+              <div className="w-full flex flex-row justify-center flex-wrap gap-3">
+                {Array.from({ length: 8 }).map((_, idx) => (
+                  <KurtiCardSkeleton key={idx} />
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="hidden sm:block">
+                  <Table className="bg-white rounded-xl shadow-xs border">
+                    <TableHeader>
+                      <TableRow className="bg-gray-50 border-b">
+                        {Array.from({ length: 11 }).map((_, i) => (
+                          <TableHead key={i} className="text-center font-bold">
+                            <Skeleton className="h-6 w-16 bg-gray-200 mx-auto rounded animate-pulse" />
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Array.from({ length: 10 }).map((_, idx) => (
+                        <TableRow key={idx} className="border-b">
+                          {Array.from({ length: 11 }).map((_, col) => (
+                            <TableCell key={col} className="p-4 text-center">
+                              {col === 2 ? (
+                                <Skeleton className="h-16 w-16 bg-gray-200 mx-auto rounded animate-pulse" />
+                              ) : (
+                                <Skeleton className="h-6 w-20 bg-gray-200 mx-auto rounded animate-pulse" />
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="sm:hidden flex flex-col gap-3">
+                  {Array.from({ length: 5 }).map((_, idx) => (
+                    <div key={idx} className="bg-white border border-gray-150 rounded-2xl p-4 flex gap-3 shadow-xs">
+                      <Skeleton className="h-16 w-16 bg-gray-200 rounded-lg shrink-0 animate-pulse" />
+                      <div className="space-y-2 flex-grow">
+                        <Skeleton className="h-5 w-24 bg-gray-200 rounded animate-pulse" />
+                        <Skeleton className="h-4 w-40 bg-gray-200 rounded animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <>

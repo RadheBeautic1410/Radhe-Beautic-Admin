@@ -35,13 +35,15 @@ interface categoryAddtionProps {
   customerBigPrice?: number | null;
   walletDiscount?: number;
   kurtiType?: string;
+  mrpPercentage?: number | null;
+  description?: string | null;
 }
 
 export const categoryAddition = async (data: categoryAddtionProps) => {
   const user = await currentUser();
   const role = await currentRole();
 
-  const { name, type, image, actualPrice, sellingPrice, customerPrice, bigPrice, customerBigPrice, price } =
+  const { name, type, image, actualPrice, sellingPrice, customerPrice, bigPrice, customerBigPrice, price, mrpPercentage } =
     data;
   if (name.length === 0) {
     return { error: "Category Can't be empty" };
@@ -100,6 +102,7 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
       customerBigPrice: customerBigPrice || 0,
       kurtiType: data.kurtiType || null,
       isVisibleForCustomer: true,
+      mrpPercentage: mrpPercentage !== undefined && mrpPercentage !== null ? mrpPercentage : 30,
     },
   });
 
@@ -181,6 +184,8 @@ export const categoryUpdate = async (
     sellingPrice,
     actualPrice,
     customerPrice,
+    mrpPercentage,
+    description,
   } = data;
 
   if (name.length === 0) {
@@ -215,6 +220,8 @@ export const categoryUpdate = async (
         customerBigPrice: customerBigPrice ?? existingCategory.customerBigPrice,
         walletDiscount: walletDiscount ?? existingCategory.walletDiscount,
         kurtiType: data.kurtiType ?? existingCategory.kurtiType,
+        mrpPercentage: mrpPercentage !== undefined ? mrpPercentage : existingCategory.mrpPercentage,
+        description: description !== undefined ? description : existingCategory.description,
       },
     });
 

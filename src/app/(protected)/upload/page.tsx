@@ -3,30 +3,22 @@ import * as z from "zod";
 import axios from "axios";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
-import { CheckIcon, ChevronsUpDownIcon, Loader2 } from "lucide-react";
+import { CheckIcon, ChevronsUpDownIcon, Loader2, Trash2, Plus } from "lucide-react";
 import { useRef, useState, useTransition, useEffect } from "react";
 import { Button } from "@/src/components/ui/button";
-import {
-  Form,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  FormField,
-  FormDescription,
-} from "@/src/components/ui/form";
-import { KurtiSchema, partyAddSchema } from "@/src/schemas";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { KurtiSchema } from "@/src/schemas";
+import { Popover, PopoverContent, PopoverTrigger } from "@/src/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/src/components/ui/select";
+  Command,
+  CommandInput,
+  CommandEmpty,
+  CommandGroup,
+  CommandList,
+  CommandItem,
+} from "@/src/components/ui/command";
 import { DialogDemo } from "@/src/components/dialog-demo";
-import { partyAddition } from "@/src/actions/party";
 import { toast } from "sonner";
 import { kurtiAddition } from "@/src/actions/kurti";
 import { useRouter } from "next/navigation";
@@ -34,841 +26,993 @@ import { Category, Party, UserRole } from "@prisma/client";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import PageLoader from "@/src/components/loader";
-import { AddSizeForm } from "../_components/dynamicFields/sizes";
-import DesignUpload, {
-  ImageUploadRef,
-} from "../_components/upload/deisgnUpload";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@radix-ui/react-popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/src/components/ui/command";
+import DesignUpload from "../_components/upload/deisgnUpload";
 import React from "react";
 import { v4 as uuidv4 } from "uuid";
-import { updateTotalItem,updateTotalPiece } from "@/src/actions/category";
+import { updateTotalItem, updateTotalPiece } from "@/src/actions/category";
+import {
+  FABRICS,
+  FIT_SHAPES,
+  LENGTHS,
+  NECKS,
+  OCCASIONS,
+  PATTERNS,
+  SLEEVES,
+  STITCH_TYPES,
+} from "@/src/lib/constants";
 
-// Extended schema for bulk upload
-const BulkKurtiSchema = z.object({
-  designs: z
-    .array(
-      z.object({
-        images: z.array(z.any()).min(1, "At least one image required"),
-        code: z.string().min(1, "Code is required"),
-        sizes: z
-          .array(
-            z.object({
-              size: z.string(),
-              quantity: z.number().min(1),
-            })
-          )
-          .min(1, "At least one size required"),
-        countOfPiece: z.number().min(1),
-      })
-    )
-    .min(1, "At least one design required"),
-  party: z.string().min(1, "Party is required"),
-  sellingPrice: z.string().min(1, "Selling price is required"),
-  actualPrice: z.string().min(1, "Actual price is required"),
-  customerPrice: z.string().min(1, "Customer price is required"),
-  category: z.string().min(1, "Category is required"),
-});
-
-interface party {
-  id: string;
-  name: string;
-  normalizedLowerCase: string;
-}
-
-interface category {
-  id: string;
-  name: string;
-  type: string;
-  normalizedLowerCase: string;
-}
-
-interface Size {
+interface SizeInput {
   size: string;
   quantity: number;
 }
 
-interface Design {
+interface ColorVariantInput {
+  color: string;
   images: any[];
-  code: string;
-  sizes: Size[];
-  countOfPiece: number;
+  sizes: SizeInput[];
+}
+
+interface ProductDesignInput {
+  id: string;
+  name: string;
+  description: string;
+  fabric: string;
+  fitShape: string;
+  length: string;
+  neck: string;
+  occasion: string;
+  pattern: string;
+  sleeve: string;
+  stitchType: string;
+  variants: ColorVariantInput[];
+}
+
+interface SearchableSelectProps {
+  value: string;
+  onValueChange: (val: string) => void;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  emptyText?: string;
+  className?: string;
+}
+
+function SearchableSelect({
+  value,
+  onValueChange,
+  options,
+  placeholder,
+  emptyText = "No results found.",
+  className = ""
+}: SearchableSelectProps) {
+  const [open, setOpen] = useState(false);
+  const selectedOption = options.find((opt) => opt.value.toLowerCase() === (value || "").toLowerCase());
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={`w-full justify-between bg-white border-gray-300 font-normal text-xs h-10 px-3 text-left ${className}`}
+        >
+          <span className="truncate">
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+          <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-[--radix-popover-trigger-width] p-0 bg-white border border-gray-200 shadow-md z-50"
+      >
+        <Command className="bg-white">
+          <CommandInput placeholder={`Search...`} className="h-9" />
+          <CommandEmpty className="py-2 text-center text-xs text-gray-500">{emptyText}</CommandEmpty>
+          <CommandGroup>
+            <CommandList className="max-h-50 overflow-y-auto">
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt.value}
+                  value={opt.label}
+                  onSelect={(currentValue) => {
+                    const matched = options.find(
+                      (o) => o.label.toLowerCase() === currentValue.toLowerCase()
+                    );
+                    if (matched) {
+                      onValueChange(matched.value);
+                    } else {
+                      const matchedVal = options.find(
+                        (o) => o.value.toLowerCase() === currentValue.toLowerCase()
+                      );
+                      if (matchedVal) onValueChange(matchedVal.value);
+                    }
+                    setOpen(false);
+                  }}
+                  className="flex items-center justify-between px-3 py-2 text-xs cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <span className="truncate">{opt.label}</span>
+                  <CheckIcon
+                    className={`h-4 w-4 text-blue-600 ${
+                      (value || "").toLowerCase() === opt.value.toLowerCase() ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
+                </CommandItem>
+              ))}
+            </CommandList>
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 const BulkUploadPage = () => {
   const [isPending, startTransition] = useTransition();
-  const imageUploadRef = useRef<ImageUploadRef>(null);
-
-  const [party, setParty] = useState<party[]>([]);
   const [partyLoader, setPartyLoader] = useState(true);
   const [categoryLoader, setCategoryLoader] = useState(true);
-  // const [category, setCategory] = useState<category[]>([]);
-  const [open, setOpen] = React.useState(false);
-  const [categories, setCategories] = React.useState<Category[]>([]);
-  const [images, setImages] = useState<any[]>([]);
-  const [designs, setDesigns] = useState<Design[]>([]);
-  const [generatorLoader, setGeneratorLoader] = useState(false);
-  const [sizes, setSizes] = useState<Size[]>([]);
-  const [barcodeDownloading, setBarcodeDownloading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [bulkProcessing, setBulkProcessing] = useState(false);
-  const [openParty, setOpenParty] = React.useState(false);
-  const [parties, setParties] = React.useState<Party[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
+  const [colors, setColors] = useState<any[]>([]);
+  const [colorsLoader, setColorsLoader] = useState(true);
   const router = useRouter();
 
-  const onAddSize = (sizes: Size[]) => {
-    setSizes(sizes);
+  // Dynamic colors list addition form state
+  const [newColorName, setNewColorName] = useState("");
+
+  const [productDesigns, setProductDesigns] = useState<ProductDesignInput[]>([
+    {
+      id: uuidv4(),
+      name: "",
+      description: "",
+      fabric: "",
+      fitShape: "",
+      length: "",
+      neck: "",
+      occasion: "",
+      pattern: "",
+      sleeve: "",
+      stitchType: "",
+      variants: [
+        {
+          color: "",
+          images: [],
+          sizes: [
+            { size: "XS", quantity: 0 },
+            { size: "S", quantity: 0 },
+            { size: "M", quantity: 0 },
+            { size: "L", quantity: 0 },
+            { size: "XL", quantity: 0 },
+            { size: "XXL", quantity: 0 },
+            { size: "3XL", quantity: 0 },
+            { size: "4XL", quantity: 0 },
+            { size: "5XL", quantity: 0 },
+            { size: "6XL", quantity: 0 },
+            { size: "7XL", quantity: 0 },
+            { size: "8XL", quantity: 0 },
+            { size: "9XL", quantity: 0 },
+            { size: "10XL", quantity: 0 },
+          ],
+        },
+      ],
+    },
+  ]);
+
+  const handleDesignFieldChange = (dIdx: number, field: keyof ProductDesignInput, value: any) => {
+    const updated = [...productDesigns];
+    updated[dIdx] = { ...updated[dIdx], [field]: value };
+    setProductDesigns(updated);
   };
 
-  // Generate designs from uploaded images
-  const generateDesignsFromImages = async () => {
-    if (images.length === 0) {
-      toast.error("Please upload images first");
-      return;
-    }
+  const handleVariantFieldChange = (dIdx: number, vIdx: number, field: keyof ColorVariantInput, value: any) => {
+    const updated = [...productDesigns];
+    updated[dIdx].variants[vIdx] = { ...updated[dIdx].variants[vIdx], [field]: value };
+    setProductDesigns(updated);
+  };
 
-    if (sizes.length === 0) {
-      toast.error("Please add sizes first");
-      return;
-    }
+  const handleVariantSizeQtyChange = (dIdx: number, vIdx: number, sIdx: number, qty: number) => {
+    const updated = [...productDesigns];
+    updated[dIdx].variants[vIdx].sizes[sIdx].quantity = qty;
+    setProductDesigns(updated);
+  };
 
-    const categorySelected = form.getValues().category;
-    if (!categorySelected) {
-      toast.error("Please select category first");
-      return;
-    }
-
-    setBulkProcessing(true);
-    setGeneratorLoader(true);
-
-    try {
-      const newDesigns: Design[] = [];
-      const response = await fetch(
-        `/api/kurti/generateCode?cat=${categorySelected}`
-      );
-      const result = await response.json();
-      // Process each image as a separate design
-      // Extract prefix and number from result.code
-      // const match = result.code.match(/^([A-Z]+)(\d+)$/);
-      // if (!match) {
-      //   throw new Error("Invalid code format from API");
-      // }
-      // const prefix = match[1]; // e.g., 'CR'
-      // let codeNumber = parseInt(match[2]); // e.g., 70011
-      const prefix = result.code.substring(0, 3); // First 2 characters
-      const codeNumber = result.code.substring(3);
-      const imagesWithIds = images.map((image) => ({
-        url: image.url,
-        id: uuidv4(),
-        is_hidden: false,
-        path: image.path,
+  const addColorVariant = (dIdx: number) => {
+    const updated = [...productDesigns];
+    const design = updated[dIdx];
+    
+    // Copy sizes from the last variant if it exists, otherwise use defaults
+    let initialSizes = [
+      { size: "XS", quantity: 0 },
+      { size: "S", quantity: 0 },
+      { size: "M", quantity: 0 },
+      { size: "L", quantity: 0 },
+      { size: "XL", quantity: 0 },
+      { size: "XXL", quantity: 0 },
+      { size: "3XL", quantity: 0 },
+      { size: "4XL", quantity: 0 },
+      { size: "5XL", quantity: 0 },
+      { size: "6XL", quantity: 0 },
+      { size: "7XL", quantity: 0 },
+      { size: "8XL", quantity: 0 },
+      { size: "9XL", quantity: 0 },
+      { size: "10XL", quantity: 0 },
+    ];
+    
+    if (design.variants.length > 0) {
+      const lastVariant = design.variants[design.variants.length - 1];
+      initialSizes = lastVariant.sizes.map(s => ({
+        size: s.size,
+        quantity: s.quantity
       }));
-
-      for (let i = 0; i < imagesWithIds.length; i++) {
-        // Calculate total pieces for this design
-        let totalPieces = 0;
-        sizes.forEach((size) => {
-          totalPieces += size.quantity;
-        });
-
-        // Generate new code with increment
-        const newCode = `${prefix}${(parseInt(codeNumber) + i)
-          .toString()
-          .padStart(4, "0")}`;
-
-        newDesigns.push({
-          images: [imagesWithIds[i]], // Each design gets one image
-          code: newCode,
-          sizes: [...sizes], // Copy of sizes for each design
-          countOfPiece: totalPieces,
-        });
-      }
-
-      setDesigns(newDesigns);
-      toast.success(`Generated ${newDesigns.length} designs successfully!`);
-    } catch (error) {
-      console.error("Error generating designs:", error);
-      toast.error("Failed to generate designs");
-    } finally {
-      setGeneratorLoader(false);
-      setBulkProcessing(false);
-    }
-  };
-
-  const handleBulkBarcodeDownload = async () => {
-    if (designs.length === 0) {
-      toast.error("No designs to generate barcodes!");
-      return;
     }
 
-    try {
-      setBarcodeDownloading(true);
-
-      for (const design of designs) {
-        if (!design.sizes || design.sizes.length === 0 || !design.code) {
-          console.warn("Skipping invalid design", design);
-          continue;
-        }
-
-        const obj = JSON.stringify(design.sizes);
-        const res = await axios.get(
-          `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${design.code}`,
-          {
-            responseType: "blob",
-          }
-        );
-
-        const blob = res.data;
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${design.code}.pdf`; // unique filename per design
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-      }
-
-      toast.success("All barcode PDFs downloaded!");
-    } catch (e: any) {
-      console.error("Error downloading barcodes:", e.message);
-      toast.error("Something went wrong while downloading barcodes.");
-    } finally {
-      setBarcodeDownloading(false);
-    }
-  };
-
-  // Handle bulk barcode download
-  //   const handleBulkBarcodeDownload = async () => {
-  //     if (designs.length === 0) {
-  //       toast.error("No designs to download barcodes for");
-  //       return;
-  //     }
-
-  //     setBarcodeDownloading(true);
-  //     try {
-  //       // Create bulk barcode data
-  //       const barcodeData = designs.map(design => ({
-  //         id: design.code,
-  //         sizes: design.sizes
-  //       }));
-
-  //       const res = await axios.get(
-  //         `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-bulk-pdf?data=${JSON.stringify(barcodeData)}`,
-  //         {
-  //           responseType: "blob",
-  //         }
-  //       );
-
-  //       const blob = res.data;
-  //       const url = window.URL.createObjectURL(blob);
-  //       const a = document.createElement("a");
-  //       a.href = url;
-  //       a.download = `bulk-barcodes-${new Date().getTime()}.pdf`;
-  //       document.body.appendChild(a);
-  //       a.click();
-  //       a.remove();
-  //       window.URL.revokeObjectURL(url);
-  //     } catch (e: any) {
-  //       console.log(e.message);
-  //       toast.error("Failed to download barcodes");
-  //     } finally {
-  //       setBarcodeDownloading(false);
-  //     }
-  //   };
-
-  const handleImageChange = (data: any) => {
-    console.log("🚀 ~ handleImageChange ~ data:", data);
-    setImages([...data]);
-    // Reset designs when images change
-    setDesigns([]);
-  };
-
-  const handleSubmitParty = (values: z.infer<typeof partyAddSchema>) => {
-    startTransition(() => {
-      partyAddition(values)
-        .then((data) => {
-          if (data.error) {
-            formParty.reset();
-            toast.error(data.error);
-          }
-          if (data.success) {
-            formParty.reset();
-            toast.success(data.success);
-            let result = party;
-            // result.push(data.data);
-            // const sortedParty = (result || []).sort((a: party, b: party) =>
-            //   a.name.localeCompare(b.name)
-            // );
-
-            if (data.data) {
-              let result = [...party, data.data]; // create a new array
-              const sortedParty = result.sort((a: party, b: party) =>
-                a.name.localeCompare(b.name)
-              );
-              setParty(sortedParty);
-            }
-          }
-        })
-        .catch(() => toast.error("Something went wrong!"));
+    updated[dIdx].variants.push({
+      color: "",
+      images: [],
+      sizes: initialSizes,
     });
+    setProductDesigns(updated);
   };
 
-  // Handle bulk form submission
-  const handleBulkFormSubmit = async () => {
-    if (designs.length === 0) {
-      toast.error("Please generate designs first");
+  const copySizesFromPreviousVariant = (dIdx: number, vIdx: number) => {
+    if (vIdx === 0) return;
+    const updated = [...productDesigns];
+    const previousVariant = updated[dIdx].variants[vIdx - 1];
+    updated[dIdx].variants[vIdx].sizes = previousVariant.sizes.map(s => ({
+      size: s.size,
+      quantity: s.quantity
+    }));
+    setProductDesigns(updated);
+    toast.success("Copied sizes from previous variant");
+  };
+
+  const removeColorVariant = (dIdx: number, vIdx: number) => {
+    const updated = [...productDesigns];
+    if (updated[dIdx].variants.length <= 1) {
+      toast.error("Each product design must have at least one color variant");
       return;
     }
-
-    const formValues = form.getValues();
-    setBulkProcessing(true);
-
-    try {
-      // Submit each design individually
-      const promises = designs.map((design) => {
-        const designData = {
-          images: design.images,
-          sizes: design.sizes,
-          party: formValues.party,
-          sellingPrice: formValues.sellingPrice,
-          actualPrice: formValues.actualPrice,
-          customerPrice: formValues.customerPrice,
-          category: formValues.category?.toUpperCase(),
-          code: design.code,
-          countOfPiece: design.countOfPiece,
-          weight: formValues.weight,
-        };
-        return kurtiAddition(designData);
-      });
-
-      const results = await Promise.all(promises);
-      const updateCountInCategory = updateTotalItem(
-        formValues.category?.toUpperCase(),
-        designs.length
-      )
-      const totalCountOfPiece = designs.reduce((sum, design) => sum + (design.countOfPiece || 0), 0);
-       const updateTotalPieceInCategory = updateTotalPiece(
-        formValues.category?.toUpperCase(),
-        totalCountOfPiece - designs.length
-      )
-      // Check if all submissions were successful
-      const successful = results.filter((result) => result.success).length;
-      const failed = results.length - successful;
-
-      if (successful > 0) {
-        toast.success(`Successfully uploaded ${successful} designs!`);
-        if (failed > 0) {
-          toast.error(`${failed} designs failed to upload`);
-        }
-
-        // Download barcodes for successful uploads
-        await handleBulkBarcodeDownload();
-
-        // Reset form
-        form.reset();
-        setSizes([]);
-        setDesigns([]);
-        setImages([]);
-        if (imageUploadRef.current) {
-          imageUploadRef.current.reset();
-        }
-        router.refresh();
-      } else {
-        toast.error("All designs failed to upload");
-      }
-    } catch (error) {
-      console.error("Bulk upload error:", error);
-      toast.error("Bulk upload failed");
-    } finally {
-      setBulkProcessing(false);
-    }
+    updated[dIdx].variants.splice(vIdx, 1);
+    setProductDesigns(updated);
   };
-  React.useEffect(() => {
+
+  const addProductDesign = () => {
+    setProductDesigns([
+      ...productDesigns,
+      {
+        id: uuidv4(),
+        name: "",
+        description: "",
+        fabric: "",
+        fitShape: "",
+        length: "",
+        neck: "",
+        occasion: "",
+        pattern: "",
+        sleeve: "",
+        stitchType: "",
+        variants: [
+          {
+            color: "",
+            images: [],
+            sizes: [
+              { size: "XS", quantity: 0 },
+              { size: "S", quantity: 0 },
+              { size: "M", quantity: 0 },
+              { size: "L", quantity: 0 },
+              { size: "XL", quantity: 0 },
+              { size: "XXL", quantity: 0 },
+              { size: "3XL", quantity: 0 },
+              { size: "4XL", quantity: 0 },
+              { size: "5XL", quantity: 0 },
+              { size: "6XL", quantity: 0 },
+              { size: "7XL", quantity: 0 },
+              { size: "8XL", quantity: 0 },
+              { size: "9XL", quantity: 0 },
+              { size: "10XL", quantity: 0 },
+            ],
+          },
+        ],
+      },
+    ]);
+  };
+
+  const removeProductDesign = (dIdx: number) => {
+    if (productDesigns.length <= 1) {
+      toast.error("You must have at least one product design");
+      return;
+    }
+    const updated = [...productDesigns];
+    updated.splice(dIdx, 1);
+    setProductDesigns(updated);
+  };
+
+  useEffect(() => {
     const fetchParties = async () => {
       try {
         const res = await fetch("/api/party");
         const json = await res.json();
-
         if (Array.isArray(json.data)) {
-          const normalizedParties = json.data.map((p: any) => ({
-            ...p,
-            normalizedLowerCase: p.name?.toLowerCase().replace(/\s+/g, ""),
-          }));
-          setParties(normalizedParties);
-        } else {
-          setParties([]);
+          const sorted = json.data.sort((a: any, b: any) =>
+            a.name.localeCompare(b.name)
+          );
+          setParties(sorted);
         }
       } catch (err) {
-        console.error("Failed to fetch parties", err);
-        setParties([]);
+        console.error("Failed to load parties", err);
       } finally {
         setPartyLoader(false);
       }
     };
-
     fetchParties();
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchCategories = async () => {
       try {
-         const query = new URLSearchParams({
-           page: "1",
-           limit: "500",
-         })
+        const query = new URLSearchParams({ page: "1", limit: "500" });
         const res = await fetch(`/api/category?${query.toString()}`);
         const json = await res.json();
-
         if (Array.isArray(json.data)) {
-          const normalizedData = json.data.map((cat: Category) => ({
-            ...cat,
-            normalizedLowerCase: cat.name?.toLowerCase().replace(/\s+/g, ""),
-          }));
-          setCategories(normalizedData);
-        } else {
-          console.error("Invalid categories format:", json);
-          setCategories([]);
+          setCategories(json.data);
         }
       } catch (err) {
         console.error("Failed to load categories", err);
-        setCategories([]);
       } finally {
         setCategoryLoader(false);
       }
     };
-
     fetchCategories();
   }, []);
 
-  const form = useForm<z.infer<typeof KurtiSchema>>({
-    resolver: zodResolver(KurtiSchema),
+  useEffect(() => {
+    const fetchColors = async () => {
+      try {
+        const res = await fetch("/api/color");
+        const json = await res.json();
+        if (Array.isArray(json.data)) {
+          setColors(json.data);
+        }
+      } catch (err) {
+        console.error("Failed to load colors", err);
+      } finally {
+        setColorsLoader(false);
+      }
+    };
+    fetchColors();
+  }, []);
+
+  const form = useForm({
     defaultValues: {
-      images: [],
-      sizes: [],
       party: "",
       sellingPrice: "0",
       actualPrice: "0",
       customerPrice: "0",
       category: "",
-      code: "",
-      countOfPiece: 0,
       weight: undefined,
     },
   });
 
-  const formParty = useForm({
-    defaultValues: {
-      name: "",
-    },
-  });
+  const handleBulkFormSubmit = async () => {
+    const formValues = form.getValues();
+    if (!formValues.category) {
+      toast.error("Please select a category");
+      return;
+    }
+    if (!formValues.party) {
+      toast.error("Please select a party");
+      return;
+    }
+    if (!formValues.sellingPrice || !formValues.actualPrice) {
+      toast.error("Please fill in price details");
+      return;
+    }
+
+    // Validate product designs and variants
+    for (let dIdx = 0; dIdx < productDesigns.length; dIdx++) {
+      const design = productDesigns[dIdx];
+      if (!design.name || !design.name.trim()) {
+        toast.error(`Please enter a Product Name for Design #${dIdx + 1}`);
+        return;
+      }
+      if (design.variants.length === 0) {
+        toast.error(`Design "${design.name}" must have at least one color variant.`);
+        return;
+      }
+
+      for (let vIdx = 0; vIdx < design.variants.length; vIdx++) {
+        const variant = design.variants[vIdx];
+        if (!variant.color) {
+          toast.error(`Please select a color for Variant #${vIdx + 1} under "${design.name}".`);
+          return;
+        }
+        if (variant.images.length === 0) {
+          toast.error(`Please upload at least one image for Variant "${variant.color}" under "${design.name}".`);
+          return;
+        }
+        const totalQty = variant.sizes.reduce((sum, s) => sum + Number(s.quantity || 0), 0);
+        if (totalQty <= 0) {
+          toast.error(`Please add at least one size quantity for Variant "${variant.color}" under "${design.name}".`);
+          return;
+        }
+      }
+    }
+
+    setBulkProcessing(true);
+
+    try {
+      // 1. Calculate total variants to generate codes
+      let totalVariants = 0;
+      productDesigns.forEach((d) => {
+        totalVariants += d.variants.length;
+      });
+
+      // 2. Fetch start code from API
+      const response = await fetch(`/api/kurti/generateCode?cat=${formValues.category}`);
+      const result = await response.json();
+      const prefix = result.code.substring(0, 3);
+      const codeNumber = result.code.substring(3);
+      const startingNum = parseInt(codeNumber);
+
+      let currentGlobalIndex = 0;
+      const uploadPromises: Promise<any>[] = [];
+      const savedCodesForBarcode: { code: string; sizes: { size: string; quantity: number }[] }[] = [];
+
+      // 3. Map designs and variants to payloads
+      productDesigns.forEach((design) => {
+        const firstVariantIndex = currentGlobalIndex;
+        // The parentCode for all variants of this design will be the code of its first variant
+        const parentCode = `${prefix}${(startingNum + firstVariantIndex).toString().padStart(4, "0")}`;
+
+        design.variants.forEach((variant) => {
+          const itemIndex = currentGlobalIndex;
+          currentGlobalIndex++;
+
+          const itemCode = `${prefix}${(startingNum + itemIndex).toString().padStart(4, "0")}`;
+          const totalPieces = variant.sizes.reduce((sum, s) => sum + Number(s.quantity || 0), 0);
+
+          const designData = {
+            images: variant.images.map((img) => ({
+              url: img.url,
+              id: uuidv4(),
+              is_hidden: false,
+              path: img.path,
+            })),
+            sizes: variant.sizes.map((s) => ({
+              size: s.size,
+              quantity: Number(s.quantity || 0),
+            })),
+            party: formValues.party,
+            sellingPrice: formValues.sellingPrice,
+            actualPrice: formValues.actualPrice,
+            customerPrice: formValues.customerPrice,
+            category: formValues.category?.toUpperCase(),
+            code: itemCode,
+            countOfPiece: totalPieces,
+            weight: formValues.weight ? Number(formValues.weight) : undefined,
+            name: design.name,
+            description: design.description,
+            fabric: design.fabric || undefined,
+            fitShape: design.fitShape || undefined,
+            length: design.length || undefined,
+            neck: design.neck || undefined,
+            occasion: design.occasion || undefined,
+            pattern: design.pattern || undefined,
+            sleeve: design.sleeve || undefined,
+            stitchType: design.stitchType || undefined,
+            color: variant.color,
+            parentCode: parentCode,
+          };
+
+          uploadPromises.push(kurtiAddition(designData));
+          savedCodesForBarcode.push({
+            code: itemCode,
+            sizes: variant.sizes.map((s) => ({
+              size: s.size,
+              quantity: Number(s.quantity || 0),
+            })),
+          });
+        });
+      });
+
+      // 4. Save everything to DB
+      const results = await Promise.all(uploadPromises);
+      const successful = results.filter((r) => r.success).length;
+      const failed = results.length - successful;
+
+      if (successful > 0) {
+        toast.success(`Successfully uploaded ${successful} color variants!`);
+        if (failed > 0) {
+          toast.error(`${failed} variants failed to upload.`);
+        }
+
+        // 5. Download barcodes
+        for (const item of savedCodesForBarcode) {
+          try {
+            const obj = JSON.stringify(item.sizes);
+            const res = await axios.get(
+              `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${item.code}`,
+              { responseType: "blob" }
+            );
+            const url = window.URL.createObjectURL(res.data);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${item.code}_barcodes.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+          } catch (err) {
+            console.error("Barcode download failed for", item.code, err);
+          }
+        }
+
+        // Update counts in category state
+        await updateTotalItem(formValues.category?.toUpperCase(), totalVariants);
+        const totalPiecesCount = productDesigns.reduce((sum, d) =>
+          sum + d.variants.reduce((vSum, v) => vSum + v.sizes.reduce((sSum, s) => sSum + Number(s.quantity || 0), 0), 0)
+        , 0);
+        await updateTotalPiece(formValues.category?.toUpperCase(), totalPiecesCount - totalVariants);
+
+        // Reset state
+        setProductDesigns([
+          {
+            id: uuidv4(),
+            name: "",
+            description: "",
+            fabric: "",
+            fitShape: "",
+            length: "",
+            neck: "",
+            occasion: "",
+            pattern: "",
+            sleeve: "",
+            stitchType: "",
+            variants: [
+              {
+                color: "",
+                images: [],
+                sizes: [
+                  { size: "XS", quantity: 0 },
+                  { size: "S", quantity: 0 },
+                  { size: "M", quantity: 0 },
+                  { size: "L", quantity: 0 },
+                  { size: "XL", quantity: 0 },
+                  { size: "XXL", quantity: 0 },
+                  { size: "3XL", quantity: 0 },
+                  { size: "4XL", quantity: 0 },
+                  { size: "5XL", quantity: 0 },
+                  { size: "6XL", quantity: 0 },
+                  { size: "7XL", quantity: 0 },
+                  { size: "8XL", quantity: 0 },
+                  { size: "9XL", quantity: 0 },
+                  { size: "10XL", quantity: 0 },
+                ],
+              },
+            ],
+          },
+        ]);
+        form.reset();
+        router.refresh();
+      } else {
+        toast.error("Failed to upload products.");
+      }
+    } catch (err) {
+      console.error("Bulk upload error:", err);
+      toast.error("Bulk upload failed");
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
 
   return (
     <>
-      <PageLoader loading={partyLoader || categoryLoader} />
-      {partyLoader || categoryLoader ? (
+      <PageLoader loading={partyLoader || categoryLoader || colorsLoader} />
+      {partyLoader || categoryLoader || colorsLoader ? (
         ""
       ) : (
-        <Card className="rounded-none w-full h-full">
-          <CardHeader>
-            <p className="text-2xl font-semibold text-center">
-              ⬆️ BULK UPLOAD ({images.length} Images)
+        <Card className="rounded-none w-full h-full border-none shadow-none text-left bg-gray-50/50">
+          <CardHeader className="bg-white border-b py-4">
+            <h1 className="text-2xl font-bold text-gray-800 text-center">
+              📦 Catalog & Variants Bulk Upload
+            </h1>
+            <p className="text-sm text-gray-500 text-center mt-1">
+              Group your colors under unique product designs and configure their stocks individually.
             </p>
           </CardHeader>
-          <CardContent className="text-center">
-            <DesignUpload
-              ref={imageUploadRef}
-              images={images}
-              onImageChange={handleImageChange}
-            />
-
-            <div className="text-left w-[100%] mt-6">
-              <Form {...form}>
-                <form className="space-y-6 w-auto">
-                  {/* Category Selection */}
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem className="w-[30%]">
-                        <FormLabel>Category</FormLabel>
-                        {/* <Select
-                          disabled={isPending}
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {category.map((cat) => (
-                              <SelectItem key={cat.id} value={cat.name}>
-                                {cat.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select> */}
-                        <Popover open={open} onOpenChange={setOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between"
-                            >
-                              {field.value
-                                ? categories.find(
-                                    (c) => c.normalizedLowerCase === field.value
-                                  )?.name || "Select category"
-                                : "Select category"}
-                              <ChevronsUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-60 overflow-y-auto">
-                            <Command>
-                              <CommandInput placeholder="Search category..." />
-                              <CommandEmpty>No category found.</CommandEmpty>
-                              <CommandGroup>
-                                <CommandList>
-                                  {categories.map((category, idx) => (
-                                    <CommandItem
-                                      key={idx}
-                                      value={category.name}
-                                      onSelect={(currentValue) => {
-                                        const selected = categories.find(
-                                          (c) => c.name === currentValue
-                                        );
-                                        if (selected)
-                                          field.onChange(
-                                            selected.normalizedLowerCase
-                                          );
-                                        setOpen(false);
-                                      }}
-                                    >
-                                      <CheckIcon
-                                        className={`mr-2 h-4 w-4 ${
-                                          field.value ===
-                                          category.normalizedLowerCase
-                                            ? "opacity-100"
-                                            : "opacity-0"
-                                        }`}
-                                      />
-                                      <span className="truncate">
-                                        {category.name}
-                                      </span>
-                                    </CommandItem>
-                                  ))}
-                                </CommandList>
-                              </CommandGroup>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+          <CardContent className="p-6 max-w-6xl mx-auto space-y-6">
+            
+            {/* 1. Shared Category & Pricing details */}
+            <Card className="shadow-sm border-gray-200">
+              <CardHeader className="border-b py-3 bg-gray-50">
+                <h2 className="text-md font-semibold text-gray-800">1. Category, Supplier & Pricing Details (Shared)</h2>
+              </CardHeader>
+              <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Category</label>
+                  <SearchableSelect
+                    value={form.watch("category") || ""}
+                    onValueChange={(val) => form.setValue("category", val)}
+                    options={categories.map((cat) => ({ value: cat.name, label: cat.name }))}
+                    placeholder="Select Category"
+                    emptyText="No category found."
                   />
+                </div>
 
-                  {/* Party Selection */}
-                  <div className="flex flex-row justify-normal">
-                    <FormField
-                      control={form.control}
-                      name="party"
-                      render={({ field }) => (
-                        <FormItem className="w-[30%]">
-                          <FormLabel>Party</FormLabel>
-                          {/* <Select
-                            disabled={isPending}
-                            onValueChange={field.onChange}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select Party" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {party.map((p) => (
-                                <SelectItem key={p.id} value={p.name}>
-                                  {p.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select> */}
-                          <Popover open={openParty} onOpenChange={setOpenParty}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="w-full justify-between"
-                              >
-                                {parties.find(
-                                  (p) => p.normalizedLowerCase === field.value
-                                )?.name || "Select party"}
-                                <ChevronsUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-60 overflow-y-auto">
-                              <Command>
-                                <CommandInput placeholder="Search party..." />
-                                <CommandEmpty>No party found.</CommandEmpty>
-                                <CommandGroup>
-                                  <CommandList>
-                                    {parties.map((party) => (
-                                      <CommandItem
-                                        key={party.id}
-                                        value={party.name}
-                                        onSelect={() => {
-                                          field.onChange(
-                                            party.normalizedLowerCase
-                                          );
-                                          setOpenParty(false);
-                                        }}
-                                      >
-                                        <CheckIcon
-                                          className={`mr-2 h-4 w-4 ${
-                                            field.value ===
-                                            party.normalizedLowerCase
-                                              ? "opacity-100"
-                                              : "opacity-0"
-                                          }`}
-                                        />
-                                        <span className="truncate">
-                                          {party.name}
-                                        </span>
-                                      </CommandItem>
-                                    ))}
-                                  </CommandList>
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="ml-3 mt-7">
-                      <Button asChild>
-                        <DialogDemo
-                          dialogTrigger="Add Party"
-                          dialogTitle="New Party Addition"
-                          dialogDescription="Give party name and click add party"
-                        >
-                          {(closeDialog) => (
-                            <Form {...formParty}>
-                              <form className="space-y-6">
-                                <FormField
-                                  control={formParty.control}
-                                  name="name"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>Party</FormLabel>
-                                      <FormControl>
-                                        <Input
-                                          {...field}
-                                          disabled={isPending}
-                                          placeholder="Enter party name"
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                                <Button
-                                  type="button"
-                                  disabled={isPending}
-                                  onClick={formParty.handleSubmit((data) => {
-                                    handleSubmitParty(data);
-                                    closeDialog();
-                                  })}
-                                >
-                                  Add Party
-                                </Button>
-                              </form>
-                            </Form>
-                          )}
-                        </DialogDemo>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Supplier / Party</label>
+                  <SearchableSelect
+                    value={form.watch("party") || ""}
+                    onValueChange={(val) => form.setValue("party", val)}
+                    options={parties.map((pty) => ({ value: pty.name, label: pty.name }))}
+                    placeholder="Select Supplier"
+                    emptyText="No supplier found."
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Weight (grams)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 250"
+                    value={form.watch("weight") || ""}
+                    onChange={(e) => form.setValue("weight", e.target.value ? parseInt(e.target.value) : undefined as any)}
+                    className="border-gray-300 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Selling Price (Reseller)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={form.watch("sellingPrice") || ""}
+                    onChange={(e) => form.setValue("sellingPrice", e.target.value)}
+                    className="border-gray-300 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Actual Purchase Price</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={form.watch("actualPrice") || ""}
+                    onChange={(e) => form.setValue("actualPrice", e.target.value)}
+                    className="border-gray-300 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Customer Showcase Price</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={form.watch("customerPrice") || ""}
+                    onChange={(e) => form.setValue("customerPrice", e.target.value)}
+                    className="border-gray-300 bg-white"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 2. Product Catalogs List */}
+            <div className="space-y-6">
+              {productDesigns.map((design, dIdx) => (
+                <Card key={design.id} className="shadow-sm border-gray-300 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+                  
+                  <CardHeader className="border-b py-3 bg-gray-50 flex flex-row items-center justify-between px-6">
+                    <h2 className="text-md font-bold text-gray-800">
+                      Product Design #{dIdx + 1}
+                    </h2>
+                    {productDesigns.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeProductDesign(dIdx)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 font-medium"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1.5" />
+                        Delete Design
                       </Button>
-                    </div>
-                  </div>
+                    )}
+                  </CardHeader>
 
-                  {/* Pricing */}
-                  <FormField
-                    control={form.control}
-                    name="actualPrice"
-                    render={({ field }) => (
-                      <FormItem className="w-[30%]">
-                        <FormLabel>Actual Price</FormLabel>
-                        <FormControl>
+                  <CardContent className="p-6 space-y-6">
+                    {/* Design general specs */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">General Specifications</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-3">
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Product Title / Name</label>
                           <Input
-                            {...field}
-                            disabled={isPending}
-                            type="number"
+                            value={design.name}
+                            onChange={(e) => handleDesignFieldChange(dIdx, "name", e.target.value)}
+                            placeholder="e.g. Designer Embroidered Rayon Kurta Set"
+                            className="border-gray-300 bg-white"
                           />
-                        </FormControl>
-                        <FormDescription>
-                          Enter Actual Price per Piece.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                        </div>
 
-                  <FormField
-                    control={form.control}
-                    name="sellingPrice"
-                    render={({ field }) => (
-                      <FormItem className="w-[30%]">
-                        <FormLabel>Sell Price (Reseller)</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            disabled={isPending}
-                            type="number"
+                        <div className="md:col-span-3">
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Description</label>
+                          <textarea
+                            value={design.description}
+                            onChange={(e) => handleDesignFieldChange(dIdx, "description", e.target.value)}
+                            placeholder="Describe fabrics, size charts, or styling tips..."
+                            className="w-full min-h-[80px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
-                        </FormControl>
-                        <FormDescription>
-                          Enter Selling Price per Piece for Reseller.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                        </div>
 
-                  <FormField
-                    control={form.control}
-                    name="customerPrice"
-                    render={({ field }) => (
-                      <FormItem className="w-[30%]">
-                        <FormLabel>Customer Price</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            disabled={isPending}
-                            type="number"
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Fabric</label>
+                          <SearchableSelect
+                            value={design.fabric}
+                            onValueChange={(val) => handleDesignFieldChange(dIdx, "fabric", val)}
+                            options={FABRICS.map((fab) => ({ value: fab, label: fab }))}
+                            placeholder="Select Fabric"
                           />
-                        </FormControl>
-                        <FormDescription>
-                          Enter Customer Price per Piece.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                        </div>
 
-                  <FormField
-                    control={form.control}
-                    name="weight"
-                    render={({ field }) => (
-                      <FormItem className="w-[30%]">
-                        <FormLabel>Weight (grams)</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            disabled={isPending}
-                            type="number"
-                            min="0"
-                            value={field.value || ""}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              field.onChange(value ? parseInt(value) : undefined);
-                            }}
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Fit / Shape</label>
+                          <SearchableSelect
+                            value={design.fitShape}
+                            onValueChange={(val) => handleDesignFieldChange(dIdx, "fitShape", val)}
+                            options={FIT_SHAPES.map((fit) => ({ value: fit, label: fit }))}
+                            placeholder="Select Fit"
                           />
-                        </FormControl>
-                        <FormDescription>
-                          Enter weight in grams (optional).
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                        </div>
 
-                  {/* Sizes */}
-                  <div className="w-[40%]">
-                    <h2>Sizes (Applied to All Designs)</h2>
-                    <AddSizeForm
-                      preSizes={[]}
-                      onAddSize={onAddSize}
-                      sizes={sizes}
-                    />
-                  </div>
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Length</label>
+                          <SearchableSelect
+                            value={design.length}
+                            onValueChange={(val) => handleDesignFieldChange(dIdx, "length", val)}
+                            options={LENGTHS.map((len) => ({ value: len, label: len }))}
+                            placeholder="Select Length"
+                          />
+                        </div>
 
-                  {/* Generate Designs Button */}
-                  <Button
-                    onClick={generateDesignsFromImages}
-                    disabled={generatorLoader || bulkProcessing}
-                    type="button"
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {generatorLoader ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      ""
-                    )}
-                    Generate {images.length} Designs
-                  </Button>
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Neck</label>
+                          <SearchableSelect
+                            value={design.neck}
+                            onValueChange={(val) => handleDesignFieldChange(dIdx, "neck", val)}
+                            options={NECKS.map((nk) => ({ value: nk, label: nk }))}
+                            placeholder="Select Neck"
+                          />
+                        </div>
 
-                  {/* Show Generated Designs */}
-                  {designs.length > 0 && (
-                    <div className="mt-6">
-                      <h3 className="text-lg font-semibold mb-4">
-                        Generated Designs ({designs.length})
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                        {designs.map((design, index) => (
-                          <Card key={index} className="p-4">
-                            <div className="flex items-center space-x-3">
-                              <img
-                                src={design.images[0]?.url}
-                                alt={`Design ${index + 1}`}
-                                className="w-16 h-16 object-cover rounded"
-                              />
-                              <div>
-                                <p className="font-medium">
-                                  Code: {design.code}
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                  Pieces: {design.countOfPiece}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  Sizes:{" "}
-                                  {design.sizes
-                                    .map((s) => `${s.size}(${s.quantity})`)
-                                    .join(", ")}
-                                </p>
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Occasion</label>
+                          <SearchableSelect
+                            value={design.occasion}
+                            onValueChange={(val) => handleDesignFieldChange(dIdx, "occasion", val)}
+                            options={OCCASIONS.map((occ) => ({ value: occ, label: occ }))}
+                            placeholder="Select Occasion"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Pattern</label>
+                          <SearchableSelect
+                            value={design.pattern}
+                            onValueChange={(val) => handleDesignFieldChange(dIdx, "pattern", val)}
+                            options={PATTERNS.map((pat) => ({ value: pat, label: pat }))}
+                            placeholder="Select Pattern"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Sleeve</label>
+                          <SearchableSelect
+                            value={design.sleeve}
+                            onValueChange={(val) => handleDesignFieldChange(dIdx, "sleeve", val)}
+                            options={SLEEVES.map((slv) => ({ value: slv, label: slv }))}
+                            placeholder="Select Sleeve"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Stitch Type</label>
+                          <SearchableSelect
+                            value={design.stitchType}
+                            onValueChange={(val) => handleDesignFieldChange(dIdx, "stitchType", val)}
+                            options={STITCH_TYPES.map((st) => ({ value: st, label: st }))}
+                            placeholder="Select Stitch Type"
+                          />
+                        </div>
                       </div>
                     </div>
-                  )}
 
-                  {/* Submit Button */}
-                  <Button
-                    type="button"
-                    disabled={isPending || barcodeDownloading || bulkProcessing}
-                    onClick={handleBulkFormSubmit}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    {isPending || barcodeDownloading || bulkProcessing ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      ""
-                    )}
-                    Upload {designs.length} Designs & Download Barcodes
-                  </Button>
-                </form>
-              </Form>
+                    {/* Color variants for this design */}
+                    <div className="space-y-4 border-t pt-4">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Color Variants</h3>
+                      
+                      <div className="space-y-6">
+                        {design.variants.map((variant, vIdx) => (
+                          <div key={vIdx} className="bg-white border border-gray-200 rounded-lg p-4 relative shadow-sm">
+                            
+                            <div className="flex items-center justify-between border-b pb-3 mb-4">
+                              <h4 className="text-sm font-bold text-gray-700">Variant #{vIdx + 1}</h4>
+                              {design.variants.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeColorVariant(dIdx, vIdx)}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 font-medium"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                  Remove Variant
+                                </Button>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                              
+                              {/* Color Select */}
+                              <div className="space-y-2">
+                                <label className="text-xs font-semibold text-gray-600 block">Select Color</label>
+                                <div className="flex items-center gap-1.5 w-full">
+                                  <div className="flex-1">
+                                    <SearchableSelect
+                                      value={variant.color}
+                                      onValueChange={(val) => handleVariantFieldChange(dIdx, vIdx, "color", val)}
+                                      options={colors.map((c) => ({ value: c.normalizedLowerCase, label: c.name }))}
+                                      placeholder="Select Color"
+                                      emptyText="No color found."
+                                    />
+                                  </div>
+                                  
+                                  <DialogDemo
+                                    dialogTrigger="+"
+                                    bgColor="outline"
+                                    dialogTitle="Add New Color"
+                                    dialogDescription="Enter color name and click add color"
+                                  >
+                                    {(closeDialog) => (
+                                      <div className="space-y-4 p-1 text-left">
+                                        <div>
+                                          <label className="text-xs font-semibold text-gray-700">Color Name</label>
+                                          <Input
+                                            value={newColorName}
+                                            onChange={(e) => setNewColorName(e.target.value)}
+                                            placeholder="e.g. Navy Blue"
+                                            className="mt-1 border-gray-300"
+                                          />
+                                        </div>
+                                        <Button
+                                          type="button"
+                                          onClick={async () => {
+                                            if (!newColorName) return toast.error("Name is required");
+                                            try {
+                                              const res = await fetch("/api/color/add", {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ name: newColorName }),
+                                              });
+                                              const json = await res.json();
+                                              if (res.ok && json.data) {
+                                                toast.success("Color Added!");
+                                                setColors((prev) =>
+                                                  [...prev, json.data].sort((a, b) =>
+                                                    a.name.localeCompare(b.name)
+                                                  )
+                                                );
+                                                handleVariantFieldChange(dIdx, vIdx, "color", json.data.normalizedLowerCase);
+                                                setNewColorName("");
+                                                closeDialog();
+                                              } else {
+                                                toast.error(json.error || "Failed to add color");
+                                              }
+                                            } catch (err) {
+                                              toast.error("Failed to add color");
+                                            }
+                                          }}
+                                        >
+                                          Add Color
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </DialogDemo>
+                                </div>
+                              </div>
+
+                              {/* Image Upload for this variant */}
+                              <div className="md:col-span-2 space-y-2">
+                                <label className="text-xs font-semibold text-gray-600 block">Upload Images for this Color</label>
+                                <DesignUpload
+                                  images={variant.images}
+                                  onImageChange={(newImages) => handleVariantFieldChange(dIdx, vIdx, "images", newImages)}
+                                />
+                              </div>
+
+                              {/* Size Stocks for this variant */}
+                              <div className="md:col-span-3 space-y-2 border-t pt-3 mt-2">
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="text-xs font-bold text-gray-600 block">Inventory stock quantities per size</label>
+                                  {vIdx > 0 && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      onClick={() => copySizesFromPreviousVariant(dIdx, vIdx)}
+                                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 h-6 px-2 text-[10px] font-semibold border-blue-200"
+                                    >
+                                      Same as last variant
+                                    </Button>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                  {variant.sizes.map((s, sIdx) => (
+                                    <div key={s.size} className="flex flex-col items-center border border-gray-200 rounded p-1.5 bg-white">
+                                      <span className="text-xs font-bold text-gray-700">{s.size}</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        value={s.quantity || ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value ? parseInt(e.target.value) : 0;
+                                          handleVariantSizeQtyChange(dIdx, vIdx, sIdx, val);
+                                        }}
+                                        className="w-14 h-7 text-xs border rounded text-center mt-1 focus:ring-1 focus:ring-blue-500 outline-none"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Add Color Variant Button */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => addColorVariant(dIdx)}
+                        className="w-full border-dashed border-gray-300 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-1.5 py-3 h-auto mt-4 font-semibold"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Color Variant for "{design.name || `Design #${dIdx + 1}`}"
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Add Design Catalog Button */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addProductDesign}
+              className="w-full bg-white hover:bg-gray-100 text-gray-800 border-gray-300 flex items-center justify-center gap-1.5 py-4 h-auto text-base font-semibold shadow-sm"
+            >
+              <Plus className="w-5 h-5" />
+              Add Another Product Design
+            </Button>
+
+            {/* Submit Barcodes & Upload */}
+            <div className="pt-4">
+              <Button
+                type="button"
+                disabled={isPending || bulkProcessing}
+                onClick={handleBulkFormSubmit}
+                className="w-full py-6 h-auto text-base font-bold bg-green-600 hover:bg-green-700 text-white shadow-md flex items-center justify-center gap-2"
+              >
+                {isPending || bulkProcessing ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  ""
+                )}
+                Upload All Products & Download Barcodes
+              </Button>
             </div>
           </CardContent>
         </Card>

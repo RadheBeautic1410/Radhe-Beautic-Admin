@@ -119,6 +119,20 @@ export const categoryAddSchema = z.object({
       })
       .optional()
   ),
+  mrpPercentage: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return 30;
+      if (typeof val === "number") return val;
+      const num = parseFloat(val as string);
+      return isNaN(num) ? 30 : num;
+    },
+    z
+      .number()
+      .min(0, {
+        message: "MRP percentage must be 0 or greater",
+      })
+      .optional()
+  ),
 });
 
 export const stockUpdateSchema = z.object({
@@ -255,6 +269,18 @@ export const KurtiSchema = z.object({
   category: z.string().min(1, { message: "Please select the category." }),
   code: z.string(),
   weight: z.number().min(0, { message: "Weight must be 0 or greater" }).optional(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  fabric: z.string().optional(),
+  fitShape: z.string().optional(),
+  length: z.string().optional(),
+  neck: z.string().optional(),
+  occasion: z.string().optional(),
+  pattern: z.string().optional(),
+  sleeve: z.string().optional(),
+  stitchType: z.string().optional(),
+  color: z.string().optional(),
+  parentCode: z.string().optional(),
 });
 
 export const categoryEditSchema = z.object({
@@ -269,4 +295,6 @@ export const categoryEditSchema = z.object({
   customerPrice: z.number().optional(),
   walletDiscount: z.number().min(0, "Discount must be zero or more").optional(),
   kurtiType: z.string(),
+  mrpPercentage: z.number().min(0, "MRP percentage must be zero or more").optional(),
+  description: z.string().optional(),
 });

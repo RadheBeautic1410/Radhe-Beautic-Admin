@@ -20,6 +20,7 @@ interface Category {
   code?: string;
   isStockReady?: boolean;
   isVisibleForCustomer?: boolean;
+  description?: string | null;
 }
 
 // export async function GET(request: Request) {

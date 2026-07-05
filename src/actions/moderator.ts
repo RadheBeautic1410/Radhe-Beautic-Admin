@@ -5,6 +5,7 @@ import { getUserById } from "@/src/data/user";
 import { currentUser } from "@/src/lib/auth";
 import { UserRole } from "@prisma/client";
 import { getCurrTime } from "./kurti";
+import crypto from "crypto";
 
 interface moderatorUpdateProps {
   role: UserRole | undefined;
@@ -76,4 +77,27 @@ export const moderatorUpdate = async (data: moderatorUpdateProps) => {
   }
 
   return { success: "Settings Updated!", updatedUser };
+};
+
+export const adminResetPassword = async (userId: string, newPassword: string) => {
+  const user = await currentUser();
+  if (!user || user.role !== UserRole.ADMIN) {
+    return { error: "Unauthorized" };
+  }
+
+  const dbUser = await getUserById(userId);
+  if (!dbUser) {
+    return { error: "User not found" };
+  }
+
+  const hashedPassword = crypto.createHash("sha256").update(newPassword).digest("hex");
+
+  await db.user.update({
+    where: { id: userId },
+    data: {
+      password: hashedPassword,
+    },
+  });
+
+  return { success: "Password updated successfully!" };
 };
