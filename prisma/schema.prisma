@@ -166,6 +166,7 @@ model Category {
   normalizedLowerCase  String  @unique
   code                 String? @unique
   name                 String
+  description          String?
   type                 String?
   kurtiType            String?
   image                String?

@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/src/components/ui/textarea";
 
 interface Category {
   id: string;
@@ -52,6 +53,7 @@ interface Category {
   walletDiscount?: number;
   isStockReady: boolean;
   mrpPercentage?: number;
+  description?: string | null;
 }
 
 interface EditCategoryModalProps {
@@ -121,6 +123,7 @@ const EditCategoryModal = ({
       walletDiscount: category.walletDiscount ?? undefined,
       kurtiType: category.kurtiType || "",
       mrpPercentage: category.mrpPercentage ?? undefined,
+      description: category.description || "",
     },
   });
 
@@ -147,6 +150,7 @@ const EditCategoryModal = ({
         walletDiscount: cat.walletDiscount ?? 0,
         kurtiType: cat.kurtiType || "",
         mrpPercentage: cat.mrpPercentage ?? undefined,
+        description: cat.description || "",
       });
     },
     [form]
@@ -187,6 +191,7 @@ const EditCategoryModal = ({
         walletDiscount: parsed.data.walletDiscount || 0,
         kurtiType: parsed.data.kurtiType,
         mrpPercentage: parsed.data.mrpPercentage,
+        description: parsed.data.description,
       })
         .then((data) => {
           console.log("🚀 ~ .then ~ data:", data);
@@ -204,6 +209,7 @@ const EditCategoryModal = ({
               image: parsed.data.image || "/images/no-image.png",
               bigPrice: parsed.data.bigPrice,
               mrpPercentage: parsed.data.mrpPercentage,
+              description: parsed.data.description,
             };
 
             onCategoryUpdate(updatedCategory);
@@ -220,6 +226,7 @@ const EditCategoryModal = ({
                 image: parsed.data.image || "/images/no-image.png",
                 bigPrice: parsed.data.bigPrice,
                 mrpPercentage: parsed.data.mrpPercentage,
+                description: parsed.data.description,
               };
 
               onCategoryUpdate(updatedCategory2);
@@ -472,6 +479,24 @@ const EditCategoryModal = ({
                 }
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      disabled={isPending}
+                      placeholder="Enter category description"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

@@ -36,6 +36,7 @@ interface categoryAddtionProps {
   walletDiscount?: number;
   kurtiType?: string;
   mrpPercentage?: number | null;
+  description?: string | null;
 }
 
 export const categoryAddition = async (data: categoryAddtionProps) => {
@@ -184,6 +185,7 @@ export const categoryUpdate = async (
     actualPrice,
     customerPrice,
     mrpPercentage,
+    description,
   } = data;
 
   if (name.length === 0) {
@@ -219,6 +221,7 @@ export const categoryUpdate = async (
         walletDiscount: walletDiscount ?? existingCategory.walletDiscount,
         kurtiType: data.kurtiType ?? existingCategory.kurtiType,
         mrpPercentage: mrpPercentage !== undefined ? mrpPercentage : existingCategory.mrpPercentage,
+        description: description !== undefined ? description : existingCategory.description,
       },
     });
 

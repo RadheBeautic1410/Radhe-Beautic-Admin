@@ -296,4 +296,5 @@ export const categoryEditSchema = z.object({
   walletDiscount: z.number().min(0, "Discount must be zero or more").optional(),
   kurtiType: z.string(),
   mrpPercentage: z.number().min(0, "MRP percentage must be zero or more").optional(),
+  description: z.string().optional(),
 });

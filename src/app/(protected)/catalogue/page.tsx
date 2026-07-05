@@ -148,6 +148,7 @@ interface Category {
   isStockReady: boolean;
   isVisibleForCustomer?: boolean;
   mrpPercentage?: number;
+  description?: string | null;
 }
 
 interface Kurti {

@@ -616,7 +616,7 @@ const BulkUploadPage = () => {
         <Card className="rounded-none w-full h-full border-none shadow-none text-left bg-gray-50/50">
           <CardHeader className="bg-white border-b py-4">
             <h1 className="text-2xl font-bold text-gray-800 text-center">
-              📦 Catalog & Variants Bulk Upload (Meesho Style)
+              📦 Catalog & Variants Bulk Upload
             </h1>
             <p className="text-sm text-gray-500 text-center mt-1">
               Group your colors under unique product designs and configure their stocks individually.
