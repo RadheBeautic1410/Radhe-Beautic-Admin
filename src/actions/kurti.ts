@@ -5,6 +5,7 @@ import { currentRole, currentUser } from "@/src/lib/auth";
 
 import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
+import { v4 as uuidv4 } from "uuid";
 
 export const getCurrTime = async () => {
   // Always store in UTC; handle display/filtering in desired timezone
@@ -645,14 +646,48 @@ export const addNewImages = async (data: any) => {
   const { images, videos, code } = data;
 
   const currTime = await getCurrTime();
+  const existingKurti = await db.kurti.findUnique({
+    where: {
+      code: code.toUpperCase(),
+    },
+    select: {
+      images: true,
+      videos: true,
+    },
+  });
+
+  if (!existingKurti) {
+    return { error: "Product not found" };
+  }
+
+  const currentImages = Array.isArray(existingKurti.images) ? existingKurti.images : [];
+  const currentVideos = Array.isArray(existingKurti.videos) ? existingKurti.videos : [];
+
+  const formattedNewImages = (images || []).map((img: any) => ({
+    id: img.id || uuidv4(),
+    url: img.url,
+    is_hidden: img.is_hidden !== undefined ? img.is_hidden : false,
+    path: img.path,
+  }));
+
+  const formattedNewVideos = (videos || []).map((vid: any) => ({
+    id: vid.id || uuidv4(),
+    url: vid.url,
+    is_hidden: vid.is_hidden !== undefined ? vid.is_hidden : false,
+    path: vid.path,
+  }));
+
+  const updatedImages = [...currentImages, ...formattedNewImages];
+  const updatedVideos = [...currentVideos, ...formattedNewVideos];
+
   const kurti = await db.kurti.update({
     where: {
       code: code.toUpperCase(),
     },
     data: {
-      images: images,
+      images: updatedImages,
       lastUpdatedTime: currTime,
-      videos: videos,
+      videos: updatedVideos,
     },
   });
   return { success: `New Images/Videos added`, kurti: kurti };
