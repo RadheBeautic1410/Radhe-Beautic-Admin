@@ -602,6 +602,9 @@ const CustomerOrdersPage = () => {
   const isOrderAccepted =
     selectedOrder?.status === OrderStatus.PROCESSING ||
     selectedOrder?.status === OrderStatus.SHIPPED;
+  const isOrderCancelled = selectedOrder?.status === OrderStatus.CANCELLED;
+  const isOrderDelivered = selectedOrder?.status === OrderStatus.DELIVERED;
+  const isOrderRejected = selectedOrder?.status === OrderStatus.REJECTED;
 
   return (
     <>
@@ -1376,7 +1379,7 @@ const CustomerOrdersPage = () => {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Payment Information Display */}
-                    {(isOrderTrackingPending || isOrderAccepted) &&
+                    {(isOrderTrackingPending || isOrderAccepted || isOrderCancelled || isOrderDelivered || isOrderRejected) &&
                       selectedOrder.paymentStatus && (
                         <Card>
                           <CardHeader className="pb-3">

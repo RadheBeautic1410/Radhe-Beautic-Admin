@@ -177,7 +177,10 @@ export const PATTERNS = [
   "Animal Print",
   "Polka Dot",
   "Chevron",
-  "Ikat"
+  "Ikat",
+  "Hand Work",
+  "Thread Work",
+  "Ajrakh Print"
 ];
 
 export const SLEEVES = [

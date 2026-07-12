@@ -370,114 +370,118 @@ const EditCategoryModal = ({
                 }
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-cat-selling-price">
-                Selling Price (Reseller)
-              </Label>
-              <Input
-                id="edit-cat-selling-price"
-                type="text"
-                inputMode="decimal"
-                disabled={isPending}
-                placeholder="Enter selling price for reseller"
-                value={priceDraft.sellingPrice}
-                onChange={(e) =>
-                  setPriceDraft((d) => ({
-                    ...d,
-                    sellingPrice: e.target.value,
-                  }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-cat-customer-price">Customer Price</Label>
-              <Input
-                id="edit-cat-customer-price"
-                type="text"
-                inputMode="decimal"
-                disabled={isPending}
-                placeholder="Enter customer price"
-                value={priceDraft.customerPrice}
-                onChange={(e) =>
-                  setPriceDraft((d) => ({
-                    ...d,
-                    customerPrice: e.target.value,
-                  }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-cat-big-price">Reseller Big Price (Optional)</Label>
-              <Input
-                id="edit-cat-big-price"
-                type="text"
-                inputMode="decimal"
-                disabled={isPending}
-                placeholder="Enter big price"
-                value={priceDraft.bigPrice}
-                onChange={(e) =>
-                  setPriceDraft((d) => ({ ...d, bigPrice: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-cat-customer-big-price">
-                Customer Big Price (Optional)
-              </Label>
-              <Input
-                id="edit-cat-customer-big-price"
-                type="text"
-                inputMode="decimal"
-                disabled={isPending}
-                placeholder="Enter customer big price"
-                value={priceDraft.customerBigPrice}
-                onChange={(e) =>
-                  setPriceDraft((d) => ({
-                    ...d,
-                    customerBigPrice: e.target.value,
-                  }))
-                }
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-cat-selling-price">Reseller Price</Label>
+                <Input
+                  id="edit-cat-selling-price"
+                  type="text"
+                  inputMode="decimal"
+                  disabled={isPending}
+                  placeholder="Enter selling price for reseller"
+                  value={priceDraft.sellingPrice}
+                  onChange={(e) =>
+                    setPriceDraft((d) => ({
+                      ...d,
+                      sellingPrice: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-cat-big-price">Reseller Big Price (Optional)</Label>
+                <Input
+                  id="edit-cat-big-price"
+                  type="text"
+                  inputMode="decimal"
+                  disabled={isPending}
+                  placeholder="Enter big price"
+                  value={priceDraft.bigPrice}
+                  onChange={(e) =>
+                    setPriceDraft((d) => ({ ...d, bigPrice: e.target.value }))
+                  }
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-cat-mrp-percentage">
-                MRP In percentage (%)
-              </Label>
-              <Input
-                id="edit-cat-mrp-percentage"
-                type="text"
-                inputMode="decimal"
-                disabled={isPending}
-                placeholder="Enter MRP percentage (default 30)"
-                value={priceDraft.mrpPercentage}
-                onChange={(e) =>
-                  setPriceDraft((d) => ({
-                    ...d,
-                    mrpPercentage: e.target.value,
-                  }))
-                }
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-cat-customer-price">Customer Price</Label>
+                <Input
+                  id="edit-cat-customer-price"
+                  type="text"
+                  inputMode="decimal"
+                  disabled={isPending}
+                  placeholder="Enter customer price"
+                  value={priceDraft.customerPrice}
+                  onChange={(e) =>
+                    setPriceDraft((d) => ({
+                      ...d,
+                      customerPrice: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-cat-customer-big-price">
+                  Customer Big Price (Optional)
+                </Label>
+                <Input
+                  id="edit-cat-customer-big-price"
+                  type="text"
+                  inputMode="decimal"
+                  disabled={isPending}
+                  placeholder="Enter customer big price"
+                  value={priceDraft.customerBigPrice}
+                  onChange={(e) =>
+                    setPriceDraft((d) => ({
+                      ...d,
+                      customerBigPrice: e.target.value,
+                    }))
+                  }
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-cat-wallet-discount">
-                Wallet Discount (₹)
-              </Label>
-              <Input
-                id="edit-cat-wallet-discount"
-                type="text"
-                inputMode="decimal"
-                disabled={isPending}
-                placeholder="Enter flat discount in ₹"
-                value={priceDraft.walletDiscount}
-                onChange={(e) =>
-                  setPriceDraft((d) => ({
-                    ...d,
-                    walletDiscount: e.target.value,
-                  }))
-                }
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-cat-mrp-percentage">
+                  MRP In percentage (%)
+                </Label>
+                <Input
+                  id="edit-cat-mrp-percentage"
+                  type="text"
+                  inputMode="decimal"
+                  disabled={isPending}
+                  placeholder="Enter MRP percentage (default 30)"
+                  value={priceDraft.mrpPercentage}
+                  onChange={(e) =>
+                    setPriceDraft((d) => ({
+                      ...d,
+                      mrpPercentage: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-cat-wallet-discount">
+                  Wallet Discount (₹)
+                </Label>
+                <Input
+                  id="edit-cat-wallet-discount"
+                  type="text"
+                  inputMode="decimal"
+                  disabled={isPending}
+                  placeholder="Enter flat discount in ₹"
+                  value={priceDraft.walletDiscount}
+                  onChange={(e) =>
+                    setPriceDraft((d) => ({
+                      ...d,
+                      walletDiscount: e.target.value,
+                    }))
+                  }
+                />
+              </div>
             </div>
 
             <FormField

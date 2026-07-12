@@ -100,6 +100,7 @@ function KurtiListPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [jumpPage, setJumpPage] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
 
   const SIZE_ORDER = [
     "XS",
@@ -232,7 +233,19 @@ function KurtiListPage() {
     const selectedItems = kurtiData.filter((k) => selectedIds.includes(k.id));
     if (selectedItems.length === 0) return;
 
+    if (!deletePassword.trim()) {
+      toast.error("Please enter the delete password");
+      return;
+    }
+
+    const expectedPassword = process.env.NEXT_PUBLIC_DELETE_PASSWORD;
+    if (deletePassword !== expectedPassword) {
+      toast.error("Invalid password");
+      return;
+    }
+
     setDeleteConfirmOpen(false);
+    setDeletePassword("");
     setPageLoader(true);
     try {
       await Promise.all(
@@ -601,19 +614,44 @@ function KurtiListPage() {
           </div>
         )}
 
-          <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <Dialog open={deleteConfirmOpen} onOpenChange={(open) => {
+            setDeleteConfirmOpen(open);
+            if (!open) setDeletePassword("");
+          }}>
             <DialogContent className="sm:max-w-[425px] bg-white border border-gray-200">
               <DialogHeader>
                 <DialogTitle>Delete Selected Products</DialogTitle>
                 <DialogDescription>
                   Are you sure you want to permanently delete the <span className="font-bold text-gray-900">{selectedIds.length}</span> selected products? This action cannot be undone.
+                  <br />
+                  <span className="font-semibold text-red-600 block mt-1">
+                    Please enter the delete password to confirm.
+                  </span>
                 </DialogDescription>
               </DialogHeader>
+              <div className="space-y-2 py-2">
+                <Input
+                  type="password"
+                  placeholder="Enter delete password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  className="border-red-300 focus:border-red-500 focus:ring-red-500"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleDeleteSelected();
+                    }
+                  }}
+                />
+              </div>
               <DialogFooter className="gap-2 pt-2 border-t mt-4">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setDeleteConfirmOpen(false)}
+                  onClick={() => {
+                    setDeleteConfirmOpen(false);
+                    setDeletePassword("");
+                  }}
                   className="text-xs h-9 px-4"
                 >
                   Cancel

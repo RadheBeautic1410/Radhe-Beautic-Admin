@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/src/components/ui/dialog";
+import { Input } from "@/src/components/ui/input";
 
 interface kurti {
   id: string;
@@ -95,6 +96,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [stockString, setStockString] = useState(``);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
 
   const selectSizes = useMemo(() => [
     "XS",
@@ -156,6 +159,17 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
   }, [activeVariant.images]);
 
   const handleDelete = async () => {
+    if (!deletePassword.trim()) {
+      toast.error("Please enter the delete password");
+      return;
+    }
+
+    const expectedPassword = process.env.NEXT_PUBLIC_DELETE_PASSWORD;
+    if (deletePassword !== expectedPassword) {
+      toast.error("Invalid password");
+      return;
+    }
+
     try {
       const res = await fetch(
         `/api/kurti/delete?cat=${activeVariant?.category}&code=${activeVariant?.code}`
@@ -163,6 +177,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       const result = await res.json();
       await onKurtiDelete(result.data);
       toast.success("Successfully deleted product");
+      setDeleteDialogOpen(false);
+      setDeletePassword("");
     } catch (e: any) {
       console.error(e.message);
       toast.error("Failed to delete");
@@ -601,29 +617,62 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
               </Button>
             </Link>
 
-            <Dialog>
+            <Dialog open={deleteDialogOpen} onOpenChange={(open) => {
+              setDeleteDialogOpen(open);
+              if (!open) setDeletePassword("");
+            }}>
               <DialogTrigger asChild>
                 <Button
                   type="button"
                   variant="destructive"
                   className="w-9 h-9 p-0 bg-red-50 hover:bg-red-100 text-red-600 border-none shadow-none"
+                  onClick={() => setDeleteDialogOpen(true)}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-[425px] bg-white border border-gray-200">
                 <DialogHeader>
                   <DialogTitle>Delete Variant</DialogTitle>
                   <DialogDescription>
                     Are you sure you want to delete this variant <span className="font-bold text-gray-900">{activeVariant.code}</span>?
+                    <br />
+                    <span className="font-semibold text-red-600 block mt-1">
+                      This action cannot be undone. Please enter the delete password to confirm.
+                    </span>
                   </DialogDescription>
                 </DialogHeader>
+                <div className="space-y-2 py-2">
+                  <Input
+                    type="password"
+                    placeholder="Enter delete password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    className="border-red-300 focus:border-red-500 focus:ring-red-500"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleDelete();
+                      }
+                    }}
+                  />
+                </div>
                 <DialogFooter className="gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setDeleteDialogOpen(false);
+                      setDeletePassword("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
                   <Button
                     type="button"
                     variant="destructive"
                     onClick={handleDelete}
-                    className="bg-red-600 hover:bg-red-700"
+                    className="bg-red-600 hover:bg-red-700 text-white"
                   >
                     Delete
                   </Button>
