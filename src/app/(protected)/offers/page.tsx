@@ -29,7 +29,6 @@ import { useTransition, useEffect, useState } from "react";
 import { createOffer, getAllOffers, deleteOffer, updateOffer } from "@/src/actions/offer";
 import ImageUpload2 from "../_components/upload/imageUpload2";
 import { Trash2, Check, ChevronsUpDown, X, Pencil } from "lucide-react";
-import Image from "next/image";
 import { Popover, PopoverContent, PopoverTrigger } from "@/src/components/ui/popover";
 import {
   Command,
@@ -525,7 +524,7 @@ const OffersPage = () => {
                   <TableRow key={offer.id}>
                     <TableCell>
                       {offer.image ? (
-                        <Image
+                        <img
                           src={offer.image}
                           alt={offer.name}
                           width={50}

@@ -33,7 +33,7 @@ import "firebase/compat/firestore";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import imageCompression from "browser-image-compression";
-import { AxiosProgressEvent, CancelTokenSource } from "axios";
+import axios, { AxiosProgressEvent, CancelTokenSource } from "axios";
 import React from "react";
 
 interface ChildProps {
@@ -143,21 +143,15 @@ const DesignUpload = forwardRef<ImageUploadRef, ChildProps>(
       }
     };
 
-    const uploadImage = (file: File, path: string): Promise<string> => {
-      const storageRef = ImgRef(storage, path);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      return new Promise((resolve, reject) => {
-        uploadTask.on(
-          "state_changed",
-          null,
-          (error) => reject(error),
-          async () => {
-            const url = await getDownloadURL(uploadTask.snapshot.ref);
-            resolve(url);
-          }
-        );
+    const uploadImageToServer = async (file: File): Promise<{ url: string; path: string }> => {
+      const formData = new FormData();
+      formData.append("image", file);
+      const response = await axios.post("/api/upload-image", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
+      return response.data;
     };
 
     const onDrop = useCallback(
@@ -168,10 +162,9 @@ const DesignUpload = forwardRef<ImageUploadRef, ChildProps>(
 
         const uploadBatch = acceptedFiles.map(async (file) => {
           const compressed = await compressImage(file);
-          const path = `images/${uuidv4()}-${file.name}`;
-          const url = await uploadImage(compressed, path);
+          const res = await uploadImageToServer(compressed);
 
-          allImgs.push({ url, path });
+          allImgs.push({ url: res.url, path: res.path });
         });
 
         try {

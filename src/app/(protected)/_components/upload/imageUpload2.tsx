@@ -33,7 +33,7 @@ import "firebase/compat/firestore";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import imageCompression from "browser-image-compression";
-import { AxiosProgressEvent, CancelTokenSource } from "axios";
+import axios, { AxiosProgressEvent, CancelTokenSource } from "axios";
 import React from "react";
 import { applyTextWatermarkToFile } from "@/src/lib/watermark";
 
@@ -149,12 +149,19 @@ const ImageUpload2 = React.forwardRef(
     const compressImage = async (file: File) => {
       try {
         setCompressionInProgress(true);
-        const compressedFile = await imageCompression(file, {
-          maxSizeMB: 3,
-          maxWidthOrHeight: 1920,
+        const options = {
+          maxSizeMB: 0.4,            // Compress to under 400KB
+          maxWidthOrHeight: 1200,    // Resize to max 1200px
           useWebWorker: true,
+          fileType: "image/webp",    // Direct WebP conversion
+        };
+        const compressedFile = await imageCompression(file, options);
+        // Rename the file to have a .webp extension
+        const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+        const webpFile = new window.File([compressedFile], `${baseName}.webp`, {
+          type: "image/webp",
         });
-        return compressedFile;
+        return webpFile;
       } catch (error) {
         console.error("Error compressing file: ", error);
         toast.error("Failed to compress image.");
@@ -264,7 +271,7 @@ const ImageUpload2 = React.forwardRef(
     const uploadFile = async (file: File, path: string) => {
       const storageRef = ImgRef(storage, path);
       const metadata = {
-        cacheControl: "public, max-age=5184000",
+        cacheControl: "public, max-age=31536000, immutable",
       };
       const uploadTask = uploadBytesResumable(storageRef, file, metadata);
 
@@ -297,6 +304,35 @@ const ImageUpload2 = React.forwardRef(
           }
         );
       });
+    };
+
+    const uploadImageToServer = async (file: File) => {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await axios.post("/api/upload-image", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        onUploadProgress: (progressEvent) => {
+          const progress = Math.round(
+            (progressEvent.loaded / (progressEvent.total ?? 1)) * 100
+          );
+          setFilesToUpload((prevUploadProgress) => {
+            return prevUploadProgress.map((item) => {
+              if (item.File.name === file.name) {
+                return {
+                  ...item,
+                  progress,
+                };
+              }
+              return item;
+            });
+          });
+        },
+      });
+
+      return response.data as { url: string; path: string };
     };
 
     const onDrop = useCallback(
@@ -351,8 +387,17 @@ const ImageUpload2 = React.forwardRef(
             // Only compress images, not videos
             processedFile = isVideo ? processedFile : await compressImage(processedFile);
 
-            const storagePath = `${isVideo ? "videos" : "images"}/${uuidv4()}`;
-            const downloadURL = await uploadFile(processedFile, storagePath);
+            let downloadURL = "";
+            let storagePath = "";
+
+            if (isVideo) {
+              storagePath = `videos/${uuidv4()}`;
+              downloadURL = await uploadFile(processedFile, storagePath);
+            } else {
+              const res = await uploadImageToServer(processedFile);
+              downloadURL = res.url;
+              storagePath = res.path;
+            }
 
             setFilesToUpload((prevUploadProgress) =>
               prevUploadProgress.map((item) =>

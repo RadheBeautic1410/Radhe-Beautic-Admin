@@ -1,7 +1,6 @@
 import { cn } from "@/src/lib/utils";
 import { Poppins } from "next/font/google";
 import Logo from "../logo";
-import Image from "next/image";
 import Link from "next/link";
 
 const font = Poppins({
@@ -24,7 +23,7 @@ export const Header = ({ label }: HeaderProps) => {
                     <a href="/">RADHE BEUTIC</a>
                 </h1> */}
         <Link href="/">
-          <Image
+          <img
             src="/images/radhe_logo.svg"
             alt="logo"
             width={250}

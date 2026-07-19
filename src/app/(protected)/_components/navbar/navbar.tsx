@@ -6,7 +6,6 @@ import { UserRole } from "@prisma/client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import Image from "next/image";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { useForm } from "react-hook-form";
 import { cn } from "@/src/lib/utils";
@@ -218,10 +217,16 @@ const routes: MenuItem[] = [
         icon: "👥",
       },
       {
-        name: "Settings",
+        name: "Homepage Sliders",
         href: "/customer-settings",
         role: [UserRole.ADMIN],
         icon: "⚙️",
+      },
+      {
+        name: "Kurti Types",
+        href: "/kurti-types",
+        role: [UserRole.ADMIN],
+        icon: "👗",
       },
     ],
   },
@@ -302,7 +307,7 @@ const Sidebar = () => {
             <div className="flex items-center justify-between">
               {!isCollapsed && (
                 <Link href="/" className="flex items-center gap-2">
-                  <Image
+                  <img
                     src="/images/radhe_logo.svg"
                     alt="logo"
                     width={250}
@@ -313,7 +318,7 @@ const Sidebar = () => {
               )}
               {isCollapsed && (
                 <Link href="/" className="flex justify-center w-full">
-                  <Image
+                  <img
                     src="/images/TextLogo.png"
                     height="32"
                     width="32"

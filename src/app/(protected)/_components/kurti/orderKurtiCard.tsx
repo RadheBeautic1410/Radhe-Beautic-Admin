@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react'
-import NextImage from 'next/image';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
 import { toast } from 'sonner';
 // import { editCartProductUnit, removeCartProduct } from '@/src/actions/kurti';
