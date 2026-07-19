@@ -62,7 +62,6 @@ import {
   deleteOtherProduct,
 } from "@/src/actions/other-products";
 import axios from "axios";
-import Image from "next/image";
 import JSZip from "jszip";
 
 interface OtherProduct {
@@ -1224,11 +1223,10 @@ function OtherProductsPage() {
                                   openImageGallery(product.images, idx)
                                 }
                               >
-                                <Image
+                                <img
                                   src={img.url}
                                   alt={`${product.categoryName} ${idx + 1}`}
-                                  fill
-                                  className="object-cover"
+                                  className="absolute inset-0 h-full w-full object-cover"
                                 />
                               </div>
                             ))}
@@ -1422,13 +1420,11 @@ function OtherProductsPage() {
                           : "border-gray-600 hover:border-gray-400 opacity-70 hover:opacity-100"
                       }`}
                     >
-                      <Image
-                        src={img.url}
-                        alt={`Thumbnail ${idx + 1}`}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
+                       <img
+                         src={img.url}
+                         alt={`Thumbnail ${idx + 1}`}
+                         className="absolute inset-0 h-full w-full object-cover"
+                       />
                     </button>
                   ))}
                 </div>

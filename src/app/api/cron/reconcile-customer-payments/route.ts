@@ -34,6 +34,17 @@ function isAuthorizedCron(request: NextRequest): boolean {
 export async function GET(request: NextRequest) {
   console.log("GET /api/cron/reconcile-customer-payments");
   try {
+    // Limit to active 12 hours (9:00 AM - 9:00 PM IST = UTC + 5:30)
+    const now = new Date();
+    const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+    const istHour = istTime.getUTCHours();
+    if (istHour < 9 || istHour >= 21) {
+      return NextResponse.json({
+        success: true,
+        message: "Outside active reconciliation hours (9:00 AM - 9:00 PM IST). Cron execution skipped.",
+      });
+    }
+
     if (!isAuthorizedCron(request)) {
       return NextResponse.json(
         { error: "Unauthorized cron access" },
@@ -60,6 +71,7 @@ export async function GET(request: NextRequest) {
         id: true,
         orderId: true,
         paymentStatus: true,
+        createdAt: true,
       },
       orderBy: { createdAt: "asc" },
       take: BATCH_SIZE,
@@ -70,99 +82,119 @@ export async function GET(request: NextRequest) {
     let notFound = 0;
     const notFoundOrders: string[] = [];
     const failures: Array<{ orderId: string; reason: string }> = [];
-    const orderResults: Array<{
-      orderId: string;
-      dbPaymentStatusBefore: PaymentStatus;
-      gatewayPaymentState: string;
-      dbPaymentStatusAfter: PaymentStatus;
-      action: "UPDATED_TO_COMPLETED" | "NO_CHANGE" | "NOT_FOUND" | "FAILED";
-      reason?: string;
-    }> = [];
 
-    for (const order of candidates) {
-      checked += 1;
-      try {
-        const statusResponse = await getPhonePeOrderStatus(
-          order.orderId,
-          true,
-        );
-        console.log("statusResponse", statusResponse);
-        const state = statusResponse?.data?.state as string | undefined;
-        const paymentDetails = Array.isArray(
-          statusResponse?.data?.paymentDetails,
-        )
-          ? statusResponse.data.paymentDetails
-          : [];
-        const latestPayment =
-          paymentDetails.length > 0
-            ? paymentDetails[paymentDetails.length - 1]
-            : undefined;
-        const transactionId =
-          latestPayment?.transactionId ||
-          statusResponse?.data?.transactionId ||
-          null;
+    const orderResults = await Promise.all(
+      candidates.map(async (order) => {
+        checked += 1;
+        const orderAgeMs = Date.now() - new Date(order.createdAt).getTime();
 
-        if (state === "COMPLETED") {
-          await db.customerOrder.update({
-            where: { id: order.id },
-            data: {
-              paymentStatus: PaymentStatus.COMPLETED,
-              paymentTxnId: transactionId ?? undefined,
-              paymentProvider: "PHONEPE",
-            },
-          });
-          updated += 1;
-          orderResults.push({
-            orderId: order.orderId,
-            dbPaymentStatusBefore: order.paymentStatus,
-            gatewayPaymentState: state,
-            dbPaymentStatusAfter: PaymentStatus.COMPLETED,
-            action: "UPDATED_TO_COMPLETED",
-          });
-        } else {
-          orderResults.push({
-            orderId: order.orderId,
-            dbPaymentStatusBefore: order.paymentStatus,
-            gatewayPaymentState: state || "UNKNOWN",
-            dbPaymentStatusAfter: order.paymentStatus,
-            action: "NO_CHANGE",
-          });
-        }
-      } catch (error) {
-        const reason =
-          error instanceof Error ? error.message : "Unknown status error";
-        const isApiMappingNotFound =
-          typeof reason === "string" &&
-          reason.toLowerCase().includes("api mapping not found");
+        try {
+          // If the unpaid order is older than 24 hours, automatically cancel it
+          if (orderAgeMs > 24 * 60 * 60 * 1000) {
+            await db.customerOrder.update({
+              where: { id: order.id },
+              data: {
+                status: OrderStatus.CANCELLED,
+                note: "Cancelled automatically: Unpaid checkout expired after 24 hours.",
+              },
+            });
+            return {
+              orderId: order.orderId,
+              dbPaymentStatusBefore: order.paymentStatus,
+              gatewayPaymentState: "EXPIRED",
+              dbPaymentStatusAfter: order.paymentStatus,
+              action: "AUTO_CANCELLED_EXPIRED" as const,
+            };
+          }
 
-        if (isApiMappingNotFound) {
-          notFound += 1;
-          notFoundOrders.push(order.orderId);
-          orderResults.push({
+          const statusResponse = await getPhonePeOrderStatus(
+            order.orderId,
+            true,
+          );
+          const state = statusResponse?.data?.state as string | undefined;
+          const paymentDetails = Array.isArray(
+            statusResponse?.data?.paymentDetails,
+          )
+            ? statusResponse.data.paymentDetails
+            : [];
+          const latestPayment =
+            paymentDetails.length > 0
+              ? paymentDetails[paymentDetails.length - 1]
+              : undefined;
+          const transactionId =
+            latestPayment?.transactionId ||
+            statusResponse?.data?.transactionId ||
+            null;
+
+          if (state === "COMPLETED") {
+            await db.customerOrder.update({
+              where: { id: order.id },
+              data: {
+                paymentStatus: PaymentStatus.COMPLETED,
+                paymentTxnId: transactionId ?? undefined,
+                paymentProvider: "PHONEPE",
+              },
+            });
+            updated += 1;
+            return {
+              orderId: order.orderId,
+              dbPaymentStatusBefore: order.paymentStatus,
+              gatewayPaymentState: state,
+              dbPaymentStatusAfter: PaymentStatus.COMPLETED,
+              action: "UPDATED_TO_COMPLETED" as const,
+            };
+          } else {
+            return {
+              orderId: order.orderId,
+              dbPaymentStatusBefore: order.paymentStatus,
+              gatewayPaymentState: state || "UNKNOWN",
+              dbPaymentStatusAfter: order.paymentStatus,
+              action: "NO_CHANGE" as const,
+            };
+          }
+        } catch (error) {
+          const reason =
+            error instanceof Error ? error.message : "Unknown status error";
+          const isApiMappingNotFound =
+            typeof reason === "string" &&
+            reason.toLowerCase().includes("api mapping not found");
+
+          // Auto-cancel if the order has no record on PhonePe and is older than 20 minutes (checkout abandoned)
+          if (isApiMappingNotFound && orderAgeMs > 20 * 60 * 1000) {
+            await db.customerOrder.update({
+              where: { id: order.id },
+              data: {
+                status: OrderStatus.CANCELLED,
+                note: "Cancelled automatically: PhonePe checkout abandoned (API mapping not found).",
+              },
+            });
+            notFound += 1;
+            notFoundOrders.push(order.orderId);
+            return {
+              orderId: order.orderId,
+              dbPaymentStatusBefore: order.paymentStatus,
+              gatewayPaymentState: "NOT_FOUND",
+              dbPaymentStatusAfter: order.paymentStatus,
+              action: "NOT_FOUND_CANCELLED" as const,
+              reason,
+            };
+          }
+
+          failures.push({
             orderId: order.orderId,
-            dbPaymentStatusBefore: order.paymentStatus,
-            gatewayPaymentState: "NOT_FOUND",
-            dbPaymentStatusAfter: order.paymentStatus,
-            action: "NOT_FOUND",
             reason,
           });
-          continue;
+          return {
+            orderId: order.orderId,
+            dbPaymentStatusBefore: order.paymentStatus,
+            gatewayPaymentState: "ERROR",
+            dbPaymentStatusAfter: order.paymentStatus,
+            action: "FAILED" as const,
+            reason,
+          };
         }
-
-        failures.push({
-          orderId: order.orderId,
-          reason,
-        });
-        orderResults.push({
-          orderId: order.orderId,
-          dbPaymentStatusBefore: order.paymentStatus,
-          gatewayPaymentState: "ERROR",
-          dbPaymentStatusAfter: order.paymentStatus,
-          action: "FAILED",
-          reason,
-        });
-      }
-    }
+      })
+    );
 
     return NextResponse.json({
       success: true,

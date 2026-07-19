@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Button } from "@/src/components/ui/button";
 import { LoginButton } from "@/src/components/auth/login-button";
 
@@ -19,12 +18,11 @@ export default function Home() {
           <section className="text-slate-900">
             <div className="flex items-center gap-4">
               <div className="rounded-2xl bg-white/70 p-3 ring-1 ring-black/5 backdrop-blur">
-                <Image
+                <img
                   src="/images/logo_square.svg"
                   alt="Radhe Beautic"
                   width={40}
                   height={40}
-                  priority
                 />
               </div>
               <div>
