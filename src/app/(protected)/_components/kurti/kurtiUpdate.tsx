@@ -31,7 +31,7 @@ import {
   CommandList,
   CommandItem,
 } from "@/src/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, ChevronDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -178,6 +178,8 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [newColorName, setNewColorName] = useState("");
   const [isBigPrice, setIsBigPrice] = useState(data?.isBigPrice || false);
   const router = useRouter();
+  const [isSpecsOpen, setIsSpecsOpen] = useState(false);
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
 
   const [sizesDownload, setSizesDownload] = useState<Size[]>([]);
   const selectSizes = [
@@ -596,15 +598,48 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
             </div>
           </div>
 
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Cards Stacked */}
+          <div className="space-y-6 w-full">
             
-            {/* Card 1: Specifications */}
+            {/* Card 3: Stock Inventory */}
             <Card className="shadow-sm border-gray-200 bg-white">
               <CardHeader className="border-b py-3 bg-gray-50">
-                <CardTitle className="text-sm font-bold text-gray-800">👗 Specs & Attributes</CardTitle>
+                <CardTitle className="text-sm font-bold text-gray-800">📊 Size Stocks Inventory</CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-4">
+                <div className="max-h-60 overflow-y-auto pr-1">
+                  <AddSizeForm
+                    preSizes={sizes}
+                    sizes={sizes}
+                    onAddSize={handleAddSize}
+                  />
+                </div>
+                
+                <div className="pt-3 border-t border-gray-100 flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={handleStockUpdate}
+                    disabled={isPending}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-9 px-4 rounded-lg shadow-sm"
+                  >
+                    Save Stock
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 1: Specifications */}
+            <Card className="shadow-sm border-gray-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setIsSpecsOpen(!isSpecsOpen)}
+                className="w-full border-b py-3 px-4 bg-gray-50 flex items-center justify-between text-left rounded-t-xl"
+              >
+                <span className="text-sm font-bold text-gray-800">👗 Specs & Attributes</span>
+                <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isSpecsOpen ? "rotate-180" : ""}`} />
+              </button>
+              {isSpecsOpen && (
+                <CardContent className="p-4 space-y-4">
                 <div>
                   <label className="text-xs font-bold text-gray-600 block mb-1">Product Title</label>
                   <Input
@@ -800,16 +835,20 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                   </Button>
                 </div>
               </CardContent>
+              )}
             </Card>
 
-            {/* Right Column Cards */}
-            <div className="space-y-6">
-              
-              {/* Card 2: Pricing & Weight */}
-              <Card className="shadow-sm border-gray-200 bg-white">
-                <CardHeader className="border-b py-3 bg-gray-50">
-                  <CardTitle className="text-sm font-bold text-gray-800">💰 Pricing & Weight</CardTitle>
-                </CardHeader>
+            {/* Card 2: Pricing & Weight */}
+            <Card className="shadow-sm border-gray-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setIsPricingOpen(!isPricingOpen)}
+                className="w-full border-b py-3 px-4 bg-gray-50 flex items-center justify-between text-left rounded-t-xl"
+              >
+                <span className="text-sm font-bold text-gray-800">💰 Pricing & Weight</span>
+                <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isPricingOpen ? "rotate-180" : ""}`} />
+              </button>
+              {isPricingOpen && (
                 <CardContent className="p-4 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -868,34 +907,10 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                     </Button>
                   </div>
                 </CardContent>
-              </Card>
+              )}
+            </Card>
 
-              {/* Card 3: Stock Inventory */}
-              <Card className="shadow-sm border-gray-200 bg-white">
-                <CardHeader className="border-b py-3 bg-gray-50">
-                  <CardTitle className="text-sm font-bold text-gray-800">📊 Size Stocks Inventory</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-4">
-                  <div className="max-h-60 overflow-y-auto pr-1">
-                    <AddSizeForm
-                      preSizes={sizes}
-                      sizes={sizes}
-                      onAddSize={handleAddSize}
-                    />
-                  </div>
-                  
-                  <div className="pt-3 border-t border-gray-100 flex justify-end">
-                    <Button
-                      type="button"
-                      onClick={handleStockUpdate}
-                      disabled={isPending}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-9 px-4 rounded-lg shadow-sm"
-                    >
-                      Save Stock
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+
 
               {/* Card 4: Upload Media */}
               <Card className="shadow-sm border-gray-200 bg-white">
@@ -1025,7 +1040,6 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                 </CardContent>
               </Card>
 
-            </div>
           </div>
         </div>
       ) : (

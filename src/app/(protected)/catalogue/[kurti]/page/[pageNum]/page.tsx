@@ -21,6 +21,7 @@ import { RoleGateForComponent } from "@/src/components/auth/role-gate-component"
 import { UserRole } from "@prisma/client";
 import { SearchBar } from "@/src/components/Searchbar";
 import { Button } from "@/src/components/ui/button";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -74,6 +75,7 @@ interface kurti {
   sellingPrice: string;
   actualPrice: string;
   countOfPiece?: number;
+  color?: string;
 }
 
 function KurtiListPage() {
@@ -137,11 +139,13 @@ function KurtiListPage() {
     });
   };
 
-  const applyFilters = (data: kurti[]) => {
-    const search = textFieldValue.trim();
+  const applyFilters = (data: kurti[], searchVal: string) => {
+    const search = searchVal.trim();
     return data.filter((row) => {
       const matchesSearch =
-        search.length === 0 || row.code.toUpperCase().includes(search.toUpperCase());
+        search.length === 0 ||
+        row.code.toUpperCase().includes(search.toUpperCase()) ||
+        (row.color && row.color.toUpperCase().includes(search.toUpperCase()));
 
       const matchesSize =
         selectedSizes.length === 0 ||
@@ -155,8 +159,8 @@ function KurtiListPage() {
     });
   };
 
-  const updatePaginationView = (allRows: kurti[], page: number) => {
-    const filtered = applyFilters(allRows);
+  const updatePaginationView = (allRows: kurti[], page: number, searchVal: string) => {
+    const filtered = applyFilters(allRows, searchVal);
     
     // Group filtered kurtis by parentCode || code
     const groupedMap = new Map<string, kurti[]>();
@@ -297,8 +301,8 @@ function KurtiListPage() {
   // Recompute visible page whenever filters/page change
   useEffect(() => {
     if (!kurtiData.length) return;
-    updatePaginationView(kurtiData, currentPage);
-  }, [kurtiData, currentPage, textFieldValue, selectedSizes]);
+    updatePaginationView(kurtiData, currentPage, urlSearch);
+  }, [kurtiData, currentPage, urlSearch, selectedSizes]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -369,19 +373,38 @@ function KurtiListPage() {
             <p className="text-xl font-bold text-gray-800 uppercase tracking-wide">
               👜 Catalogue - {code}
             </p>
-            <div className="w-full sm:max-w-xs md:max-w-sm">
-              <SearchBar
-                value={textFieldValue}
-                onChange={(newValue) => handleSearch(newValue)}
-                onCancelResearch={cancelSearch}
-                width={"100%"}
-                style={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #e2e8f0",
-                  width: "100%",
-                  borderRadius: "8px",
-                }}
-              />
+            <div className="w-full sm:max-w-xs md:max-w-md flex items-center gap-2">
+              <div className="relative flex-1">
+                <SearchBar
+                  value={textFieldValue}
+                  onChange={(newValue) => setTextFieldValue(newValue)}
+                  onCancelResearch={() => {
+                    setTextFieldValue("");
+                    cancelSearch();
+                  }}
+                  placeholder="Search code or color..."
+                  width={"100%"}
+                  style={{
+                    backgroundColor: "#fff",
+                    border: "1px solid #e2e8f0",
+                    width: "100%",
+                    borderRadius: "8px",
+                  }}
+                  onKeyDown={(e: any) => {
+                    if (e.key === "Enter") {
+                      handleSearch(textFieldValue);
+                    }
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={() => handleSearch(textFieldValue)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-4 rounded-lg flex items-center justify-center gap-1.5"
+              >
+                <Search className="h-4 w-4" />
+                Search
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="p-6 max-w-7xl mx-auto space-y-6">

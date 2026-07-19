@@ -217,10 +217,16 @@ const routes: MenuItem[] = [
         icon: "👥",
       },
       {
-        name: "Settings",
+        name: "Homepage Sliders",
         href: "/customer-settings",
         role: [UserRole.ADMIN],
         icon: "⚙️",
+      },
+      {
+        name: "Kurti Types",
+        href: "/kurti-types",
+        role: [UserRole.ADMIN],
+        icon: "👗",
       },
     ],
   },

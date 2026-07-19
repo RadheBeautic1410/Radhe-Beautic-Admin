@@ -11,32 +11,21 @@ import NotAllowedPage from "../../../_components/errorPages/NotAllowedPage";
 import { UserRole } from "@prisma/client";
 import KurtiVideoCardSingle from "../../../_components/kurti/KurtiVideoSingle";
 import Link from "next/link";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui/tabs";
 import { Skeleton } from "@/src/components/ui/skeleton";
 
 function ProductEditorSkeleton() {
   return (
-    <div className="space-y-6">
-      {/* Tabs List Skeleton */}
-      <div className="grid grid-cols-3 gap-2 bg-gray-150 p-1 rounded-xl h-12 w-full animate-pulse">
-        <Skeleton className="h-full w-full bg-white rounded-lg" />
-        <Skeleton className="h-full w-full bg-transparent rounded-lg" />
-        <Skeleton className="h-full w-full bg-transparent rounded-lg" />
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start w-full">
+      {/* Left side: specs and controls */}
+      <div className="xl:col-span-5 space-y-6">
+        <Skeleton className="h-40 w-full bg-gray-200 rounded-xl animate-pulse" />
+        <Skeleton className="h-96 w-full bg-gray-200 rounded-xl animate-pulse" />
       </div>
 
-      {/* Specifications Card Skeleton */}
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="space-y-2">
-              <Skeleton className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
-              <Skeleton className="h-9 w-full bg-gray-200 rounded animate-pulse" />
-            </div>
-          ))}
-        </div>
-        <div className="pt-4 flex justify-end">
-          <Skeleton className="h-9 w-32 bg-gray-200 rounded-lg animate-pulse" />
-        </div>
+      {/* Right side: images and videos */}
+      <div className="xl:col-span-7 space-y-6">
+        <Skeleton className="h-80 w-full bg-gray-200 rounded-xl animate-pulse" />
+        <Skeleton className="h-80 w-full bg-gray-200 rounded-xl animate-pulse" />
       </div>
     </div>
   );
@@ -148,137 +137,120 @@ function OneKurtiPage() {
             👗 Product Details: {paths[3]}
           </p>
         </CardHeader>
-        <CardContent className="p-6 max-w-4xl mx-auto space-y-6">
+        <CardContent className="p-6 w-full space-y-6">
           {loader ? (
             <ProductEditorSkeleton />
           ) : (
             <>
-              {/* Swatches switcher */}
-              {siblings.length > 1 && (
-                <Card className="shadow-sm border-gray-200 mb-6">
-                  <CardContent className="p-4 flex flex-col items-center space-y-2.5">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                      Product Color Variants ({siblings.length})
-                    </span>
-                    <div className="flex flex-wrap gap-2.5 justify-center">
-                      {siblings.map((sib) => {
-                        const hex = getColorHex(sib.color || "");
-                        const isActive = sib.code.toLowerCase() === paths[3].toLowerCase();
-                        return (
-                          <Link
-                            key={sib.code}
-                            href={`/catalogue/${paths[2].toLowerCase()}/${sib.code.toLowerCase()}`}
-                            title={`${sib.color || "Variant"} (${sib.code})`}
-                            className={`w-8 h-8 rounded-full border transition-all flex items-center justify-center ${
-                              isActive
-                                ? "ring-2 ring-blue-500 ring-offset-2 border-transparent scale-110 shadow"
-                                : "border-gray-200 hover:scale-105 hover:border-gray-400"
-                            }`}
-                            style={{ backgroundColor: hex }}
-                            onClick={() => {
-                              if (!isActive) {
-                                setLoader(true);
-                                setLoading(true);
-                              }
-                            }}
-                          >
-                            {isActive && (
-                              <span className={`w-2 h-2 rounded-full ${sib.color?.toLowerCase() === "white" ? "bg-black" : "bg-white"}`} />
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start w-full">
+                {/* Left side: specs and controls */}
+                <div className="xl:col-span-5 space-y-6 w-full">
+                  {/* Swatches switcher */}
+                  {siblings.length > 1 && (
+                    <Card className="shadow-sm border-gray-200">
+                      <CardContent className="p-4 flex flex-col items-center space-y-2.5">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          Product Color Variants ({siblings.length})
+                        </span>
+                        <div className="flex flex-wrap gap-2.5 justify-center">
+                          {siblings.map((sib) => {
+                            const hex = getColorHex(sib.color || "");
+                            const isActive = sib.code.toLowerCase() === paths[3].toLowerCase();
+                            return (
+                              <Link
+                                key={sib.code}
+                                href={`/catalogue/${paths[2].toLowerCase()}/${sib.code.toLowerCase()}`}
+                                title={`${sib.color || "Variant"} (${sib.code})`}
+                                className={`w-8 h-8 rounded-full border transition-all flex items-center justify-center ${
+                                  isActive
+                                    ? "ring-2 ring-blue-500 ring-offset-2 border-transparent scale-110 shadow"
+                                    : "border-gray-200 hover:scale-105 hover:border-gray-400"
+                                }`}
+                                style={{ backgroundColor: hex }}
+                                onClick={() => {
+                                  if (!isActive) {
+                                    setLoader(true);
+                                    setLoading(true);
+                                  }
+                                }}
+                              >
+                                {isActive && (
+                                  <span className={`w-2 h-2 rounded-full ${sib.color?.toLowerCase() === "white" ? "bg-black" : "bg-white"}`} />
+                                )}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
-              {/* Modern Tabs Section */}
-              <Tabs defaultValue="specifications" className="w-full space-y-6">
-                <TabsList className="grid w-full grid-cols-3 bg-gray-100 p-1 rounded-xl">
-                  <TabsTrigger
-                    value="specifications"
-                    className="rounded-lg py-2.5 text-sm font-semibold transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
-                  >
-                    ✏️ Specs & Info
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="images"
-                    className="rounded-lg py-2.5 text-sm font-semibold transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
-                  >
-                    📸 Images ({kurtiData?.images?.length || 0})
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="videos"
-                    className="rounded-lg py-2.5 text-sm font-semibold transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
-                  >
-                    🎥 Videos ({kurtiData?.videos?.length || 0})
-                  </TabsTrigger>
-                </TabsList>
+                  {kurtiData && (
+                    <KurtiUpdate data={kurtiData} onKurtiUpdate={handleKurtiUpdate} />
+                  )}
+                </div>
 
-                {/* Specifications Tab */}
-                <TabsContent value="specifications">
+                {/* Right side: images and videos */}
+                <div className="xl:col-span-7 space-y-6 w-full">
+                  {/* Images Gallery */}
                   <Card className="shadow-sm border-gray-200 bg-white">
-                    <CardContent className="p-6">
-                      {kurtiData ? (
-                        <KurtiUpdate data={kurtiData} onKurtiUpdate={handleKurtiUpdate} />
+                    <CardHeader className="border-b py-3 bg-gray-50">
+                      <p className="text-sm font-bold text-gray-800">📸 Product Images ({kurtiData?.images?.length || 0})</p>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      {kurtiData?.images && kurtiData.images.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          {kurtiData.images.map((img, idx) => (
+                            <Card key={img.id || idx} className="overflow-hidden border border-gray-200 hover:shadow-md transition-all">
+                              <CardContent className="p-2">
+                                <KurtiPicCardSingle
+                                  data={kurtiData}
+                                  idx={idx}
+                                  onPicDelete={handleKurtiUpdate}
+                                  onImageToggle={handleKurtiUpdate}
+                                />
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
                       ) : (
-                        ""
+                        <div className="text-center py-12 bg-white rounded-lg border border-dashed border-gray-300 text-gray-400 font-semibold">
+                          No images uploaded for this variant.
+                        </div>
                       )}
                     </CardContent>
                   </Card>
-                </TabsContent>
 
-                {/* Images Tab */}
-                <TabsContent value="images" className="space-y-4">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Manage Product Images</h3>
-                  {kurtiData?.images && kurtiData.images.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      {kurtiData.images.map((img, idx) => (
-                        <Card key={img.id || idx} className="overflow-hidden border border-gray-200 hover:shadow-md transition-all">
-                          <CardContent className="p-2">
-                            <KurtiPicCardSingle
-                              data={kurtiData}
-                              idx={idx}
-                              onPicDelete={handleKurtiUpdate}
-                              onImageToggle={handleKurtiUpdate}
-                            />
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 bg-white rounded-lg border border-dashed border-gray-300 text-gray-400 font-semibold">
-                      No images uploaded for this variant.
-                    </div>
-                  )}
-                </TabsContent>
-
-                {/* Videos Tab */}
-                <TabsContent value="videos" className="space-y-4">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Manage Product Videos</h3>
-                  {kurtiData?.videos && kurtiData.videos.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      {kurtiData.videos.map((video, idx) => (
-                        <Card key={video.id || idx} className="overflow-hidden border border-gray-200 hover:shadow-md transition-all">
-                          <CardContent className="p-2">
-                            <KurtiVideoCardSingle
-                              data={kurtiData}
-                              idx={idx}
-                              onVideoDelete={handleKurtiUpdate}
-                              onVideoToggle={handleKurtiUpdate}
-                            />
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 bg-white rounded-lg border border-dashed border-gray-300 text-gray-400 font-semibold">
-                      No videos uploaded for this variant.
-                    </div>
-                  )}
-                </TabsContent>
-              </Tabs>
+                  {/* Videos Gallery */}
+                  <Card className="shadow-sm border-gray-200 bg-white">
+                    <CardHeader className="border-b py-3 bg-gray-50">
+                      <p className="text-sm font-bold text-gray-800">🎥 Product Videos ({kurtiData?.videos?.length || 0})</p>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      {kurtiData?.videos && kurtiData.videos.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          {kurtiData.videos.map((video, idx) => (
+                            <Card key={video.id || idx} className="overflow-hidden border border-gray-200 hover:shadow-md transition-all">
+                              <CardContent className="p-2">
+                                <KurtiVideoCardSingle
+                                  data={kurtiData}
+                                  idx={idx}
+                                  onVideoDelete={handleKurtiUpdate}
+                                  onVideoToggle={handleKurtiUpdate}
+                                />
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12 bg-white rounded-lg border border-dashed border-gray-300 text-gray-400 font-semibold">
+                          No videos uploaded for this variant.
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </>
           )}
         </CardContent>
