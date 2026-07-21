@@ -473,6 +473,13 @@ const BulkUploadPage = () => {
           const itemCode = `${prefix}${(startingNum + itemIndex).toString().padStart(4, "0")}`;
           const totalPieces = variant.sizes.reduce((sum, s) => sum + Number(s.quantity || 0), 0);
 
+          const validSizes = variant.sizes
+            .filter((s) => Number(s.quantity || 0) > 0)
+            .map((s) => ({
+              size: s.size,
+              quantity: Number(s.quantity),
+            }));
+
           const designData = {
             images: variant.images.map((img) => ({
               url: img.url,
@@ -480,10 +487,7 @@ const BulkUploadPage = () => {
               is_hidden: false,
               path: img.path,
             })),
-            sizes: variant.sizes.map((s) => ({
-              size: s.size,
-              quantity: Number(s.quantity || 0),
-            })),
+            sizes: validSizes,
             party: formValues.party,
             sellingPrice: formValues.sellingPrice,
             actualPrice: formValues.actualPrice,
@@ -509,10 +513,7 @@ const BulkUploadPage = () => {
           uploadPromises.push(kurtiAddition(designData));
           savedCodesForBarcode.push({
             code: itemCode,
-            sizes: variant.sizes.map((s) => ({
-              size: s.size,
-              quantity: Number(s.quantity || 0),
-            })),
+            sizes: validSizes,
           });
         });
       });
