@@ -743,8 +743,21 @@ export async function toggleKurtiImageVisibility(
       };
     }
 
-    const imageIndex = currentImages.findIndex(
-      (img: any) => img.id === imageId
+    // Map and assign IDs if missing to ensure data health
+    const updatedImages = currentImages.map((img: any) => {
+      if (!img.id) {
+        return {
+          id: uuidv4(),
+          url: img.url,
+          is_hidden: img.is_hidden !== undefined ? img.is_hidden : false,
+          path: img.path,
+        };
+      }
+      return img;
+    });
+
+    const imageIndex = updatedImages.findIndex(
+      (img: any) => imageId && (img.id === imageId || img.url === imageId)
     );
 
     if (imageIndex === -1) {
@@ -754,7 +767,6 @@ export async function toggleKurtiImageVisibility(
       };
     }
 
-    const updatedImages = [...currentImages];
     updatedImages[imageIndex] = {
       ...updatedImages[imageIndex],
       is_hidden: isHidden,
@@ -777,6 +789,131 @@ export async function toggleKurtiImageVisibility(
     };
   } catch (error) {
     console.error("Error toggling image visibility:", error);
+    return {
+      success: false,
+      error: "Internal server error",
+    };
+  }
+}
+
+export async function reorderKurtiImages(
+  kurtiId: string,
+  imageId: string,
+  direction: "left" | "right"
+) {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      return {
+        success: false,
+        error: "Unauthorized - Please login",
+      };
+    }
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.UPLOADER) {
+      return {
+        success: false,
+        error: "Insufficient permissions",
+      };
+    }
+
+    if (!kurtiId || !imageId) {
+      return {
+        success: false,
+        error: "Missing required parameters",
+      };
+    }
+
+    const existingKurti = await db.kurti.findUnique({
+      where: {
+        id: kurtiId,
+        isDeleted: false,
+      },
+    });
+
+    if (!existingKurti) {
+      return {
+        success: false,
+        error: "Kurti not found",
+      };
+    }
+
+    const currentImages = existingKurti.images as any[];
+
+    if (!Array.isArray(currentImages)) {
+      return {
+        success: false,
+        error: "Invalid images data",
+      };
+    }
+
+    // Map and assign IDs if missing to ensure data health
+    const updatedImages = currentImages.map((img: any) => {
+      if (!img.id) {
+        return {
+          id: uuidv4(),
+          url: img.url,
+          is_hidden: img.is_hidden !== undefined ? img.is_hidden : false,
+          path: img.path,
+        };
+      }
+      return img;
+    });
+
+    const imageIndex = updatedImages.findIndex(
+      (img: any) => imageId && (img.id === imageId || img.url === imageId)
+    );
+
+    if (imageIndex === -1) {
+      return {
+        success: false,
+        error: "Image not found",
+      };
+    }
+
+    if (direction === "left") {
+      if (imageIndex === 0) {
+        return {
+          success: false,
+          error: "Image is already at the beginning",
+        };
+      }
+      const temp = updatedImages[imageIndex];
+      updatedImages[imageIndex] = updatedImages[imageIndex - 1];
+      updatedImages[imageIndex - 1] = temp;
+    } else if (direction === "right") {
+      if (imageIndex === updatedImages.length - 1) {
+        return {
+          success: false,
+          error: "Image is already at the end",
+        };
+      }
+      const temp = updatedImages[imageIndex];
+      updatedImages[imageIndex] = updatedImages[imageIndex + 1];
+      updatedImages[imageIndex + 1] = temp;
+    } else {
+      return {
+        success: false,
+        error: "Invalid direction",
+      };
+    }
+
+    const updatedKurti = await db.kurti.update({
+      where: {
+        id: kurtiId,
+      },
+      data: {
+        images: updatedImages,
+        lastUpdatedTime: await getCurrTime(),
+      },
+    });
+
+    return {
+      success: true,
+      message: "Image reordered successfully",
+      data: updatedKurti,
+    };
+  } catch (error) {
+    console.error("Error reordering images:", error);
     return {
       success: false,
       error: "Internal server error",

@@ -92,7 +92,8 @@ function OneKurtiPage() {
     const fetchData = async () => {
       try {
         const response = await fetch(
-          `/api/kurti/getByCode?code=${paths[3].toLowerCase()}`
+          `/api/kurti/getByCode?code=${paths[3].toLowerCase()}`,
+          { cache: "no-store" }
         );
         const result = await response.json();
         

@@ -298,7 +298,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
   };
 
   const findBlocks = async () => {
-    let sizesArray: any[] = [...(activeVariant.sizes || [])];
+    let sizesArray: any[] = (activeVariant.sizes || []).filter((s: any) => Number(s.quantity || 0) > 0);
     sizesArray.sort(
       (a, b) => selectSizes.indexOf(a.size) - selectSizes.indexOf(b.size)
     );

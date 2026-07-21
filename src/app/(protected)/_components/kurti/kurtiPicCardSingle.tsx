@@ -1,6 +1,6 @@
 "use client";
 
-import { toggleKurtiImageVisibility } from "@/src/actions/kurti";
+import { toggleKurtiImageVisibility, reorderKurtiImages } from "@/src/actions/kurti";
 import { Button } from "@/src/components/ui/button";
 import {
   Card,
@@ -19,7 +19,7 @@ import {
 } from "@/src/components/ui/table";
 import axios from "axios";
 import { log } from "console";
-import { Download, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Download, Eye, EyeOff, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -95,6 +95,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({
   const [updatingVisibility, setUpdatingVisibility] = useState<string | null>(
     null
   );
+  const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
   console.log(idx, data.code);
   useEffect(() => {
     const handleResize = () => {
@@ -173,7 +174,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({
     // watermark.create();
   };
   const findBlocks = async () => {
-    let sizesArray: any[] = data.sizes;
+    let sizesArray: any[] = (data.sizes || []).filter((s: any) => Number(s.quantity || 0) > 0);
     sizesArray.sort(
       (a, b) => selectSizes.indexOf(a.size) - selectSizes.indexOf(b.size)
     );
@@ -250,11 +251,12 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({
     imageId: string,
     currentVisibility: boolean
   ) => {
-    setUpdatingVisibility(imageId);
+    const targetIdentifier = imageId || data.images[idx].url;
+    setUpdatingVisibility(targetIdentifier);
     try {
       const res = await toggleKurtiImageVisibility(
         data.id,
-        imageId,
+        targetIdentifier,
         !currentVisibility
       );
 
@@ -265,6 +267,25 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({
       console.log(error);
     } finally {
       setUpdatingVisibility("");
+    }
+  };
+
+  const handleImageOrderChange = async (direction: "left" | "right") => {
+    const targetIdentifier = data.images[idx].id || data.images[idx].url;
+    setUpdatingOrder(targetIdentifier);
+    try {
+      const res = await reorderKurtiImages(data.id, targetIdentifier, direction);
+      if (res.success) {
+        toast.success(res.message);
+        await onImageToggle(res.data);
+      } else {
+        toast.error(res.error || "Failed to move image");
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Something went wrong");
+    } finally {
+      setUpdatingOrder(null);
     }
   };
 
@@ -280,7 +301,7 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({
         alt=""
       />
 
-      <div className="flex items-center gap-3 mt-2">
+      <div className="flex items-center gap-2 mt-2">
         <div className="w-[2200px] h-[2200px]" hidden>
           <ImageDownload
             url={data.images[idx].url}
@@ -294,9 +315,11 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({
           variant={"outline"}
           key={"download"}
           disabled={downloading}
+          size={"icon"}
+          title="Download image"
         >
           {downloading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Download className="h-4 w-4" />
           )}
@@ -307,9 +330,10 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({
           variant={"outline"}
           key={"delete"}
           disabled={downloading}
+          size={"icon"}
+          title="Delete image"
         >
-          {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : ""}
-          🗑️
+          {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : "🗑️"}
         </Button>
         <Button
           variant={data.images[idx].is_hidden ? "destructive" : "default"}
@@ -319,15 +343,46 @@ const KurtiPicCardSingle: React.FC<KurtiPicCardSingleProps> = ({
               data.images[idx].is_hidden
             )
           }
-          disabled={updatingVisibility === data.images[idx].id}
+          disabled={updatingVisibility === (data.images[idx].id || data.images[idx].url)}
           title={data.images[idx].is_hidden ? "Show image" : "Hide image"}
+          size={"icon"}
         >
-          {updatingVisibility === data.images[idx].id ? (
+          {updatingVisibility === (data.images[idx].id || data.images[idx].url) ? (
             <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
           ) : data.images[idx].is_hidden ? (
-            <EyeOff className="h-5 w-5" />
+            <EyeOff className="h-4 w-4" />
           ) : (
-            <Eye className="h-5 w-5" />
+            <Eye className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => handleImageOrderChange("left")}
+          variant={"outline"}
+          key={"move-left"}
+          disabled={idx === 0 || updatingOrder === (data.images[idx].id || data.images[idx].url)}
+          title="Move image left"
+          size={"icon"}
+        >
+          {updatingOrder === (data.images[idx].id || data.images[idx].url) ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => handleImageOrderChange("right")}
+          variant={"outline"}
+          key={"move-right"}
+          disabled={idx === data.images.length - 1 || updatingOrder === (data.images[idx].id || data.images[idx].url)}
+          title="Move image right"
+          size={"icon"}
+        >
+          {updatingOrder === (data.images[idx].id || data.images[idx].url) ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
           )}
         </Button>
       </div>
