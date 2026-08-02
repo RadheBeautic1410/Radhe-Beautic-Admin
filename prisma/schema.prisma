@@ -244,6 +244,7 @@ model Kurti {
   stitchType      String?
   color           String?
   parentCode      String?
+  imageVector     Float[]
 
   prices            Prices?             @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   CartProduct       CartProduct[]

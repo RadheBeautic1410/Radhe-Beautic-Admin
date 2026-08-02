@@ -319,6 +319,49 @@ const BulkUploadPage = () => {
     ]);
   };
 
+  const addProductDesignWithPrevSpecs = () => {
+    const lastDesign = productDesigns.length > 0 ? productDesigns[productDesigns.length - 1] : null;
+
+    setProductDesigns([
+      ...productDesigns,
+      {
+        id: uuidv4(),
+        name: lastDesign ? lastDesign.name : "",
+        description: lastDesign ? lastDesign.description : "",
+        fabric: lastDesign ? lastDesign.fabric : "",
+        fitShape: lastDesign ? lastDesign.fitShape : "",
+        length: lastDesign ? lastDesign.length : "",
+        neck: lastDesign ? lastDesign.neck : "",
+        occasion: lastDesign ? lastDesign.occasion : "",
+        pattern: lastDesign ? lastDesign.pattern : "",
+        sleeve: lastDesign ? lastDesign.sleeve : "",
+        stitchType: lastDesign ? lastDesign.stitchType : "",
+        variants: [
+          {
+            color: "",
+            images: [],
+            sizes: [
+              { size: "XS", quantity: 0 },
+              { size: "S", quantity: 0 },
+              { size: "M", quantity: 0 },
+              { size: "L", quantity: 0 },
+              { size: "XL", quantity: 0 },
+              { size: "XXL", quantity: 0 },
+              { size: "3XL", quantity: 0 },
+              { size: "4XL", quantity: 0 },
+              { size: "5XL", quantity: 0 },
+              { size: "6XL", quantity: 0 },
+              { size: "7XL", quantity: 0 },
+              { size: "8XL", quantity: 0 },
+              { size: "9XL", quantity: 0 },
+              { size: "10XL", quantity: 0 },
+            ],
+          },
+        ],
+      },
+    ]);
+  };
+
   const removeProductDesign = (dIdx: number) => {
     if (productDesigns.length <= 1) {
       toast.error("You must have at least one product design");
@@ -988,16 +1031,27 @@ const BulkUploadPage = () => {
               ))}
             </div>
 
-            {/* Add Design Catalog Button */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addProductDesign}
-              className="w-full bg-white hover:bg-gray-100 text-gray-800 border-gray-300 flex items-center justify-center gap-1.5 py-4 h-auto text-base font-semibold shadow-sm"
-            >
-              <Plus className="w-5 h-5" />
-              Add Another Product Design
-            </Button>
+            {/* Add Design Catalog Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addProductDesign}
+                className="w-full bg-white hover:bg-gray-100 text-gray-800 border-gray-300 flex items-center justify-center gap-1.5 py-4 h-auto text-base font-semibold shadow-sm"
+              >
+                <Plus className="w-5 h-5" />
+                Add Another Product Design
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addProductDesignWithPrevSpecs}
+                className="w-full bg-white hover:bg-gray-100 text-gray-800 border-gray-300 flex items-center justify-center gap-1.5 py-4 h-auto text-base font-semibold shadow-sm"
+              >
+                <Plus className="w-5 h-5" />
+                Add Another Product Design (Same Specifications)
+              </Button>
+            </div>
 
             {/* Submit Barcodes & Upload */}
             <div className="pt-4">

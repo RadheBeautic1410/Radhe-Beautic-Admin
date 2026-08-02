@@ -26,6 +26,7 @@ export const FABRICS = [
   "Kora Muslin",
   "Lace",
   "Linen",
+  "Mal Chanderi",
   "Mulmul",
   "Muslin",
   "Net",
@@ -40,8 +41,10 @@ export const FABRICS = [
   "Polycotton",
   "Polyester",
   "Polyster",
+  "Pure Chinon",
   "Rayon",
   "Rayon Slub",
+  "Salsa",
   "Satin",
   "Satin Silk",
   "Shantoon",
@@ -89,6 +92,7 @@ export const FIT_SHAPES = [
   "Maternity",
   "Maxi Kurta",
   "Naira Cut",
+  "Only Pant",
   "Pakistani",
   "Panelled",
   "Pleated",
@@ -133,7 +137,8 @@ export const NECKS = [
   "Surplice",
   "Court",
   "Horse Shoe",
-  "Stylised"
+  "Stylised",
+  "High Neck"
 ];
 
 export const OCCASIONS = [

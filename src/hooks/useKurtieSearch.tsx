@@ -29,7 +29,7 @@ export function useKurtiSearch({ page = 1, limit = 12, search = "" }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!search) return;
+    if (!search || search.startsWith("🔍")) return;
     setLoading(true);
     setError(null);
     const params = new URLSearchParams({

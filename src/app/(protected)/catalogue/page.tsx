@@ -199,6 +199,7 @@ const ListPage = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isImageSearchLoading, setIsImageSearchLoading] = useState(false);
   const [categoryStates, setCategoryStates] = useState({
     totalItems: 0,
     totalPices: 0,
@@ -326,6 +327,33 @@ const ListPage = () => {
     setSearchValue("");
     setCurrentPage(1);
   }, []);
+
+  const handleImageSearch = async (base64Image: string) => {
+    setIsImageSearchLoading(true);
+    setSearchType(SEARCH_TYPES.DESIGN);
+    setSearchValue("🔍 Search by Image");
+    setCurrentPage(1);
+
+    try {
+      const response = await axios.post("/api/kurti/search-by-image", {
+        imageBase64: base64Image
+      });
+
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        setKurtiData(response.data.data);
+        toast.success("Found matching designs!");
+      } else {
+        toast.error("Failed to find matching designs");
+      }
+    } catch (error: any) {
+      console.error("Image search failed:", error);
+      const errMsg = error.response?.data?.error || error.message || "Failed to find matching designs";
+      const hint = error.response?.data?.hint ? `\nHint: ${error.response.data.hint}` : "";
+      toast.error(errMsg + hint, { duration: 6000 });
+    } finally {
+      setIsImageSearchLoading(false);
+    }
+  };
 
   const handleSortChange = useCallback((newSortType: string) => {
     setSortType(newSortType);
@@ -1945,6 +1973,8 @@ const ListPage = () => {
                 value={searchValue}
                 onChange={handleSearch}
                 onCancelResearch={handleSearchCancel}
+                onImageSearch={handleImageSearch}
+                isImageLoading={isImageSearchLoading}
                 width="100%"
                 style={{
                   backgroundColor: "#fff",
