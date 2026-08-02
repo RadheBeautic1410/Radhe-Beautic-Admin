@@ -88,6 +88,30 @@ export const kurtiAddition = async (data: any) => {
     data: obj,
   });
   dataWithTime["pricesId"] = price.id;
+
+  // Generate vector embedding for the primary product image
+  if (dataWithTime.images && dataWithTime.images.length > 0) {
+    try {
+      const primaryImageUrl = dataWithTime.images[0].url;
+      const serverUrl = (process.env.SERVER_URL || process.env.NEXT_PUBLIC_SERVER_URL || "").trim();
+      if (serverUrl && primaryImageUrl) {
+        console.log("Generating primary image vector embedding via Render server...");
+        const res = await fetch(`${serverUrl}/generate-embedding`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: primaryImageUrl }),
+        });
+        const resJson = await res.json();
+        if (resJson.success && resJson.embedding) {
+          dataWithTime["imageVector"] = resJson.embedding;
+          console.log("Image vector embedding successfully added!");
+        }
+      }
+    } catch (err: any) {
+      console.error("Failed to generate vector embedding for new product:", err.message);
+    }
+  }
+
   await db.kurti.create({
     data: dataWithTime,
   });
