@@ -3,6 +3,7 @@
 import { db } from "@/src/lib/db";
 import { currentUser } from "@/src/lib/auth";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
+import { sendWhatsAppOrderAccepted } from "@/src/lib/whatsapp";
 
 // Helper type for size quantity objects
 type SizeQuantity = { [size: string]: number };
@@ -444,6 +445,23 @@ export const acceptCustomerOrder = async (
         },
       },
     });
+
+    // Send WhatsApp notification
+    if (fullOrder) {
+      const phoneNumber = fullOrder.shippingAddress?.phoneNumber || fullOrder.user?.phoneNumber;
+      if (phoneNumber) {
+        sendWhatsAppOrderAccepted({
+          phoneNumber,
+          orderId: fullOrder.orderId,
+          customerName: fullOrder.shippingAddress?.fullName || fullOrder.user?.name || "Customer",
+          totalAmount: fullOrder.total,
+        }).catch((err) => {
+          console.error("[WhatsApp API] Async WhatsApp message trigger failed:", err);
+        });
+      } else {
+        console.warn(`[WhatsApp API] No phone number found for order ${fullOrder.orderId}. Skipping notification.`);
+      }
+    }
 
     return {
       success: true,
