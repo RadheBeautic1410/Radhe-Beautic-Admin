@@ -6,6 +6,7 @@ import { currentRole, currentUser } from "@/src/lib/auth";
 import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
 import { v4 as uuidv4 } from "uuid";
+import { CURRENT_EMBEDDING_VERSION } from "@/src/lib/embeddingVersion";
 
 export const getCurrTime = async () => {
   // Always store in UTC; handle display/filtering in desired timezone
@@ -104,6 +105,7 @@ export const kurtiAddition = async (data: any) => {
         const resJson = await res.json();
         if (resJson.success && resJson.embedding) {
           dataWithTime["imageVector"] = resJson.embedding;
+          dataWithTime["imageVectorVersion"] = CURRENT_EMBEDDING_VERSION;
           console.log("Image vector embedding successfully added!");
         }
       }

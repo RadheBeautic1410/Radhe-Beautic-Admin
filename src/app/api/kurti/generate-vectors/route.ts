@@ -3,27 +3,22 @@ export const dynamic = 'force-dynamic';
 import { db } from "@/src/lib/db";
 import { NextResponse, NextRequest } from "next/server";
 import axios from "axios";
+import { CURRENT_EMBEDDING_VERSION } from "@/src/lib/embeddingVersion";
 
 export async function GET(request: NextRequest) {
   try {
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "10");
-    const force = request.nextUrl.searchParams.get("force") === "true";
 
-    // By default, only find Kurtis missing an imageVector. With force=true,
-    // re-embed everything (used after changing the embedding preprocessing
-    // pipeline, so old and new vectors stay comparable).
+    // Find active, in-stock Kurtis whose imageVector wasn't produced by the
+    // current embedding pipeline yet (missing entirely, or stamped with an
+    // older CURRENT_EMBEDDING_VERSION). This makes the migration resumable:
+    // calling it repeatedly only ever processes what's left, so switching
+    // embedding models/preprocessing just means bumping the version string.
     const rawKurtis = (await db.kurti.findRaw({
       filter: {
         isDeleted: false,
         countOfPiece: { $gt: 0 },
-        ...(force
-          ? {}
-          : {
-              $or: [
-                { imageVector: { $exists: false } },
-                { imageVector: { $size: 0 } }
-              ]
-            })
+        imageVectorVersion: { $ne: CURRENT_EMBEDDING_VERSION }
       },
       options: {
         limit: limit
@@ -31,7 +26,7 @@ export async function GET(request: NextRequest) {
     })) as unknown as any[];
 
     if (rawKurtis.length === 0) {
-      return new NextResponse(JSON.stringify({ success: true, message: "All kurtis already have vector embeddings generated!" }), { status: 200 });
+      return new NextResponse(JSON.stringify({ success: true, message: "All active, in-stock kurtis are already on the current embedding version!" }), { status: 200 });
     }
 
     const serverUrl = (process.env.SERVER_URL || process.env.NEXT_PUBLIC_SERVER_URL || "").trim();
@@ -60,7 +55,7 @@ export async function GET(request: NextRequest) {
           const kurtiId = kurti._id && kurti._id.$oid ? kurti._id.$oid : kurti.id;
           await db.kurti.update({
             where: { id: kurtiId },
-            data: { imageVector: res.data.embedding }
+            data: { imageVector: res.data.embedding, imageVectorVersion: CURRENT_EMBEDDING_VERSION }
           });
           successCount++;
         } else {
@@ -72,8 +67,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return new NextResponse(JSON.stringify({ 
-      success: true, 
+    return new NextResponse(JSON.stringify({
+      success: true,
       processed: rawKurtis.length,
       successCount,
       failCount,
