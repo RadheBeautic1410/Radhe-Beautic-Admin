@@ -200,6 +200,8 @@ const ListPage = () => {
   const [isPending, startTransition] = useTransition();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isImageSearchLoading, setIsImageSearchLoading] = useState(false);
+  const [isSemanticSearch, setIsSemanticSearch] = useState(false);
+  const [isTextSearchLoading, setIsTextSearchLoading] = useState(false);
   const [categoryStates, setCategoryStates] = useState({
     totalItems: 0,
     totalPices: 0,
@@ -248,8 +250,46 @@ const ListPage = () => {
   } = useKurtiSearch({
     page: currentPage,
     limit: KURTI_ITEMS_PER_PAGE,
-    search: usingDesignSearch ? debounceSeaerchValue : "",
+    search: usingDesignSearch && !isSemanticSearch ? debounceSeaerchValue : "",
   });
+
+  useEffect(() => {
+    if (!isSemanticSearch) return;
+    const query = debounceSeaerchValue.trim();
+    if (!query || query.startsWith("🔍")) return;
+
+    let cancelled = false;
+    setIsTextSearchLoading(true);
+
+    axios
+      .post("/api/kurti/search-by-text", { text: query })
+      .then((response) => {
+        if (cancelled) return;
+        if (response.data?.success && Array.isArray(response.data.data)) {
+          setKurtiData(response.data.data);
+        } else {
+          toast.error("Failed to find matching designs");
+        }
+      })
+      .catch((error: any) => {
+        if (cancelled) return;
+        const errMsg = error.response?.data?.error || error.message || "Failed to find matching designs";
+        toast.error(errMsg);
+      })
+      .finally(() => {
+        if (!cancelled) setIsTextSearchLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSemanticSearch, debounceSeaerchValue]);
+
+  const handleToggleSemanticSearch = () => {
+    setIsSemanticSearch((prev) => !prev);
+    setSearchType(SEARCH_TYPES.DESIGN);
+    setCurrentPage(1);
+  };
 
   const {
     data: categoryList,
@@ -330,6 +370,7 @@ const ListPage = () => {
 
   const handleImageSearch = async (base64Image: string) => {
     setIsImageSearchLoading(true);
+    setIsSemanticSearch(false);
     setSearchType(SEARCH_TYPES.DESIGN);
     setSearchValue("🔍 Search by Image");
     setCurrentPage(1);
@@ -1975,6 +2016,9 @@ const ListPage = () => {
                 onCancelResearch={handleSearchCancel}
                 onImageSearch={handleImageSearch}
                 isImageLoading={isImageSearchLoading}
+                isSemanticSearch={isSemanticSearch}
+                onToggleSemanticSearch={handleToggleSemanticSearch}
+                isTextSearchLoading={isTextSearchLoading}
                 width="100%"
                 style={{
                   backgroundColor: "#fff",

@@ -7,16 +7,23 @@ import axios from "axios";
 export async function GET(request: NextRequest) {
   try {
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "10");
-    
-    // Find Kurtis that don't have an imageVector set (missing or size 0) and have stock > 0
+    const force = request.nextUrl.searchParams.get("force") === "true";
+
+    // By default, only find Kurtis missing an imageVector. With force=true,
+    // re-embed everything (used after changing the embedding preprocessing
+    // pipeline, so old and new vectors stay comparable).
     const rawKurtis = (await db.kurti.findRaw({
       filter: {
         isDeleted: false,
         countOfPiece: { $gt: 0 },
-        $or: [
-          { imageVector: { $exists: false } },
-          { imageVector: { $size: 0 } }
-        ]
+        ...(force
+          ? {}
+          : {
+              $or: [
+                { imageVector: { $exists: false } },
+                { imageVector: { $size: 0 } }
+              ]
+            })
       },
       options: {
         limit: limit
