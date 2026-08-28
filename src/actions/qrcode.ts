@@ -4,11 +4,16 @@ import { db } from "@/src/lib/db";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '@/src/lib/firebase/firebase';
 import { v4 as uuidv4 } from "uuid";
+import { isValidUpiId } from "@/src/lib/upi";
 
 export interface QRCodeData {
   id: string;
+  /** Empty when only a UPI id is configured and no image was ever uploaded. */
   image_url: string;
   is_active: boolean;
+  /** Payee VPA. When set, panels render a fixed-amount QR instead of the image. */
+  upi_id?: string | null;
+  payee_name?: string | null;
 }
 
 // Get current active QR code
@@ -60,6 +65,16 @@ export async function updateQRCode(file: File): Promise<{ success: boolean; data
 
     // Start database transaction
     const result = await db.$transaction(async (tx) => {
+      /**
+       * Replacing the image creates a fresh row, so the configured VPA has to be copied
+       * over or uploading a new picture would silently switch every panel back to
+       * open-amount QRs.
+       */
+      const previous = await tx.qRCodeImage.findFirst({
+        where: { is_active: true },
+        select: { upi_id: true, payee_name: true },
+      });
+
       // Deactivate all existing QR codes
       await tx.qRCodeImage.updateMany({
         where: { is_active: true },
@@ -85,7 +100,9 @@ export async function updateQRCode(file: File): Promise<{ success: boolean; data
       const newQRCode = await tx.qRCodeImage.create({
         data: {
           image_url: downloadURL,
-          is_active: true
+          is_active: true,
+          upi_id: previous?.upi_id ?? null,
+          payee_name: previous?.payee_name ?? null,
         }
       });
 
@@ -127,10 +144,18 @@ export async function deleteQRCode(): Promise<{ success: boolean; error?: string
         console.warn('Failed to delete QR code image from Firebase:', deleteError);
       }
 
-      // Delete from database
-      await tx.qRCodeImage.delete({
-        where: { id: activeQRCode.id }
-      });
+      if (activeQRCode.upi_id) {
+        /** The VPA is the thing panels actually pay to — drop only the picture. */
+        await tx.qRCodeImage.update({
+          where: { id: activeQRCode.id },
+          data: { image_url: "" },
+        });
+      } else {
+        // Delete from database
+        await tx.qRCodeImage.delete({
+          where: { id: activeQRCode.id }
+        });
+      }
     });
 
     return { success: true };
@@ -141,5 +166,45 @@ export async function deleteQRCode(): Promise<{ success: boolean; error?: string
       success: false,
       error: error.message
     };
+  }
+}
+
+// Set the UPI id used to build fixed-amount payment QRs across the panels
+export async function updateUpiDetails(
+  upiId: string,
+  payeeName?: string
+): Promise<{ success: boolean; data?: QRCodeData; error?: string }> {
+  try {
+    const vpa = (upiId || "").trim();
+    const name = (payeeName || "").trim();
+
+    if (vpa && !isValidUpiId(vpa)) {
+      return { success: false, error: "Enter a valid UPI ID, e.g. radhebeautic@okaxis" };
+    }
+
+    const active = await db.qRCodeImage.findFirst({ where: { is_active: true } });
+
+    const result = active
+      ? await db.qRCodeImage.update({
+          where: { id: active.id },
+          data: { upi_id: vpa || null, payee_name: name || null },
+        })
+      : /**
+         * No image was ever uploaded. A UPI id alone is enough to pay, so create the row
+         * with an empty image_url rather than forcing an upload first.
+         */
+        await db.qRCodeImage.create({
+          data: {
+            image_url: "",
+            is_active: true,
+            upi_id: vpa || null,
+            payee_name: name || null,
+          },
+        });
+
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error("Error updating UPI details:", error);
+    return { success: false, error: error.message };
   }
 }

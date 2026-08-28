@@ -68,6 +68,12 @@ export async function POST(request: NextRequest) {
 
     // Start database transaction
     const result = await db.$transaction(async (tx) => {
+      /** Same carry-forward as `updateQRCode`: a new image row must keep the VPA. */
+      const previous = await tx.qRCodeImage.findFirst({
+        where: { is_active: true },
+        select: { upi_id: true, payee_name: true },
+      });
+
       // Deactivate all existing QR codes
       await tx.qRCodeImage.updateMany({
         where: { is_active: true },
@@ -93,7 +99,9 @@ export async function POST(request: NextRequest) {
       const newQRCode = await tx.qRCodeImage.create({
         data: {
           image_url: downloadURL,
-          is_active: true
+          is_active: true,
+          upi_id: previous?.upi_id ?? null,
+          payee_name: previous?.payee_name ?? null,
         }
       });
 

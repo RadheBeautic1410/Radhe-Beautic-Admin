@@ -1,19 +1,44 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
 import { toast } from "sonner";
-import { Upload, Trash2, QrCode, Loader2 } from "lucide-react";
+import { Upload, Trash2, QrCode, Loader2, Save } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/src/components/ui/dialog";
 import { useQRCode } from "@/src/hooks/useQRCode";
 
 export default function QRCodeManager() {
-  const { currentQRCode, isLoading, isUploading, isDeleting, updateQR, deleteQR } = useQRCode();
+  const {
+    currentQRCode,
+    isLoading,
+    isUploading,
+    isDeleting,
+    isSavingUpi,
+    updateQR,
+    saveUpi,
+    deleteQR,
+  } = useQRCode();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [upiId, setUpiId] = useState("");
+  const [payeeName, setPayeeName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setUpiId(currentQRCode?.upi_id || "");
+    setPayeeName(currentQRCode?.payee_name || "");
+  }, [currentQRCode?.upi_id, currentQRCode?.payee_name]);
+
+  const handleSaveUpi = async () => {
+    const result = await saveUpi(upiId, payeeName);
+    if (result.success) {
+      toast.success("UPI ID saved. Panels will now show a fixed-amount QR.");
+    } else {
+      toast.error(result.error || "Failed to save UPI ID");
+    }
+  };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -90,7 +115,7 @@ export default function QRCodeManager() {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Current QR Code Display */}
-        {currentQRCode ? (
+        {currentQRCode?.image_url ? (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Current QR Code</Label>
@@ -144,10 +169,54 @@ export default function QRCodeManager() {
           </div>
         )}
 
+        {/* UPI ID — drives the fixed-amount QR shown in the reseller panel */}
+        <div className="space-y-3 rounded-lg border p-4">
+          <div>
+            <Label htmlFor="upi-id" className="text-sm font-medium">
+              UPI ID (fixed-amount QR)
+            </Label>
+            <p className="mt-1 text-xs text-gray-500">
+              When set, the reseller panel generates a QR carrying the exact order amount
+              instead of showing the uploaded picture. Leave blank to keep using the image.
+            </p>
+          </div>
+          <Input
+            id="upi-id"
+            placeholder="radhebeautic@okaxis"
+            value={upiId}
+            onChange={(e) => setUpiId(e.target.value)}
+            disabled={isSavingUpi}
+          />
+          <Input
+            id="upi-payee-name"
+            placeholder="Payee name shown in the UPI app (e.g. Radhe Beautic)"
+            value={payeeName}
+            onChange={(e) => setPayeeName(e.target.value)}
+            disabled={isSavingUpi}
+          />
+          <Button onClick={handleSaveUpi} disabled={isSavingUpi} size="sm">
+            {isSavingUpi ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save UPI ID
+              </>
+            )}
+          </Button>
+          <p className="text-xs text-amber-700">
+            Pre-filling the amount stops wrong-amount transfers, but UPI apps enforce it,
+            not us — the payment screenshot check still applies.
+          </p>
+        </div>
+
         {/* Upload Section */}
         <div className="space-y-4">
           <Label htmlFor="qr-code-file" className="text-sm font-medium">
-            {currentQRCode ? "Replace QR Code" : "Upload QR Code"}
+            {currentQRCode?.image_url ? "Replace QR Code" : "Upload QR Code"}
           </Label>
           <div className="flex items-center gap-4">
             <Input

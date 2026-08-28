@@ -172,10 +172,17 @@ export function ViewOrderDialog({ data, triggerContent }: ViewOrderDialogProps) 
                                     <CardTitle className="text-base">Order Summary</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-1 text-sm">
+                                    {/* `total` is stored net of the reseller offer, so add it back for the real subtotal. */}
                                     <div className="flex justify-between">
                                         <span>Subtotal</span>
-                                        <span>₹{(data?.total || 0).toFixed(2)}</span>
+                                        <span>₹{((data?.total || 0) + (Number((data as any)?.discount) || 0)).toFixed(2)}</span>
                                     </div>
+                                    {Number((data as any)?.discount) > 0 && (
+                                        <div className="flex justify-between text-green-700">
+                                            <span>Discount</span>
+                                            <span>−₹{(Number((data as any)?.discount) || 0).toFixed(2)}</span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between">
                                         <span>Shipping Charge</span>
                                         <span>₹{(data?.shippingCharge || 0).toFixed(2)}</span>

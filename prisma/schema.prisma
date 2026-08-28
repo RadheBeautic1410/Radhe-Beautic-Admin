@@ -503,7 +503,11 @@ model Orders {
   date               DateTime            @default(now())
   trackingIdImages   Json[]
   status             OrderStatus         @default(PENDING)
+  /// Net line-items amount AFTER the reseller slab discount. Grand total stays `total + shippingCharge`.
   total              Int
+  /// Slab discount granted on this order (reseller panel offer). Audit only - it is
+  /// already deducted from `total`. Optional: orders predating the offer lack the field.
+  discount           Int?                @default(0)
   shippingAddress    Address             @relation(fields: [addressId], references: [id])
   shippingCharge     Int                 @default(0)
   paymentStatus      PaymentStatus       @default(PENDING)
@@ -665,9 +669,15 @@ model NewReleseSetting {
 }
 
 model QRCodeImage {
-  id        String  @id @default(auto()) @map("_id") @db.ObjectId
-  image_url String
-  is_active Boolean
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  /// Empty when only a UPI id is configured and no picture was ever uploaded.
+  image_url  String
+  is_active  Boolean
+  /// Payee VPA (e.g. name@okaxis). When set, panels render a fixed-amount UPI QR
+  /// carrying the exact order total instead of showing `image_url`.
+  upi_id     String?
+  /// Payee name the reseller sees in their UPI app while paying.
+  payee_name String?
 }
 
 model Color {

@@ -1,12 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getActiveQRCode, updateQRCode, deleteQRCode } from "@/src/actions/qrcode";
+import {
+  getActiveQRCode,
+  updateQRCode,
+  deleteQRCode,
+  updateUpiDetails,
+} from "@/src/actions/qrcode";
 
 interface QRCodeData {
   id: string;
+  /** Empty when only a UPI id is configured. */
   image_url: string;
   is_active: boolean;
+  upi_id?: string | null;
+  payee_name?: string | null;
 }
 
 export function useQRCode() {
@@ -14,6 +22,7 @@ export function useQRCode() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSavingUpi, setIsSavingUpi] = useState(false);
 
   const loadCurrentQRCode = async () => {
     try {
@@ -51,6 +60,24 @@ export function useQRCode() {
     }
   };
 
+  const saveUpi = async (upiId: string, payeeName?: string) => {
+    try {
+      setIsSavingUpi(true);
+      const result = await updateUpiDetails(upiId, payeeName);
+
+      if (result.success && result.data) {
+        setCurrentQRCode(result.data);
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: result.error };
+    } catch (error: any) {
+      console.error("Error saving UPI details:", error);
+      return { success: false, error: error.message };
+    } finally {
+      setIsSavingUpi(false);
+    }
+  };
+
   const deleteQR = async () => {
     try {
       setIsDeleting(true);
@@ -79,8 +106,10 @@ export function useQRCode() {
     isLoading,
     isUploading,
     isDeleting,
+    isSavingUpi,
     loadCurrentQRCode,
     updateQR,
+    saveUpi,
     deleteQR,
   };
 }
