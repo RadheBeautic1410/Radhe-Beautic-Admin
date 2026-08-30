@@ -330,30 +330,45 @@ const PendingOrders = () => {
 
 	console.log('query-data', data);
 	const deleteMutation = useMutation({
-		mutationFn: (id: string) => deleteOrder(id),
+		mutationFn: async (id: string) => {
+			const res = await deleteOrder(id);
+			if (res?.error) {
+				throw new Error(res.error);
+			}
+			return res;
+		},
 		onMutate: async (id: string) => {
 			console.log(id);
 			await queryClient.cancelQueries({ queryKey: ['orders', page, pageSize, dateRange, statusFilter] });
 			const previousOrders = queryClient.getQueryData(['orders', page, pageSize, dateRange, statusFilter]);
 			console.log(previousOrders);
 			queryClient.setQueryData(['orders', page, pageSize, dateRange, statusFilter], (old: any) => {
-				console.log(old);
-				old.data.pendingOrders = old.data.pendingOrders.filter((order: any) => order.id !== id)
-				return old;
-			}
-			);
+				if (!old?.data?.pendingOrders) {
+					return old;
+				}
+				// Copy instead of mutating in place, so onError can put the row back.
+				return {
+					...old,
+					data: {
+						...old.data,
+						pendingOrders: old.data.pendingOrders.filter((order: any) => order.id !== id),
+					},
+				};
+			});
 			return { previousOrders };
 		},
-		onError: (err, newTodo, context: any) => {
+		onError: (err: any, id, context: any) => {
 			console.log(err);
-			queryClient.setQueryData(['orders', page, pageSize], context.previousOrders);
+			queryClient.setQueryData(['orders', page, pageSize, dateRange, statusFilter], context?.previousOrders);
+			toast.error(err?.message || 'Could not reject the order');
 		},
 		onSuccess: () => {
+			toast.success('Order rejected');
 			queryClient.invalidateQueries({
-                predicate: (query) =>
-                    query.queryKey[0] === 'orders' ||
-                    query.queryKey[0] === 'wallet-requests'
-            });
+				predicate: (query) =>
+					query.queryKey[0] === 'orders' ||
+					query.queryKey[0] === 'wallet-requests'
+			});
 		},
 	})
 

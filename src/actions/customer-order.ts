@@ -3,6 +3,7 @@
 import { db } from "@/src/lib/db";
 import { currentUser } from "@/src/lib/auth";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
+import { notifyPaymentConfirmed } from "@/src/lib/order-notifications";
 
 // Helper type for size quantity objects
 type SizeQuantity = { [size: string]: number };
@@ -444,6 +445,12 @@ export const acceptCustomerOrder = async (
         },
       },
     });
+
+    // Manual/offline payments are only real once an admin marks them COMPLETED here.
+    // Claimed once, so re-accepting an order won't message the customer again.
+    if (fullOrder?.orderId && paymentData?.paymentStatus === PaymentStatus.COMPLETED) {
+      await notifyPaymentConfirmed(fullOrder.orderId);
+    }
 
     return {
       success: true,

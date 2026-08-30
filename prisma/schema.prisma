@@ -747,6 +747,10 @@ model CustomerOrder {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
+  // WhatsApp order notifications (stamped once, prevents duplicate sends)
+  orderPlacedNotifiedAt      DateTime?
+  paymentConfirmedNotifiedAt DateTime?
+
   // Indexes for query performance
   @@index([userId, status, createdAt])
   @@index([status, createdAt])

@@ -11,7 +11,10 @@ export const publicRoutes = [
     "/search",
     "/api/forms",
     "/api/organizations",
-    "/api/whatsapp",
+    // Sends WhatsApp messages from the business number. Left public it can be called by
+    // anyone who finds the URL, burning the messaging quota and the number's quality rating.
+    // Order notifications don't use this route - they call the Graph API via src/lib/whatsapp.ts.
+    // "/api/whatsapp",
 ]
 
 /* 

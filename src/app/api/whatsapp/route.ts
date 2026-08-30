@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     const message: string = formData.get("message") as string;
     const templateName: string = formData.get("templateName") as string;
     const templateLanguage: string = formData.get("templateLanguage") as string || "en_US";
+    const templateParamsRaw: string = formData.get("templateParams") as string;
 
     if (!rawTo) {
       return NextResponse.json(
@@ -96,7 +97,19 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      result = await sendTemplateMessage(normalizedTo, templateName, templateLanguage);
+      // Values for the template body's {{1}}, {{2}}, ... placeholders.
+      // Accepts a JSON array ('["Asha","ORD-12","1,499"]') or a comma-separated list.
+      let templateParams: string[] = [];
+      if (templateParamsRaw) {
+        try {
+          const parsed = JSON.parse(templateParamsRaw);
+          templateParams = Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+        } catch {
+          templateParams = templateParamsRaw.split(",").map((v) => v.trim()).filter(Boolean);
+        }
+      }
+
+      result = await sendTemplateMessage(normalizedTo, templateName, templateLanguage, templateParams);
     } else {
       return NextResponse.json(
         { success: false, error: 'Invalid type. Use "text", "media", or "template"' },
@@ -159,7 +172,28 @@ async function sendTextMessage(to: string, message: string) {
 }
 
 // Helper function to send template messages
-async function sendTemplateMessage(to: string, templateName: string, languageCode: string) {
+async function sendTemplateMessage(
+  to: string,
+  templateName: string,
+  languageCode: string,
+  templateParams: string[] = []
+) {
+  const template: any = {
+    name: templateName,
+    language: {
+      code: languageCode
+    }
+  };
+
+  if (templateParams.length > 0) {
+    template.components = [
+      {
+        type: "body",
+        parameters: templateParams.map((value) => ({ type: "text", text: String(value) })),
+      },
+    ];
+  }
+
   const response = await fetch(
     `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
     {
@@ -173,12 +207,7 @@ async function sendTemplateMessage(to: string, templateName: string, languageCod
         recipient_type: "individual",
         to: to?.includes("+") ? to : `+91${to}`,
         type: "template",
-        template: {
-          name: templateName,
-          language: {
-            code: languageCode
-          }
-        }
+        template,
       }),
     }
   );
@@ -349,6 +378,7 @@ export async function GET() {
           caption: "optional for media type",
           templateName: "required for template type (e.g., hello_world)",
           templateLanguage: "optional for template type (default: en_US)",
+          templateParams: 'optional for template type: JSON array or comma-separated values for the body placeholders {{1}}, {{2}}, ...',
         },
       },
     },
