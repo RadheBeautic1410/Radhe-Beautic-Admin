@@ -17,49 +17,44 @@ const getSizeObjectFromArray = (array: any[]) => {
   return obj;
 };
 
-const getKurtiByCode = async (code: string) => {
-  const kurti: any = await db.kurti.findUnique({
-    where: {
-      code: code,
-    },
-    select: {
-      id: true,
-      sizes: true,
-      reservedSizes: true,
-    },
-  });
-  return kurti;
-};
-
-const getCartProductbyId = async (id: string) => {
-  const cartProduct: any = await db.cartProduct.findUnique({
-    where: {
-      id: id,
-    },
-    select: {
-      id: true,
-      adminSideSizes: true,
-      sizes: true,
-    },
-  });
-  return cartProduct;
-};
-
-export const removeCartProduct = async (
+/**
+ * Releases the sizes a cart product had reserved on its kurti.
+ * Runs on the caller's transaction client so the release commits — or rolls back —
+ * together with whatever order change triggered it.
+ * Returns false when the kurti/cart product no longer exists.
+ */
+const releaseCartProductReservation = async (
+  transaction: any,
   code: string,
   cartProductId: string
 ) => {
-  const kurti: any = await getKurtiByCode(code);
-  const cartProduct: any = await getCartProductbyId(cartProductId);
-  let size2: SizeQuantity = getSizeObjectFromArray(kurti.reservedSizes || []);
-  let oldSelected: SizeQuantity = getSizeObjectFromArray(
-    cartProduct.sizes || []
+  const kurti = await transaction.kurti.findUnique({
+    where: { code: code },
+    select: { id: true, reservedSizes: true },
+  });
+  const cartProduct = await transaction.cartProduct.findUnique({
+    where: { id: cartProductId },
+    select: { id: true, sizes: true, isRejected: true },
+  });
+  if (!kurti || !cartProduct) {
+    return false;
+  }
+  // Already released by an earlier attempt; releasing again would double-decrement.
+  if (cartProduct.isRejected) {
+    return true;
+  }
+
+  let reserved: SizeQuantity = getSizeObjectFromArray(
+    (kurti.reservedSizes as any[]) || []
   );
-  for (const key in oldSelected) {
-    size2[key] = size2[key] - oldSelected[key];
+  let selected: SizeQuantity = getSizeObjectFromArray(
+    (cartProduct.sizes as any[]) || []
+  );
+  for (const key in selected) {
+    reserved[key] = (reserved[key] || 0) - selected[key];
   }
   let finalArray: any = [];
-  for (const [key, value] of Object.entries(size2)) {
+  for (const [key, value] of Object.entries(reserved)) {
     if (value > 0) {
       finalArray.push({
         size: key,
@@ -67,37 +62,45 @@ export const removeCartProduct = async (
       });
     }
   }
-  const ret = await db.$transaction(async (transaction) => {
-    try {
-      const okDate = await getCurrTime();
-      const newKurti = await transaction.kurti.update({
-        where: {
-          code: code,
-        },
-        data: {
-          reservedSizes: finalArray,
-          lastUpdatedTime: okDate,
-        },
-      });
-      const dlt = await transaction.cartProduct.update({
-        where: {
-          id: cartProductId,
-        },
-        data: {
-          isRejected: true,
-        },
-      });
-      return {
-        success: `${code} removed from cart.`,
-      };
-    } catch {
+
+  const okDate = await getCurrTime();
+  await transaction.kurti.update({
+    where: { code: code },
+    data: {
+      reservedSizes: finalArray,
+      lastUpdatedTime: okDate,
+    },
+  });
+  await transaction.cartProduct.update({
+    where: { id: cartProductId },
+    data: {
+      isRejected: true,
+    },
+  });
+  return true;
+};
+
+export const removeCartProduct = async (
+  code: string,
+  cartProductId: string
+) => {
+  try {
+    const released = await db.$transaction((transaction) =>
+      releaseCartProductReservation(transaction, code, cartProductId)
+    );
+    if (!released) {
       return {
         error: `Something went wrong, try again later.`,
       };
     }
-  });
-
-  return ret;
+    return {
+      success: `${code} removed from cart.`,
+    };
+  } catch {
+    return {
+      error: `Something went wrong, try again later.`,
+    };
+  }
 };
 
 const getCurrTime = async () => {
@@ -289,91 +292,87 @@ export const deleteOrder = async (orderId: string) => {
   if (!curUser) {
     return { error: "Something went wrong!" };
   }
-  console.log("orderId", orderId);
-  let isDone: any = "";
+
   try {
-    isDone = await db.$transaction(async (transaction) => {
-      console.log(orderId);
-      const cartProducts = await transaction.orders.findUnique({
-        where: {
-          id: orderId,
-        },
-        select: {
-          status: true,
-          cartId: true,
-          cart: {
-            select: {
-              CartProduct: {
-                select: {
-                  id: true,
-                  kurti: {
-                    select: {
-                      code: true,
+    return await db.$transaction(
+      async (transaction) => {
+        const order = await transaction.orders.findUnique({
+          where: {
+            id: orderId,
+          },
+          select: {
+            status: true,
+            cartId: true,
+            cart: {
+              select: {
+                CartProduct: {
+                  select: {
+                    id: true,
+                    isRejected: true,
+                    kurti: {
+                      select: {
+                        code: true,
+                      },
                     },
                   },
                 },
               },
             },
           },
-        },
-      });
-      if (
-        !cartProducts ||
-        (cartProducts.status !== "PENDING" &&
-          cartProducts.status !== "PROCESSING")
-      ) {
-        return null;
-      }
-      const cartId: any = cartProducts?.cartId;
-      const products: any = cartProducts?.cart.CartProduct;
-      if (cartId && products?.length && products.length > 0) {
-        let cnt = 0;
-        for (let i = 0; i < products.length; i++) {
-          console.log(products[i].kurti.code, products[i].id);
-          const deletedProduct = await removeCartProduct(
-            products[i].kurti.code,
-            products[i].id
+        });
+
+        if (!order) {
+          return { error: "Order not found." };
+        }
+        if (order.status !== "PENDING" && order.status !== "PROCESSING") {
+          return { error: `Order is already ${order.status.toLowerCase()}.` };
+        }
+
+        const products = order.cart?.CartProduct || [];
+        for (const product of products) {
+          const released = await releaseCartProductReservation(
+            transaction,
+            product.kurti.code,
+            product.id
           );
-          if (deletedProduct.success) {
-            cnt++;
+          // Abort the whole rejection so stock is never released halfway.
+          if (!released) {
+            throw new Error(
+              `Could not release reserved stock for ${product.kurti.code}`
+            );
           }
         }
-        if (cnt === products.length) {
-          await transaction.walletRequest.updateMany({
-            where: {
-              linkedOrderId: orderId,
-              status: "PENDING",
-            },
-            data: {
-              status: "REJECTED",
-              approvedBy: curUser.id,
-              approvedAt: new Date(),
-            },
-          });
-          await transaction.orders.update({
-            where: {
-              id: orderId,
-              // userId: curUser.id
-            },
-            data: {
-              status: "REJECTED",
-            },
-          });
-          return "true";
-        }
-        return null;
-      }
-      return isDone;
-    });
+
+        await transaction.walletRequest.updateMany({
+          where: {
+            linkedOrderId: orderId,
+            status: "PENDING",
+          },
+          data: {
+            status: "REJECTED",
+            approvedBy: curUser.id,
+            approvedAt: new Date(),
+          },
+        });
+        await transaction.orders.update({
+          where: {
+            id: orderId,
+          },
+          data: {
+            status: "REJECTED",
+          },
+        });
+
+        return {
+          success: "Order Rejected",
+        };
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
   } catch (e: any) {
-    console.log("error:", e.message);
-  }
-  if (!isDone) {
+    console.log("deleteOrder error:", e.message);
     return { error: "Please try again later" };
   }
-  return {
-    success: "Order Rejected",
-  };
 };
 
 export const readyOrder = async (orderId: any) => {
