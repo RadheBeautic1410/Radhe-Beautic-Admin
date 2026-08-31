@@ -521,6 +521,10 @@ model Orders {
   resellerCustomer   ResellersCustomer   @relation(fields: [resellerCustomerId], references: [id], onDelete: Cascade)
   resellerCustomerId String              @db.ObjectId
   user               User?               @relation(fields: [userId], references: [id])
+  // WhatsApp notifications to the reseller (stamped once, prevents duplicate sends)
+  paymentConfirmedNotifiedAt DateTime?
+  shippedNotifiedAt          DateTime?
+
   OfflineSellBatch   OfflineSellBatch[]
   OnlineSellBatch    OnlineSellBatch[]
   ShippingChangeLog  ShippingChangeLog[]
