@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { notifyResellerPaymentConfirmedMany } from "@/src/lib/reseller-order-notifications";
 import { auth } from "@/src/auth";
 import { db } from "@/src/lib/db";
 import { PaymentStatus, UserRole } from "@prisma/client";
@@ -68,6 +69,7 @@ export async function POST(
       });
 
       // Mark selected orders paid and write one wallet ledger row per order
+      const paidOrderIds: string[] = [];
       for (const o of orders) {
         const orderAmount =
           Number(o.total || 0) + Number(o.shippingCharge || 0);
@@ -75,6 +77,7 @@ export async function POST(
           where: { id: o.id },
           data: { paymentStatus: PaymentStatus.COMPLETED },
         });
+        paidOrderIds.push(o.id);
 
         if (user.role === UserRole.RESELLER) {
           await tx.user.update({
@@ -103,8 +106,13 @@ export async function POST(
         success: true,
         deducted: totalToDeduct,
         remainingBalance: updatedUser?.balance || 0,
+        paidOrderIds,
       };
     });
+
+    // After the transaction commits - these make a network call and must not be
+    // held inside a Mongo transaction.
+    await notifyResellerPaymentConfirmedMany(result.paidOrderIds ?? []);
 
     return new NextResponse(JSON.stringify(result), { status: 200 });
   } catch (error: any) {

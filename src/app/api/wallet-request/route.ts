@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { notifyResellerPaymentConfirmedMany } from "@/src/lib/reseller-order-notifications";
 import { auth } from "@/src/auth";
 import { db } from "@/src/lib/db";
 import {
@@ -216,6 +217,7 @@ export async function PATCH(request: NextRequest) {
           walletHistory,
           updatedUser,
           isOrderPayment: true,
+          paidOrderIds: [walletReq.linkedOrderId],
         };
       }
 
@@ -231,6 +233,7 @@ export async function PATCH(request: NextRequest) {
       let remainingForCreditLine = isReseller ? amountPaid : 0;
       let allocatedToOrders = 0;
       let ordersClearedCount = 0;
+      const paidOrderIds: string[] = [];
 
       if (isReseller && remainingForCreditLine > 0) {
         const pendingOrders = await tx.orders.findMany({
@@ -253,6 +256,7 @@ export async function PATCH(request: NextRequest) {
               where: { id: ord.id },
               data: { paymentStatus: PaymentStatus.COMPLETED },
             });
+            paidOrderIds.push(ord.id);
             await tx.user.update({
               where: { id: walletReq.resellerId },
               data: { creditLimit: { increment: due } },
@@ -309,8 +313,13 @@ export async function PATCH(request: NextRequest) {
         ordersClearedCount,
         allocatedToOrders,
         creditLimitIncrement: isReseller ? remainingForCreditLine : 0,
+        paidOrderIds,
       };
     });
+
+    // After the transaction commits - these make a network call and must not be
+    // held inside a Mongo transaction.
+    await notifyResellerPaymentConfirmedMany(result.paidOrderIds ?? []);
 
     return new NextResponse(
       JSON.stringify({

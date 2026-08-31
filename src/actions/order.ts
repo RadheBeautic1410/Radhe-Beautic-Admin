@@ -5,6 +5,7 @@ import { db } from "@/src/lib/db";
 import { currentRole, currentUser } from "@/src/lib/auth";
 
 import { UserRole } from "@prisma/client";
+import { notifyResellerShipped } from "@/src/lib/reseller-order-notifications";
 import { error } from "console";
 
 type SizeQuantity = { [size: string]: number };
@@ -430,6 +431,10 @@ export const shippedOrder = async (
   if (!newOrder || newOrder.status !== "SHIPPED") {
     return { error: "Something went wrong, refersh the page." };
   }
+
+  // Tell the reseller their parcel is on the way. Claimed once, so editing the
+  // tracking details later won't send a second shipping message.
+  await notifyResellerShipped(newOrder.id);
 
   return { success: `Order ${newOrder.orderId} marked shipped.` };
 };
