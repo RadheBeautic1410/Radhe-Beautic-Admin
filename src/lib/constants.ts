@@ -200,3 +200,21 @@ export const STITCH_TYPES = [
   "Stitched",
   "Unstitched"
 ];
+
+/**
+ * Courier services, keyed by the value stored on CustomerOrder.courier.
+ * Shared so admin UI and customer notifications show the same name.
+ */
+export const COURIER_SERVICES = [
+  { key: "indianpost", value: "Indian Post" },
+  { key: "dtdc", value: "DTDC" },
+  { key: "delivery", value: "Delivery" },
+  { key: "tirupati", value: "Tirupati" },
+  { key: "shreeMahavir", value: "Shree Mahavir" },
+];
+
+/** Display name for a stored courier key; falls back to the raw value if unmapped. */
+export const getCourierDisplayName = (courier?: string | null): string => {
+  if (!courier) return "";
+  return COURIER_SERVICES.find((c) => c.key === courier)?.value || courier;
+};

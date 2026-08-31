@@ -750,6 +750,7 @@ model CustomerOrder {
   // WhatsApp order notifications (stamped once, prevents duplicate sends)
   orderPlacedNotifiedAt      DateTime?
   paymentConfirmedNotifiedAt DateTime?
+  shippedNotifiedAt          DateTime?
 
   // Indexes for query performance
   @@index([userId, status, createdAt])

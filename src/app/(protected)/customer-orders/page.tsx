@@ -73,6 +73,7 @@ import {
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { DeleteConfirmationDialog } from "@/src/components/delete-confirmation-dialog";
+import { COURIER_SERVICES } from "@/src/lib/constants";
 
 interface CartProduct {
   id: string;
@@ -125,17 +126,6 @@ interface CustomerOrder {
     CartProduct: CartProduct[];
   };
 }
-
-const courierServices = [
-  { key: "indianpost", value: "Indian Post" },
-  { key: "dtdc", value: "DTDC" },
-  { key: "delivery", value: "Delivery" },
-  { key: "tirupati", value: "Tirupati" },
-  {
-    key: "shreeMahavir",
-    value: "Shree Mahavir",
-  },
-];
 
 const paymentTypes = [
   { value: "GPay", label: "GPay" },
@@ -1463,7 +1453,7 @@ const CustomerOrdersPage = () => {
                                 Courier:
                               </span>
                               <span className="font-medium text-sm">
-                                {courierServices.find(
+                                {COURIER_SERVICES.find(
                                   (c) => c.key === selectedOrder.courier,
                                 )?.value ||
                                   selectedOrder.courier ||
@@ -1665,7 +1655,7 @@ const CustomerOrdersPage = () => {
                         <SelectValue placeholder="Select courier" />
                       </SelectTrigger>
                       <SelectContent>
-                        {courierServices.map((service) => (
+                        {COURIER_SERVICES.map((service) => (
                           <SelectItem key={service.key} value={service.key}>
                             {service.value}
                           </SelectItem>

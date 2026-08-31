@@ -3,7 +3,7 @@
 import { db } from "@/src/lib/db";
 import { currentUser } from "@/src/lib/auth";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
-import { notifyPaymentConfirmed } from "@/src/lib/order-notifications";
+import { notifyPaymentConfirmed, notifyOrderShipped } from "@/src/lib/order-notifications";
 
 // Helper type for size quantity objects
 type SizeQuantity = { [size: string]: number };
@@ -534,6 +534,12 @@ export const updateOrderTracking = async (
         },
       },
     });
+
+    // Tell the customer their parcel is on the way. Claimed once, so editing tracking
+    // details later won't send a second shipping message.
+    if (updatedOrder.status === OrderStatus.SHIPPED && updatedOrder.trackingId) {
+      await notifyOrderShipped(updatedOrder.orderId);
+    }
 
     return {
       success: true,
