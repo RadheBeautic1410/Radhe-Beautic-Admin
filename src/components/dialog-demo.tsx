@@ -25,7 +25,7 @@ interface DialogDemoProps {
     | "ghost"
     | null
     | undefined;
-  isTriggerElement?: boolean; // Optional prop to indicate if trigger is an element
+  isTriggerElement?: boolean; // Deprecated: element triggers are detected automatically
   onOpenChange?: (open: boolean) => void; // Optional callback for open state changes
   dialogContentClassName?: string; // Optional className for DialogContent
   open?: boolean; // Optional controlled open state
@@ -38,7 +38,6 @@ export const DialogDemo = ({
   dialogDescription,
   ButtonLabel,
   bgColor,
-  isTriggerElement = false, // Default to false if not provided
   onOpenChange,
   dialogContentClassName,
   open: controlledOpen,
@@ -67,14 +66,14 @@ export const DialogDemo = ({
     return children; // old pattern
   };
 
-  // Automatically detect if dialogTrigger is a React element
-  const isReactElement = isValidElement(dialogTrigger);
-  const shouldUseAsChild = isTriggerElement || isReactElement;
+  // Slot (asChild) requires a single React element child, so only forward the
+  // trigger directly when it really is one; strings get wrapped in a Button.
+  const useElementTrigger = isValidElement(dialogTrigger);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild={shouldUseAsChild}>
-        {shouldUseAsChild ? (
+      <DialogTrigger asChild>
+        {useElementTrigger ? (
           dialogTrigger
         ) : (
           <Button variant={bgColor ? bgColor : "outline" }>
