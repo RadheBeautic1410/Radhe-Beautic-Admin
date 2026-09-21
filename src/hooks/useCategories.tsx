@@ -8,6 +8,7 @@ interface Category {
   kurtiType?: string;
   countTotal: number;
   totalItems: number;
+  fullSetItems?: number;
   sellingPrice: number;
   actualPrice: number;
   customerPrice?: number;

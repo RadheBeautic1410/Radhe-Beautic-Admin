@@ -8,6 +8,7 @@ import {
 } from "@/src/lib/firebase/firebase";
 import { Buffer } from "buffer";
 import { getCurrTime } from "../actions/kurti";
+import { getGodownQty as clampGodownToTotal } from "@/src/lib/godown";
 
 export interface OnlineSalesFilters {
   page?: number;
@@ -809,6 +810,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
                   // Size exists, adjust quantity
                   const existingSize = updatedSizes[existingSizeIndex] as any;
                   existingSize.quantity -= quantityDifference; // Subtract because we're reducing the sold quantity
+                  existingSize.godownQuantity = clampGodownToTotal(existingSize);
                   console.log(
                     `Updated size ${originalItem.kurtiSize} quantity from ${
                       existingSize.quantity + quantityDifference
@@ -897,6 +899,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
                   );
                 }
                 existingSize.quantity -= product.quantity;
+                existingSize.godownQuantity = clampGodownToTotal(existingSize);
                 console.log(
                   `Reduced size ${product.selectedSize} quantity from ${
                     existingSize.quantity + product.quantity

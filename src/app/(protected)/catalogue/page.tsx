@@ -77,6 +77,7 @@ import {
   FileDownIcon,
   LucideBrush,
   LucidePaintbrush,
+  Layers,
   MoreVertical,
   Package,
   ShoppingBag,
@@ -122,6 +123,7 @@ import { useDebounce } from "@/src/hooks/useDebounce";
 import ClearStockModal from "../_components/category/ClearStockModel";
 import SetStockReadyModal from "../_components/category/StockReadyModel";
 import { SizeSelectionModal } from "../_components/category/SizeSelectionModal";
+import { FullSetModal } from "../_components/category/FullSetModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,6 +139,7 @@ interface Category {
   type: string;
   countTotal: number;
   totalItems: number;
+  fullSetItems?: number;
   sellingPrice: number;
   actualPrice: number;
   customerPrice?: number;
@@ -206,6 +209,7 @@ const ListPage = () => {
     totalItems: 0,
     totalPices: 0,
     totalStockPrice: 0,
+    totalFullSets: 0,
   });
   const kurtiTypes = [
     { key: "roundedPair", value: "Rounded Pair" },
@@ -237,6 +241,7 @@ const ListPage = () => {
         totalItems: res.totalItems,
         totalPices: res.totalPices,
         totalStockPrice: res.totalStockPrice,
+        totalFullSets: res.totalFullSets,
       });
     })();
   }, []);
@@ -487,6 +492,7 @@ const ListPage = () => {
                   count: 0,
                   type: data.data.type || "",
                   totalItems: 0,
+                  fullSetItems: 0,
                   sellingPrice: 0,
                   countTotal: 0,
                   actualPrice: 0,
@@ -1539,6 +1545,26 @@ const ListPage = () => {
                   <span className="text-gray-600">Pieces:</span>
                   <span className="font-medium">{cat.countTotal}</span>
                 </div>
+                <div className="flex items-center gap-1">
+                  <Layers size={14} className="text-orange-500" />
+                  <span className="text-gray-600">Full Sets:</span>
+                  {cat.fullSetItems ? (
+                    <FullSetModal
+                      categoryName={cat.name}
+                      count={cat.fullSetItems}
+                      trigger={
+                        <button
+                          type="button"
+                          className="font-medium text-orange-600 underline underline-offset-2"
+                        >
+                          {cat.fullSetItems}
+                        </button>
+                      }
+                    />
+                  ) : (
+                    <span className="font-medium">0</span>
+                  )}
+                </div>
               </RoleGateForComponent>
               <div className="flex flex-col gap-1 col-span-2">
                 <div className="flex items-center gap-1">
@@ -2033,7 +2059,7 @@ const ListPage = () => {
 
         {!isSearching && (
           <div className="bg-gray-200 px-4 py-1 rounded-lg">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
               <div className="flex items-center gap-5">
                 <p className="text-sm text-gray-600">Total Items:</p>
                 <p className="text-base font-bold text-blue-600">
@@ -2045,6 +2071,21 @@ const ListPage = () => {
                 <p className="text-base font-bold text-green-600">
                   {categoryStates.totalPices}
                 </p>
+              </div>
+              <div className="flex items-center gap-5">
+                <p className="text-sm text-gray-600">Total Full Sets:</p>
+                <FullSetModal
+                  count={categoryStates.totalFullSets}
+                  trigger={
+                    <button
+                      type="button"
+                      title="View all full set designs"
+                      className="text-base font-bold text-orange-600 underline underline-offset-2 hover:text-orange-800 cursor-pointer"
+                    >
+                      {categoryStates.totalFullSets}
+                    </button>
+                  }
+                />
               </div>
               <div className="flex items-center gap-5">
                 <p className="text-sm text-gray-600">Total Stock Value:</p>
@@ -2069,7 +2110,7 @@ const ListPage = () => {
                   <Table className="bg-white rounded-xl shadow-xs border">
                     <TableHeader>
                       <TableRow className="bg-gray-50 border-b">
-                        {Array.from({ length: 11 }).map((_, i) => (
+                        {Array.from({ length: 12 }).map((_, i) => (
                           <TableHead key={i} className="text-center font-bold">
                             <Skeleton className="h-6 w-16 bg-gray-200 mx-auto rounded animate-pulse" />
                           </TableHead>
@@ -2079,7 +2120,7 @@ const ListPage = () => {
                     <TableBody>
                       {Array.from({ length: 10 }).map((_, idx) => (
                         <TableRow key={idx} className="border-b">
-                          {Array.from({ length: 11 }).map((_, col) => (
+                          {Array.from({ length: 12 }).map((_, col) => (
                             <TableCell key={col} className="p-4 text-center">
                               {col === 2 ? (
                                 <Skeleton className="h-16 w-16 bg-gray-200 mx-auto rounded animate-pulse" />
@@ -2176,6 +2217,12 @@ const ListPage = () => {
                           <TableHead className="text-center font-bold text-base">
                             Total Pieces
                           </TableHead>
+                          <TableHead
+                            className="text-center font-bold text-base"
+                            title="Designs having stock in all of M, L, XL, XXL"
+                          >
+                            Full Set Items
+                          </TableHead>
                         </RoleGateForComponent>
                         <TableHead className="text-center font-bold text-base">
                           Reseller/Customer Price
@@ -2242,6 +2289,25 @@ const ListPage = () => {
                             </TableCell>
                             <TableCell className="text-center">
                               {cat.countTotal}
+                            </TableCell>
+                            <TableCell className="text-center font-semibold text-orange-600">
+                              {cat.fullSetItems ? (
+                                <FullSetModal
+                                  categoryName={cat.name}
+                                  count={cat.fullSetItems}
+                                  trigger={
+                                    <button
+                                      type="button"
+                                      title="View full set designs"
+                                      className="underline underline-offset-2 hover:text-orange-800 cursor-pointer"
+                                    >
+                                      {cat.fullSetItems}
+                                    </button>
+                                  }
+                                />
+                              ) : (
+                                0
+                              )}
                             </TableCell>
                           </RoleGateForComponent>
                           <TableCell className="text-center">
