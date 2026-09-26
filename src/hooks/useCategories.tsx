@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface Category {
   id: string;
@@ -8,6 +8,7 @@ interface Category {
   kurtiType?: string;
   countTotal: number;
   totalItems: number;
+  fullSetItems?: number;
   sellingPrice: number;
   actualPrice: number;
   customerPrice?: number;
@@ -41,7 +42,15 @@ export function useCategories({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // A broad search term answers slower than a narrow one, so without an
+  // ordering guard an earlier keystroke's response can land last and show rows
+  // that don't match what was typed. Only the newest request may write state.
+  const requestIdRef = useRef(0);
+
   useEffect(() => {
+    const requestId = ++requestIdRef.current;
+    const controller = new AbortController();
+
     setLoading(true);
     setError(null);
     const params = new URLSearchParams({
@@ -52,22 +61,33 @@ export function useCategories({
       sort,
       kurtiType,
     });
-    fetch(`/api/category?${params}`)
+    fetch(`/api/category?${params}`, { signal: controller.signal })
       .then((res) => res.json())
       .then(({ data, pagination }) => {
-        setData(data);
+        if (requestId !== requestIdRef.current) return;
+        setData(Array.isArray(data) ? data : []);
         setPagination(pagination);
         setLoading(false);
       })
       .catch((err) => {
+        if (controller.signal.aborted || requestId !== requestIdRef.current)
+          return;
         setError(err.message || "Unknown error");
+        setData([]);
+        setPagination(undefined);
         setLoading(false);
       });
+
+    return () => {
+      controller.abort();
+    };
   }, [page, limit, search, searchType, sort, kurtiType]);
 
-  const setCategoryData = (data: Category[]) => {
+  const setCategoryData = useCallback((data: Category[]) => {
+    requestIdRef.current += 1;
     setData(data);
-  };
+    setLoading(false);
+  }, []);
 
   return { data, pagination, loading, error, setCategoryData };
 }

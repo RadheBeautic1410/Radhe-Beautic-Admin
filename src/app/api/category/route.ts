@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { getFullSetCountsByCategory } from "@/src/data/fullSet";
 import { db } from "@/src/lib/db";
 import { NextApiResponse } from "next";
 import { NextRequest, NextResponse } from "next/server";
@@ -12,6 +13,7 @@ interface Category {
   kurtiType?: string;
   countTotal: number;
   totalItems: number;
+  fullSetItems?: number;
   sellingPrice: number;
   actualPrice: number;
   image?: string;
@@ -102,8 +104,17 @@ export async function GET(req: NextRequest) {
       db.category.count({ where }),
     ]);
 
+    const fullSetCounts = await getFullSetCountsByCategory(
+      categories.map((category) => category.name)
+    );
+
+    const data = categories.map((category) => ({
+      ...category,
+      fullSetItems: fullSetCounts[category.name.toUpperCase()] ?? 0,
+    }));
+
     return NextResponse.json({
-      data: categories,
+      data,
       pagination: {
         page,
         limit,
@@ -128,6 +139,7 @@ function generateCSV(data: any): string {
     "kurtiType",
     "countTotal",
     "totalItems",
+    "fullSetItems",
     "sellingPrice",
     "actualPrice",
     "image",
@@ -158,7 +170,15 @@ export async function POST(req: NextRequest) {
         isDeleted: false,
       },
     });
-    const csv = generateCSV(categories);
+    const fullSetCounts = await getFullSetCountsByCategory(
+      categories.map((category) => category.name)
+    );
+    const csv = generateCSV(
+      categories.map((category) => ({
+        ...category,
+        fullSetItems: fullSetCounts[category.name.toUpperCase()] ?? 0,
+      }))
+    );
 
     return new NextResponse(csv, {
       status: 200,

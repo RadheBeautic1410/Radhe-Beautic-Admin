@@ -65,6 +65,8 @@ interface KurtiUpdateProps {
 interface Size {
   size: string;
   quantity: number;
+  /** How many of the total pieces are lying in the godown (3rd floor). */
+  godownQuantity?: number;
 }
 
 interface SearchableSelectProps {
@@ -611,6 +613,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                   <AddSizeForm
                     preSizes={sizes}
                     sizes={sizes}
+                    showGodown
                     onAddSize={handleAddSize}
                   />
                 </div>

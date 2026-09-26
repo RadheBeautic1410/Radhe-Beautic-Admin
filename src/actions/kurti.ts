@@ -7,6 +7,7 @@ import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
 import { v4 as uuidv4 } from "uuid";
 import { CURRENT_EMBEDDING_VERSION } from "@/src/lib/embeddingVersion";
+import { normalizeSizesGodown } from "@/src/lib/godown";
 
 export const getCurrTime = async () => {
   // Always store in UTC; handle display/filtering in desired timezone
@@ -191,7 +192,10 @@ function isSize(size: string) {
 // };
 
 export const stockAddition = async (data: any) => {
-  const { code, sizes } = data;
+  const { code } = data;
+  // Clamp every size into shape first: godownQuantity must stay within
+  // [0, quantity] so floor stock (quantity - godownQuantity) can never go negative.
+  const sizes = normalizeSizesGodown(data.sizes || []);
 
   // Step 1: Calculate new total count of pieces from sizes
   let newCount = 0;

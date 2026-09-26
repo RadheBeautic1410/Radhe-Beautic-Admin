@@ -93,6 +93,18 @@ const routes: MenuItem[] = [
     icon: "📦",
   },
   {
+    name: "Godown Stock",
+    href: "/godown",
+    role: [UserRole.ADMIN, UserRole.UPLOADER],
+    icon: "🏬",
+  },
+  {
+    name: "Move to Floor",
+    href: "/move-to-floor",
+    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER],
+    icon: "⬇️",
+  },
+  {
     name: "Request",
     href: "/request",
     role: [UserRole.ADMIN],

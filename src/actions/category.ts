@@ -10,6 +10,7 @@ import {
   getCategoryByID,
   getCategorybyName,
 } from "../data/category";
+import { getTotalFullSetCount } from "../data/fullSet";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -481,6 +482,7 @@ export const getCategoryOverallStates = async () => {
 
     const countTotalSum = sums._sum.countTotal ?? 0;
     const totalItemsSum = sums._sum.totalItems ?? 0;
+    const totalFullSets = await getTotalFullSetCount();
 
     // console.log("🚀 ~ getCategoryOverallStates ~ data:", data)
 
@@ -501,6 +503,7 @@ export const getCategoryOverallStates = async () => {
       totalItems: totalItemsSum,
       totalPices: countTotalSum,
       totalStockPrice: multipliedSum,
+      totalFullSets,
     };
   } catch (error) {
     console.error("Error fetching states:", error);
@@ -508,6 +511,7 @@ export const getCategoryOverallStates = async () => {
       totalItems: 0,
       totalPices: 0,
       totalStockPrice: 0,
+      totalFullSets: 0,
     };
   }
 };

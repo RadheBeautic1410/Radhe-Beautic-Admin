@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 import { Buffer } from "buffer";
 import { getCurrTime } from "../actions/kurti";
+import { getGodownQty as clampGodownToTotal } from "@/src/lib/godown";
 
 export const getLastDelTime = async () => {
   try {
@@ -465,6 +466,7 @@ export const sellKurti2 = async (data: any) => {
           
           flag = 1;
           obj.quantity -= 1;
+          obj.godownQuantity = clampGodownToTotal(obj);
           if (obj.quantity > 0) {
             newArr.push(obj);
           }
@@ -870,6 +872,7 @@ export const sellMultipleKurtis = async (data: any) => {
               } else {
                 flag = 1;
                 obj.quantity -= quantity;
+                obj.godownQuantity = clampGodownToTotal(obj);
                 if (obj.quantity >= 0) {
                   newArr.push(obj);
                 }
