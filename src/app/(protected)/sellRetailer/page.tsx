@@ -21,6 +21,12 @@ import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { getShopList, getUserShop } from "@/src/actions/shop";
+import {
+  LOCATION_LABELS,
+  availableAtLocation,
+  describeLocations,
+  locationForShopId,
+} from "@/src/lib/godown";
 import { useEffect } from "react";
 import InvoicePreview, {
   InvoicePayload,
@@ -107,6 +113,14 @@ function SellPage() {
   const [untrackedQuantity, setUntrackedQuantity] = useState<string>("1");
   const [untrackedPrice, setUntrackedPrice] = useState<string>("");
 
+  // The bill's stock location follows the selected shop; recomputed on every
+  // render so a shop change re-checks the whole cart.
+  const billLocation = locationForShopId(selectedShopId);
+  const sizeRowOf = (item: CartItem) =>
+    item.kurti?.sizes?.find((sz: any) => sz.size === item.selectedSize);
+  const availableFor = (item: CartItem): number | null =>
+    item.lineType === "TRACKED" ? availableAtLocation(sizeRowOf(item), billLocation) : null;
+
   // Scan / focus
   const productCodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -136,8 +150,15 @@ function SellPage() {
     }
 
     const sizeInfo = foundKurti.sizes?.find((sz: any) => sz.size === size);
-    if (!sizeInfo || sizeInfo.quantity < 1) {
-      toast.error("Insufficient stock for selected size");
+    // A bill sells only its own shop's stock (1st floor, 2nd floor or Shop 316).
+    const available = availableAtLocation(sizeInfo, billLocation);
+    const where = billLocation ? LOCATION_LABELS[billLocation] : "stock";
+    if (!sizeInfo || available < 1) {
+      toast.error(
+        sizeInfo
+          ? `No ${size} in ${where} (${describeLocations(sizeInfo)})`
+          : "Insufficient stock for selected size"
+      );
       return false;
     }
 
@@ -153,8 +174,8 @@ function SellPage() {
       const existingItem = updatedCart[existingItemIndex];
       const totalQuantity = existingItem.quantity + 1;
 
-      if (totalQuantity > sizeInfo.quantity) {
-        toast.error("Total quantity exceeds available stock");
+      if (totalQuantity > available) {
+        toast.error(`Only ${available} of ${size} in ${where}`);
         return false;
       }
 
@@ -173,7 +194,7 @@ function SellPage() {
         selectedSize: size,
         quantity: 1,
         sellingPrice: autoFilledPrice,
-        availableStock: sizeInfo.quantity,
+        availableStock: available,
         hsnCode: foundKurti.hsnCode || "6204",
       };
       setCart([...cart, newItem]);
@@ -323,12 +344,11 @@ function SellPage() {
 
     const updatedCart = cart.map((item) => {
       if (item.id === itemId) {
-        if (
-          item.lineType === "TRACKED" &&
-          item.availableStock !== null &&
-          newQuantity > item.availableStock
-        ) {
-          toast.error("Quantity exceeds available stock");
+        const available = availableFor(item);
+        if (available !== null && newQuantity > available) {
+          toast.error(
+            `Only ${available} in ${billLocation ? LOCATION_LABELS[billLocation] : "stock"}`
+          );
           return item;
         }
         return { ...item, quantity: newQuantity };
@@ -470,6 +490,20 @@ function SellPage() {
         } else {
           toast.error("No shop associated with your account");
         }
+        return;
+      }
+
+      // Every scanned line must be in this shop's own stock.
+      const short = cart.filter((item) => {
+        const available = availableFor(item);
+        return available !== null && item.quantity > available;
+      });
+      if (short.length > 0) {
+        toast.error(
+          `Not enough in ${billLocation ? LOCATION_LABELS[billLocation] : "stock"}: ${short
+            .map((i) => `${i.kurti.code.toUpperCase()}-${i.selectedSize} (${availableFor(i)} there)`)
+            .join(", ")}`
+        );
         return;
       }
 
@@ -884,12 +918,23 @@ function SellPage() {
                       </TableCell>
                       <TableCell className="border">
                         {item.selectedSize.toUpperCase()}
+                        {item.lineType === "TRACKED" && (
+                          <span
+                            className={`block text-[11px] ${
+                              item.quantity > (availableFor(item) ?? Infinity)
+                                ? "font-semibold text-red-600"
+                                : "text-gray-500"
+                            }`}
+                          >
+                            📍 {describeLocations(sizeRowOf(item))}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="border">
                         <Input
                           type="number"
                           min="1"
-                          max={item.availableStock || undefined}
+                          max={availableFor(item) ?? undefined}
                           value={item.quantity}
                           onChange={(e) =>
                             updateCartItemQuantity(

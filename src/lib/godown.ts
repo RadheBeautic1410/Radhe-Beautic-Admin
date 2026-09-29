@@ -99,6 +99,13 @@ export const describeLocations = (size: any): string => {
   return parts.length ? parts.join(" · ") : "no stock";
 };
 
+/**
+ * Pieces a bill can sell: the stock at the bill's location, or the total when no
+ * location is known yet (e.g. an admin has not picked the shop).
+ */
+export const availableAtLocation = (size: any, location: StockLocation | null): number =>
+  location ? getLocationQty(size, location) : getTotalQty(size);
+
 /** True when a size has godown stock but nothing on either showroom floor. */
 export const needsFloorMove = (size: any): boolean =>
   getShowroomQty(size) === 0 && getGodownQty(size) > 0;

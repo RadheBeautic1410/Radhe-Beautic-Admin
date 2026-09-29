@@ -35,6 +35,12 @@ import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { getUserShop, getHallSaleShops } from "@/src/actions/shop";
+import {
+  LOCATION_LABELS,
+  availableAtLocation,
+  describeLocations,
+  locationForShopId,
+} from "@/src/lib/godown";
 import InvoicePreview, {
   InvoicePayload,
 } from "@/src/app/(protected)/sellRetailer/invoice-preview/InvoicePreview";
@@ -118,6 +124,15 @@ function HallSalesPage() {
     if (currentUser?.role !== UserRole.ADMIN) return userShop;
     return shops.find((s) => s.id === selectedShopId) || null;
   }, [currentUser?.role, selectedShopId, shops, userShop]);
+
+  // The bill sells only its shop's own stock (the hall-sale shop is the 2nd floor).
+  const billLocation = locationForShopId(selectedShopId);
+  const whereLabel = billLocation ? LOCATION_LABELS[billLocation] : "stock";
+  const stockOf = (sz: any) => availableAtLocation(sz, billLocation);
+  const availableFor = (item: CartItem): number | null =>
+    item.lineType === "TRACKED"
+      ? stockOf(item.kurti?.sizes?.find((sz: any) => String(sz.size).toUpperCase() === item.selectedSize))
+      : null;
 
   // Load shops and user's shop on component mount
   useEffect(() => {
@@ -215,8 +230,12 @@ function HallSalesPage() {
     }
 
     const sizeInfo = kurti.sizes.find((sz: any) => sz.size === selectedSize);
-    if (!sizeInfo || sizeInfo.quantity < quantity) {
-      toast.error("Insufficient stock for selected quantity");
+    if (!sizeInfo || stockOf(sizeInfo) < quantity) {
+      toast.error(
+        sizeInfo
+          ? `Only ${stockOf(sizeInfo)} of ${selectedSize} in ${whereLabel} (${describeLocations(sizeInfo)})`
+          : "Insufficient stock for selected quantity"
+      );
       return;
     }
 
@@ -224,7 +243,7 @@ function HallSalesPage() {
       size: selectedSize,
       qty: quantity,
       price: parseInt(sellingPrice),
-      sizeInfoQuantity: sizeInfo.quantity,
+      sizeInfoQuantity: stockOf(sizeInfo),
     });
 
     // Reset current product selection
@@ -264,7 +283,7 @@ function HallSalesPage() {
         const totalQuantity = existing.quantity + qty;
         if (totalQuantity > sizeInfoQuantity) {
           toast.error(
-            `Total quantity exceeds available stock for size ${normalizedSize}`
+            `Only ${sizeInfoQuantity} of ${normalizedSize} in ${whereLabel}`
           );
           return prev;
         }
@@ -325,7 +344,7 @@ function HallSalesPage() {
         (sz: any) => String(sz.size).toUpperCase() === normalizedSize
       );
 
-      if (!sizeInfo || (sizeInfo.quantity ?? 0) <= 0) {
+      if (!sizeInfo || stockOf(sizeInfo) <= 0) {
         skippedCount++;
         return;
       }
@@ -339,7 +358,7 @@ function HallSalesPage() {
       if (existingIndex >= 0) {
         const existing = nextCart[existingIndex];
         const totalQuantity = existing.quantity + 1;
-        if (totalQuantity > sizeInfo.quantity) {
+        if (totalQuantity > stockOf(sizeInfo)) {
           skippedCount++;
           return;
         }
@@ -347,7 +366,7 @@ function HallSalesPage() {
           ...existing,
           quantity: totalQuantity,
           sellingPrice: price,
-          availableStock: sizeInfo.quantity,
+          availableStock: stockOf(sizeInfo),
         };
         addedCount++;
         return;
@@ -363,7 +382,7 @@ function HallSalesPage() {
         selectedSize: normalizedSize,
         quantity: 1,
         sellingPrice: price,
-        availableStock: sizeInfo.quantity,
+        availableStock: stockOf(sizeInfo),
       });
       addedCount++;
     });
@@ -395,12 +414,9 @@ function HallSalesPage() {
 
     const updatedCart = cart.map((item) => {
       if (item.id === itemId) {
-        if (
-          item.lineType === "TRACKED" &&
-          item.availableStock !== null &&
-          newQuantity > item.availableStock
-        ) {
-          toast.error("Quantity exceeds available stock");
+        const available = availableFor(item);
+        if (available !== null && newQuantity > available) {
+          toast.error(`Only ${available} in ${whereLabel}`);
           return item;
         }
         return { ...item, quantity: newQuantity };
@@ -606,6 +622,20 @@ function HallSalesPage() {
         return;
       }
 
+      // Every scanned line must be in this shop's own stock.
+      const short = cart.filter((item) => {
+        const available = availableFor(item);
+        return available !== null && item.quantity > available;
+      });
+      if (short.length > 0) {
+        toast.error(
+          `Not enough in ${whereLabel}: ${short
+            .map((i) => `${i.kurti.code.toUpperCase()}-${i.selectedSize} (${availableFor(i)} there)`)
+            .join(", ")}`
+        );
+        return;
+      }
+
       if (!billCreatedBy.trim()) {
         toast.error("Please enter bill created by");
         return;
@@ -796,7 +826,7 @@ function HallSalesPage() {
 
   const getAvailableSizes = () => {
     if (!kurti?.sizes) return [];
-    return kurti.sizes.filter((sz: any) => sz.quantity > 0);
+    return kurti.sizes.filter((sz: any) => stockOf(sz) > 0);
   };
 
   const bulkAvailableSizes = useMemo(() => {
@@ -1178,7 +1208,7 @@ function HallSalesPage() {
                                     {size}
                                   </span>
                                   <span className="ml-auto text-xs text-gray-500">
-                                    {sz.quantity}
+                                    {stockOf(sz)}
                                   </span>
                                 </label>
                               );
@@ -1234,19 +1264,20 @@ function HallSalesPage() {
                         {kurti.sizes.map((sz: any, i: number) => (
                           <TableRow
                             key={i}
-                            className={sz.quantity === 0 ? "opacity-50" : ""}
+                            className={stockOf(sz) === 0 ? "opacity-50" : ""}
                           >
                             <TableCell className="border">
                               {sz.size.toUpperCase()}
                             </TableCell>
                             <TableCell
                               className={`border ${
-                                sz.quantity === 0
+                                stockOf(sz) === 0
                                   ? "text-red-500"
                                   : "text-green-600"
                               }`}
+                              title={describeLocations(sz)}
                             >
-                              {sz.quantity}
+                              {stockOf(sz)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1274,7 +1305,7 @@ function HallSalesPage() {
                         <option value="">Select Size</option>
                         {getAvailableSizes().map((sz: any, i: number) => (
                           <option key={i} value={sz.size}>
-                            {sz.size.toUpperCase()} (Stock: {sz.quantity})
+                            {sz.size.toUpperCase()} ({whereLabel}: {stockOf(sz)})
                           </option>
                         ))}
                       </select>
@@ -1444,7 +1475,7 @@ function HallSalesPage() {
                         <Input
                           type="number"
                           min="1"
-                          max={item.availableStock || undefined}
+                          max={availableFor(item) ?? undefined}
                           value={item.quantity}
                           onChange={(e) =>
                             updateCartItemQuantity(
