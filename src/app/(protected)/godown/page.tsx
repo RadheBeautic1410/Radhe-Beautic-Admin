@@ -1,7 +1,9 @@
 "use client";
 
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useCurrentUser } from "@/src/hooks/use-current-user";
+import { getUserShop } from "@/src/actions/shop";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import { UserRole } from "@prisma/client";
 import { Button } from "@/src/components/ui/button";
@@ -18,27 +20,93 @@ import {
 import axios from "axios";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { getFloorQty, getGodownQty, getTotalQty } from "@/src/lib/godown";
+import {
+  LOCATION_LABELS,
+  STOCK_LOCATIONS,
+  StockLocation,
+  getLocationQty,
+  getTotalQty,
+  locationForShopId,
+  needsFloorMove,
+} from "@/src/lib/godown";
 import { PendingFloorMoves } from "../_components/godown/pending-floor-moves";
-
-type Direction = "TO_GODOWN" | "TO_FLOOR";
 
 interface LastMove {
   code: string;
   size: string;
-  direction: Direction;
   totalQuantity: number;
-  godownQuantity: number;
-  floorQuantity: number;
+  counts: Record<StockLocation, number>;
 }
 
+const LocationButtons = ({
+  title,
+  value,
+  isDisabled,
+  onChange,
+}: {
+  title: string;
+  value: StockLocation;
+  isDisabled: (loc: StockLocation) => boolean;
+  onChange: (loc: StockLocation) => void;
+}) => (
+  <div className="flex flex-row flex-wrap items-center gap-2">
+    <span className="text-sm font-semibold w-12">{title}</span>
+    {STOCK_LOCATIONS.map((loc) => (
+      <button
+        key={loc}
+        type="button"
+        disabled={isDisabled(loc)}
+        onClick={() => onChange(loc)}
+        className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
+          value === loc
+            ? "bg-slate-800 border-slate-800 text-white"
+            : isDisabled(loc)
+              ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+        }`}
+      >
+        {LOCATION_LABELS[loc]}
+      </button>
+    ))}
+  </div>
+);
+
 function GodownStockPage() {
+  const user = useCurrentUser();
   const [code, setCode] = useState("");
-  const [direction, setDirection] = useState<Direction>("TO_GODOWN");
+  const [from, setFrom] = useState<StockLocation>("GODOWN");
+  const [to, setTo] = useState<StockLocation>("FLOOR_1");
+  // Shop logins may only move stock into or out of their own location.
+  const [ownLocation, setOwnLocation] = useState<StockLocation | null>(null);
   const [kurti, setKurti] = useState<any>(null);
   const [lastMove, setLastMove] = useState<LastMove | null>(null);
   const [saving, setSaving] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (user?.role !== UserRole.SHOP_SELLER || !user?.id) return;
+    getUserShop(user.id)
+      .then((shop) => {
+        const loc = locationForShopId(shop?.id);
+        if (!loc) return;
+        setOwnLocation(loc);
+        setFrom("GODOWN");
+        setTo(loc);
+      })
+      .catch(() => {});
+  }, [user?.role, user?.id]);
+
+  const chooseFrom = (loc: StockLocation) => {
+    setFrom(loc);
+    if (ownLocation && loc !== ownLocation) {
+      setTo(ownLocation);
+    } else if (loc === to) {
+      setTo(loc === "GODOWN" ? "FLOOR_1" : "GODOWN");
+    }
+  };
+
+  const toDisabled = (loc: StockLocation) =>
+    loc === from || (!!ownLocation && from !== ownLocation && loc !== ownLocation);
 
   const handleMove = async () => {
     const entered = code.trim();
@@ -50,7 +118,8 @@ function GodownStockPage() {
       setSaving(true);
       const res = await axios.post(`/api/kurti/godown/move`, {
         code: entered.toUpperCase(),
-        direction,
+        from,
+        to,
       });
       const data = res.data.data;
       if (data?.error) {
@@ -62,10 +131,8 @@ function GodownStockPage() {
       setLastMove({
         code: data.data?.code,
         size: data.size,
-        direction,
         totalQuantity: data.totalQuantity,
-        godownQuantity: data.godownQuantity,
-        floorQuantity: data.floorQuantity,
+        counts: data.counts,
       });
       setRefreshKey((k) => k + 1);
     } catch (error) {
@@ -77,60 +144,30 @@ function GodownStockPage() {
     }
   };
 
-  const toGodown = direction === "TO_GODOWN";
-
   return (
     <Card className="w-full h-full rounded-none">
       <CardHeader>
-        <p className="text-2xl font-semibold text-center">🏬 Godown Stock</p>
+        <p className="text-2xl font-semibold text-center">🏬 Stock Location</p>
         <p className="text-sm text-center text-gray-600">
-          Record which pieces are lying in the godown and which are down on the
-          selling floor. This never changes the total piece count - it only moves a
-          piece between the two.
+          Record where each piece is: 1st Floor, 2nd Floor, Shop 316 or Godown. This
+          never changes the total piece count - it only moves a piece from one place
+          to another.
         </p>
       </CardHeader>
 
       <CardContent className="w-full flex flex-col justify-center flex-wrap gap-3">
-        {/* Direction toggle */}
-        <div className="flex flex-row flex-wrap gap-2 items-center">
-          <span className="text-sm font-semibold">Scanning to:</span>
-          <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setDirection("TO_GODOWN")}
-              className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                toGodown
-                  ? "bg-amber-500 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              ⬆️ To Godown
-            </button>
-            <button
-              type="button"
-              onClick={() => setDirection("TO_FLOOR")}
-              className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                !toGodown
-                  ? "bg-emerald-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              ⬇️ To Selling Floor
-            </button>
-          </div>
+        <div className="flex flex-col gap-2">
+          <LocationButtons title="From" value={from} isDisabled={() => false} onChange={chooseFrom} />
+          <LocationButtons title="To" value={to} isDisabled={toDisabled} onChange={setTo} />
+          {ownLocation && (
+            <p className="text-xs text-gray-600">
+              Your login can move stock into or out of {LOCATION_LABELS[ownLocation]}.
+            </p>
+          )}
+          <p className="text-xs font-semibold rounded-md px-2 py-1.5 border w-fit bg-slate-50 border-slate-200 text-slate-700">
+            Each scan moves 1 piece from {LOCATION_LABELS[from]} to {LOCATION_LABELS[to]}.
+          </p>
         </div>
-
-        <p
-          className={`text-xs font-semibold rounded-md px-2 py-1.5 border w-fit ${
-            toGodown
-              ? "bg-amber-50 border-amber-200 text-amber-800"
-              : "bg-emerald-50 border-emerald-200 text-emerald-800"
-          }`}
-        >
-          {toGodown
-            ? "Each scan marks 1 piece as kept in the godown, so the selling floor count goes down by 1."
-            : "Each scan brings 1 piece down from the godown, so the selling floor count goes up by 1."}
-        </p>
 
         <div className="flex flex-row flex-wrap gap-2">
           <div className="flex flex-col flex-wrap">
@@ -154,7 +191,7 @@ function GodownStockPage() {
             disabled={saving}
           >
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : ""}
-            {toGodown ? "Move to Godown" : "Move to Floor"}
+            Move to {LOCATION_LABELS[to]}
           </Button>
         </div>
 
@@ -163,22 +200,21 @@ function GodownStockPage() {
             <p className="font-bold">
               {lastMove.code} - {lastMove.size}
             </p>
-            <div className="flex gap-4 mt-1 text-sm">
+            <div className="flex flex-wrap gap-4 mt-1 text-sm">
               <span>
                 Total: <b>{lastMove.totalQuantity}</b>
               </span>
-              <span className="text-amber-800">
-                In godown: <b>{lastMove.godownQuantity}</b>
-              </span>
-              <span className="text-emerald-700">
-                On floor: <b>{lastMove.floorQuantity}</b>
-              </span>
+              {STOCK_LOCATIONS.map((loc) => (
+                <span key={loc}>
+                  {LOCATION_LABELS[loc]}: <b>{lastMove.counts?.[loc] ?? 0}</b>
+                </span>
+              ))}
             </div>
           </div>
         )}
 
         {kurti ? (
-          <div className="p-3 bg-slate-200 mt-1 w-[340px] rounded-lg">
+          <div className="p-3 bg-slate-200 mt-1 w-[440px] max-w-full rounded-lg">
             {kurti.images?.[0]?.url && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -197,38 +233,27 @@ function GodownStockPage() {
             <Table className="border border-collapse">
               <TableHeader className="border text-white bg-slate-800">
                 <TableRow>
-                  <TableHead className="font-bold border text-white">
-                    SIZE
-                  </TableHead>
-                  <TableHead className="font-bold border text-white">
-                    TOTAL
-                  </TableHead>
-                  <TableHead className="font-bold border text-white">
-                    GODOWN
-                  </TableHead>
-                  <TableHead className="font-bold border text-white">
-                    FLOOR
-                  </TableHead>
+                  <TableHead className="font-bold border text-white">SIZE</TableHead>
+                  <TableHead className="font-bold border text-white">TOTAL</TableHead>
+                  {STOCK_LOCATIONS.map((loc) => (
+                    <TableHead key={loc} className="font-bold border text-white">
+                      {LOCATION_LABELS[loc].toUpperCase()}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(kurti.sizes || []).map((sz: any, i: number) => (
-                  <TableRow
-                    key={i}
-                    className={
-                      getTotalQty(sz) > 0 && getFloorQty(sz) === 0
-                        ? "bg-amber-100"
-                        : ""
-                    }
-                  >
+                  <TableRow key={i} className={needsFloorMove(sz) ? "bg-amber-100" : ""}>
                     <TableCell className="border">
                       {String(sz.size).toUpperCase()}
                     </TableCell>
                     <TableCell className="border">{getTotalQty(sz)}</TableCell>
-                    <TableCell className="border">{getGodownQty(sz)}</TableCell>
-                    <TableCell className="border font-semibold">
-                      {getFloorQty(sz)}
-                    </TableCell>
+                    {STOCK_LOCATIONS.map((loc) => (
+                      <TableCell key={loc} className="border">
+                        {getLocationQty(sz, loc)}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 ))}
               </TableBody>
@@ -240,7 +265,7 @@ function GodownStockPage() {
 
         {/* Pending move-to-floor alert */}
         <div className="mt-4 flex flex-col gap-2">
-          <p className="text-lg font-semibold">⬇️ Should be moved for sale</p>
+          <p className="text-lg font-semibold">⬇️ Not on any showroom floor yet</p>
           <PendingFloorMoves refreshKey={refreshKey} pageSize={10} compact />
         </div>
       </CardContent>
@@ -251,7 +276,9 @@ function GodownStockPage() {
 const GodownStockHelp = () => {
   return (
     <>
-      <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+      <RoleGateForComponent
+        allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SHOP_SELLER]}
+      >
         <GodownStockPage />
       </RoleGateForComponent>
       <RoleGateForComponent allowedRole={[UserRole.SELLER]}>

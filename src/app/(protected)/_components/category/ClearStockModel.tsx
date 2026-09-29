@@ -24,6 +24,7 @@ import {
 import { Input } from "@/src/components/ui/input";
 import { Button } from "@/src/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import { LOCATION_LABELS, STOCK_LOCATIONS, StockLocation } from "@/src/lib/godown";
 
 const clearStockSchema = z.object({
   password: z.string().min(1, "Password is required"),
@@ -32,9 +33,11 @@ const clearStockSchema = z.object({
 interface ClearStockModalProps {
   categoryCode: string;
   categoryName?: string;
+  /** `location` empty = clear every location (the whole category). */
   onClearStock: (
     categoryCode: string,
-    password: string
+    password: string,
+    location?: StockLocation
   ) => Promise<{ success?: boolean; error?: string }>;
   trigger?: React.ReactNode;
 }
@@ -47,6 +50,8 @@ const ClearStockModal = ({
 }: ClearStockModalProps) => {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [location, setLocation] = useState<StockLocation | "ALL">("ALL");
+  const where = location === "ALL" ? "every location" : LOCATION_LABELS[location];
 
   const form = useForm<z.infer<typeof clearStockSchema>>({
     resolver: zodResolver(clearStockSchema),
@@ -57,7 +62,11 @@ const ClearStockModal = ({
 
   const handleSubmit = (values: z.infer<typeof clearStockSchema>) => {
     startTransition(() => {
-      onClearStock(categoryCode, values.password)
+      onClearStock(
+        categoryCode,
+        values.password,
+        location === "ALL" ? undefined : location
+      )
         .then((data) => {
         //   if (data.error) {
         //     toast.error(data.error);
@@ -83,6 +92,7 @@ const ClearStockModal = ({
       form.reset({
         password: "",
       });
+      setLocation("ALL");
     }
   };
 
@@ -103,8 +113,8 @@ const ClearStockModal = ({
           </div>
           <DialogDescription className="text-gray-600">
             {categoryName
-              ? `You are about to clear all stock for "${categoryName}" (${categoryCode}).`
-              : `You are about to clear all stock for category "${categoryCode}".`}
+              ? `You are about to clear the stock of "${categoryName}" (${categoryCode}) in ${where}.`
+              : `You are about to clear the stock of category "${categoryCode}" in ${where}.`}
             <br />
             <span className="font-semibold text-red-600">
               This action cannot be undone. Please enter your password to
@@ -135,17 +145,44 @@ const ClearStockModal = ({
               )}
             </div>
 
+            <div className="flex flex-col gap-2">
+              <div className="text-sm font-semibold text-gray-700">What to clear</div>
+              <div className="flex flex-wrap gap-2">
+                {(["ALL", ...STOCK_LOCATIONS] as (StockLocation | "ALL")[]).map((loc) => (
+                  <button
+                    key={loc}
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => setLocation(loc)}
+                    className={`px-3 py-1.5 rounded-md border text-xs font-semibold ${
+                      location === loc
+                        ? "bg-red-600 border-red-600 text-white"
+                        : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {loc === "ALL" ? "All locations" : LOCATION_LABELS[loc]}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-600">
+                For a stock-take of one place, clear only that location, then
+                re-scan its pieces in Add Stock with &quot;Add to&quot; set to the same
+                location.
+              </p>
+            </div>
+
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-start space-x-2">
                 <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-red-700">
                   <div className="font-semibold mb-1">Warning:</div>
                   <ul className="list-disc list-inside space-y-1">
-                    <li>All stock quantities will be set to 0</li>
-                    <li>This action is permanent and cannot be undone</li>
                     <li>
-                      All inventory data for this category will be cleared
+                      {location === "ALL"
+                        ? "All stock quantities will be set to 0"
+                        : `Stock in ${where} will be set to 0 - other locations keep their pieces`}
                     </li>
+                    <li>This action is permanent and cannot be undone</li>
                   </ul>
                 </div>
               </div>

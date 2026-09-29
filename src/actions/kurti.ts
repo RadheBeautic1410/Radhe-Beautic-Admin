@@ -7,7 +7,7 @@ import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
 import { v4 as uuidv4 } from "uuid";
 import { CURRENT_EMBEDDING_VERSION } from "@/src/lib/embeddingVersion";
-import { normalizeSizesGodown } from "@/src/lib/godown";
+import { normalizeSizesLocations } from "@/src/lib/godown";
 
 export const getCurrTime = async () => {
   // Always store in UTC; handle display/filtering in desired timezone
@@ -28,6 +28,11 @@ export const kurtiAddition = async (data: any) => {
   dataWithTime["countOfPiece"] = cnt;
   dataWithTime["lastUpdatedTime"] = currTime;
   dataWithTime["reservedSizes"] = [];
+  // New stock lands in the godown: nothing is on a floor or at shop 316
+  // until it is moved there from /godown.
+  dataWithTime["sizes"] = normalizeSizesLocations(
+    sizes.map((s: any) => ({ size: s.size, quantity: s.quantity }))
+  );
   console.log(dataWithTime);
 
   // Check if the selected category has prices set
@@ -193,9 +198,9 @@ function isSize(size: string) {
 
 export const stockAddition = async (data: any) => {
   const { code } = data;
-  // Clamp every size into shape first: godownQuantity must stay within
-  // [0, quantity] so floor stock (quantity - godownQuantity) can never go negative.
-  const sizes = normalizeSizesGodown(data.sizes || []);
+  // Clamp every size into shape first: showroom + shop 316 counts must stay
+  // within quantity so godown stock (the remainder) can never go negative.
+  const sizes = normalizeSizesLocations(data.sizes || []);
 
   // Step 1: Calculate new total count of pieces from sizes
   let newCount = 0;

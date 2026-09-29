@@ -30,6 +30,11 @@ import { shippedOrder } from "@/src/actions/order";
 import { getShopList, getUserShop } from "@/src/actions/shop";
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
+import { StockLocation } from "@/src/lib/godown";
+import {
+  StockLocationPicker,
+  suggestStockLocation,
+} from "@/src/app/(protected)/_components/godown/stock-location-picker";
 
 const getCurrTime = () => {
   const currentTime = new Date();
@@ -47,7 +52,13 @@ interface CartItem {
   sellingPrice: number;
   availableStock: number;
   isLowerSize?: boolean; // Flag to indicate if this is a lower size replacement
+  stockLocation?: StockLocation; // Where the pieces are collected from (deducted there)
 }
+
+const findSizeRow = (kurti: any, size: string) =>
+  (kurti?.sizes || []).find(
+    (sz: any) => String(sz.size).toUpperCase() === String(size).toUpperCase()
+  );
 type GSTType = "IGST" | "SGST_CGST";
 function SellPage() {
   const params = useParams();
@@ -236,6 +247,7 @@ function SellPage() {
                     sellingPrice: itemPrice,
                     availableStock: actualSizeStock.quantity,
                     isLowerSize: true,
+                    stockLocation: suggestStockLocation(actualSizeStock, sizeInfo.quantity),
                   });
                 }
               } else {
@@ -255,6 +267,7 @@ function SellPage() {
                     sellingPrice: itemPrice,
                     availableStock: currentSize.quantity,
                     isLowerSize: false,
+                    stockLocation: suggestStockLocation(currentSize, sizeInfo.quantity),
                   });
                 }
               }
@@ -340,6 +353,7 @@ function SellPage() {
       quantity,
       sellingPrice: parseInt(sellingPrice),
       availableStock: sizeInfo.quantity,
+      stockLocation: suggestStockLocation(sizeInfo, quantity),
     };
 
     if (existingItemIndex >= 0) {
@@ -461,6 +475,16 @@ function SellPage() {
       }
       const shipCharge = getOrderShippingCharge();
 
+      const unchosen = cart.filter((item) => !item.stockLocation);
+      if (unchosen.length > 0) {
+        toast.error(
+          `Choose where to take stock from for: ${unchosen
+            .map((i) => `${i.kurti.code.toUpperCase()}-${i.selectedSize.toUpperCase()}`)
+            .join(", ")}`
+        );
+        return;
+      }
+
       // Prepare products data for API
       const products = cart.map((item) => {
         const product: any = {
@@ -469,6 +493,7 @@ function SellPage() {
           selectedSize: item.selectedSize, // Actual size for stock deduction
           quantity: item.quantity,
           sellingPrice: item.sellingPrice,
+          stockLocation: item.stockLocation,
         };
         // Only include orderedSize if it exists (for lower sizes)
         if (item.orderedSize) {
@@ -1166,6 +1191,9 @@ function SellPage() {
                       Quantity
                     </TableHead>
                     <TableHead className="font-bold border text-white">
+                      Take From
+                    </TableHead>
+                    <TableHead className="font-bold border text-white">
                       Unit Price
                     </TableHead>
                     <TableHead className="font-bold border text-white">
@@ -1223,6 +1251,20 @@ function SellPage() {
                             )
                           }
                           className="w-20"
+                        />
+                      </TableCell>
+                      <TableCell className="border">
+                        <StockLocationPicker
+                          sizeRow={findSizeRow(item.kurti, item.selectedSize)}
+                          quantity={item.quantity}
+                          value={item.stockLocation}
+                          onChange={(loc) =>
+                            setCart((prev) =>
+                              prev.map((c) =>
+                                c.id === item.id ? { ...c, stockLocation: loc } : c
+                              )
+                            )
+                          }
                         />
                       </TableCell>
                       <TableCell className="border">

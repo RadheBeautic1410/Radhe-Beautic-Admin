@@ -65,8 +65,10 @@ interface KurtiUpdateProps {
 interface Size {
   size: string;
   quantity: number;
-  /** How many of the total pieces are lying in the godown (3rd floor). */
-  godownQuantity?: number;
+  /** Pieces on each showroom floor and at shop 316; the rest are in the godown. */
+  floor1Quantity?: number;
+  floor2Quantity?: number;
+  shop316Quantity?: number;
 }
 
 interface SearchableSelectProps {

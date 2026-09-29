@@ -4,6 +4,7 @@ import { db } from "@/src/lib/db";
 import { currentUser } from "@/src/lib/auth";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { notifyPaymentConfirmed, notifyOrderShipped } from "@/src/lib/order-notifications";
+import { StockLocation, addToLocation, deductFromLocation, isStockLocation } from "@/src/lib/godown";
 
 // Helper type for size quantity objects
 type SizeQuantity = { [size: string]: number };
@@ -17,33 +18,6 @@ const getSizeObjectFromArray = (array: any[]): SizeQuantity => {
     }
   }
   return obj;
-};
-
-// Helper function to update size quantities in array
-const updateSizeQuantity = (sizes: any[], size: string, change: number): any[] => {
-  const updatedSizes = [...sizes];
-  const existingSizeIndex = updatedSizes.findIndex((s: any) => s.size === size);
-  
-  if (existingSizeIndex !== -1) {
-    // Size exists, update quantity
-    const existingSize = updatedSizes[existingSizeIndex] as any;
-    existingSize.quantity += change;
-    
-    if (existingSize.quantity === 0) {
-      // Remove size if quantity becomes 0
-      return updatedSizes.filter((s: any) => s.size !== size);
-    } else if (existingSize.quantity < 0) {
-      throw new Error(`Size-${size} is not available (quantity would go negative)`);
-    }
-  } else if (change > 0) {
-    // Size doesn't exist, add new size entry (only if adding)
-    updatedSizes.push({ size, quantity: change });
-  } else if (change < 0) {
-    // Size doesn't exist but trying to deduct - this is an error
-    throw new Error(`Size-${size} not found for quantity deduction`);
-  }
-  
-  return updatedSizes;
 };
 
 // Helper function to safely update reserved sizes (doesn't throw error if size doesn't exist)
@@ -258,6 +232,8 @@ export const acceptCustomerOrder = async (
     paymentStatus?: PaymentStatus;
     paymentType?: string;
     note?: string;
+    /** "CODE|SIZE" -> where the packer takes those pieces from. */
+    stockLocations?: Record<string, StockLocation>;
   }
 ) => {
   try {
@@ -362,8 +338,15 @@ export const acceptCustomerOrder = async (
             
             totalQuantityDeducted += quantity;
             
-            // Deduct from actual sizes (stock) - this will throw error if not available
-            updatedSizes = updateSizeQuantity(updatedSizes, size, -quantity);
+            // Deduct from the chosen location - throws when it lacks the pieces
+            const stockLocation = paymentData?.stockLocations?.[`${code}|${size}`.toUpperCase()];
+            if (!stockLocation || !isStockLocation(stockLocation)) {
+              throw new Error(`Choose where ${code}-${size} is taken from (1st Floor / 2nd Floor / Shop 316 / Godown)`);
+            }
+            const deducted = deductFromLocation(sizeInStock, quantity, stockLocation, `${code}-${size}`);
+            updatedSizes = updatedSizes
+              .map((s: any) => (s === sizeInStock ? deducted : s))
+              .filter((s: any) => s !== deducted || deducted.quantity > 0);
             
             // Deduct from reservedSizes (release reserved quantities) - safe function that doesn't throw if size doesn't exist
             updatedReservedSizes = updateReservedSizeQuantity(updatedReservedSizes, size, -quantity);
@@ -385,6 +368,9 @@ export const acceptCustomerOrder = async (
       // Prepare update data - Set status to TRACKINGPENDING after accepting with payment
       const updateData: any = {
         status: OrderStatus.TRACKINGPENDING,
+        // Kept for the sales-by-location report
+        stockLocations: paymentData?.stockLocations || null,
+        acceptedAt: getCurrTime(), // IST-shifted, like every sellTime
       };
 
       // Add payment information if provided
@@ -722,8 +708,14 @@ export const cancelCustomerOrder = async (orderId: string) => {
               }
 
               if (shouldRestoreActualStock) {
-                // Accepted orders already reduced stock, so add it back on cancel
-                updatedSizes = updateSizeQuantity(updatedSizes, size, releaseQty);
+                // Accepted orders already reduced stock, so add it back on cancel.
+                // Pieces that come back go to the godown.
+                const idx = updatedSizes.findIndex((s: any) => s.size === size);
+                if (idx === -1) {
+                  updatedSizes.push(addToLocation({ size, quantity: 0 }, releaseQty, "GODOWN"));
+                } else {
+                  updatedSizes[idx] = addToLocation(updatedSizes[idx], releaseQty, "GODOWN");
+                }
                 totalRestored += releaseQty;
               }
             }

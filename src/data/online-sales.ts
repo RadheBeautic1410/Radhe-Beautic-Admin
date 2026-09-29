@@ -8,7 +8,11 @@ import {
 } from "@/src/lib/firebase/firebase";
 import { Buffer } from "buffer";
 import { getCurrTime } from "../actions/kurti";
-import { getGodownQty as clampGodownToTotal } from "@/src/lib/godown";
+import {
+  addToLocation,
+  deductFromLocation,
+  isStockLocation,
+} from "@/src/lib/godown";
 
 export interface OnlineSalesFilters {
   page?: number;
@@ -649,18 +653,24 @@ export const updateOnlineSaleWithWalletAndCart = async (
                 );
 
                 if (existingSizeIndex !== -1) {
-                  // Size exists, increment quantity
-                  const existingSize = updatedSizes[existingSizeIndex] as any;
-                  existingSize.quantity += removedItem.quantity;
+                  // Size exists: the piece was not sent, so it goes back to the godown
+                  updatedSizes[existingSizeIndex] = addToLocation(
+                    updatedSizes[existingSizeIndex],
+                    removedItem.quantity || 0,
+                    "GODOWN"
+                  );
                   console.log(
-                    `Updated existing size ${removedItem.kurtiSize} quantity to ${existingSize.quantity}`
+                    `Updated existing size ${removedItem.kurtiSize} quantity to ${(updatedSizes[existingSizeIndex] as any).quantity}`
                   );
                 } else {
-                  // Size doesn't exist, add new size entry
-                  updatedSizes.push({
-                    size: removedItem.kurtiSize,
-                    quantity: removedItem.quantity,
-                  });
+                  // Size doesn't exist, add new size entry (in the godown)
+                  updatedSizes.push(
+                    addToLocation(
+                      { size: removedItem.kurtiSize, quantity: 0 },
+                      removedItem.quantity || 0,
+                      "GODOWN"
+                    )
+                  );
                   console.log(
                     `Added new size ${removedItem.kurtiSize} with quantity ${removedItem.quantity}`
                   );
@@ -807,14 +817,28 @@ export const updateOnlineSaleWithWalletAndCart = async (
                 );
 
                 if (existingSizeIndex !== -1) {
-                  // Size exists, adjust quantity
+                  // Size exists: fewer pieces sent go back to the godown, extra
+                  // pieces come out of the location chosen on the edit page
                   const existingSize = updatedSizes[existingSizeIndex] as any;
-                  existingSize.quantity -= quantityDifference; // Subtract because we're reducing the sold quantity
-                  existingSize.godownQuantity = clampGodownToTotal(existingSize);
+                  if (quantityDifference < 0) {
+                    updatedSizes[existingSizeIndex] = addToLocation(existingSize, -quantityDifference, "GODOWN");
+                  } else {
+                    if (!isStockLocation(item.stockLocation)) {
+                      throw new Error(
+                        `Choose where the extra ${originalItem.kurtiSize} pieces are taken from`
+                      );
+                    }
+                    updatedSizes[existingSizeIndex] = deductFromLocation(
+                      existingSize,
+                      quantityDifference,
+                      item.stockLocation,
+                      `${originalItem.code}-${originalItem.kurtiSize}`
+                    );
+                  }
                   console.log(
                     `Updated size ${originalItem.kurtiSize} quantity from ${
-                      existingSize.quantity + quantityDifference
-                    } to ${existingSize.quantity}`
+                      existingSize.quantity
+                    } to ${(updatedSizes[existingSizeIndex] as any).quantity}`
                   );
                 }
 
@@ -891,19 +915,23 @@ export const updateOnlineSaleWithWalletAndCart = async (
               );
 
               if (existingSizeIndex !== -1) {
-                // Size exists, reduce quantity
+                // Size exists, reduce quantity at the chosen location
                 const existingSize = updatedSizes[existingSizeIndex] as any;
-                if (existingSize.quantity < product.quantity) {
+                if (!isStockLocation(product.stockLocation)) {
                   throw new Error(
-                    `Insufficient stock for kurti ${product.kurtiId}, size ${product.selectedSize}. Available: ${existingSize.quantity}, Requested: ${product.quantity}`
+                    `Choose where ${product.code || product.kurtiCode}-${product.selectedSize} is taken from`
                   );
                 }
-                existingSize.quantity -= product.quantity;
-                existingSize.godownQuantity = clampGodownToTotal(existingSize);
+                updatedSizes[existingSizeIndex] = deductFromLocation(
+                  existingSize,
+                  product.quantity,
+                  product.stockLocation,
+                  `${product.code || product.kurtiCode}-${product.selectedSize}`
+                );
                 console.log(
                   `Reduced size ${product.selectedSize} quantity from ${
-                    existingSize.quantity + product.quantity
-                  } to ${existingSize.quantity}`
+                    existingSize.quantity
+                  } to ${(updatedSizes[existingSizeIndex] as any).quantity}`
                 );
               } else {
                 throw new Error(
@@ -968,6 +996,7 @@ export const updateOnlineSaleWithWalletAndCart = async (
                 kurtiSize: product.selectedSize,
                 quantity: product.quantity,
                 selledPrice: product.sellingPrice,
+                stockLocation: product.stockLocation,
                 batchId: id,
                 sellTime: new Date(),
                 createdAt: currTime,

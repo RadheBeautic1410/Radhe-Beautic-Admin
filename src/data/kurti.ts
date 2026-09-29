@@ -12,7 +12,14 @@ import {
 } from "@prisma/client";
 import { Buffer } from "buffer";
 import { getCurrTime } from "../actions/kurti";
-import { getGodownQty as clampGodownToTotal } from "@/src/lib/godown";
+import {
+  StockLocation,
+  addToLocation,
+  deductFromLocation,
+  isStockLocation,
+  locationForShopId,
+  normalizeSizesLocations,
+} from "@/src/lib/godown";
 
 export const getLastDelTime = async () => {
   try {
@@ -403,6 +410,11 @@ export const sellKurti2 = async (data: any) => {
       quantity: number;
     }
     let { code, currentUser, currentTime } = data;
+    // The /sell page says which location the piece is sold from.
+    if (!isStockLocation(data?.stockLocation)) {
+      return { error: "Choose which location you are selling from (1st Floor / 2nd Floor / Shop 316 / Godown)" };
+    }
+    const stockLocation: StockLocation = data.stockLocation;
     code = code.toUpperCase();
     let search = code.substring(0, 7).toUpperCase();
     let cmp = code.substring(7);
@@ -464,9 +476,12 @@ export const sellKurti2 = async (data: any) => {
             return { error: "This piece is already reserved." };
           }
           
+          try {
+            obj = deductFromLocation(obj, 1, stockLocation, `${search}-${cmp}`);
+          } catch (e: any) {
+            return { error: e.message };
+          }
           flag = 1;
-          obj.quantity -= 1;
-          obj.godownQuantity = clampGodownToTotal(obj);
           if (obj.quantity > 0) {
             newArr.push(obj);
           }
@@ -544,6 +559,8 @@ export const sellKurti2 = async (data: any) => {
                 kurtiId: updateUser.id,
                 pricesId: prices.id,
                 kurtiSize: cmp,
+                stockLocation,
+                isOnlineOrder: data?.isOnlineOrder === true,
               },
             });
             await db.category.update({
@@ -808,6 +825,10 @@ export const sellMultipleKurtis = async (data: any) => {
     if (!products || products.length === 0) {
       return { error: "No products provided" };
     }
+    if (!isStockLocation(data?.stockLocation)) {
+      return { error: "Choose which location the pieces are sold from" };
+    }
+    const stockLocation: StockLocation = data.stockLocation;
 
     const soldProducts = [];
     const errors = [];
@@ -863,20 +884,15 @@ export const sellMultipleKurtis = async (data: any) => {
             if (!obj) break;
 
             if (obj.size === cmp) {
-              if (obj.quantity < quantity) {
-                errors.push(
-                  `Insufficient stock for ${search}-${cmp}. Available: ${obj.quantity}, Requested: ${quantity}`
-                );
+              try {
+                obj = deductFromLocation(obj, quantity, stockLocation, `${search}-${cmp}`);
+              } catch (e: any) {
+                errors.push(`Insufficient stock for ${e.message}`);
                 flag = 0;
                 break;
-              } else {
-                flag = 1;
-                obj.quantity -= quantity;
-                obj.godownQuantity = clampGodownToTotal(obj);
-                if (obj.quantity >= 0) {
-                  newArr.push(obj);
-                }
               }
+              flag = 1;
+              newArr.push(obj);
             } else {
               newArr.push(arr[j]);
             }
@@ -945,6 +961,7 @@ export const sellMultipleKurtis = async (data: any) => {
                   billCreatedBy: billCreatedBy,
                   paymentType: paymentType,
                   shopName: shopName,
+                  stockLocation,
                 },
               });
 
@@ -1392,7 +1409,11 @@ export const getSellingHistoryFiltered = async (params: {
   }));
 };
 
-export const addStock = async (code: string) => {
+/**
+ * Add one scanned piece. New parcels go to the godown (the default); during a
+ * stock-take the team re-scans a cleared location with that `location` chosen.
+ */
+export const addStock = async (code: string, location: StockLocation = "GODOWN") => {
   try {
     console.log(code);
     let search = code.substring(0, 7).toUpperCase();
@@ -1420,20 +1441,17 @@ export const addStock = async (code: string) => {
     if (!kurti) {
       return { error: "No Kurti found!!!" };
     }
-    let sizes: any[] = kurti.sizes || [];
+    let sizes: any[] = normalizeSizesLocations((kurti.sizes as any[]) || []);
     let flag = 0;
     for (let i = 0; i < sizes.length; i++) {
       if (sizes[i].size === cmp) {
-        sizes[i].quantity += 1;
+        sizes[i] = addToLocation(sizes[i], 1, location);
         flag = 1;
         break;
       }
     }
     if (flag === 0) {
-      sizes.push({
-        size: cmp,
-        quantity: 1,
-      });
+      sizes.push(addToLocation({ size: cmp, quantity: 0 }, 1, location));
     }
     console.log(sizes);
     const currTime = await getCurrTime();
@@ -1487,6 +1505,7 @@ export const addStock = async (code: string) => {
         size: cmp.toUpperCase(),
         quantity: 1,
         kurtiId: KurtiNew?.id || undefined,
+        location,
         createdAt: currTime,
       },
     });
@@ -1553,6 +1572,10 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
     const currTime = await getCurrTime();
     if (tracked.length === 0 && untracked.length === 0) {
       return { error: "No products provided" };
+    }
+    const billStockLocation = locationForShopId(shopId);
+    if (tracked.length > 0 && !billStockLocation) {
+      return { error: "This shop has no stock location set up - select 1st floor, 2nd floor or Shop 316" };
     }
 
     const discount = Math.max(0, parseInt(String(discountAmount || 0)) || 0);
@@ -1696,38 +1719,40 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
           m.set(p.cmp, (m.get(p.cmp) || 0) + p.quantity);
         }
 
-        // Validate stock for all affected kurtis/sizes before applying updates
+        // Each shop sells its own stock: 1st floor, 2nd floor or shop 316.
+        const stockLocation = billStockLocation!;
+
+        // Deduct each kurti's sizes in memory; a size that lacks stock at this
+        // location is skipped (and reported) instead of being sold.
+        const failedLines = new Set<string>();
         for (const [code, sizeMap] of decByKurti.entries()) {
           const k = kurtiByCode.get(code);
           if (!k?.sizes) {
             errors.push(`Product ${code} not found or has no sizes`);
             continue;
           }
-          for (const [size, qty] of sizeMap.entries()) {
-            const sizeInfo = (k.sizes as any[]).find(
-              (s: any) => String(s?.size || "").toUpperCase() === size
-            );
-            const available = Number(sizeInfo?.quantity || 0);
-            if (!sizeInfo || available < qty) {
-              errors.push(
-                `Insufficient stock for ${code}-${size}. Available: ${available}, Requested: ${qty}`
-              );
-            }
-          }
-        }
-
-        // If everything failed validation, abort early
-        // Apply stock updates (each kurti updated once)
-        for (const [code, sizeMap] of decByKurti.entries()) {
-          const k = kurtiByCode.get(code);
-          if (!k?.sizes) continue;
-
-          const updatedSizes = (k.sizes as any[]).map((s: any) => {
+          let changed = false;
+          const updatedSizes = normalizeSizesLocations(k.sizes as any[]).map((s: any) => {
             const key = String(s?.size || "").toUpperCase();
             const dec = sizeMap.get(key) || 0;
             if (!dec) return s;
-            return { ...s, quantity: Math.max(0, (s?.quantity || 0) - dec) };
+            try {
+              const next = deductFromLocation(s, dec, stockLocation, `${code}-${key}`);
+              changed = true;
+              return next;
+            } catch (e: any) {
+              errors.push(`Insufficient stock for ${e.message}`);
+              failedLines.add(`${code}|${key}`);
+              return s;
+            }
           });
+          for (const size of sizeMap.keys()) {
+            if (!updatedSizes.some((s: any) => String(s?.size || "").toUpperCase() === size)) {
+              errors.push(`Insufficient stock for ${code}-${size}. Size not in stock`);
+              failedLines.add(`${code}|${size}`);
+            }
+          }
+          if (!changed) continue;
 
           await tx.kurti.update({
             where: { id: k.id },
@@ -1740,14 +1765,8 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
           .map((p: any) => {
             const k = kurtiByCode.get(p.search);
             if (!k) return null;
-            // Skip if stock validation failed for this specific size+qty
-            const sizeInfo = (k.sizes as any[])?.find(
-              (s: any) => String(s?.size || "").toUpperCase() === p.cmp
-            );
-            const available = Number(sizeInfo?.quantity || 0);
-            const requested = decByKurti.get(p.search)?.get(p.cmp) || p.quantity;
             // If validation logged error, don't sell this line
-            if (!sizeInfo || available < requested) return null;
+            if (failedLines.has(`${p.search}|${p.cmp}`)) return null;
 
             totalAmount += p.sellingPrice * p.quantity;
             return {
@@ -1758,6 +1777,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
               pricesId: k.pricesId,
               kurtiSize: p.cmp,
               shopLocation: selectedLocation,
+              stockLocation,
               customerName: customerName,
               customerPhone: customerPhone,
               selledPrice: p.sellingPrice,
@@ -2102,6 +2122,11 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
           console.log("product", product);
 
           let { code, kurti, selectedSize, quantity, sellingPrice, orderedSize } = product;
+          // Online/reseller orders are not tied to a shop: whoever packs the
+          // order picks which location the pieces were collected from.
+          const stockLocation: StockLocation | null = isStockLocation(product?.stockLocation)
+            ? product.stockLocation
+            : null;
 
           try {
             code = code.toUpperCase();
@@ -2149,6 +2174,17 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                   sizeInSizes?.quantity || 0
                 }, Requested: ${quantity}`
               );
+              continue;
+            }
+            if (!stockLocation) {
+              errors.push(`Choose where ${search}-${cmp} was taken from (1st Floor / 2nd Floor / Shop 316 / Godown)`);
+              continue;
+            }
+            let deductedRow: any;
+            try {
+              deductedRow = deductFromLocation(sizeInSizes, quantity, stockLocation, `${search}-${cmp}`);
+            } catch (e: any) {
+              errors.push(`Insufficient stock for ${e.message}`);
               continue;
             }
 
@@ -2223,13 +2259,10 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
             }
 
             try {
-              // Update working stock sizes
-              const updatedSizes = updateSizeQuantity(
-                kurtiFromDB.workingSizes,
-                stockSizeKey,
-                -quantity
-              );
-              kurtiFromDB.workingSizes = updatedSizes;
+              // Update working stock sizes (row already deducted at the chosen location)
+              kurtiFromDB.workingSizes = kurtiFromDB.workingSizes
+                .map((s: any) => (s === sizeInSizes ? deductedRow : s))
+                .filter((s: any) => s !== deductedRow || deductedRow.quantity > 0);
 
               if (
                 shouldUseReservedSizes &&
@@ -2257,6 +2290,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
                 pricesId: prices.id,
                 kurtiSize: stockSizeKey,
                 shopLocation: selectedLocation || null,
+                stockLocation,
                 customerName: customerName,
                 customerPhone: customerPhone || null,
                 selledPrice: parseInt(sellingPrice.toString()),
@@ -2675,12 +2709,24 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
           continue;
         }
 
-        // Check if size exists and has stock
+        // Check the size has stock at the bill's shop, then deduct it there
         const sizeInfo = kurtiFromDB.sizes.find((sz: any) => sz.size === cmp);
-        if (!sizeInfo || (sizeInfo as any).quantity < quantity) {
+        if (!sizeInfo) {
           errors.push(
             `Product ${search}-${cmp} not in stock or insufficient quantity`
           );
+          continue;
+        }
+        let deducted: any;
+        const batchLocation = locationForShopId(existingBatch.shopId);
+        if (!batchLocation) {
+          errors.push(`${search}-${cmp}: this bill's shop has no stock location`);
+          continue;
+        }
+        try {
+          deducted = deductFromLocation(sizeInfo, quantity, batchLocation, `${search}-${cmp}`);
+        } catch (e: any) {
+          errors.push(`Product ${e.message}`);
           continue;
         }
 
@@ -2688,12 +2734,9 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
         const updateUser = await db.kurti.update({
           where: { id: kurtiFromDB.id },
           data: {
-            sizes: kurtiFromDB.sizes.map((sz: any) => {
-              if (sz.size === cmp) {
-                return { ...sz, quantity: (sz as any).quantity - quantity };
-              }
-              return sz;
-            }),
+            sizes: kurtiFromDB.sizes.map((sz: any) =>
+              sz.size === cmp ? deducted : sz
+            ),
           },
         });
 
@@ -2734,6 +2777,7 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
             pricesId: prices.id,
             kurtiSize: cmp,
             shopLocation: selectedLocation,
+            stockLocation: batchLocation,
             customerName: customerName,
             customerPhone: customerPhone,
             selledPrice: sellingPrice,

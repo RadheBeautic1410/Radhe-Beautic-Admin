@@ -1,6 +1,15 @@
 "use client";
 
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
+import {
+  LOCATION_LABELS,
+  STOCK_LOCATIONS,
+  StockLocation,
+  describeLocations,
+  isStockLocation,
+  locationForShopId,
+} from "@/src/lib/godown";
+import { getUserShop } from "@/src/actions/shop";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
@@ -16,7 +25,7 @@ import { UserRole } from "@prisma/client";
 import { Value } from "@radix-ui/react-select";
 import axios from "axios";
 import { Axis3D, Loader2 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
@@ -35,12 +44,51 @@ function SellPage() {
   const [sizes, setSellSize] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const currentUser = useCurrentUser();
+  // Which location the piece is sold from; remembered on this device.
+  const [floor, setFloor] = useState<StockLocation | null>(null);
+  // Shop logins (1st floor, 2nd floor, Shop 316) always sell their own location.
+  const [lockedLocation, setLockedLocation] = useState<StockLocation | null>(null);
+  const isShopLogin = currentUser?.role === UserRole.SHOP_SELLER;
+  useEffect(() => {
+    if (isShopLogin) return;
+    try {
+      const saved = localStorage.getItem("sellFloor");
+      if (isStockLocation(saved)) setFloor(saved);
+    } catch {}
+  }, [isShopLogin]);
+  useEffect(() => {
+    if (!isShopLogin || !currentUser?.id) return;
+    setFloor(null);
+    getUserShop(currentUser.id)
+      .then((shop) => {
+        const loc = locationForShopId(shop?.id);
+        if (loc) {
+          setLockedLocation(loc);
+          setFloor(loc);
+        }
+      })
+      .catch(() => {});
+  }, [isShopLogin, currentUser?.id]);
+  const chooseFloor = (loc: StockLocation) => {
+    if (lockedLocation) return;
+    setFloor(loc);
+    try {
+      localStorage.setItem("sellFloor", loc);
+    } catch {}
+  };
+  // WhatsApp / online order: stock still comes off `floor`, but the report counts
+  // it as an online sale. Stays ticked for the whole order; not remembered.
+  const [isOnlineOrder, setIsOnlineOrder] = useState(false);
   // console.log(currentUser);
   const handleSell = async () => {
     try {
       setSelling(true);
       setErrorMessage(null); // Clear previous error
-      if (code.length < 7) {
+      if (!floor) {
+        const errorMsg = "Choose which location you are selling from";
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
+      } else if (code.length < 7) {
         const errorMsg = "Please enter correct code!!!";
         setErrorMessage(errorMsg);
         toast.error(errorMsg);
@@ -57,6 +105,8 @@ function SellPage() {
           code,
           currentUser,
           currentTime: ISTTime,
+          stockLocation: floor,
+          isOnlineOrder,
         });
         // const response = await fetch(`/api/sell?code=${code}`); // Adjust the API endpoint based on your actual setup
         // const result = await response.json();
@@ -68,7 +118,7 @@ function SellPage() {
           setKurti(null);
         } else {
           setErrorMessage(null); // Clear error on success
-          toast.success("Sold Successfully");
+          toast.success(isOnlineOrder ? "Sold as online order" : "Sold Successfully");
           // console.log(result);
 
           setKurti(data.kurti);
@@ -106,6 +156,46 @@ function SellPage() {
         <p className="text-2xl font-semibold text-center">🛒 Sell</p>
       </CardHeader>
       <CardContent className="w-full flex flex-col space-evenely justify-center flex-wrap gap-3">
+        <div className="flex flex-row flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold">Selling from:</span>
+          {STOCK_LOCATIONS.map((loc) => (
+            <button
+              key={loc}
+              type="button"
+              disabled={isShopLogin && loc !== lockedLocation}
+              onClick={() => chooseFloor(loc)}
+              className={`px-4 py-2 rounded-lg border text-sm font-semibold ${
+                floor === loc
+                  ? "bg-slate-800 border-slate-800 text-white"
+                  : isShopLogin
+                    ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              {LOCATION_LABELS[loc]}
+            </button>
+          ))}
+        </div>
+        <label
+          className={`flex w-fit items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold cursor-pointer ${
+            isOnlineOrder
+              ? "bg-amber-100 border-amber-400 text-amber-900"
+              : "bg-white border-gray-300 text-gray-700"
+          }`}
+        >
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={isOnlineOrder}
+            onChange={(e) => setIsOnlineOrder(e.target.checked)}
+          />
+          Online order (WhatsApp)
+          {isOnlineOrder && (
+            <span className="font-normal text-xs">
+              - counted as an online sale; untick for counter sales
+            </span>
+          )}
+        </label>
         <div className="flex flex-row flex-wrap gap-2">
           <div className="flex flex-col flex-wrap">
             <h3>Product Code</h3>
@@ -189,6 +279,7 @@ function SellPage() {
                         </TableCell>
                         <TableCell className="border border-red">
                           {sz.quantity}
+                          <span className="block text-[10px] text-gray-500">{describeLocations(sz)}</span>
                         </TableCell>
                       </TableRow>
                     );
@@ -216,6 +307,7 @@ function SellPage() {
                         </TableCell>
                         <TableCell className="border border-red">
                           {sz.quantity}
+                          <span className="block text-[10px] text-gray-500">{describeLocations(sz)}</span>
                         </TableCell>
                       </TableRow>
                     );
@@ -242,7 +334,9 @@ function SellPage() {
 const SellerHelp = () => {
   return (
     <>
-      <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.SELLER]}>
+      <RoleGateForComponent
+        allowedRole={[UserRole.ADMIN, UserRole.SELLER, UserRole.SHOP_SELLER]}
+      >
         <SellPage />
       </RoleGateForComponent>
       <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>

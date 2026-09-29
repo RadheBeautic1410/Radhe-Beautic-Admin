@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { error } from 'console';
 import { packedOrder } from '@/src/actions/order';
 import { useInvalidateQueries } from '../../orders/useInvalidateQueries';
+import { LOCATION_LABELS, STOCK_LOCATIONS, StockLocation, describeLocations } from '@/src/lib/godown';
 interface ViewOrderDialogProps {
     data: any
 }
@@ -39,6 +40,8 @@ export function PackingPending({ data }: ViewOrderDialogProps) {
     const invalidateQueries = useInvalidateQueries();
     
     const [code, setCode] = useState("");
+    // Where the packer is collecting pieces from; stays selected between scans.
+    const [stockLocation, setStockLocation] = useState<StockLocation | null>(null);
     const currentUser = useCurrentUser();
     const [refresh, setRefresh] = useState(false);
     const queryClient = useQueryClient();
@@ -78,6 +81,7 @@ export function PackingPending({ data }: ViewOrderDialogProps) {
                     currentUser,
                     cartId,
                     currentTime: currTime,
+                    stockLocation,
                 }),
                 headers: {
                     "Content-type": "application/json; charset=UTF-8"
@@ -150,6 +154,9 @@ export function PackingPending({ data }: ViewOrderDialogProps) {
                 productId: product.id,
                 productCode: product.kurti.code,
                 size,
+                whereIs: describeLocations(
+                    (product.kurti.sizes || []).find((s: any) => String(s.size).toUpperCase() === String(size).toUpperCase())
+                ),
                 scanned: product.scannedSizes.find((s: any) => s.size === size)?.quantity || 0,
                 total: quantity,
             }))
@@ -169,6 +176,9 @@ export function PackingPending({ data }: ViewOrderDialogProps) {
     const handleSell = async () => {
         if (code.length < 7) {
             toast.error('PLease enter correct code!!!');
+        }
+        else if (!stockLocation) {
+            toast.error('Choose where you are taking this piece from');
         }
         else {
             // console.log('sell',sizesPendingQuery.data.data.cartId);
@@ -216,9 +226,12 @@ export function PackingPending({ data }: ViewOrderDialogProps) {
                                         <div className="mt-4">
                                             <h3 className="font-semibold mb-2">Pending Items:</h3>
                                             <div className="space-y-2 max-h-56 overflow-y-auto">
-                                                {pendingItems?.map(({ productId, productCode, size, scanned, total }) => (
+                                                {pendingItems?.map(({ productId, productCode, size, scanned, total, whereIs }) => (
                                                     <div key={`${productId}-${size}`} className="flex items-center justify-between bg-gray-100 p-2 rounded">
-                                                        <span className="text-sm font-medium">{productCode} - {size}</span>
+                                                        <span className="text-sm font-medium">
+                                                            {productCode} - {size}
+                                                            <span className="block text-[11px] font-normal text-gray-600">📍 {whereIs}</span>
+                                                        </span>
                                                         <span className="text-sm">
                                                             {scanned}/{total} <Package className="inline-block w-4 h-4 ml-1" />
                                                         </span>
@@ -229,6 +242,19 @@ export function PackingPending({ data }: ViewOrderDialogProps) {
                                         : ""}
                                     {!allItemsScanned ?
                                         <div className='flex flex-col h-fit'>
+                                            <h3>Taking from</h3>
+                                            <div className='flex flex-row flex-wrap gap-1 mb-2'>
+                                                {STOCK_LOCATIONS.map((loc) => (
+                                                    <button
+                                                        key={loc}
+                                                        type='button'
+                                                        onClick={() => setStockLocation(loc)}
+                                                        className={`px-2 py-1 rounded-md border text-xs font-semibold ${stockLocation === loc ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-gray-300 text-gray-800'}`}
+                                                    >
+                                                        {LOCATION_LABELS[loc]}
+                                                    </button>
+                                                ))}
+                                            </div>
                                             <h3>Product Code</h3>
                                             <div className='flex flex-row flex-wrap gap-2'>
                                                 <Input

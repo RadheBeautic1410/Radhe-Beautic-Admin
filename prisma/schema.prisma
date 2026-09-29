@@ -311,6 +311,8 @@ model Sell {
   billCreatedBy String?
   batchId       String? // Reference to SaleBatch
   batch         SaleBatch? @relation("BatchSales", fields: [batchId], references: [id])
+  stockLocation String? // StockLocation the pieces were taken from (null = before locations existed)
+  isOnlineOrder Boolean? // true = WhatsApp/online order scanned on /sell; reported as an online sale
 
   @@index([code])
   @@index([sellTime])
@@ -390,6 +392,7 @@ model OfflineSell {
   pricesId      String?          @db.ObjectId
   prices        Prices?          @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   shopLocation  String?
+  stockLocation String? // StockLocation the pieces were taken from (null = before locations existed)
   customerName  String?
   customerPhone String?
   quantity      Int?
@@ -452,6 +455,7 @@ model OnlineSell {
   pricesId      String?         @db.ObjectId
   prices        Prices?         @relation(fields: [pricesId], references: [id], onDelete: NoAction)
   shopLocation  String?
+  stockLocation String? // StockLocation the pieces were taken from (null = before locations existed)
   customerName  String?
   customerPhone String?
   quantity      Int?
@@ -756,6 +760,10 @@ model CustomerOrder {
   paymentConfirmedNotifiedAt DateTime?
   shippedNotifiedAt          DateTime?
 
+  // Where the packer took each line from, keyed "CODE|SIZE" -> StockLocation (see src/lib/godown.ts)
+  stockLocations Json?
+  acceptedAt     DateTime?
+
   // Indexes for query performance
   @@index([userId, status, createdAt])
   @@index([status, createdAt])
@@ -826,6 +834,7 @@ model StockAddition {
   size      String
   quantity  Int      @default(1)
   kurtiId   String?  @db.ObjectId
+  location  String? // StockLocation the pieces were added to (null = before locations existed)
   createdAt DateTime @default(now())
 
   kurti Kurti? @relation(fields: [kurtiId], references: [id])
@@ -853,4 +862,21 @@ model KurtiTypeImage {
   imagePath  String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+// One row per piece(s) moved between stock locations (SHOWROOM / SHOP_316 / GODOWN).
+// Moves never change a size's total quantity - see src/lib/godown.ts.
+model StockMovement {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  code         String
+  size         String
+  quantity     Int      @default(1)
+  fromLocation String
+  toLocation   String
+  movedBy      String?
+  kurtiId      String?  @db.ObjectId
+  createdAt    DateTime @default(now())
+
+  @@index([code])
+  @@index([createdAt])
 }

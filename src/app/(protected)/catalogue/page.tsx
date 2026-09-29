@@ -121,6 +121,7 @@ import KurtiPicCard from "../_components/kurti/kurtiPicCard";
 import { HashLoader } from "react-spinners";
 import { useDebounce } from "@/src/hooks/useDebounce";
 import ClearStockModal from "../_components/category/ClearStockModel";
+import { StockLocation } from "@/src/lib/godown";
 import SetStockReadyModal from "../_components/category/StockReadyModel";
 import { SizeSelectionModal } from "../_components/category/SizeSelectionModal";
 import { FullSetModal } from "../_components/category/FullSetModal";
@@ -1205,7 +1206,8 @@ const ListPage = () => {
 
   const handleClearStock = async (
     categoryCode: string,
-    password: string
+    password: string,
+    location?: StockLocation
   ): Promise<{ success?: boolean; error?: string }> => {
     if (!categoryCode.trim()) {
       toast.error("Please enter a category code");
@@ -1225,21 +1227,23 @@ const ListPage = () => {
     }
 
     try {
-      const data = await clearStockData(categoryCode);
+      const data = await clearStockData(categoryCode, location);
       if (!data?.success) {
         toast.error(data?.error);
         return { error: data?.error };
       }
       if (data.success) {
-        toast.success("Stock cleared successfully!");
-        // Refresh the category data
-        setCategoryData(
-          categoryList.map((cat) =>
-            cat.name.toLowerCase() === categoryCode.toLowerCase()
-              ? { ...cat, countTotal: 0, isStockReady: false }
-              : cat
-          )
-        );
+        toast.success(("message" in data && data.message) || "Stock cleared successfully!");
+        // Refresh the category data (a single-location clear keeps the rest)
+        if (!location) {
+          setCategoryData(
+            categoryList.map((cat) =>
+              cat.name.toLowerCase() === categoryCode.toLowerCase()
+                ? { ...cat, countTotal: 0, isStockReady: false }
+                : cat
+            )
+          );
+        }
         setIsLoading(true);
         return { success: data.success };
       }
@@ -1492,9 +1496,7 @@ const ListPage = () => {
                   <ClearStockModal
                     categoryCode={cat.code!}
                     categoryName={cat.name}
-                    onClearStock={async (categoryCode, password) =>
-                      handleClearStock(categoryCode, password)
-                    }
+                    onClearStock={handleClearStock}
                     trigger={
                       <DropdownMenuItem
                         className="cursor-pointer text-red-600 focus:text-red-600"
@@ -2457,9 +2459,7 @@ const ListPage = () => {
                                     <ClearStockModal
                                       categoryCode={cat.code!}
                                       categoryName={cat.name}
-                                      onClearStock={async (categoryCode, password) =>
-                                        handleClearStock(categoryCode, password)
-                                      }
+                                      onClearStock={handleClearStock}
                                       trigger={
                                         <DropdownMenuItem
                                           className="cursor-pointer text-red-600 focus:text-red-600"

@@ -5,6 +5,11 @@ import { auth } from "@/src/auth";
 import { getOfflineSaleById } from "@/src/data/offline-sales";
 import { regenerateOfflineSaleInvoice } from "@/src/data/kurti";
 import { db } from "@/src/lib/db";
+import {
+  addToLocation,
+  deductFromLocation,
+  locationForShopId,
+} from "@/src/lib/godown";
 
 const getCurrTime = async () => {
   const currentTime = new Date();
@@ -261,6 +266,16 @@ export async function PUT(
     // NOTE:
     // This endpoint can legitimately touch 100+ rows (sales + stock updates).
     // Prisma interactive transactions default to a 5s timeout, which can be exceeded on large updates.
+    // Lines on this bill sell from (and return to) the bill's shop location.
+    const billLocation = locationForShopId(existingSale.shopId);
+    if (!billLocation && (removedItems?.length || newProducts?.length)) {
+      return new NextResponse(
+        JSON.stringify({ error: "This bill's shop has no stock location, so products can't be added or removed" }),
+        { status: 400 }
+      );
+    }
+    const stockLocation = billLocation!;
+
     const result = await db.$transaction(
       async (tx) => {
       // Update the sale batch details
@@ -350,7 +365,7 @@ export async function PUT(
                   const key = String(s?.size || "").toUpperCase();
                   const add = restoreMap.get(key) || 0;
                   if (!add) return s;
-                  return { ...s, quantity: (s?.quantity || 0) + add };
+                  return addToLocation(s, add, stockLocation);
                 });
 
                 await tx.kurti.update({
@@ -414,12 +429,8 @@ export async function PUT(
               if (!sizeInfo) {
                 throw new Error(`Size ${size} not found for product ${kurtiId}`);
               }
-              const available = Number(sizeInfo?.quantity || 0);
-              if (available < qty) {
-                throw new Error(
-                  `Insufficient stock for product ${kurtiId} size ${size}. Available: ${available}, Requested: ${qty}`
-                );
-              }
+              // Throws with where the pieces actually are when this shop lacks them
+              deductFromLocation(sizeInfo, qty, stockLocation, `${kurtiId} size ${size}`);
             }
           }
 
@@ -434,7 +445,7 @@ export async function PUT(
                 const key = String(s?.size || "").toUpperCase();
                 const dec = sizeMap.get(key) || 0;
                 if (!dec) return s;
-                return { ...s, quantity: Math.max(0, (s?.quantity || 0) - dec) };
+                return deductFromLocation(s, dec, stockLocation, `${kurtiId} size ${key}`);
               });
 
               await tx.kurti.update({
@@ -457,6 +468,7 @@ export async function PUT(
               customerName: customerName.trim(),
               customerPhone: customerPhone?.trim() || null,
               shopLocation: existingSale.shop?.shopLocation || null,
+              stockLocation,
               createdAt: currentTime,
               updatedAt: currentTime,
             })),
