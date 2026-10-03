@@ -611,7 +611,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                 <CardTitle className="text-sm font-bold text-gray-800">📊 Size Stocks Inventory</CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-4">
-                <div className="max-h-60 overflow-y-auto pr-1">
+                <div className="max-h-96 overflow-y-auto pr-1">
                   <AddSizeForm
                     preSizes={sizes}
                     sizes={sizes}

@@ -177,6 +177,20 @@ export const clearLocation = (
   };
 };
 
+/**
+ * Put every piece of a size in the godown, keeping the total. Used when a design
+ * moves to another category: the pieces are re-labelled with the new code and
+ * scanned back onto a floor from /godown.
+ */
+export const sendAllToGodown = (size: any): any =>
+  normalizeSizeLocations({ ...size, floor1Quantity: 0, floor2Quantity: 0, shop316Quantity: 0 });
+
+/** The moves that `sendAllToGodown` makes for one size row, for the StockMovement log. */
+export const movesToGodown = (size: any) =>
+  COUNTED_LOCATIONS.map((loc) => ({ from: loc, quantity: getLocationQty(size, loc) })).filter(
+    (m) => m.quantity > 0
+  );
+
 /** Move `qty` pieces between locations. The total never changes. */
 export const moveBetweenLocations = (
   size: any,

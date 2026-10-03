@@ -162,25 +162,19 @@ function KurtiListPage() {
   const updatePaginationView = (allRows: kurti[], page: number, searchVal: string) => {
     const filtered = applyFilters(allRows, searchVal);
     
-    // Group filtered kurtis by parentCode || code
-    const groupedMap = new Map<string, kurti[]>();
-    filtered.forEach((item) => {
-      const key = (item as any).parentCode || item.code;
-      if (!groupedMap.has(key)) {
-        groupedMap.set(key, []);
-      }
-      groupedMap.get(key)!.push(item);
-    });
-
-    const groupedList: kurti[][] = [];
-    groupedMap.forEach((variants, parentCode) => {
-      const sorted = [...variants].sort((a, b) => {
-        if (a.code === parentCode) return -1;
-        if (b.code === parentCode) return 1;
-        return a.code.localeCompare(b.code);
-      });
-      groupedList.push(sorted);
-    });
+    // Each design gets its own card (color swatches are hidden), highest available stock first.
+    // Available per size = quantity - reserved, same as the card's Stock Inventory.
+    const availableStock = (k: kurti) =>
+      (k.sizes || []).reduce((total, s) => {
+        const reserved = (k.reservedSizes || []).find(
+          (r) => String(r.size).toUpperCase() === String(s.size).toUpperCase()
+        );
+        return total + Math.max(0, (Number(s.quantity) || 0) - (Number(reserved?.quantity) || 0));
+      }, 0);
+    const stockByCode = new Map(filtered.map((k) => [k.code, availableStock(k)]));
+    const groupedList: kurti[][] = [...filtered]
+      .sort((a, b) => stockByCode.get(b.code)! - stockByCode.get(a.code)!)
+      .map((k) => [k]);
 
     const pages = Math.max(1, Math.ceil(groupedList.length / 20));
     const safePage = Math.min(Math.max(page, 1), pages);

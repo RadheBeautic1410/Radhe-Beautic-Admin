@@ -73,6 +73,20 @@ function Cell({
   );
 }
 
+/** Pieces and amount per category, most pieces first. */
+const salesByCategory = (rows: LocationSaleRow[]) => {
+  const byCat = new Map<string, Totals>();
+  for (const r of rows) {
+    const t = byCat.get(r.category) || { pieces: 0, amount: 0 };
+    t.pieces += r.quantity;
+    t.amount += r.amount;
+    byCat.set(r.category, t);
+  }
+  return Array.from(byCat.entries())
+    .map(([category, t]) => ({ category, ...t }))
+    .sort((a, b) => b.pieces - a.pieces || b.amount - a.amount);
+};
+
 /** "1st Floor 12 · Godown 30" - only for rows whose stock came from elsewhere. */
 const stockFromText = (r: SummaryRow) =>
   (Object.entries(r.stockFrom) as [ReportLocation, number][])
@@ -92,6 +106,8 @@ function SalesByLocationPage() {
     rows: LocationSaleRow[];
   } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  // Category picked in the category table; narrows the sale list below it.
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -125,6 +141,7 @@ function SalesByLocationPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to load");
       setDetail({ soldBy, channel, rows: json.data || [] });
+      setCategoryFilter(null);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -268,11 +285,66 @@ function SalesByLocationPage() {
                 Close
               </Button>
             </div>
+            {(() => {
+              const cats = salesByCategory(detail.rows);
+              const totalPieces = cats.reduce((sum, c) => sum + c.pieces, 0);
+              return (
+                <div className="overflow-x-auto max-h-[40vh] overflow-y-auto">
+                  <Table className="border border-collapse">
+                    <TableHeader>
+                      <TableRow className="bg-slate-100">
+                        <TableHead className="font-bold">Category</TableHead>
+                        <TableHead className="font-bold">Pieces sold</TableHead>
+                        <TableHead className="font-bold">Amount</TableHead>
+                        <TableHead className="font-bold">Share</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cats.map((c) => (
+                        <TableRow
+                          key={c.category}
+                          onClick={() =>
+                            setCategoryFilter((cur) => (cur === c.category ? null : c.category))
+                          }
+                          className={`cursor-pointer hover:bg-slate-50 ${
+                            categoryFilter === c.category ? "bg-blue-50" : ""
+                          }`}
+                        >
+                          <TableCell className="font-semibold">{c.category}</TableCell>
+                          <TableCell>{c.pieces}</TableCell>
+                          <TableCell>{rupees(c.amount)}</TableCell>
+                          <TableCell className="text-xs text-gray-600">
+                            {totalPieces ? Math.round((c.pieces * 100) / totalPieces) : 0}%
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })()}
+
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-semibold">
+                {categoryFilter ? `Sales of ${categoryFilter}` : "All sales"}
+              </span>
+              {categoryFilter && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={"outline" as any}
+                  onClick={() => setCategoryFilter(null)}
+                >
+                  Show all categories
+                </Button>
+              )}
+            </div>
             <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
               <Table className="border border-collapse">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-bold">When</TableHead>
+                    <TableHead className="font-bold">Category</TableHead>
                     <TableHead className="font-bold">Code</TableHead>
                     <TableHead className="font-bold">Size</TableHead>
                     <TableHead className="font-bold">Qty</TableHead>
@@ -283,12 +355,15 @@ function SalesByLocationPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {detail.rows.map((r, i) => (
+                  {detail.rows
+                    .filter((r) => !categoryFilter || r.category === categoryFilter)
+                    .map((r, i) => (
                     <TableRow key={i}>
                       <TableCell className="text-xs whitespace-nowrap">
                         {/* Stored IST-shifted, so read it back as UTC */}
                         {new Date(r.soldAt).toLocaleString("en-IN", { timeZone: "UTC" })}
                       </TableCell>
+                      <TableCell className="text-xs">{r.category}</TableCell>
                       <TableCell className="font-semibold">{r.code}</TableCell>
                       <TableCell>{r.size}</TableCell>
                       <TableCell>{r.quantity}</TableCell>

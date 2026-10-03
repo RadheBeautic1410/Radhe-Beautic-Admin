@@ -7,7 +7,11 @@ import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
 import { v4 as uuidv4 } from "uuid";
 import { CURRENT_EMBEDDING_VERSION } from "@/src/lib/embeddingVersion";
-import { normalizeSizesLocations } from "@/src/lib/godown";
+import {
+  movesToGodown,
+  normalizeSizesLocations,
+  sendAllToGodown,
+} from "@/src/lib/godown";
 
 export const getCurrTime = async () => {
   // Always store in UTC; handle display/filtering in desired timezone
@@ -392,6 +396,7 @@ export const categoryChange = async (data: any) => {
   const { code, newCode, category, selectedSizes, isPartialMove, bigPrice } =
     data;
   const currTime = await getCurrTime();
+  const movedBy = (await currentUser())?.name || null;
 
   console.log(
     "its category change",
@@ -490,23 +495,34 @@ export const categoryChange = async (data: any) => {
       }
 
       let newKurti;
+      // Moved pieces get re-labelled with the new code, so they all go to the
+      // godown and are scanned onto the new category's floor from /godown.
+      // These are the size rows (as they were) whose pieces are being moved.
+      let movedRows: any[] = [];
 
       if (isPartialMove && selectedSizes.length > 0) {
         const selectedSizesSet = selectedSizes.map((s: any) =>
           s.size.toUpperCase()
         );
-        const remainingSizes = oldKurti.sizes.filter(
-          (size: any) => !selectedSizesSet.includes(size.size.toUpperCase())
+        // Take the moved and remaining sizes from the database, not from the
+        // browser's copy, which can be out of date.
+        const currentSizes = ((oldKurti.sizes as any[]) || []).filter(
+          (size: any) => size !== null
         );
-
-        const validRemainingSizes = Array.isArray(remainingSizes)
-          ? remainingSizes.filter((size) => size !== null)
-          : [];
+        movedRows = currentSizes.filter((size: any) =>
+          selectedSizesSet.includes(String(size.size).toUpperCase())
+        );
+        const validRemainingSizes = currentSizes.filter(
+          (size: any) => !selectedSizesSet.includes(String(size.size).toUpperCase())
+        );
+        const pieces = (rows: any[]) =>
+          rows.reduce((sum, s) => sum + Math.max(0, parseInt(String(s?.quantity || 0)) || 0), 0);
 
         await transaction.kurti.update({
           where: { code },
           data: {
             sizes: validRemainingSizes,
+            countOfPiece: pieces(validRemainingSizes),
             lastUpdatedTime: currTime,
           },
         });
@@ -517,22 +533,21 @@ export const categoryChange = async (data: any) => {
             toCategory: category,
             oldKurtiCode: code,
             newKurtiCode: newCode,
-            sizes: selectedSizes,
+            sizes: movedRows,
             kurti: {
               connect: { code },
             },
           },
         });
 
-        const validSelectedSizes = Array.isArray(selectedSizes)
-          ? selectedSizes.filter((size) => size !== null)
-          : [];
+        const validSelectedSizes = movedRows.map(sendAllToGodown);
 
         const newKurtiData = {
           ...oldKurti,
           category: category,
           code: newCode,
           sizes: validSelectedSizes,
+          countOfPiece: pieces(movedRows),
           lastUpdatedTime: currTime,
         };
 
@@ -563,10 +578,13 @@ export const categoryChange = async (data: any) => {
           },
         });
 
+        movedRows = ((oldKurti.sizes as any[]) || []).filter((size: any) => size !== null);
+
         const newKurtiData = {
           ...oldKurti,
           category: category,
           code: newCode,
+          sizes: movedRows.map(sendAllToGodown),
           lastUpdatedTime: currTime,
         };
 
@@ -591,7 +609,7 @@ export const categoryChange = async (data: any) => {
             toCategory: category,
             oldKurtiCode: code,
             newKurtiCode: newCode,
-            sizes: sanitizedData.sizes,
+            sizes: movedRows,
             kurti: {
               connect: { code },
             },
@@ -604,6 +622,22 @@ export const categoryChange = async (data: any) => {
             countTotal: { decrement: 1 },
           },
         });
+      }
+
+      // Log every piece that left a floor or shop 316 for the godown.
+      const godownMoves = movedRows.flatMap((row: any) =>
+        movesToGodown(row).map((m) => ({
+          code: newCode,
+          size: String(row.size).toUpperCase(),
+          quantity: m.quantity,
+          fromLocation: m.from,
+          toLocation: "GODOWN",
+          movedBy: movedBy ? `${movedBy} (category move from ${code})` : `category move from ${code}`,
+          kurtiId: newKurti?.id,
+        }))
+      );
+      if (godownMoves.length > 0) {
+        await transaction.stockMovement.createMany({ data: godownMoves });
       }
 
       const dbKurtiFetch = await transaction.kurti.findUnique({

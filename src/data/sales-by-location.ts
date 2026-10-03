@@ -41,6 +41,7 @@ export interface LocationSaleRow {
   soldAt: Date;
   code: string;
   size: string;
+  category: string;
   quantity: number;
   amount: number;
   reference: string;
@@ -116,15 +117,21 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
     }),
   ]);
 
-  // Scan sales usually carry no price; fall back to the product's selling price.
-  // Reading every product once is far faster than a huge `code in [...]` filter.
+  // Every product's category (for the category breakdown) and selling price
+  // (scan sales usually carry no price). Reading every product once is far
+  // faster than a huge `code in [...]` filter.
   const priceByCode = new Map<string, number>();
-  if (scanSales.some((s) => !s.selledPrice)) {
-    const kurtis = await db.kurti.findMany({ select: { code: true, sellingPrice: true } });
-    kurtis.forEach((k) => priceByCode.set(k.code.toUpperCase(), parseInt(k.sellingPrice) || 0));
-  }
+  const categoryByCode = new Map<string, string>();
+  const kurtis = await db.kurti.findMany({
+    select: { code: true, sellingPrice: true, category: true },
+  });
+  kurtis.forEach((k) => {
+    const code = k.code.toUpperCase();
+    priceByCode.set(code, parseInt(k.sellingPrice) || 0);
+    categoryByCode.set(code, String(k.category || "").toUpperCase());
+  });
 
-  const rows: LocationSaleRow[] = [];
+  const rows: Omit<LocationSaleRow, "category">[] = [];
 
   for (const s of shopSales) {
     const qty = s.quantity || 1;
@@ -206,7 +213,11 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
     }
   }
 
-  return rows;
+  // A code no longer in Kurti (rare) falls back to its 3-letter category prefix.
+  return rows.map((r) => ({
+    ...r,
+    category: categoryByCode.get(r.code.toUpperCase()) || r.code.substring(0, 3).toUpperCase(),
+  }));
 };
 
 type Totals = { pieces: number; amount: number };

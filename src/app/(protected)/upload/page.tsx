@@ -67,6 +67,23 @@ interface ProductDesignInput {
   variants: ColorVariantInput[];
 }
 
+interface UploadSummaryItem {
+  code: string;
+  designName: string;
+  designIndex: number;
+  color: string;
+  image?: string;
+  sizes: SizeInput[];
+  success: boolean;
+  error?: string;
+}
+
+const formatCode = (prefix: string, num: number) =>
+  `${prefix}${num.toString().padStart(4, "0")}`;
+
+const safeFilePart = (s: string) =>
+  (s || "").trim().replace(/[^a-zA-Z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+
 interface SearchableSelectProps {
   value: string;
   onValueChange: (val: string) => void;
@@ -161,6 +178,11 @@ const BulkUploadPage = () => {
 
   // Dynamic colors list addition form state
   const [newColorName, setNewColorName] = useState("");
+
+  // Next free code for the selected category, used to preview which code each variant will get
+  const [startCode, setStartCode] = useState<{ prefix: string; num: number } | null>(null);
+  const [uploadSummary, setUploadSummary] = useState<UploadSummaryItem[]>([]);
+  const [downloadingCode, setDownloadingCode] = useState<string | null>(null);
 
   const [productDesigns, setProductDesigns] = useState<ProductDesignInput[]>([
     {
@@ -438,6 +460,73 @@ const BulkUploadPage = () => {
     },
   });
 
+  const selectedCategory = form.watch("category");
+
+  const fetchStartCode = async (category: string) => {
+    const response = await fetch(`/api/kurti/generateCode?cat=${category}`);
+    const result = await response.json();
+    if (!response.ok || !result.code) throw new Error(result.error || "Could not generate code");
+    return {
+      prefix: result.code.substring(0, 3),
+      num: parseInt(result.code.substring(3)),
+    };
+  };
+
+  useEffect(() => {
+    if (!selectedCategory) {
+      setStartCode(null);
+      return;
+    }
+    let cancelled = false;
+    fetchStartCode(selectedCategory)
+      .then((sc) => !cancelled && setStartCode(sc))
+      .catch(() => !cancelled && setStartCode(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCategory]);
+
+  // Codes are assigned in form order: design 1's variants first, then design 2's, and so on
+  const variantOffset = (dIdx: number, vIdx: number) =>
+    productDesigns.slice(0, dIdx).reduce((sum, d) => sum + d.variants.length, 0) + vIdx;
+
+  const previewCode = (dIdx: number, vIdx: number) =>
+    startCode ? formatCode(startCode.prefix, startCode.num + variantOffset(dIdx, vIdx)) : null;
+
+  const colorLabel = (value: string) =>
+    colors.find((c) => c.normalizedLowerCase === value)?.name || value;
+
+  const downloadLabel = async (item: UploadSummaryItem) => {
+    const obj = JSON.stringify(item.sizes);
+    const res = await axios.get(
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${item.code}`,
+      { responseType: "blob" }
+    );
+    const url = window.URL.createObjectURL(res.data);
+    const a = document.createElement("a");
+    a.href = url;
+    const namePart = [item.code, safeFilePart(item.designName), safeFilePart(colorLabel(item.color))]
+      .filter(Boolean)
+      .join("_");
+    a.download = `${namePart}_barcodes.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadOne = async (item: UploadSummaryItem) => {
+    setDownloadingCode(item.code);
+    try {
+      await downloadLabel(item);
+    } catch (err) {
+      console.error("Barcode download failed for", item.code, err);
+      toast.error(`Label download failed for ${item.code}`);
+    } finally {
+      setDownloadingCode(null);
+    }
+  };
+
   const handleBulkFormSubmit = async () => {
     const formValues = form.getValues();
     if (!formValues.category) {
@@ -492,28 +581,25 @@ const BulkUploadPage = () => {
         totalVariants += d.variants.length;
       });
 
-      // 2. Fetch start code from API
-      const response = await fetch(`/api/kurti/generateCode?cat=${formValues.category}`);
-      const result = await response.json();
-      const prefix = result.code.substring(0, 3);
-      const codeNumber = result.code.substring(3);
-      const startingNum = parseInt(codeNumber);
+      // 2. Fetch start code from API (fresh, in case someone else uploaded meanwhile)
+      const { prefix, num: startingNum } = await fetchStartCode(formValues.category);
+      setStartCode({ prefix, num: startingNum });
 
       let currentGlobalIndex = 0;
       const uploadPromises: Promise<any>[] = [];
-      const savedCodesForBarcode: { code: string; sizes: { size: string; quantity: number }[] }[] = [];
+      const summaryItems: UploadSummaryItem[] = [];
 
       // 3. Map designs and variants to payloads
-      productDesigns.forEach((design) => {
+      productDesigns.forEach((design, dIdx) => {
         const firstVariantIndex = currentGlobalIndex;
         // The parentCode for all variants of this design will be the code of its first variant
-        const parentCode = `${prefix}${(startingNum + firstVariantIndex).toString().padStart(4, "0")}`;
+        const parentCode = formatCode(prefix, startingNum + firstVariantIndex);
 
         design.variants.forEach((variant) => {
           const itemIndex = currentGlobalIndex;
           currentGlobalIndex++;
 
-          const itemCode = `${prefix}${(startingNum + itemIndex).toString().padStart(4, "0")}`;
+          const itemCode = formatCode(prefix, startingNum + itemIndex);
           const totalPieces = variant.sizes.reduce((sum, s) => sum + Number(s.quantity || 0), 0);
 
           const validSizes = variant.sizes
@@ -553,18 +639,31 @@ const BulkUploadPage = () => {
             parentCode: parentCode,
           };
 
-          uploadPromises.push(kurtiAddition(designData));
-          savedCodesForBarcode.push({
+          uploadPromises.push(
+            kurtiAddition(designData).catch((err: any) => ({ error: err?.message || "Upload failed" }))
+          );
+          summaryItems.push({
             code: itemCode,
+            designName: design.name,
+            designIndex: dIdx,
+            color: variant.color,
+            image: variant.images[0]?.url,
             sizes: validSizes,
+            success: false,
           });
         });
       });
 
       // 4. Save everything to DB
       const results = await Promise.all(uploadPromises);
-      const successful = results.filter((r) => r.success).length;
-      const failed = results.length - successful;
+      results.forEach((r, i) => {
+        summaryItems[i].success = !!r?.success;
+        if (!r?.success) summaryItems[i].error = r?.error || "Upload failed";
+      });
+      setUploadSummary(summaryItems);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      const successful = summaryItems.filter((r) => r.success).length;
+      const failed = summaryItems.length - successful;
 
       if (successful > 0) {
         toast.success(`Successfully uploaded ${successful} color variants!`);
@@ -572,22 +671,10 @@ const BulkUploadPage = () => {
           toast.error(`${failed} variants failed to upload.`);
         }
 
-        // 5. Download barcodes
-        for (const item of savedCodesForBarcode) {
+        // 5. Download barcodes, only for variants that were actually saved
+        for (const item of summaryItems.filter((r) => r.success)) {
           try {
-            const obj = JSON.stringify(item.sizes);
-            const res = await axios.get(
-              `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${item.code}`,
-              { responseType: "blob" }
-            );
-            const url = window.URL.createObjectURL(res.data);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${item.code}_barcodes.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
+            await downloadLabel(item);
           } catch (err) {
             console.error("Barcode download failed for", item.code, err);
           }
@@ -667,7 +754,83 @@ const BulkUploadPage = () => {
             </p>
           </CardHeader>
           <CardContent className="p-6 max-w-6xl mx-auto space-y-6">
-            
+
+            {/* Last upload: which design/colour got which code */}
+            {uploadSummary.length > 0 && (
+              <Card className="shadow-sm border-green-300">
+                <CardHeader className="border-b py-3 bg-green-50 flex flex-row items-center justify-between px-4">
+                  <h2 className="text-md font-semibold text-gray-800">
+                    Last Upload — Codes Assigned ({uploadSummary.filter((u) => u.success).length}/{uploadSummary.length} saved)
+                  </h2>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setUploadSummary([])}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Clear
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-0 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Image</th>
+                        <th className="px-3 py-2 text-left">Code</th>
+                        <th className="px-3 py-2 text-left">Design</th>
+                        <th className="px-3 py-2 text-left">Color</th>
+                        <th className="px-3 py-2 text-left">Sizes</th>
+                        <th className="px-3 py-2 text-left">Label</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {uploadSummary.map((item, i) => {
+                        const newDesign = i === 0 || uploadSummary[i - 1].designIndex !== item.designIndex;
+                        return (
+                          <tr key={item.code} className={`${newDesign ? "border-t-2 border-gray-300" : "border-t"} ${item.success ? "" : "bg-red-50"}`}>
+                            <td className="px-3 py-2">
+                              {item.image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={item.image} alt={item.code} className="w-12 h-16 object-cover rounded border" />
+                              ) : (
+                                <div className="w-12 h-16 bg-gray-100 rounded border" />
+                              )}
+                            </td>
+                            <td className="px-3 py-2 font-mono font-bold text-blue-700">{item.code}</td>
+                            <td className="px-3 py-2">
+                              <span className="text-gray-400 text-xs">#{item.designIndex + 1}</span> {item.designName}
+                            </td>
+                            <td className="px-3 py-2">{colorLabel(item.color)}</td>
+                            <td className="px-3 py-2 text-xs text-gray-600">
+                              {item.sizes.map((s) => `${s.size}:${s.quantity}`).join(", ")}
+                            </td>
+                            <td className="px-3 py-2">
+                              {item.success ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={downloadingCode === item.code}
+                                  onClick={() => handleDownloadOne(item)}
+                                  className="h-7 text-xs"
+                                >
+                                  {downloadingCode === item.code && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
+                                  Download
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-red-600">{item.error || "Failed"}</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            )}
+
             {/* 1. Shared Category & Pricing details */}
             <Card className="shadow-sm border-gray-200">
               <CardHeader className="border-b py-3 bg-gray-50">
@@ -750,8 +913,17 @@ const BulkUploadPage = () => {
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
                   
                   <CardHeader className="border-b py-3 bg-gray-50 flex flex-row items-center justify-between px-6">
-                    <h2 className="text-md font-bold text-gray-800">
+                    <h2 className="text-md font-bold text-gray-800 flex flex-wrap items-center gap-2">
                       Product Design #{dIdx + 1}
+                      {design.name && (
+                        <span className="font-normal text-gray-500">— {design.name}</span>
+                      )}
+                      {startCode && (
+                        <span className="text-xs font-mono font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                          {previewCode(dIdx, 0)}
+                          {design.variants.length > 1 && ` → ${previewCode(dIdx, design.variants.length - 1)}`}
+                        </span>
+                      )}
                     </h2>
                     {productDesigns.length > 1 && (
                       <Button
@@ -883,7 +1055,24 @@ const BulkUploadPage = () => {
                           <div key={vIdx} className="bg-white border border-gray-200 rounded-lg p-4 relative shadow-sm">
                             
                             <div className="flex items-center justify-between border-b pb-3 mb-4">
-                              <h4 className="text-sm font-bold text-gray-700">Variant #{vIdx + 1}</h4>
+                              <h4 className="text-sm font-bold text-gray-700 flex flex-wrap items-center gap-2">
+                                Variant #{vIdx + 1}
+                                {variant.color && (
+                                  <span className="font-normal text-gray-500">— {colorLabel(variant.color)}</span>
+                                )}
+                                {startCode ? (
+                                  <span
+                                    className="text-xs font-mono font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded"
+                                    title="Code this variant will get on upload"
+                                  >
+                                    Code: {previewCode(dIdx, vIdx)}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-normal text-gray-400">
+                                    Select category to see code
+                                  </span>
+                                )}
+                              </h4>
                               {design.variants.length > 1 && (
                                 <Button
                                   type="button"
