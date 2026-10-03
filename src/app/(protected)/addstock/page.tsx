@@ -1,5 +1,6 @@
 "use client";
 import { RoleGateForComponent } from '@/src/components/auth/role-gate-component'
+import { LOCATION_LABELS, STOCK_LOCATIONS, StockLocation, describeLocations } from "@/src/lib/godown";
 import React, { useState } from 'react'
 import NotAllowedPage from '../_components/errorPages/NotAllowedPage'
 import { UserRole } from '@prisma/client'
@@ -16,6 +17,8 @@ function StockAddPage() {
     const [kurti, setKurti] = useState<any>(null);
     const [selling, setSelling] = useState(false);
     const [sizes, setSellSize] = useState(0);
+    // Where scanned pieces go: Godown for new parcels, or the location being re-counted.
+    const [location, setLocation] = useState<StockLocation>("GODOWN");
     // History state
     const [historyLoading, setHistoryLoading] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
@@ -80,6 +83,7 @@ function StockAddPage() {
             else {
                 const res = await axios.post(`/api/kurti/addstock`, {
                     code: code.toUpperCase(),
+                    location,
                 })
                 // const response = await fetch(`/api/sell?code=${code}`); // Adjust the API endpoint based on your actual setup
                 // const result = await response.json();
@@ -91,7 +95,7 @@ function StockAddPage() {
                     setKurti(null);
                 }
                 else {
-                    toast.success('Added Successfully');
+                    toast.success(`Added to ${LOCATION_LABELS[location]}`);
                     setKurti(data);
                     setSellSize(data.sizes.length);
                 }
@@ -113,6 +117,28 @@ function StockAddPage() {
         </CardHeader>
 
         <CardContent className="w-full flex flex-col space-evenely justify-center flex-wrap gap-3">
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-row flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold">Add to:</span>
+              {STOCK_LOCATIONS.map((loc) => (
+                <button
+                  key={loc}
+                  type="button"
+                  onClick={() => setLocation(loc)}
+                  className={`px-3 py-2 rounded-lg border text-sm font-semibold ${
+                    location === loc
+                      ? 'bg-slate-800 border-slate-800 text-white'
+                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {LOCATION_LABELS[loc]}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-600">
+              New parcels: Godown. Stock-take: pick the location you cleared and are re-counting.
+            </p>
+          </div>
           <div className="flex flex-row flex-wrap gap-2">
             <div className="flex flex-col flex-wrap">
               <h3>Product Code</h3>
@@ -198,6 +224,7 @@ function StockAddPage() {
                           </TableCell>
                           <TableCell className="border border-red">
                             {sz.quantity}
+                            <span className="block text-[10px] text-gray-500">{describeLocations(sz)}</span>
                           </TableCell>
                         </TableRow>
                       );
@@ -225,6 +252,7 @@ function StockAddPage() {
                           </TableCell>
                           <TableCell className="border border-red">
                             {sz.quantity}
+                            <span className="block text-[10px] text-gray-500">{describeLocations(sz)}</span>
                           </TableCell>
                         </TableRow>
                       );
@@ -334,6 +362,7 @@ function StockAddPage() {
                   <TableHead className="text-center font-bold text-base">Kurti Code</TableHead>
                   <TableHead className="text-center font-bold text-base">Size</TableHead>
                   <TableHead className="text-center font-bold text-base">Qty</TableHead>
+                  <TableHead className="text-center font-bold text-base">Added To</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -357,6 +386,9 @@ function StockAddPage() {
                       <TableCell className="text-center">{row.code}</TableCell>
                       <TableCell className="text-center">{row.size}</TableCell>
                       <TableCell className="text-center">{row.quantity}</TableCell>
+                      <TableCell className="text-center">
+                        {LOCATION_LABELS[row.location as StockLocation] || "-"}
+                      </TableCell>
                     </TableRow>
                   );
                 })}

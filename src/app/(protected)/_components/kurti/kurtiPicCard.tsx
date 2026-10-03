@@ -130,10 +130,9 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       return Math.max(0, qty - res);
     };
 
-    return selectSizes.map(sizeName => {
-      const stock = getStockForSize(sizeName);
-      return { size: sizeName, stock };
-    });
+    return selectSizes
+      .map(sizeName => ({ size: sizeName, stock: getStockForSize(sizeName) }))
+      .filter(item => item.stock > 0);
   }, [activeVariant.sizes, activeVariant.reservedSizes, selectSizes]);
 
   useEffect(() => {
@@ -521,8 +520,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
             )}
           </div>
 
-          {/* Swatch circle indicators */}
-          {variants.length > 1 && (
+          {/* Swatch circle indicators (hidden for now) */}
+          {false && variants.length > 1 && (
             <div className="space-y-1.5 pt-1">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
                 Available Colors ({variants.length})
@@ -556,21 +555,18 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
               Stock Inventory
             </span>
             <div className="flex flex-wrap gap-1.5">
+              {sortedAvailableSizes.length === 0 && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-red-50 text-red-600 border-red-200">
+                  Out of stock
+                </span>
+              )}
               {sortedAvailableSizes.map((item) => (
                 <div
                   key={item.size}
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded border transition-colors flex items-center gap-1 ${
-                    item.stock > 0
-                      ? "bg-green-50 text-green-700 border-green-200"
-                      : "bg-gray-50 text-gray-400 border-gray-100 opacity-50"
-                  }`}
+                  className="text-[10px] font-bold px-2 py-0.5 rounded border transition-colors flex items-center gap-1 bg-green-50 text-green-700 border-green-200"
                 >
                   <span>{item.size}</span>
-                  <span className={`px-1 rounded text-[9px] font-extrabold ${
-                    item.stock > 0 
-                      ? "bg-green-200 text-green-800" 
-                      : "bg-gray-200 text-gray-500"
-                  }`}>
+                  <span className="px-1 rounded text-[9px] font-extrabold bg-green-200 text-green-800">
                     {item.stock}
                   </span>
                 </div>

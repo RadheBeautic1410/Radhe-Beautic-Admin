@@ -5,6 +5,13 @@ import { auth } from "@/src/auth";
 import { getOfflineSaleById } from "@/src/data/offline-sales";
 import { regenerateOfflineSaleInvoice } from "@/src/data/kurti";
 import { db } from "@/src/lib/db";
+import {
+  StockLocation,
+  addToLocation,
+  deductFromLocation,
+  isStockLocation,
+  locationForShopId,
+} from "@/src/lib/godown";
 
 const getCurrTime = async () => {
   const currentTime = new Date();
@@ -261,6 +268,16 @@ export async function PUT(
     // NOTE:
     // This endpoint can legitimately touch 100+ rows (sales + stock updates).
     // Prisma interactive transactions default to a 5s timeout, which can be exceeded on large updates.
+    // Lines on this bill sell from (and return to) the bill's shop location.
+    const billLocation = locationForShopId(existingSale.shopId);
+    if (!billLocation && (removedItems?.length || newProducts?.length)) {
+      return new NextResponse(
+        JSON.stringify({ error: "This bill's shop has no stock location, so products can't be added or removed" }),
+        { status: 400 }
+      );
+    }
+    const stockLocation = billLocation!;
+
     const result = await db.$transaction(
       async (tx) => {
       // Update the sale batch details
@@ -276,6 +293,65 @@ export async function PUT(
           updatedAt: currTime,
         },
       });
+
+      // A changed quantity on an existing line moves stock too: extra pieces come
+      // out of the line's location, fewer pieces go back into it.
+      if (updatedItems && Array.isArray(updatedItems)) {
+        const newQtyById = new Map<string, number>(
+          updatedItems
+            .filter((item: any) => item?.id && item.quantity !== undefined)
+            .map((item: any) => [item.id, Number(item.quantity)])
+        );
+        const originals = newQtyById.size
+          ? await tx.offlineSell.findMany({
+              where: { id: { in: Array.from(newQtyById.keys()) }, batchId: id },
+              select: { id: true, code: true, kurtiId: true, kurtiSize: true, quantity: true, stockLocation: true },
+            })
+          : [];
+
+        // kurtiId -> list of { size, delta, location }
+        const changesByKurti = new Map<string, { size: string; delta: number; location: StockLocation; label: string }[]>();
+        for (const row of originals) {
+          const delta = (newQtyById.get(row.id) || 0) - (row.quantity || 1);
+          if (!delta || !row.kurtiId) continue;
+          const location = isStockLocation(row.stockLocation) ? row.stockLocation : billLocation;
+          if (!location) {
+            throw new Error("This bill's shop has no stock location, so quantities can't be changed");
+          }
+          const size = String(row.kurtiSize || "").toUpperCase();
+          if (!changesByKurti.has(row.kurtiId)) changesByKurti.set(row.kurtiId, []);
+          changesByKurti.get(row.kurtiId)!.push({ size, delta, location, label: `${row.code}-${size}` });
+        }
+
+        if (changesByKurti.size > 0) {
+          const kurtis = await tx.kurti.findMany({
+            where: { id: { in: Array.from(changesByKurti.keys()) } },
+            select: { id: true, sizes: true },
+          });
+          for (const k of kurtis) {
+            let sizes = [...((k.sizes as any[]) || [])];
+            for (const change of changesByKurti.get(k.id) || []) {
+              const idx = sizes.findIndex(
+                (s: any) => String(s?.size || "").toUpperCase() === change.size
+              );
+              if (change.delta > 0) {
+                if (idx === -1) {
+                  throw new Error(`${change.label}: not in stock, can't raise the quantity`);
+                }
+                sizes[idx] = deductFromLocation(sizes[idx], change.delta, change.location, change.label);
+              } else if (idx === -1) {
+                sizes.push(addToLocation({ size: change.size, quantity: 0 }, -change.delta, change.location));
+              } else {
+                sizes[idx] = addToLocation(sizes[idx], -change.delta, change.location);
+              }
+            }
+            await tx.kurti.update({
+              where: { id: k.id },
+              data: { sizes, updatedAt: currTime },
+            });
+          }
+        }
+      }
 
       // Update existing items if provided
       if (updatedItems && Array.isArray(updatedItems)) {
@@ -350,7 +426,7 @@ export async function PUT(
                   const key = String(s?.size || "").toUpperCase();
                   const add = restoreMap.get(key) || 0;
                   if (!add) return s;
-                  return { ...s, quantity: (s?.quantity || 0) + add };
+                  return addToLocation(s, add, stockLocation);
                 });
 
                 await tx.kurti.update({
@@ -414,12 +490,8 @@ export async function PUT(
               if (!sizeInfo) {
                 throw new Error(`Size ${size} not found for product ${kurtiId}`);
               }
-              const available = Number(sizeInfo?.quantity || 0);
-              if (available < qty) {
-                throw new Error(
-                  `Insufficient stock for product ${kurtiId} size ${size}. Available: ${available}, Requested: ${qty}`
-                );
-              }
+              // Throws with where the pieces actually are when this shop lacks them
+              deductFromLocation(sizeInfo, qty, stockLocation, `${kurtiId} size ${size}`);
             }
           }
 
@@ -434,7 +506,7 @@ export async function PUT(
                 const key = String(s?.size || "").toUpperCase();
                 const dec = sizeMap.get(key) || 0;
                 if (!dec) return s;
-                return { ...s, quantity: Math.max(0, (s?.quantity || 0) - dec) };
+                return deductFromLocation(s, dec, stockLocation, `${kurtiId} size ${key}`);
               });
 
               await tx.kurti.update({
@@ -457,6 +529,7 @@ export async function PUT(
               customerName: customerName.trim(),
               customerPhone: customerPhone?.trim() || null,
               shopLocation: existingSale.shop?.shopLocation || null,
+              stockLocation,
               createdAt: currentTime,
               updatedAt: currentTime,
             })),

@@ -74,6 +74,32 @@ import { DialogDemo } from "@/src/components/dialog-demo";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { DeleteConfirmationDialog } from "@/src/components/delete-confirmation-dialog";
 import { COURIER_SERVICES } from "@/src/lib/constants";
+import { StockLocation } from "@/src/lib/godown";
+import {
+  StockLocationPicker,
+  suggestStockLocation,
+} from "../_components/godown/stock-location-picker";
+
+/** Sizes the admin is sending for this order, keyed "CODE|SIZE" (matches acceptCustomerOrder). */
+const sendingLines = (order: any) => {
+  const lines = new Map<string, { code: string; size: string; quantity: number; sizeRow: any }>();
+  for (const cp of order?.cart?.CartProduct || []) {
+    for (const s of cp.adminSideSizes || []) {
+      if (!s?.size || !(s.quantity > 0)) continue;
+      const key = `${cp.kurti.code}|${s.size}`.toUpperCase();
+      const prev = lines.get(key);
+      lines.set(key, {
+        code: String(cp.kurti.code).toUpperCase(),
+        size: String(s.size).toUpperCase(),
+        quantity: (prev?.quantity || 0) + s.quantity,
+        sizeRow: (cp.kurti.sizes || []).find(
+          (row: any) => String(row.size).toUpperCase() === String(s.size).toUpperCase()
+        ),
+      });
+    }
+  }
+  return lines;
+};
 
 interface CartProduct {
   id: string;
@@ -83,7 +109,9 @@ interface CartProduct {
     category: string;
     images: Array<{ url: string }>;
     prices: any;
+    sizes?: any[];
   };
+  adminSideSizes?: Array<{ size: string; quantity: number }>;
   sizes: Array<{
     size: string;
     quantity: number;
@@ -168,6 +196,7 @@ const CustomerOrdersPage = () => {
     PaymentStatus.PENDING,
   );
   const [paymentType, setPaymentType] = useState<string>("");
+  const [stockLocations, setStockLocations] = useState<Record<string, StockLocation>>({});
   const [note, setNote] = useState<string>("");
 
   // Tracking form state (for updating tracking)
@@ -242,6 +271,12 @@ const CustomerOrdersPage = () => {
     const result = await getCustomerOrderById(order.id);
     if (result.success && result.data) {
       const freshOrder = result.data as unknown as CustomerOrder;
+      const suggested: Record<string, StockLocation> = {};
+      sendingLines(freshOrder).forEach((line, key) => {
+        const loc = suggestStockLocation(line.sizeRow, line.quantity);
+        if (loc) suggested[key] = loc;
+      });
+      setStockLocations(suggested);
       setSelectedOrder(freshOrder);
       setPaymentStatus(freshOrder.paymentStatus || PaymentStatus.PENDING);
       setPaymentType(freshOrder.paymentType || "");
@@ -250,6 +285,7 @@ const CustomerOrdersPage = () => {
       setTrackingId(freshOrder.trackingId || "");
       setViewDialogOpen(true);
     } else {
+      setStockLocations({});
       setSelectedOrder(order);
       setPaymentStatus(order.paymentStatus || PaymentStatus.PENDING);
       setPaymentType(order.paymentType || "");
@@ -267,12 +303,21 @@ const CustomerOrdersPage = () => {
       return;
     }
 
+    const missing = Array.from(sendingLines(selectedOrder).entries())
+      .filter(([key]) => !stockLocations[key])
+      .map(([, line]) => `${line.code}-${line.size}`);
+    if (missing.length > 0) {
+      toast.error(`Choose where to take stock from for: ${missing.join(", ")}`);
+      return;
+    }
+
     startTransition(async () => {
       try {
         const result = await acceptCustomerOrder(orderId, {
           paymentStatus,
           paymentType: paymentType.trim(),
           note: note.trim() || undefined,
+          stockLocations,
         });
         if (result.success) {
           toast.success(result.message || "Order accepted successfully");
@@ -1234,6 +1279,31 @@ const CustomerOrdersPage = () => {
                     </div>
                   </CardContent>
                 </Card>
+
+                {isOrderPending && sendingLines(selectedOrder).size > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">Take Stock From *</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {Array.from(sendingLines(selectedOrder).entries()).map(([key, line]) => (
+                        <div key={key} className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-semibold w-28">
+                            {line.code}-{line.size} × {line.quantity}
+                          </span>
+                          <StockLocationPicker
+                            sizeRow={line.sizeRow}
+                            quantity={line.quantity}
+                            value={stockLocations[key]}
+                            onChange={(loc) =>
+                              setStockLocations((prev) => ({ ...prev, [key]: loc }))
+                            }
+                          />
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Payment and Tracking Information - Side by Side */}
                 {isOrderPending ? (

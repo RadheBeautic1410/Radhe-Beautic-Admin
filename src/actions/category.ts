@@ -13,6 +13,12 @@ import {
 import { getTotalFullSetCount } from "../data/fullSet";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  LOCATION_LABELS,
+  StockLocation,
+  clearLocation,
+  isStockLocation,
+} from "@/src/lib/godown";
 
 const getCurrTimeIST = () => {
   const currentTime = new Date();
@@ -516,7 +522,21 @@ export const getCategoryOverallStates = async () => {
   }
 };
 
-export const clearStockData = async (categoryCode: string) => {
+/**
+ * Stock-take for one category. With a `location`, only that location is emptied
+ * (e.g. the 2nd floor before it is re-scanned from /addstock); the other
+ * locations keep their pieces. Without one, the whole category is wiped.
+ */
+export const clearStockData = async (
+  categoryCode: string,
+  location?: StockLocation
+) => {
+  if (location) {
+    if (!isStockLocation(location)) {
+      return { success: false, error: "Unknown stock location" };
+    }
+    return clearCategoryLocation(categoryCode, location);
+  }
   try {
     const category = await db.category.findUnique({
       where: {
@@ -575,6 +595,77 @@ export const clearStockData = async (categoryCode: string) => {
       success: false,
       error: "Failed to fetch category data",
     };
+  }
+};
+
+const clearCategoryLocation = async (
+  categoryCode: string,
+  location: StockLocation
+) => {
+  try {
+    const category = await db.category.findUnique({
+      where: { code: categoryCode },
+    });
+    if (!category) {
+      return { success: false, error: "Category not found" };
+    }
+
+    const kurtis = await db.kurti.findMany({
+      where: { category: category.name.toUpperCase(), isDeleted: false },
+      select: { id: true, sizes: true, countOfPiece: true },
+    });
+    if (kurtis.length === 0) {
+      return { success: false, error: "No kurtis found in this category" };
+    }
+
+    const currTime = getCurrTimeIST();
+    let totalRemoved = 0;
+    const updates: { id: string; sizes: any[]; countOfPiece: number }[] = [];
+    for (const k of kurtis) {
+      let removed = 0;
+      const sizes = ((k.sizes as any[]) || [])
+        .map((s: any) => {
+          const cleared = clearLocation(s, location);
+          removed += cleared.removed;
+          return cleared.row;
+        })
+        .filter((s: any) => s.quantity > 0);
+      if (removed === 0) continue;
+      totalRemoved += removed;
+      updates.push({
+        id: k.id,
+        sizes,
+        countOfPiece: Math.max(0, (k.countOfPiece || 0) - removed),
+      });
+    }
+
+    const BATCH = 25;
+    for (let i = 0; i < updates.length; i += BATCH) {
+      await Promise.all(
+        updates.slice(i, i + BATCH).map((u) =>
+          db.kurti.update({
+            where: { id: u.id },
+            data: { sizes: u.sizes, countOfPiece: u.countOfPiece, lastUpdatedTime: currTime },
+          })
+        )
+      );
+    }
+
+    await db.category.update({
+      where: { code: categoryCode.toUpperCase() },
+      data: {
+        countTotal: Math.max(0, (category.countTotal || 0) - totalRemoved),
+        isStockReady: false,
+      },
+    });
+
+    return {
+      success: true,
+      message: `Cleared ${totalRemoved} piece(s) from ${LOCATION_LABELS[location]}`,
+    };
+  } catch (error) {
+    console.error("Error clearing location stock:", error);
+    return { success: false, error: "Failed to clear stock" };
   }
 };
 

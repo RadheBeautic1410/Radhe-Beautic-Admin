@@ -9,9 +9,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
     try {
-        let { code, cartId, currentUser, currentTime } = await request.json();
-        console.log(code, cartId, currentUser, currentTime);
-        const data: any = await sellOrder(code, cartId, currentUser, currentTime);
+        let { code, cartId, currentUser, currentTime, stockLocation } = await request.json();
+        console.log(code, cartId, currentUser, currentTime, stockLocation);
+        const data: any = await sellOrder(code, cartId, currentUser, currentTime, stockLocation);
         // console.log('data', data?.length);
 
         if (data.success) {

@@ -40,6 +40,12 @@ import { PasswordDialog } from "@/src/app/(protected)/_components/PasswordDialog
 import Link from "next/link";
 import { Select, SelectValue, SelectTrigger } from "@/src/components/ui/select";
 import { SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  LOCATION_LABELS,
+  availableAtLocation,
+  describeLocations,
+  locationForShopId,
+} from "@/src/lib/godown";
 
 const getCurrTime = () => {
   const currentTime = new Date();
@@ -110,6 +116,11 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
 
   const currentUser = useCurrentUser();
   const router = useRouter();
+
+  // Lines added to this bill come out of the bill's shop location.
+  const billLocation = locationForShopId(selectedShopId);
+  const whereLabel = billLocation ? LOCATION_LABELS[billLocation] : "stock";
+  const stockOf = (sz: any) => availableAtLocation(sz, billLocation);
 
   const buildCartFromSaleData = (saleData: any): CartItem[] => {
     const trackedItems: CartItem[] = (saleData?.sales || []).map((sale: any) => ({
@@ -462,8 +473,12 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     }
 
     const sizeInfo = kurti.sizes.find((sz: any) => sz.size === selectedSize);
-    if (!sizeInfo || sizeInfo.quantity < quantity) {
-      toast.error("Insufficient stock for selected quantity");
+    if (!sizeInfo || stockOf(sizeInfo) < quantity) {
+      toast.error(
+        sizeInfo
+          ? `Only ${stockOf(sizeInfo)} of ${selectedSize} in ${whereLabel} (${describeLocations(sizeInfo)})`
+          : "Insufficient stock for selected quantity"
+      );
       return;
     }
 
@@ -486,7 +501,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       selectedSize,
       quantity,
       sellingPrice: parseInt(sellingPrice),
-      availableStock: sizeInfo.quantity,
+      availableStock: stockOf(sizeInfo),
     };
 
     if (existingItemIndex >= 0) {
@@ -495,8 +510,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       const existingItem = updatedCart[existingItemIndex];
       const totalQuantity = existingItem.quantity + quantity;
 
-      if (totalQuantity > sizeInfo.quantity) {
-        toast.error("Total quantity exceeds available stock");
+      if (totalQuantity > stockOf(sizeInfo)) {
+        toast.error(`Only ${stockOf(sizeInfo)} of ${selectedSize} in ${whereLabel}`);
         return;
       }
 
@@ -846,7 +861,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
 
   const getAvailableSizes = () => {
     if (!kurti?.sizes) return [];
-    return kurti.sizes.filter((sz: any) => sz.quantity > 0);
+    return kurti.sizes.filter((sz: any) => stockOf(sz) > 0);
   };
 
   if (loading) {
@@ -1255,19 +1270,19 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                         {kurti.sizes.map((sz: any, i: number) => (
                           <TableRow
                             key={i}
-                            className={sz.quantity === 0 ? "opacity-50" : ""}
+                            className={stockOf(sz) === 0 ? "opacity-50" : ""}
                           >
                             <TableCell className="border">
                               {sz.size.toUpperCase()}
                             </TableCell>
                             <TableCell
                               className={`border ${
-                                sz.quantity === 0
+                                stockOf(sz) === 0
                                   ? "text-red-500"
                                   : "text-green-600"
                               }`}
                             >
-                              {sz.quantity}
+                              {stockOf(sz)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1295,7 +1310,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                         <option value="">Select Size</option>
                         {getAvailableSizes().map((sz: any, i: number) => (
                           <option key={i} value={sz.size}>
-                            {sz.size.toUpperCase()} (Stock: {sz.quantity})
+                            {sz.size.toUpperCase()} ({whereLabel}: {stockOf(sz)})
                           </option>
                         ))}
                       </select>

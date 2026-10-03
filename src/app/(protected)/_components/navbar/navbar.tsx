@@ -67,7 +67,7 @@ const routes: MenuItem[] = [
   {
     name: "Sell",
     href: "/sell",
-    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER],
+    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.SHOP_SELLER],
     icon: "💰",
   },
   {
@@ -95,8 +95,14 @@ const routes: MenuItem[] = [
   {
     name: "Godown Stock",
     href: "/godown",
-    role: [UserRole.ADMIN, UserRole.UPLOADER],
+    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SHOP_SELLER],
     icon: "🏬",
+  },
+  {
+    name: "Stock by Location",
+    href: "/stock-location",
+    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.SHOP_SELLER],
+    icon: "📍",
   },
   {
     name: "Move to Floor",
@@ -115,6 +121,12 @@ const routes: MenuItem[] = [
     href: "/sellinghistory",
     role: [UserRole.ADMIN, UserRole.SELLER, UserRole.SHOP_SELLER],
     icon: "📊",
+  },
+  {
+    name: "Sales by Location",
+    href: "/sales-by-location",
+    role: [UserRole.ADMIN],
+    icon: "📍",
   },
   {
     name: "Offline Sales",

@@ -34,6 +34,8 @@ import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { useParams, useRouter } from "next/navigation";
 import { PasswordDialog } from "@/src/app/(protected)/_components/PasswordDialog";
 import Link from "next/link";
+import { StockLocation } from "@/src/lib/godown";
+import { StockLocationPicker } from "@/src/app/(protected)/_components/godown/stock-location-picker";
 
 interface CartItem {
   id: string;
@@ -44,6 +46,7 @@ interface CartItem {
   sellingPrice: number;
   availableStock: number;
   isLowerSize?: boolean; // Flag to indicate if this is a lower size replacement
+  stockLocation?: StockLocation; // Where extra pieces added in this edit are taken from
 }
 
 type GSTType = "IGST" | "SGST_CGST";
@@ -273,6 +276,13 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   };
 
   // Save changes
+  /** Pieces this edit sends on top of the saved bill: a new line, or a raised quantity. */
+  const extraPiecesInEdit = (item: CartItem): number => {
+    const original = originalSaleData?.sales?.find((s: any) => s.id === item.id);
+    if (!original) return item.quantity;
+    return Math.max(0, item.quantity - (original.quantity || 0));
+  };
+
   const handleSaveChanges = async () => {
     try {
       setUpdating(true);
@@ -290,6 +300,18 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
 
       if (!paymentStatus) {
         toast.error("Payment status is required");
+        return;
+      }
+
+      const unchosen = cart.filter(
+        (item) => extraPiecesInEdit(item) > 0 && !item.stockLocation
+      );
+      if (unchosen.length > 0) {
+        toast.error(
+          `Choose where to take stock from for: ${unchosen
+            .map((i) => `${i.kurti.code.toUpperCase()}-${i.selectedSize.toUpperCase()}`)
+            .join(", ")}`
+        );
         return;
       }
 
@@ -316,6 +338,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           quantity: item.quantity,
           sellingPrice: item.sellingPrice,
           code: item.kurti.code,
+          stockLocation: item.stockLocation,
         }));
 
       if (newProducts.length > 0) {
@@ -329,6 +352,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
           id: item.id,
           quantity: item.quantity,
           sellingPrice: item.sellingPrice,
+          stockLocation: item.stockLocation,
         }));
 
       if (updatedItems.length > 0) {
@@ -1264,6 +1288,11 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                     <TableHead className="font-bold border text-white">
                       Quantity
                     </TableHead>
+                    {isEditMode && (
+                      <TableHead className="font-bold border text-white">
+                        Take From
+                      </TableHead>
+                    )}
                     <TableHead className="font-bold border text-white">
                       Unit Price
                     </TableHead>
@@ -1330,6 +1359,30 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                           <span>{item.quantity}</span>
                         )}
                       </TableCell>
+                      {isEditMode && (
+                        <TableCell className="border">
+                          {extraPiecesInEdit(item) > 0 ? (
+                            <StockLocationPicker
+                              sizeRow={(item.kurti?.sizes || []).find(
+                                (sz: any) =>
+                                  String(sz.size).toUpperCase() ===
+                                  item.selectedSize.toUpperCase()
+                              )}
+                              quantity={extraPiecesInEdit(item)}
+                              value={item.stockLocation}
+                              onChange={(loc) =>
+                                setCart((prev) =>
+                                  prev.map((c) =>
+                                    c.id === item.id ? { ...c, stockLocation: loc } : c
+                                  )
+                                )
+                              }
+                            />
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="border">
                         {isEditMode ? (
                           <Input

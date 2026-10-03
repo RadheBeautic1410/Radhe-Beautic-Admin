@@ -6,6 +6,7 @@ import { currentRole, currentUser } from "@/src/lib/auth";
 import { UserRole } from "@prisma/client";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
+import { StockLocation, deductFromLocation, isStockLocation } from "@/src/lib/godown";
 
 export const getCurrTime = async() => {
     const currentTime = new Date();
@@ -128,7 +129,8 @@ export const getOrderForPacking = async (orderId: string) => {
                         include: {
                             kurti: {
                                 select: {
-                                    code: true
+                                    code: true,
+                                    sizes: true,
                                 }
                             }
                         }
@@ -215,6 +217,13 @@ function isSize(size: string) {
     return arr.includes(size);
 }
 
+export const sellOrder = async (code: string, cartId: any, currentUser: any, currentTime: any, stockLocation?: StockLocation) => {
+    if (!stockLocation || !isStockLocation(stockLocation)) {
+        return { success: false, error: 'Choose where this piece was taken from (1st Floor / 2nd Floor / Shop 316 / Godown)' };
+    }
+    return sellOrderFromLocation(code, cartId, currentUser, currentTime, stockLocation);
+}
+
 function updateSizeQuantity(sizes: any[], size: string, change: number): any[] {
     const existingSize = sizes.find(s => s.size === size);
     if (existingSize) {
@@ -231,7 +240,7 @@ function updateSizeQuantity(sizes: any[], size: string, change: number): any[] {
     return sizes;
 }
 
-export const sellOrder = async (code: string, cartId: any, currentUser: any, currentTime: any) => {
+const sellOrderFromLocation = async (code: string, cartId: any, currentUser: any, currentTime: any, stockLocation: StockLocation) => {
     code = code.toUpperCase();
     let search = code.substring(0, 7).toUpperCase();
     let size = code.substring(7);
@@ -267,8 +276,11 @@ export const sellOrder = async (code: string, cartId: any, currentUser: any, cur
             });
             if (!cartProduct) throw new Error('Cart not found');
 
-            // Update Kurti sizes and reservedSizes
-            const updatedSizes = updateSizeQuantity(kurti.sizes, size, -1);
+            // Update Kurti sizes (at the chosen location) and reservedSizes
+            const deducted = deductFromLocation(sizeInSizes, 1, stockLocation, `${search}-${size}`);
+            const updatedSizes = kurti.sizes
+                .map((s: any) => (s === sizeInSizes ? deducted : s))
+                .filter((s: any) => s !== deducted || deducted.quantity > 0);
             const updatedReservedSizes = updateSizeQuantity(kurti.reservedSizes, size, -1);
 
             console.log('updatedSize1:', updatedSizes, updatedReservedSizes);
@@ -292,7 +304,8 @@ export const sellOrder = async (code: string, cartId: any, currentUser: any, cur
                     code: search.toUpperCase(),
                     sellerName: currentUser.name,
                     kurti: [kurti],
-                    kurtiSize: size
+                    kurtiSize: size,
+                    stockLocation,
                 }
             });
             console.log(sell);

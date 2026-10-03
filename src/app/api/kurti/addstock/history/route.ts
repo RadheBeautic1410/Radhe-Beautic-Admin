@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
           code: true,
           size: true,
           quantity: true,
+          location: true,
           createdAt: true,
         },
       }),

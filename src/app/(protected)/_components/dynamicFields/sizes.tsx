@@ -3,77 +3,91 @@
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select";
-import { getFloorQty, getTotalQty } from "@/src/lib/godown";
-import { useEffect, useState } from "react";
+import {
+    COUNTED_LOCATIONS,
+    LOCATION_KEYS,
+    LOCATION_LABELS,
+    getGodownQty,
+    getLocationQty,
+    getTotalQty,
+    needsFloorMove,
+    normalizeSizeLocations,
+} from "@/src/lib/godown";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+const selectSizes: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
+
+// Header, rows and footer share one grid so the columns always line up.
+// Columns: size | total | 1st floor | 2nd floor | shop 316 | godown | remove
+const GRID_WITH_LOCATIONS = "grid grid-cols-[72px_repeat(4,minmax(52px,1fr))_minmax(52px,1fr)_32px] gap-2 items-center";
+// Columns: size | total | remove
+const GRID_PLAIN = "grid grid-cols-[96px_minmax(64px,1fr)_32px] gap-2 items-center";
+
+// Hide the browser spinners - they cover the digits in narrow cells.
+const QTY_INPUT =
+    "h-9 px-1 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+
 interface SingleSizeProps {
-    onSetSize: (size: string, quantity: number, godownQuantity: number) => void;
-    quantity: any;
-    size: any;
-    godownQuantity?: any;
+    row: any;
+    onChange: (row: any) => void;
     showGodown?: boolean;
 }
 
-const SingleSize: React.FC<SingleSizeProps> = ({ onSetSize, quantity, size, godownQuantity, showGodown }) => {
-    const selectSizes: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
-    const [selectedSize, setSelectedSize] = useState<string>(size);
-    const [selectedQuantity, setQuantity] = useState(quantity);
-    const [selectedGodown, setGodown] = useState(godownQuantity || 0);
-    useEffect(() => {
-        onSetSize(size, quantity, godownQuantity || 0);
-    }, [])
-    const handleChange = (e: any) => {
-        setSelectedSize(e);
-        onSetSize(e, selectedQuantity, selectedGodown);
+const toQty = (val: string) => {
+    const n = parseInt(val, 10);
+    return Number.isFinite(n) ? n : 0;
+};
+
+const SingleSize: React.FC<SingleSizeProps> = ({ row, onChange, showGodown }) => {
+    // With locations on, every edit writes explicit floor/316 counts so the
+    // godown (the remainder) absorbs any change to the total.
+    const emit = (patch: any) => {
+        if (!showGodown) {
+            onChange({ ...row, ...patch });
+            return;
+        }
+        onChange({ ...normalizeSizeLocations(row), ...patch });
     };
-    const handleQuantityChange = (e: any) => {
-        let quan = parseInt(e.target.value)
-        setQuantity(quan);
-        onSetSize(selectedSize, quan, selectedGodown);
-    }
-    const handleGodownChange = (e: any) => {
-        let godown = parseInt(e.target.value)
-        setGodown(godown);
-        onSetSize(selectedSize, selectedQuantity, godown);
-    }
+
     return (
         <>
-            <Select
-                onValueChange={(e) => handleChange(e)}
-                defaultValue={size}
-            >
-
-                <SelectTrigger className={showGodown ? "w-[16%]" : "w-[20%]"}>
-                    <SelectValue>
-                        {size}
-                    </SelectValue>
+            <Select onValueChange={(e) => emit({ size: e })} value={row.size}>
+                <SelectTrigger className="h-9 px-2 text-sm font-semibold">
+                    <SelectValue>{row.size}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                     {selectSizes.map((org) => (
-                        <SelectItem key={org} value={org} >
+                        <SelectItem key={org} value={org}>
                             {org}
                         </SelectItem>
                     ))}
                 </SelectContent>
             </Select>
             <Input
-                className={showGodown ? "ml-2 w-[22%]" : "ml-2 w-[30%]"}
+                className={`${QTY_INPUT} font-semibold`}
                 type="number"
+                min={0}
                 placeholder="Total"
-                value={quantity}
-                onChange={(e) => handleQuantityChange(e)}
+                aria-label={`${row.size} total`}
+                value={row.quantity}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => emit({ quantity: toQty(e.target.value) })}
             />
-            {showGodown && (
-                <Input
-                    className="ml-2 w-[22%]"
-                    type="number"
-                    min={0}
-                    placeholder="Godown"
-                    value={godownQuantity ?? 0}
-                    onChange={(e) => handleGodownChange(e)}
-                />
-            )}
+            {showGodown &&
+                COUNTED_LOCATIONS.map((loc) => (
+                    <Input
+                        key={loc}
+                        className={QTY_INPUT}
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        aria-label={`${row.size} ${LOCATION_LABELS[loc]}`}
+                        value={getLocationQty(row, loc)}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => emit({ [LOCATION_KEYS[loc]]: toQty(e.target.value) })}
+                    />
+                ))}
         </>
     );
 };
@@ -82,15 +96,14 @@ interface AddSizeFormProps {
     onAddSize: (sizes: any[]) => void;
     preSizes: any[];
     sizes: any[];
-    /** Show the per-size godown input and the derived floor-stock readout. */
+    /** Show per-location inputs (1st / 2nd floor, Shop 316) and the derived godown count. */
     showGodown?: boolean;
 }
 
-export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes, sizes, showGodown }) => {
+export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, sizes, showGodown }) => {
+    const grid = showGodown ? GRID_WITH_LOCATIONS : GRID_PLAIN;
 
     const handleAddSize = () => {
-        let obj: any = { size: 'XS', quantity: 0 };
-        if (showGodown) obj.godownQuantity = 0;
         for (let i = 0; i < sizes.length; i++) {
             for (let j = 0; j < sizes.length; j++) {
                 if (i !== j && sizes[i].size === sizes[j].size) {
@@ -99,8 +112,12 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes, s
                 }
             }
         }
-        const newSizes = [...sizes, obj]; // Default size 'XS' added
-        onAddSize(newSizes);
+        // Default to the first size not already in the list
+        const used = new Set(sizes.map((s) => s.size));
+        const nextSize = selectSizes.find((s) => !used.has(s)) || "XS";
+        let obj: any = { size: nextSize, quantity: 0 };
+        if (showGodown) obj = normalizeSizeLocations(obj);
+        onAddSize([...sizes, obj]);
     };
 
     const handleRemoveSize = (index: number) => {
@@ -108,58 +125,93 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, preSizes, s
         onAddSize(updatedSizes);
     };
 
+    const columnTotal = (fn: (s: any) => number) => sizes.reduce((sum, s) => sum + fn(s), 0);
+
     return (
-        <div className="flex flex-col gap-2 w-[100%]">
-            {showGodown && sizes.length > 0 && (
-                <div className="flex items-center text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-                    <span className="w-[16%]">Size</span>
-                    <span className="ml-2 w-[22%]">Total</span>
-                    <span className="ml-2 w-[22%]">In Godown</span>
-                    <span className="ml-2">On Floor</span>
-                </div>
-            )}
-            {sizes.map((obj, index) => (
-                <div key={index} className="flex items-center">
-                    <SingleSize
-                        key={index}
-                        quantity={obj.quantity}
-                        size={obj.size}
-                        godownQuantity={obj.godownQuantity}
-                        showGodown={showGodown}
-                        onSetSize={(size: any, quantity: any, godownQuantity: any) => {
-                            const updatedSizes = [...sizes];
-                            updatedSizes[index] = showGodown
-                                ? { ...sizes[index], size, quantity, godownQuantity }
-                                : { ...sizes[index], size, quantity };
-                            onAddSize(updatedSizes);
-                        }}
-                    />
-                    {showGodown && (
-                        <span
-                            className={`ml-2 min-w-[3.5rem] text-center text-xs font-bold rounded-md px-2 py-1 ${
-                                getTotalQty(obj) > 0 && getFloorQty(obj) === 0
-                                    ? "bg-amber-100 text-amber-800"
-                                    : "bg-emerald-50 text-emerald-700"
-                            }`}
-                            title={
-                                getTotalQty(obj) > 0 && getFloorQty(obj) === 0
-                                    ? "All pieces are in the godown - move some down to sell"
-                                    : "Pieces available on the selling floor"
-                            }
+        <div className="flex flex-col gap-2 w-full">
+            <div className="overflow-x-auto">
+                <div className={showGodown ? "min-w-[480px]" : ""}>
+                    {sizes.length > 0 && (
+                        <div
+                            className={`${grid} sticky top-0 z-10 bg-white pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wide leading-tight`}
                         >
-                            {getFloorQty(obj)}
-                        </span>
+                            <span className="px-1">Size</span>
+                            <span className="text-center">Total</span>
+                            {showGodown &&
+                                COUNTED_LOCATIONS.map((loc) => (
+                                    <span key={loc} className="text-center">{LOCATION_LABELS[loc]}</span>
+                                ))}
+                            {showGodown && <span className="text-center">Godown</span>}
+                            <span />
+                        </div>
                     )}
-                    <Button type="button" className="ml-2" onClick={() => handleRemoveSize(index)}>Remove</Button>
+
+                    <div className="flex flex-col gap-2">
+                        {sizes.map((obj, index) => (
+                            <div key={index} className={grid}>
+                                <SingleSize
+                                    row={obj}
+                                    showGodown={showGodown}
+                                    onChange={(row: any) => {
+                                        const updatedSizes = [...sizes];
+                                        updatedSizes[index] = row;
+                                        onAddSize(updatedSizes);
+                                    }}
+                                />
+                                {showGodown && (
+                                    <span
+                                        className={`h-9 flex items-center justify-center text-sm font-bold rounded-md ${
+                                            needsFloorMove(obj)
+                                                ? "bg-amber-100 text-amber-800"
+                                                : "bg-slate-100 text-slate-700"
+                                        }`}
+                                        title="Godown = Total - 1st Floor - 2nd Floor - Shop 316"
+                                    >
+                                        {getGodownQty(obj)}
+                                    </span>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveSize(index)}
+                                    className="h-8 w-8 flex items-center justify-center rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                    title={`Remove size ${obj.size}`}
+                                    aria-label={`Remove size ${obj.size}`}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    {showGodown && sizes.length > 1 && (
+                        <div className={`${grid} mt-2 pt-2 border-t border-gray-200 text-sm font-bold text-gray-700`}>
+                            <span className="px-1 text-[10px] uppercase tracking-wide text-gray-500">Total</span>
+                            <span className="text-center">{columnTotal(getTotalQty)}</span>
+                            {COUNTED_LOCATIONS.map((loc) => (
+                                <span key={loc} className="text-center">
+                                    {columnTotal((s) => getLocationQty(s, loc))}
+                                </span>
+                            ))}
+                            <span className="text-center">{columnTotal(getGodownQty)}</span>
+                            <span />
+                        </div>
+                    )}
                 </div>
-            ))}
-            {showGodown && sizes.some((s) => getTotalQty(s) > 0 && getFloorQty(s) === 0) && (
+            </div>
+
+            {showGodown && sizes.some(needsFloorMove) && (
                 <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
-                    ⚠️ Some sizes have every piece in the godown - nothing is on the selling floor for them.
+                    ⚠️ Some sizes have nothing on either showroom floor - their pieces are in the godown.
                 </p>
             )}
-            <Button className="w-[30%]" type="button" onClick={handleAddSize}>
-                + Add
+            <Button
+                type="button"
+                variant="outline"
+                onClick={handleAddSize}
+                className="self-start h-8 px-3 text-xs font-semibold border-dashed"
+            >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Add Size
             </Button>
         </div>
     );

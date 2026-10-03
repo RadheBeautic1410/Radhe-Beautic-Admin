@@ -1,17 +1,20 @@
 export const dynamic = 'force-dynamic'
 
 import { addStock } from "@/src/data/kurti";
+import { isStockLocation } from "@/src/lib/godown";
 import { NextRequest, NextResponse } from "next/server";
 
 
 export async function POST(request: NextRequest) {
     try {
-        // const code = request.nextUrl.searchParams.get("code") || "";
         let data = await request.json();
         console.log(data);
-        // console.log(data);
-        // console.log(code, code.substring(0, 7), code.substring(7));
-        const data2 = await addStock(data.code);
+        // No location = a new parcel, which lands in the godown.
+        const location = data.location === undefined ? "GODOWN" : data.location;
+        if (!isStockLocation(location)) {
+            return new NextResponse(JSON.stringify({ data: { error: "Unknown stock location" } }), { status: 200 });
+        }
+        const data2 = await addStock(data.code, location);
         return new NextResponse(JSON.stringify({ data: data2 }), { status: 200 });
     } catch (error: any) {
         return new NextResponse(JSON.stringify({ error: error.message }), {
@@ -19,8 +22,3 @@ export async function POST(request: NextRequest) {
         });
     }
 }
-
-
-
-
-
