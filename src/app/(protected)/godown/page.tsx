@@ -30,6 +30,7 @@ import {
   needsFloorMove,
 } from "@/src/lib/godown";
 import { PendingFloorMoves } from "../_components/godown/pending-floor-moves";
+import { BulkMoveDialog } from "../_components/godown/bulk-move-dialog";
 
 interface LastMove {
   code: string;
@@ -171,7 +172,7 @@ function GodownStockPage() {
 
         <div className="flex flex-row flex-wrap gap-2">
           <div className="flex flex-col flex-wrap">
-            <h3>Product Code (with size)</h3>
+            <h3>Product Code (with size; without size for multiple sizes)</h3>
             <Input
               className="w-[100%]"
               placeholder="e.g. JR41223XL"
@@ -193,6 +194,17 @@ function GodownStockPage() {
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : ""}
             Move to {LOCATION_LABELS[to]}
           </Button>
+          <BulkMoveDialog
+            code={code}
+            from={from}
+            to={to}
+            onMoved={(updated) => {
+              setKurti(updated);
+              setLastMove(null);
+              setCode("");
+              setRefreshKey((k) => k + 1);
+            }}
+          />
         </div>
 
         {lastMove && (

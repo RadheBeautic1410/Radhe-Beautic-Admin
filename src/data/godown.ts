@@ -384,3 +384,83 @@ export const getLocationSummary = async () => {
     amount: locations.reduce((sum, l) => sum + l.amount, 0),
   };
 };
+
+/**
+ * Move several sizes of one design between two locations at once (e.g. a full
+ * set from the godown to a floor). All or nothing: if any size lacks the pieces
+ * at `from`, nothing moves. Every size is logged in StockMovement.
+ */
+export const moveStockBulk = async (
+  rawCode: string,
+  from: StockLocation,
+  to: StockLocation,
+  items: { size: string; quantity: number }[],
+  movedBy?: string
+) => {
+  try {
+    if (from === to) {
+      return { error: "From and To locations must be different." };
+    }
+    const wanted = (items || [])
+      .map((i) => ({
+        size: String(i?.size || "").toUpperCase(),
+        quantity: parseInt(String(i?.quantity ?? 0), 10) || 0,
+      }))
+      .filter((i) => i.size && i.quantity > 0);
+    if (!wanted.length) {
+      return { error: "Select at least one size with a quantity." };
+    }
+
+    const input = String(rawCode || "").trim().toUpperCase();
+    const code = input.startsWith("CK0") ? input.substring(0, 6) : input.substring(0, 7);
+    const kurti = await db.kurti.findUnique({ where: { code, isDeleted: false } });
+    if (!kurti) {
+      return { error: `No product found for code ${code}` };
+    }
+
+    const sizes = normalizeSizesLocations((kurti.sizes as any[]) || []);
+    const errors: string[] = [];
+    for (const item of wanted) {
+      const idx = sizes.findIndex((s: any) => String(s.size).toUpperCase() === item.size);
+      if (idx === -1) {
+        errors.push(`${item.size} does not exist on ${code}`);
+        continue;
+      }
+      try {
+        sizes[idx] = moveBetweenLocations(sizes[idx], from, to, item.quantity, `${code} - ${item.size}`);
+      } catch (e: any) {
+        errors.push(e.message);
+      }
+    }
+    if (errors.length) {
+      return { error: `Nothing moved. ${errors.join("; ")}` };
+    }
+
+    const [updated] = await db.$transaction([
+      db.kurti.update({ where: { code }, data: { sizes } }),
+      db.stockMovement.createMany({
+        data: wanted.map((item) => ({
+          code,
+          size: item.size,
+          quantity: item.quantity,
+          fromLocation: from,
+          toLocation: to,
+          movedBy: movedBy || null,
+          kurtiId: kurti.id,
+        })),
+      }),
+    ]);
+
+    const pieces = wanted.reduce((sum, i) => sum + i.quantity, 0);
+    return {
+      success: `Moved ${pieces} piece(s) of ${code} (${wanted
+        .map((i) => `${i.size}×${i.quantity}`)
+        .join(", ")}) from ${LOCATION_LABELS[from]} to ${LOCATION_LABELS[to]}.`,
+      data: updated,
+      pieces,
+    };
+  } catch (e: any) {
+    console.log("moveStockBulk:", e.message);
+    return { error: "Something went wrong" };
+  }
+};

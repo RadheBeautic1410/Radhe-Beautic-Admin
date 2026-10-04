@@ -127,6 +127,8 @@ export interface FullSetKurti {
   code: string;
   category: string;
   image: string | null;
+  /** Every image that is not hidden, for the zip download. */
+  images: string[];
   sizes: { size: string; quantity: number }[];
 }
 
@@ -167,6 +169,19 @@ export const getFullSetKurtis = async ({
             category: 1,
             sizes: 1,
             image: { $arrayElemAt: ["$images.url", 0] },
+            images: {
+              $map: {
+                input: {
+                  $filter: {
+                    input: { $ifNull: ["$images", []] },
+                    as: "img",
+                    cond: { $ne: ["$$img.is_hidden", true] },
+                  },
+                },
+                as: "img",
+                in: "$$img.url",
+              },
+            },
             isFullSet: isFullSetExpr,
           },
         },
@@ -194,6 +209,9 @@ export const getFullSetKurtis = async ({
       code: String(row?.code ?? ""),
       category: String(row?.category ?? ""),
       image: typeof row?.image === "string" ? row.image : null,
+      images: Array.isArray(row?.images)
+        ? row.images.filter((url: any) => typeof url === "string" && url)
+        : [],
       sizes: Array.isArray(row?.sizes)
         ? row.sizes
             .filter((size: any) =>

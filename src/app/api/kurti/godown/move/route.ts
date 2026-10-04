@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { getRecentStockMovements, moveStockLocation } from "@/src/data/godown";
+import { getRecentStockMovements, moveStockBulk, moveStockLocation } from "@/src/data/godown";
 import { currentUser } from "@/src/lib/auth";
 import { LOCATION_LABELS, isStockLocation, locationForShopId } from "@/src/lib/godown";
 import { getUserShop } from "@/src/actions/shop";
@@ -46,7 +46,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const data = await moveStockLocation(code, from, to, user?.name || undefined);
+    // { sizes: [{ size, quantity }] } = several sizes at once (e.g. a full set);
+    // otherwise `code` is one scanned piece with its size.
+    const data = Array.isArray(body?.sizes)
+      ? await moveStockBulk(code, from, to, body.sizes, user?.name || undefined)
+      : await moveStockLocation(code, from, to, user?.name || undefined);
     return new NextResponse(JSON.stringify({ data }), { status: 200 });
   } catch (error: any) {
     return new NextResponse(JSON.stringify({ error: error.message }), {

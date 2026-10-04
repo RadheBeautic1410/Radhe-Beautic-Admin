@@ -12,13 +12,35 @@ import { Button } from "@/src/components/ui/button";
 import { Skeleton } from "@/src/components/ui/skeleton";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import JSZip from "jszip";
+import { Download, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface FullSetKurti {
   code: string;
   category: string;
   image: string | null;
+  images: string[];
   sizes: { size: string; quantity: number }[];
 }
+
+/** File extension for a downloaded image, from its type or URL. */
+const imageExtension = (blob: Blob, url: string) => {
+  const fromType = blob.type.split("/")[1]?.replace("jpeg", "jpg");
+  if (fromType && /^[a-z0-9]+$/.test(fromType)) return fromType;
+  const fromUrl = url.split("?")[0].split(".").pop()?.toLowerCase();
+  return fromUrl && fromUrl.length <= 4 ? fromUrl : "jpg";
+};
+
+/** Run `task` over `items` with at most `limit` running at once. */
+const runLimited = async <T,>(items: T[], limit: number, task: (item: T) => Promise<void>) => {
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) await task(items[next++]);
+    })
+  );
+};
 
 interface FullSetModalProps {
   trigger: React.ReactElement;
@@ -81,6 +103,84 @@ export const FullSetModal = ({
 
   const hasMore = items.length < total;
   const shownTotal = total || count || 0;
+  const [downloading, setDownloading] = useState(false);
+
+  /**
+   * Zip every visible image of every full-set design (not only the loaded page),
+   * without a watermark. Across all categories, each category gets a folder.
+   */
+  const downloadImages = async () => {
+    const toastId = toast.loading("Collecting full set designs...");
+    setDownloading(true);
+    try {
+      const all: FullSetKurti[] = [];
+      for (let p = 1; ; p++) {
+        const params = new URLSearchParams({ page: String(p), limit: "100" });
+        if (categoryName) params.set("category", categoryName);
+        const res = await fetch(`/api/category/full-set?${params}`, { cache: "no-store" });
+        const json = await res.json();
+        if (json?.error) throw new Error(json.error);
+        all.push(...(json?.data ?? []));
+        if (p >= (json?.pagination?.totalPages ?? 1)) break;
+      }
+
+      const files = all.flatMap((k) =>
+        (k.images || []).map((url, i) => ({
+          url,
+          name: `${categoryName ? "" : `${k.category}/`}${k.code}_${i + 1}`,
+        }))
+      );
+      if (!files.length) {
+        toast.error("No images found for these designs", { id: toastId });
+        return;
+      }
+
+      const zip = new JSZip();
+      let done = 0;
+      let failed = 0;
+      await runLimited(files, 6, async (file) => {
+        try {
+          const res = await fetch(file.url);
+          if (!res.ok) throw new Error(String(res.status));
+          const blob = await res.blob();
+          zip.file(`${file.name}.${imageExtension(blob, file.url)}`, blob);
+        } catch (e) {
+          console.warn("Full set image failed:", file.url, e);
+          failed++;
+        }
+        done++;
+        toast.loading(`Downloading images ${done}/${files.length}...`, { id: toastId });
+      });
+
+      if (failed === files.length) {
+        toast.error("Could not download any image", { id: toastId });
+        return;
+      }
+
+      toast.loading("Creating zip file...", { id: toastId });
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${categoryName || "all_categories"}_full_set_${
+        new Date().toISOString().split("T")[0]
+      }.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(
+        `Downloaded ${files.length - failed} image(s) of ${all.length} design(s)` +
+          (failed ? ` - ${failed} image(s) failed` : ""),
+        { id: toastId }
+      );
+    } catch (e: any) {
+      toast.error(e?.message || "Download failed", { id: toastId });
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -94,6 +194,22 @@ export const FullSetModal = ({
             Designs having stock in all of M, L, XL and XXL
             {shownTotal ? ` - ${shownTotal} design${shownTotal === 1 ? "" : "s"}` : ""}
           </DialogDescription>
+          <div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={downloading || shownTotal === 0}
+              onClick={downloadImages}
+            >
+              {downloading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              Download images (zip)
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="overflow-y-auto pr-1 -mr-1">
