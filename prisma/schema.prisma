@@ -880,3 +880,20 @@ model StockMovement {
   @@index([code])
   @@index([createdAt])
 }
+
+// Customer storefront top menu, managed from admin (Storefront Menu page).
+// Top-level items have parentId = null; their children form the hover dropdown.
+// Link: href if set, else /kurtis?categoryCodes=<categoryCodes>, else no link (dropdown only).
+model StorefrontMenuItem {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  label         String
+  parentId      String?  @db.ObjectId
+  order         Int      @default(0)
+  categoryCodes String[]
+  href          String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([parentId, order])
+}
