@@ -252,6 +252,12 @@ const routes: MenuItem[] = [
         role: [UserRole.ADMIN],
         icon: "👗",
       },
+      {
+        name: "Storefront Menu",
+        href: "/storefront-menu",
+        role: [UserRole.ADMIN],
+        icon: "🧭",
+      },
     ],
   },
 ];
