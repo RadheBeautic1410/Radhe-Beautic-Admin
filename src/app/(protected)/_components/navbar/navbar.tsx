@@ -18,202 +18,180 @@ interface SubMenuItem {
   icon: string;
 }
 
-interface MenuItem {
-  name: string;
-  href: string;
-  role: UserRole[];
-  icon: string;
-  submenu?: SubMenuItem[];
-}
+// A plain link, or a group whose submenu holds the links. A group is shown to
+// every role that can see at least one of its links.
+type MenuItem =
+  | (SubMenuItem & { submenu?: undefined })
+  | { name: string; icon: string; submenu: SubMenuItem[] };
 
 const routes: MenuItem[] = [
   {
-    name: "Upload",
-    href: "/upload",
-    role: [UserRole.ADMIN, UserRole.UPLOADER],
-    icon: "📤",
-  },
-  //     {
-  //     name: 'New Upload',
-  //     href: '/newupload',
-  //     role: [UserRole.ADMIN, UserRole.UPLOADER]
-  // },
-  {
-    name: "Catalogue",
-    href: "/catalogue",
-    role: [
-      UserRole.ADMIN,
-      UserRole.UPLOADER,
-      UserRole.SELLER,
-      UserRole.RESELLER,
-      UserRole.SHOP_SELLER,
-      UserRole.SELLER_MANAGER,
-    ],
+    name: "Products",
     icon: "📋",
-  },
-  {
-    name: "Other Products",
-    href: "/other-products",
-    role: [
-      UserRole.ADMIN,
-      UserRole.UPLOADER,
-      UserRole.SELLER,
-      UserRole.RESELLER,
-      UserRole.SHOP_SELLER,
-      UserRole.SELLER_MANAGER,
+    submenu: [
+      {
+        name: "Upload",
+        href: "/upload",
+        role: [UserRole.ADMIN, UserRole.UPLOADER],
+        icon: "📤",
+      },
+      {
+        name: "Catalogue",
+        href: "/catalogue",
+        role: [
+          UserRole.ADMIN,
+          UserRole.UPLOADER,
+          UserRole.SELLER,
+          UserRole.RESELLER,
+          UserRole.SHOP_SELLER,
+          UserRole.SELLER_MANAGER,
+        ],
+        icon: "📋",
+      },
+      {
+        name: "Other Products",
+        href: "/other-products",
+        role: [
+          UserRole.ADMIN,
+          UserRole.UPLOADER,
+          UserRole.SELLER,
+          UserRole.RESELLER,
+          UserRole.SHOP_SELLER,
+          UserRole.SELLER_MANAGER,
+        ],
+        icon: "👗",
+      },
+      {
+        name: "Watermark",
+        href: "/watermark",
+        role: [UserRole.ADMIN, UserRole.UPLOADER],
+        icon: "💧",
+      },
+      {
+        name: "Moved Kurti History",
+        href: "/moved-history",
+        role: [
+          UserRole.ADMIN,
+          UserRole.RESELLER,
+          UserRole.SHOP_SELLER,
+          UserRole.SELLER,
+          UserRole.UPLOADER,
+          UserRole.SELLER_MANAGER,
+        ],
+        icon: "📜",
+      },
     ],
-    icon: "👗",
   },
   {
-    name: "Sell",
-    href: "/sell",
-    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.SHOP_SELLER],
+    name: "Billing",
     icon: "💰",
-  },
-  {
-    name: "Sell Retailer",
-    href: "/sellRetailer",
-    role: [UserRole.ADMIN, UserRole.SHOP_SELLER],
-    icon: "🏬",
-  },
-  {
-    name: "Hall Sales",
-    href: "/hall-sales",
-    role: [
-      UserRole.ADMIN,
-      // UserRole.SHOP_SELLER,
-      UserRole.SELLER_MANAGER,
+    submenu: [
+      {
+        name: "Sell",
+        href: "/sell",
+        role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.SHOP_SELLER],
+        icon: "💰",
+      },
+      {
+        name: "Sell Retailer",
+        href: "/sellRetailer",
+        role: [UserRole.ADMIN, UserRole.SHOP_SELLER],
+        icon: "🏬",
+      },
+      {
+        name: "Hall Sales",
+        href: "/hall-sales",
+        role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
+        icon: "🏪",
+      },
     ],
-    icon: "🏪",
   },
   {
-    name: "Add Stock",
-    href: "/addstock",
-    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER],
+    name: "Stock",
     icon: "📦",
+    submenu: [
+      {
+        name: "Add Stock",
+        href: "/addstock",
+        role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER],
+        icon: "📦",
+      },
+      {
+        name: "Godown Stock",
+        href: "/godown",
+        role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SHOP_SELLER],
+        icon: "🏬",
+      },
+      {
+        name: "Stock by Location",
+        href: "/stock-location",
+        role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.SHOP_SELLER],
+        icon: "📍",
+      },
+      {
+        name: "Move to Floor",
+        href: "/move-to-floor",
+        role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER],
+        icon: "⬇️",
+      },
+    ],
   },
   {
-    name: "Godown Stock",
-    href: "/godown",
-    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SHOP_SELLER],
-    icon: "🏬",
-  },
-  {
-    name: "Stock by Location",
-    href: "/stock-location",
-    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER, UserRole.SHOP_SELLER],
-    icon: "📍",
-  },
-  {
-    name: "Move to Floor",
-    href: "/move-to-floor",
-    role: [UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER],
-    icon: "⬇️",
-  },
-  {
-    name: "Request",
-    href: "/request",
-    role: [UserRole.ADMIN],
-    icon: "📝",
-  },
-  {
-    name: "Selling History",
-    href: "/sellinghistory",
-    role: [UserRole.ADMIN, UserRole.SELLER, UserRole.SHOP_SELLER],
-    icon: "📊",
-  },
-  {
-    name: "Sales by Location",
-    href: "/sales-by-location",
-    role: [UserRole.ADMIN],
-    icon: "📍",
-  },
-  {
-    name: "Offline Sales",
-    href: "/offline-sales",
-    role: [UserRole.ADMIN, UserRole.SHOP_SELLER, UserRole.SELLER_MANAGER],
-    icon: "🏪",
-  },
-  {
-    name: "Online Sales",
-    href: "/online-sales",
-    role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
-    icon: "🌐",
-  },
-  {
-    name: "Orders",
-    href: "/orders",
-    role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
+    name: "Sales & Orders",
     icon: "🛒",
+    submenu: [
+      {
+        name: "Orders",
+        href: "/orders",
+        role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
+        icon: "🛒",
+      },
+      {
+        name: "Online Sales",
+        href: "/online-sales",
+        role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
+        icon: "🌐",
+      },
+      {
+        name: "Offline Sales",
+        href: "/offline-sales",
+        role: [UserRole.ADMIN, UserRole.SHOP_SELLER, UserRole.SELLER_MANAGER],
+        icon: "🏪",
+      },
+      {
+        name: "Selling History",
+        href: "/sellinghistory",
+        role: [UserRole.ADMIN, UserRole.SELLER, UserRole.SHOP_SELLER],
+        icon: "🧾",
+      },
+    ],
   },
   {
-    name: "Analytics",
-    href: "/analytics",
-    role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
+    name: "Reports",
     icon: "📈",
-  },
-  {
-    name: "Dashboard",
-    href: "/dashboard",
-    role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
-    icon: "📊",
-  },
-  {
-    name: "Settings",
-    href: "/settings",
-    role: [
-      UserRole.ADMIN,
-      UserRole.RESELLER,
-      UserRole.SELLER,
-      UserRole.UPLOADER,
-      UserRole.SELLER_MANAGER,
+    submenu: [
+      {
+        name: "Dashboard",
+        href: "/dashboard",
+        role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
+        icon: "📊",
+      },
+      {
+        name: "Analytics",
+        href: "/analytics",
+        role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
+        icon: "📈",
+      },
+      {
+        name: "Sales by Location",
+        href: "/sales-by-location",
+        role: [UserRole.ADMIN],
+        icon: "📍",
+      },
     ],
-    icon: "⚙️",
-  },
-  {
-    name: "History",
-    href: "/moved-history",
-    role: [
-      UserRole.ADMIN,
-      UserRole.RESELLER,
-      UserRole.SHOP_SELLER,
-      UserRole.SELLER,
-      UserRole.UPLOADER,
-      UserRole.SELLER_MANAGER,
-    ],
-    icon: "📜",
-  },
-  {
-    name: "Watermark",
-    href: "/watermark",
-    role: [
-      UserRole.ADMIN,
-      UserRole.UPLOADER,
-      // UserRole.RESELLER,
-    ],
-    icon: "💧",
-  },
-  {
-    name: "Wallet Request",
-    href: "/wallet-request",
-    role: [
-      UserRole.ADMIN,
-      UserRole.SELLER_MANAGER,
-      // UserRole.RESELLER,
-      // UserRole.SELLER,
-    ],
-    icon: "💰",
-  },
-  {
-    name: "Expenses",
-    href: "/expenses",
-    role: [UserRole.ADMIN],
-    icon: "💸",
   },
   {
     name: "Customer",
-    href: "#",
-    role: [UserRole.ADMIN],
     icon: "👥",
     submenu: [
       {
@@ -260,7 +238,52 @@ const routes: MenuItem[] = [
       },
     ],
   },
+  {
+    name: "Accounts",
+    icon: "💸",
+    submenu: [
+      {
+        name: "Wallet Request",
+        href: "/wallet-request",
+        role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
+        icon: "👛",
+      },
+      {
+        name: "Expenses",
+        href: "/expenses",
+        role: [UserRole.ADMIN],
+        icon: "💸",
+      },
+      {
+        name: "Staff Requests",
+        href: "/request",
+        role: [UserRole.ADMIN],
+        icon: "📝",
+      },
+    ],
+  },
+  {
+    name: "Settings",
+    href: "/settings",
+    role: [
+      UserRole.ADMIN,
+      UserRole.RESELLER,
+      UserRole.SELLER,
+      UserRole.UPLOADER,
+      UserRole.SELLER_MANAGER,
+    ],
+    icon: "⚙️",
+  },
 ];
+
+const roleOf = (route: MenuItem): UserRole[] =>
+  route.submenu
+    ? Array.from(new Set(route.submenu.flatMap((s) => s.role)))
+    : route.role;
+
+// "/orders" must not light up on "/customer-orders", nor "/sell" on "/sellRetailer".
+const isActive = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(`${href}/`);
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -272,12 +295,9 @@ const Sidebar = () => {
   useEffect(() => {
     routes.forEach((route) => {
       if (route.submenu) {
-        const hasActiveSubItem = route.submenu.some((subItem) => {
-          if (subItem.href === "/sell" || subItem.href === "/sellHistory") {
-            return pathname === subItem.href;
-          }
-          return pathname.includes(subItem.href);
-        });
+        const hasActiveSubItem = route.submenu.some((subItem) =>
+          isActive(pathname, subItem.href)
+        );
         if (hasActiveSubItem) {
           setOpenSubmenus((prev) => new Set(prev).add(route.name));
         }
@@ -386,7 +406,7 @@ const Sidebar = () => {
           <nav className="flex-1 p-4 overflow-y-auto">
             <div className="space-y-2">
               {routes.map((route) => (
-                <RoleGateForComponent allowedRole={route.role} key={route.name}>
+                <RoleGateForComponent allowedRole={roleOf(route)} key={route.name}>
                   {route.submenu ? (
                     // Menu with submenu
                     <div>
@@ -402,7 +422,9 @@ const Sidebar = () => {
                         }}
                         className={cn(
                           "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group",
-                          "text-white/70 hover:bg-white/10 hover:text-white"
+                          route.submenu.some((s) => isActive(pathname, s.href))
+                            ? "text-white bg-white/10"
+                            : "text-white/70 hover:bg-white/10 hover:text-white"
                         )}
                       >
                         <span className="text-xl flex-shrink-0">{route.icon}</span>
@@ -431,11 +453,7 @@ const Sidebar = () => {
                                 onClick={() => setIsMobileOpen(false)}
                                 className={cn(
                                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group",
-                                  (
-                                    subItem.href === "/sell" || subItem.href === "/sellHistory"
-                                      ? pathname === subItem.href
-                                      : pathname.includes(subItem.href)
-                                  )
+                                  isActive(pathname, subItem.href)
                                     ? "bg-white/20 text-white shadow-lg"
                                     : "text-white/70 hover:bg-white/10 hover:text-white"
                                 )}
@@ -455,11 +473,7 @@ const Sidebar = () => {
                       onClick={() => setIsMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group",
-                        (
-                          route.href === "/sell" || route.href === "/sellHistory"
-                            ? pathname === route.href
-                            : pathname.includes(route.href)
-                        )
+                        isActive(pathname, route.href)
                           ? "bg-white/20 text-white shadow-lg"
                           : "text-white/70 hover:bg-white/10 hover:text-white"
                       )}
