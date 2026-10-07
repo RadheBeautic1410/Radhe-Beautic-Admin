@@ -724,6 +724,108 @@ function SellPage() {
         }
       `}</style>
       <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4 pt-6 pb-24">
+        {/* Customer Details Section */}
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div>
+              <Label htmlFor="customer-phone">Customer Phone (Optional)</Label>
+              <Input
+                id="customer-phone"
+                placeholder="Enter customer phone"
+                value={customerPhone}
+                maxLength={10}
+                onChange={(e) => {
+                  const input = e.target.value;
+                  // Only allow digits
+                  if (/^\d*$/.test(input)) {
+                    setCustomerPhone(input);
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="customer-name">Customer Name (Optional)</Label>
+              <Input
+                id="customer-name"
+                placeholder="Enter customer name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="shop-select">
+                {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER)
+                  ? "Select Shop *"
+                  : "Shop"}
+              </Label>
+              {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER) ? (
+                <select
+                  id="shop-select"
+                  name="shop-select"
+                  aria-label="Select shop"
+                  className="w-full p-2 border rounded-md"
+                  value={selectedShopId}
+                  onChange={(e) => setSelectedShopId(e.target.value)}
+                >
+                  <option value="">Select Shop</option>
+                  {shops.map((shop) => (
+                    <option key={shop.id} value={shop.id}>
+                      {shop.shopName} - {shop.shopLocation}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full p-2 border rounded-md bg-gray-50">
+                  {userShop ? (
+                    <span className="text-gray-700 font-medium">
+                      {userShop.shopName} - {userShop.shopLocation}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500">No shop associated</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="payment-type">Payment Type *</Label>
+              <select
+                id="payment-type"
+                name="payment-type"
+                aria-label="Select payment type"
+                className="w-full p-2 border rounded-md"
+                value={paymentType}
+                onChange={(e) => setpaymentType(e.target.value)}
+              >
+                <option value="">Select Payment Type</option>
+                <option value="GPay">GPay</option>
+                <option value="Cash">Cash</option>
+                <option value="BankTransfer">Bank Transfer</option>
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="bill-by">Bill Created By (Optional)</Label>
+              <Input
+                id="bill-by"
+                placeholder="Enter person name"
+                value={billCreatedBy}
+                onChange={(e) => setBillCreatedBy(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-3 lg:col-span-5">
+              <Label htmlFor="remark">Remark</Label>
+              <Input
+                id="remark"
+                placeholder="Enter remark (optional)"
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
         <div className="grid grid-cols-1 xl:grid-cols-[auto_1fr] gap-4">
           {/* Search Section */}
           <div className="bg-slate-50 p-4 rounded-lg">
@@ -811,7 +913,6 @@ function SellPage() {
             </div>
           </div>
         </div>
-        {/* Customer Details Section */}
 
         {/* Add-to-cart section removed: scanning/entering code adds directly to shipping details */}
 
@@ -947,107 +1048,6 @@ function SellPage() {
           </div>
         )}
 
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <div>
-              <Label htmlFor="customer-phone">Customer Phone (Optional)</Label>
-              <Input
-                id="customer-phone"
-                placeholder="Enter customer phone"
-                value={customerPhone}
-                maxLength={10}
-                onChange={(e) => {
-                  const input = e.target.value;
-                  // Only allow digits
-                  if (/^\d*$/.test(input)) {
-                    setCustomerPhone(input);
-                  }
-                }}
-              />
-            </div>
-            <div>
-              <Label htmlFor="customer-name">Customer Name (Optional)</Label>
-              <Input
-                id="customer-name"
-                placeholder="Enter customer name"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="shop-select">
-                {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER)
-                  ? "Select Shop *"
-                  : "Shop"}
-              </Label>
-              {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER) ? (
-                <select
-                  id="shop-select"
-                  name="shop-select"
-                  aria-label="Select shop"
-                  className="w-full p-2 border rounded-md"
-                  value={selectedShopId}
-                  onChange={(e) => setSelectedShopId(e.target.value)}
-                >
-                  <option value="">Select Shop</option>
-                  {shops.map((shop) => (
-                    <option key={shop.id} value={shop.id}>
-                      {shop.shopName} - {shop.shopLocation}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="w-full p-2 border rounded-md bg-gray-50">
-                  {userShop ? (
-                    <span className="text-gray-700 font-medium">
-                      {userShop.shopName} - {userShop.shopLocation}
-                    </span>
-                  ) : (
-                    <span className="text-gray-500">No shop associated</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="payment-type">Payment Type *</Label>
-              <select
-                id="payment-type"
-                name="payment-type"
-                aria-label="Select payment type"
-                className="w-full p-2 border rounded-md"
-                value={paymentType}
-                onChange={(e) => setpaymentType(e.target.value)}
-              >
-                <option value="">Select Payment Type</option>
-                <option value="GPay">GPay</option>
-                <option value="Cash">Cash</option>
-                <option value="BankTransfer">Bank Transfer</option>
-              </select>
-            </div>
-
-            <div>
-              <Label htmlFor="bill-by">Bill Created By (Optional)</Label>
-              <Input
-                id="bill-by"
-                placeholder="Enter person name"
-                value={billCreatedBy}
-                onChange={(e) => setBillCreatedBy(e.target.value)}
-              />
-            </div>
-
-            <div className="md:col-span-3 lg:col-span-5">
-              <Label htmlFor="remark">Remark</Label>
-              <Input
-                id="remark"
-                placeholder="Enter remark (optional)"
-                value={remark}
-                onChange={(e) => setRemark(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
         {/* Invoice Preview (shown as items are added) */}
         {(invoicePreview || draftInvoicePreview) && (
           <div className="border rounded-lg p-3 bg-white print-area">

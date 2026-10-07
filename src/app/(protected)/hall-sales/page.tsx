@@ -2,7 +2,7 @@
 
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import { Card, CardContent } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
 import {
@@ -23,13 +23,7 @@ import {
 } from "@/src/components/ui/table";
 import { PaymentStatus, UserRole } from "@prisma/client";
 import axios from "axios";
-import {
-  Loader2,
-  Search,
-  ShoppingCart,
-  Trash2,
-  Plus,
-} from "lucide-react";
+import { Loader2, Search, ShoppingCart, Trash2, Plus } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
@@ -42,6 +36,7 @@ import {
   availableAtLocation,
   describeLocations,
 } from "@/src/lib/godown";
+import { CategoryCombobox } from "@/src/app/(protected)/_components/category-combobox";
 import { StockLocationPicker } from "@/src/app/(protected)/_components/godown/stock-location-picker";
 import InvoicePreview, {
   InvoicePayload,
@@ -93,7 +88,8 @@ function HallSalesPage() {
   // Cart pagination (UI-only; totals/invoice still use full cart)
   const [cartPage, setCartPage] = useState(1);
   const [cartPageSize, setCartPageSize] = useState(25);
-  const [gstType, setGstType] = useState<GSTType>("SGST_CGST");
+  // GST selection is hidden on this page; hall bills are always intra-state.
+  const gstType: GSTType = "SGST_CGST";
   // Sale details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -102,11 +98,11 @@ function HallSalesPage() {
   const [shops, setShops] = useState<any[]>([]);
   const [paymentType, setpaymentType] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(
-    PaymentStatus.PENDING
+    PaymentStatus.PENDING,
   );
   const [userShop, setUserShop] = useState<any>(null);
   const [invoicePreview, setInvoicePreview] = useState<InvoicePayload | null>(
-    null
+    null,
   );
   const shouldPrintAfterSaveRef = useRef(false);
 
@@ -133,14 +129,21 @@ function HallSalesPage() {
   }, [currentUser?.role, selectedShopId, shops, userShop]);
 
   // Where the bill takes stock from; a cart line can override it for itself.
-  const [billLocation, setBillLocation] = useState<StockLocation>(DEFAULT_HALL_LOCATION);
+  const [billLocation, setBillLocation] = useState<StockLocation>(
+    DEFAULT_HALL_LOCATION,
+  );
   const whereLabel = LOCATION_LABELS[billLocation];
   const stockOf = (sz: any) => availableAtLocation(sz, billLocation);
-  const lineLocation = (item: CartItem): StockLocation => item.stockLocation ?? billLocation;
+  const lineLocation = (item: CartItem): StockLocation =>
+    item.stockLocation ?? billLocation;
   const sizeRowOf = (item: CartItem) =>
-    item.kurti?.sizes?.find((sz: any) => String(sz.size).toUpperCase() === item.selectedSize);
+    item.kurti?.sizes?.find(
+      (sz: any) => String(sz.size).toUpperCase() === item.selectedSize,
+    );
   const availableFor = (item: CartItem): number | null =>
-    item.lineType === "TRACKED" ? availableAtLocation(sizeRowOf(item), lineLocation(item)) : null;
+    item.lineType === "TRACKED"
+      ? availableAtLocation(sizeRowOf(item), lineLocation(item))
+      : null;
 
   // A new bill location applies to lines added from now on; lines already in
   // the cart stay where they were checked against.
@@ -148,8 +151,10 @@ function HallSalesPage() {
     if (loc === billLocation) return;
     setCart((prev) =>
       prev.map((c) =>
-        c.lineType === "TRACKED" && !c.stockLocation ? { ...c, stockLocation: billLocation } : c
-      )
+        c.lineType === "TRACKED" && !c.stockLocation
+          ? { ...c, stockLocation: billLocation }
+          : c,
+      ),
     );
     setBillLocation(loc);
   };
@@ -163,15 +168,17 @@ function HallSalesPage() {
         c.lineType === "TRACKED" &&
         c.kurti.code === item.kurti.code &&
         c.selectedSize === item.selectedSize &&
-        lineLocation(c) === loc
+        lineLocation(c) === loc,
     );
     if (clash) {
       toast.error(
-        `${item.kurti.code.toUpperCase()}-${item.selectedSize} already has a line from ${LOCATION_LABELS[loc]} - change its quantity instead`
+        `${item.kurti.code.toUpperCase()}-${item.selectedSize} already has a line from ${LOCATION_LABELS[loc]} - change its quantity instead`,
       );
       return;
     }
-    setCart((prev) => prev.map((c) => (c.id === itemId ? { ...c, stockLocation: loc } : c)));
+    setCart((prev) =>
+      prev.map((c) => (c.id === itemId ? { ...c, stockLocation: loc } : c)),
+    );
   };
 
   // Load shops and user's shop on component mount
@@ -198,7 +205,9 @@ function HallSalesPage() {
               setShops([userShopData]);
             } else {
               setShops([]);
-              toast.warning("Your associated shop is not configured for hall sales");
+              toast.warning(
+                "Your associated shop is not configured for hall sales",
+              );
             }
           }
         }
@@ -209,7 +218,7 @@ function HallSalesPage() {
         setCategories(
           categoryData
             .map((c: any) => String(c?.name || "").trim())
-            .filter((name: string) => !!name)
+            .filter((name: string) => !!name),
         );
       } catch (error) {
         console.error("Error loading shops:", error);
@@ -274,7 +283,7 @@ function HallSalesPage() {
       toast.error(
         sizeInfo
           ? `Only ${stockOf(sizeInfo)} of ${selectedSize} in ${whereLabel} (${describeLocations(sizeInfo)})`
-          : "Insufficient stock for selected quantity"
+          : "Insufficient stock for selected quantity",
       );
       return;
     }
@@ -317,7 +326,7 @@ function HallSalesPage() {
           item.lineType === "TRACKED" &&
           item.kurti.code === kurti.code &&
           item.selectedSize === normalizedSize &&
-          lineLocation(item) === billLocation
+          lineLocation(item) === billLocation,
       );
 
       if (existingIndex >= 0) {
@@ -325,7 +334,7 @@ function HallSalesPage() {
         const totalQuantity = existing.quantity + qty;
         if (totalQuantity > sizeInfoQuantity) {
           toast.error(
-            `Only ${sizeInfoQuantity} of ${normalizedSize} in ${whereLabel}`
+            `Only ${sizeInfoQuantity} of ${normalizedSize} in ${whereLabel}`,
           );
           return prev;
         }
@@ -383,7 +392,7 @@ function HallSalesPage() {
     bulkSelectedSizes.forEach((size) => {
       const normalizedSize = String(size).toUpperCase();
       const sizeInfo = kurti.sizes.find(
-        (sz: any) => String(sz.size).toUpperCase() === normalizedSize
+        (sz: any) => String(sz.size).toUpperCase() === normalizedSize,
       );
 
       if (!sizeInfo || stockOf(sizeInfo) <= 0) {
@@ -396,7 +405,7 @@ function HallSalesPage() {
           item.lineType === "TRACKED" &&
           item.kurti.code === kurti.code &&
           item.selectedSize === normalizedSize &&
-          lineLocation(item) === billLocation
+          lineLocation(item) === billLocation,
       );
 
       if (existingIndex >= 0) {
@@ -460,7 +469,9 @@ function HallSalesPage() {
       if (item.id === itemId) {
         const available = availableFor(item);
         if (available !== null && newQuantity > available) {
-          toast.error(`Only ${available} in ${LOCATION_LABELS[lineLocation(item)]}`);
+          toast.error(
+            `Only ${available} in ${LOCATION_LABELS[lineLocation(item)]}`,
+          );
           return item;
         }
         return { ...item, quantity: newQuantity };
@@ -488,7 +499,7 @@ function HallSalesPage() {
   const getTotalAmount = () => {
     return cart.reduce(
       (total, item) => total + item.sellingPrice * item.quantity,
-      0
+      0,
     );
   };
 
@@ -515,7 +526,7 @@ function HallSalesPage() {
         item.lineType === "UNTRACKED" &&
         item.category.toUpperCase() === category.toUpperCase() &&
         item.selectedSize.toUpperCase() === size &&
-        item.sellingPrice === price
+        item.sellingPrice === price,
     );
     if (existingItemIndex >= 0) {
       const updated = [...cart];
@@ -607,7 +618,9 @@ function HallSalesPage() {
     if (cart.length === 0) return null;
     const displayNo =
       draftDisplayBillNo ||
-      (typeof window !== "undefined" ? "HS-00000000-00" : draftInvoiceRef.current);
+      (typeof window !== "undefined"
+        ? "HS-00000000-00"
+        : draftInvoiceRef.current);
     return {
       batchNumber: draftInvoiceRef.current,
       invoiceNumber: draftInvoiceRef.current,
@@ -619,8 +632,7 @@ function HallSalesPage() {
       gstType,
       soldProducts: cart.map((item) => ({
         kurti: {
-          code:
-            item.lineType === "TRACKED" ? item.kurti.code : item.category,
+          code: item.lineType === "TRACKED" ? item.kurti.code : item.category,
           hsnCode: item.hsnCode || "6204",
         },
         size: item.selectedSize,
@@ -676,9 +688,9 @@ function HallSalesPage() {
           `Not enough stock: ${short
             .map(
               (i) =>
-                `${i.kurti.code.toUpperCase()}-${i.selectedSize} (${availableFor(i)} in ${LOCATION_LABELS[lineLocation(i)]})`
+                `${i.kurti.code.toUpperCase()}-${i.selectedSize} (${availableFor(i)} in ${LOCATION_LABELS[lineLocation(i)]})`,
             )
-            .join(", ")}`
+            .join(", ")}`,
         );
         return;
       }
@@ -760,8 +772,7 @@ function HallSalesPage() {
     try {
       const soldProducts = cart.map((item) => ({
         kurti: {
-          code:
-            item.lineType === "TRACKED" ? item.kurti.code : item.category,
+          code: item.lineType === "TRACKED" ? item.kurti.code : item.category,
           hsnCode: item.hsnCode || "6204",
         },
         size: item.selectedSize,
@@ -815,7 +826,9 @@ function HallSalesPage() {
       setInvoicePreview(payload);
 
       if (saleData.batchNumber) {
-        toast.success(`Invoice saved with batch number: ${saleData.batchNumber}`);
+        toast.success(
+          `Invoice saved with batch number: ${saleData.batchNumber}`,
+        );
       }
 
       // Reset inputs + cart after a successful sale, but keep the preview visible.
@@ -843,7 +856,6 @@ function HallSalesPage() {
     setBillCreatedBy("");
     setpaymentType("");
     setPaymentStatus(PaymentStatus.PENDING);
-    setGstType("SGST_CGST");
     setBillLocation(DEFAULT_HALL_LOCATION);
     setSelectedSize("");
     setSellingPrice("");
@@ -886,8 +898,7 @@ function HallSalesPage() {
   const allBulkSelected =
     bulkAvailableSizes.length > 0 &&
     bulkAvailableSizes.every((s: string) => bulkSelectedSizes.includes(s));
-  const someBulkSelected =
-    bulkSelectedSizes.length > 0 && !allBulkSelected;
+  const someBulkSelected = bulkSelectedSizes.length > 0 && !allBulkSelected;
 
   useEffect(() => {
     if (!selectAllSizesRef.current) return;
@@ -913,37 +924,7 @@ function HallSalesPage() {
           }
         }
       `}</style>
-      <CardHeader>
-        <p className="text-2xl font-semibold text-center">
-          🛒 Offline Hall Sale System
-        </p>
-      </CardHeader>
-      <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
-        <div className="bg-purple-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">GST Configuration</h3>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="gstType"
-                value="SGST_CGST"
-                checked={gstType === "SGST_CGST"}
-                onChange={(e) => setGstType(e.target.value as GSTType)}
-              />
-              <span>SGST + CGST (2.5% + 2.5%)</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="gstType"
-                value="IGST"
-                checked={gstType === "IGST"}
-                onChange={(e) => setGstType(e.target.value as GSTType)}
-              />
-              <span>IGST (5%)</span>
-            </label>
-          </div>
-        </div>
+      <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4 pt-6">
         {/* Customer Details Section */}
         <div className="bg-blue-50 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
@@ -1057,9 +1038,8 @@ function HallSalesPage() {
           </div>
         </div>
 
-        {/* Search Section */}
-        <div className="bg-slate-50 p-4 rounded-lg">
-          <div className="flex flex-row flex-wrap items-center gap-2 mb-4">
+        <div className="bg-slate-50 px-4 py-3 rounded-lg">
+          <div className="flex flex-row flex-wrap items-center gap-2">
             <span className="text-sm font-semibold">Taking stock from:</span>
             {STOCK_LOCATIONS.map((loc) => (
               <button
@@ -1076,97 +1056,97 @@ function HallSalesPage() {
               </button>
             ))}
             <span className="text-xs text-gray-500">
-              New lines come from here; change a single line in the cart if needed.
+              New lines come from here; change a single line in the cart if
+              needed.
             </span>
-          </div>
-          <h3 className="text-lg font-semibold mb-3">Find Product</h3>
-          <div className="flex flex-row flex-wrap gap-2 items-end">
-            <div className="flex flex-col flex-wrap">
-              <Label htmlFor="product-code" className="mb-[10px]">
-                Product Code
-              </Label>
-              <Input
-                id="product-code"
-                className="w-[250px] p-2"
-                placeholder="Enter product code (without size)"
-                value={code}
-                onKeyUp={(e) => {
-                  if (e.key === "Enter") {
-                    handleFind();
-                  }
-                }}
-                onChange={(e) => {
-                  setCode(e.target.value);
-                }}
-              />
-            </div>
-            <Button
-              type="button"
-              onClick={handleFind}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="mr-2 h-4 w-4" />
-              )}
-              Find Product
-            </Button>
           </div>
         </div>
 
-        <div className="bg-amber-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Add Untracked Kurti</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 items-end">
-            <div>
-              <Label htmlFor="untracked-category">Category *</Label>
-              <select
-                id="untracked-category"
-                className="w-full p-2 border rounded-md"
-                value={untrackedCategory}
-                onChange={(e) => setUntrackedCategory(e.target.value)}
+        <div className="grid grid-cols-1 xl:grid-cols-[auto_1fr] gap-4">
+          {/* Search Section */}
+          <div className="bg-slate-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3">Find Product</h3>
+            <div className="flex flex-row flex-wrap gap-2 items-end">
+              <div className="flex flex-col flex-wrap">
+                <Label htmlFor="product-code" className="mb-[10px]">
+                  Product Code
+                </Label>
+                <Input
+                  id="product-code"
+                  className="w-[250px] p-2"
+                  placeholder="Enter product code (without size)"
+                  value={code}
+                  onKeyUp={(e) => {
+                    if (e.key === "Enter") {
+                      handleFind();
+                    }
+                  }}
+                  onChange={(e) => {
+                    setCode(e.target.value);
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={handleFind}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700"
               >
-                <option value="">Select Category</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+                {loading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="mr-2 h-4 w-4" />
+                )}
+                Find Product
+              </Button>
             </div>
-            <div>
-              <Label htmlFor="untracked-size">Size (Optional)</Label>
-              <Input
-                id="untracked-size"
-                placeholder="e.g. M"
-                value={untrackedSize}
-                onChange={(e) => setUntrackedSize(e.target.value)}
-              />
+          </div>
+
+          <div className="bg-amber-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3">Add Untracked Kurti</h3>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+              <div>
+                <Label htmlFor="untracked-category">Category *</Label>
+                <CategoryCombobox
+                  id="untracked-category"
+                  categories={categories}
+                  value={untrackedCategory}
+                  onChange={setUntrackedCategory}
+                />
+              </div>
+              <div>
+                <Label htmlFor="untracked-size">Size (Optional)</Label>
+                <Input
+                  id="untracked-size"
+                  placeholder="e.g. M"
+                  value={untrackedSize}
+                  onChange={(e) => setUntrackedSize(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="untracked-qty">Quantity *</Label>
+                <Input
+                  id="untracked-qty"
+                  type="number"
+                  min="1"
+                  value={untrackedQuantity}
+                  onChange={(e) => setUntrackedQuantity(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="untracked-price">Unit Price *</Label>
+                <Input
+                  id="untracked-price"
+                  type="number"
+                  min="1"
+                  value={untrackedPrice}
+                  onChange={(e) => setUntrackedPrice(e.target.value)}
+                />
+              </div>
+              <Button type="button" onClick={addUntrackedToCart}>
+                Add Untracked
+              </Button>
             </div>
-            <div>
-              <Label htmlFor="untracked-qty">Quantity *</Label>
-              <Input
-                id="untracked-qty"
-                type="number"
-                min="1"
-                value={untrackedQuantity}
-                onChange={(e) => setUntrackedQuantity(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="untracked-price">Unit Price *</Label>
-              <Input
-                id="untracked-price"
-                type="number"
-                min="1"
-                value={untrackedPrice}
-                onChange={(e) => setUntrackedPrice(e.target.value)}
-              />
-            </div>
-            <Button type="button" onClick={addUntrackedToCart}>
-              Add Untracked
-            </Button>
           </div>
         </div>
 
@@ -1198,8 +1178,8 @@ function HallSalesPage() {
                       <DialogHeader>
                         <DialogTitle>Add multiple sizes</DialogTitle>
                         <DialogDescription>
-                          Select sizes and enter a price. Each selected size will
-                          be added with quantity = 1.
+                          Select sizes and enter a price. Each selected size
+                          will be added with quantity = 1.
                         </DialogDescription>
                       </DialogHeader>
 
@@ -1238,7 +1218,7 @@ function HallSalesPage() {
                               onChange={(e) => {
                                 const next = e.target.checked;
                                 setBulkSelectedSizes(
-                                  next ? bulkAvailableSizes : []
+                                  next ? bulkAvailableSizes : [],
                                 );
                               }}
                               disabled={bulkAvailableSizes.length === 0}
@@ -1247,7 +1227,8 @@ function HallSalesPage() {
                               Select all sizes
                             </span>
                             <span className="ml-auto text-xs text-gray-500">
-                              {bulkSelectedSizes.length}/{bulkAvailableSizes.length}
+                              {bulkSelectedSizes.length}/
+                              {bulkAvailableSizes.length}
                             </span>
                           </label>
 
@@ -1374,7 +1355,8 @@ function HallSalesPage() {
                         <option value="">Select Size</option>
                         {getAvailableSizes().map((sz: any, i: number) => (
                           <option key={i} value={sz.size}>
-                            {sz.size.toUpperCase()} ({whereLabel}: {stockOf(sz)})
+                            {sz.size.toUpperCase()} ({whereLabel}: {stockOf(sz)}
+                            )
                           </option>
                         ))}
                       </select>
@@ -1431,8 +1413,8 @@ function HallSalesPage() {
                 Showing{" "}
                 <span className="font-medium">
                   {(cartPage - 1) * cartPageSize + 1}
-                </span>
-                {" "}to{" "}
+                </span>{" "}
+                to{" "}
                 <span className="font-medium">
                   {Math.min(cartPage * cartPageSize, cart.length)}
                 </span>{" "}
@@ -1539,7 +1521,9 @@ function HallSalesPage() {
                       </TableCell>
                       <TableCell className="border">
                         <div className="font-semibold">
-                          {item.selectedSize ? item.selectedSize.toUpperCase() : "-"}
+                          {item.selectedSize
+                            ? item.selectedSize.toUpperCase()
+                            : "-"}
                         </div>
                         {item.lineType === "TRACKED" && (
                           <div className="mt-1">
@@ -1547,7 +1531,9 @@ function HallSalesPage() {
                               sizeRow={sizeRowOf(item)}
                               quantity={item.quantity}
                               value={lineLocation(item)}
-                              onChange={(loc) => changeLineLocation(item.id, loc)}
+                              onChange={(loc) =>
+                                changeLineLocation(item.id, loc)
+                              }
                             />
                           </div>
                         )}
@@ -1561,7 +1547,7 @@ function HallSalesPage() {
                           onChange={(e) =>
                             updateCartItemQuantity(
                               item.id,
-                              parseInt(e.target.value) || 1
+                              parseInt(e.target.value) || 1,
                             )
                           }
                           className="w-20"
@@ -1575,7 +1561,7 @@ function HallSalesPage() {
                           onChange={(e) =>
                             updateCartItemPrice(
                               item.id,
-                              parseInt(e.target.value) || 1
+                              parseInt(e.target.value) || 1,
                             )
                           }
                           className="w-24"
