@@ -37,10 +37,12 @@ import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { getUserShop, getHallSaleShops } from "@/src/actions/shop";
 import {
   LOCATION_LABELS,
+  STOCK_LOCATIONS,
+  StockLocation,
   availableAtLocation,
   describeLocations,
-  locationForShopId,
 } from "@/src/lib/godown";
+import { StockLocationPicker } from "@/src/app/(protected)/_components/godown/stock-location-picker";
 import InvoicePreview, {
   InvoicePayload,
 } from "@/src/app/(protected)/sellRetailer/invoice-preview/InvoicePreview";
@@ -75,7 +77,12 @@ interface CartItem {
   sellingPrice: number;
   availableStock: number | null;
   hsnCode?: string;
+  // Set only when this line takes stock from somewhere other than the bill's location.
+  stockLocation?: StockLocation;
 }
+
+// Hall bills are made at the godown, so that is where stock comes from by default.
+const DEFAULT_HALL_LOCATION: StockLocation = "GODOWN";
 type GSTType = "IGST" | "SGST_CGST";
 function HallSalesPage() {
   const [code, setCode] = useState("");
@@ -125,14 +132,47 @@ function HallSalesPage() {
     return shops.find((s) => s.id === selectedShopId) || null;
   }, [currentUser?.role, selectedShopId, shops, userShop]);
 
-  // The bill sells only its shop's own stock (the hall-sale shop is the 2nd floor).
-  const billLocation = locationForShopId(selectedShopId);
-  const whereLabel = billLocation ? LOCATION_LABELS[billLocation] : "stock";
+  // Where the bill takes stock from; a cart line can override it for itself.
+  const [billLocation, setBillLocation] = useState<StockLocation>(DEFAULT_HALL_LOCATION);
+  const whereLabel = LOCATION_LABELS[billLocation];
   const stockOf = (sz: any) => availableAtLocation(sz, billLocation);
+  const lineLocation = (item: CartItem): StockLocation => item.stockLocation ?? billLocation;
+  const sizeRowOf = (item: CartItem) =>
+    item.kurti?.sizes?.find((sz: any) => String(sz.size).toUpperCase() === item.selectedSize);
   const availableFor = (item: CartItem): number | null =>
-    item.lineType === "TRACKED"
-      ? stockOf(item.kurti?.sizes?.find((sz: any) => String(sz.size).toUpperCase() === item.selectedSize))
-      : null;
+    item.lineType === "TRACKED" ? availableAtLocation(sizeRowOf(item), lineLocation(item)) : null;
+
+  // A new bill location applies to lines added from now on; lines already in
+  // the cart stay where they were checked against.
+  const changeBillLocation = (loc: StockLocation) => {
+    if (loc === billLocation) return;
+    setCart((prev) =>
+      prev.map((c) =>
+        c.lineType === "TRACKED" && !c.stockLocation ? { ...c, stockLocation: billLocation } : c
+      )
+    );
+    setBillLocation(loc);
+  };
+
+  const changeLineLocation = (itemId: string, loc: StockLocation) => {
+    const item = cart.find((c) => c.id === itemId);
+    if (!item) return;
+    const clash = cart.find(
+      (c) =>
+        c.id !== itemId &&
+        c.lineType === "TRACKED" &&
+        c.kurti.code === item.kurti.code &&
+        c.selectedSize === item.selectedSize &&
+        lineLocation(c) === loc
+    );
+    if (clash) {
+      toast.error(
+        `${item.kurti.code.toUpperCase()}-${item.selectedSize} already has a line from ${LOCATION_LABELS[loc]} - change its quantity instead`
+      );
+      return;
+    }
+    setCart((prev) => prev.map((c) => (c.id === itemId ? { ...c, stockLocation: loc } : c)));
+  };
 
   // Load shops and user's shop on component mount
   useEffect(() => {
@@ -275,7 +315,9 @@ function HallSalesPage() {
       const existingIndex = prev.findIndex(
         (item) =>
           item.lineType === "TRACKED" &&
-          item.kurti.code === kurti.code && item.selectedSize === normalizedSize
+          item.kurti.code === kurti.code &&
+          item.selectedSize === normalizedSize &&
+          lineLocation(item) === billLocation
       );
 
       if (existingIndex >= 0) {
@@ -352,7 +394,9 @@ function HallSalesPage() {
       const existingIndex = nextCart.findIndex(
         (item) =>
           item.lineType === "TRACKED" &&
-          item.kurti.code === kurti.code && item.selectedSize === normalizedSize
+          item.kurti.code === kurti.code &&
+          item.selectedSize === normalizedSize &&
+          lineLocation(item) === billLocation
       );
 
       if (existingIndex >= 0) {
@@ -416,7 +460,7 @@ function HallSalesPage() {
       if (item.id === itemId) {
         const available = availableFor(item);
         if (available !== null && newQuantity > available) {
-          toast.error(`Only ${available} in ${whereLabel}`);
+          toast.error(`Only ${available} in ${LOCATION_LABELS[lineLocation(item)]}`);
           return item;
         }
         return { ...item, quantity: newQuantity };
@@ -622,15 +666,18 @@ function HallSalesPage() {
         return;
       }
 
-      // Every scanned line must be in this shop's own stock.
+      // Every line must be in stock at the location it is taken from.
       const short = cart.filter((item) => {
         const available = availableFor(item);
         return available !== null && item.quantity > available;
       });
       if (short.length > 0) {
         toast.error(
-          `Not enough in ${whereLabel}: ${short
-            .map((i) => `${i.kurti.code.toUpperCase()}-${i.selectedSize} (${availableFor(i)} there)`)
+          `Not enough stock: ${short
+            .map(
+              (i) =>
+                `${i.kurti.code.toUpperCase()}-${i.selectedSize} (${availableFor(i)} in ${LOCATION_LABELS[lineLocation(i)]})`
+            )
             .join(", ")}`
         );
         return;
@@ -664,6 +711,7 @@ function HallSalesPage() {
           selectedSize: item.selectedSize,
           quantity: item.quantity,
           sellingPrice: item.sellingPrice,
+          stockLocation: lineLocation(item),
         }));
       const untrackedProducts = cart
         .filter((item) => item.lineType === "UNTRACKED")
@@ -796,6 +844,7 @@ function HallSalesPage() {
     setpaymentType("");
     setPaymentStatus(PaymentStatus.PENDING);
     setGstType("SGST_CGST");
+    setBillLocation(DEFAULT_HALL_LOCATION);
     setSelectedSize("");
     setSellingPrice("");
     setQuantity(1);
@@ -1010,6 +1059,26 @@ function HallSalesPage() {
 
         {/* Search Section */}
         <div className="bg-slate-50 p-4 rounded-lg">
+          <div className="flex flex-row flex-wrap items-center gap-2 mb-4">
+            <span className="text-sm font-semibold">Taking stock from:</span>
+            {STOCK_LOCATIONS.map((loc) => (
+              <button
+                key={loc}
+                type="button"
+                onClick={() => changeBillLocation(loc)}
+                className={`px-4 py-2 rounded-lg border text-sm font-semibold ${
+                  billLocation === loc
+                    ? "bg-slate-800 border-slate-800 text-white"
+                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {LOCATION_LABELS[loc]}
+              </button>
+            ))}
+            <span className="text-xs text-gray-500">
+              New lines come from here; change a single line in the cart if needed.
+            </span>
+          </div>
           <h3 className="text-lg font-semibold mb-3">Find Product</h3>
           <div className="flex flex-row flex-wrap gap-2 items-end">
             <div className="flex flex-col flex-wrap">
@@ -1469,7 +1538,19 @@ function HallSalesPage() {
                         </div>
                       </TableCell>
                       <TableCell className="border">
-                        {item.selectedSize ? item.selectedSize.toUpperCase() : "-"}
+                        <div className="font-semibold">
+                          {item.selectedSize ? item.selectedSize.toUpperCase() : "-"}
+                        </div>
+                        {item.lineType === "TRACKED" && (
+                          <div className="mt-1">
+                            <StockLocationPicker
+                              sizeRow={sizeRowOf(item)}
+                              quantity={item.quantity}
+                              value={lineLocation(item)}
+                              onChange={(loc) => changeLineLocation(item.id, loc)}
+                            />
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="border">
                         <Input

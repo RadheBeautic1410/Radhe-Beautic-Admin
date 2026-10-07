@@ -2,21 +2,25 @@ import { db } from "@/src/lib/db";
 import {
   STOCK_LOCATIONS,
   StockLocation,
+  isHallSellType,
   isStockLocation,
   locationForShopId,
 } from "@/src/lib/godown";
 
 /**
  * Sales grouped by who sold them - a counter (1st floor, 2nd floor, Shop 316,
- * Godown) or ONLINE - with the stock location each piece came from kept as a
- * separate breakdown. An online order picked from the 1st floor lowers 1st-floor
+ * Godown), HALL or ONLINE - with the stock location each piece came from kept as
+ * a separate breakdown. An online order picked from the 1st floor lowers 1st-floor
  * stock but is reported as an online sale, not a 1st-floor sale.
  *
  * Sources:
- *   - SHOP_BILL      OfflineSell (Sell Retailer / Hall Sales) - a counter sale.
- *                    Bills from before locations existed resolve by the bill's shop.
- *   - SCAN           Sell (the /sell page). Counter sale, or ONLINE when the
- *                    "Online order (WhatsApp)" box was ticked.
+ *   - SHOP_BILL      OfflineSell (Sell Retailer / Hall Sales) - the shop's counter
+ *                    sale, or HALL for hall bills (whose lines can come from any
+ *                    location). Lines from before locations existed resolve by
+ *                    the bill's shop.
+ *   - SCAN           Sell (the /sell page). Counter sale, ONLINE when the
+ *                    "Online order (WhatsApp)" box was ticked, or HALL when the
+ *                    "Hall sale" box was ticked.
  *   - ORDER_BILL     OnlineSell (bills made from /orders) - always ONLINE.
  *   - CUSTOMER_ORDER CustomerOrder accepted with per-line locations - always
  *                    ONLINE. The order value is split over its pieces, so a
@@ -28,11 +32,11 @@ import {
 
 export type SaleChannel = "SHOP_BILL" | "SCAN" | "ORDER_BILL" | "CUSTOMER_ORDER";
 export type ReportLocation = StockLocation | "UNRECORDED";
-export type SoldBy = StockLocation | "ONLINE" | "UNRECORDED";
+export type SoldBy = StockLocation | "HALL" | "ONLINE" | "UNRECORDED";
 
 export const SALE_CHANNELS: SaleChannel[] = ["SHOP_BILL", "SCAN", "ORDER_BILL", "CUSTOMER_ORDER"];
 export const REPORT_LOCATIONS: ReportLocation[] = [...STOCK_LOCATIONS, "UNRECORDED"];
-export const SOLD_BY: SoldBy[] = [...STOCK_LOCATIONS, "ONLINE", "UNRECORDED"];
+export const SOLD_BY: SoldBy[] = [...STOCK_LOCATIONS, "HALL", "ONLINE", "UNRECORDED"];
 
 export interface LocationSaleRow {
   soldBy: SoldBy;
@@ -70,7 +74,7 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
         quantity: true,
         selledPrice: true,
         stockLocation: true,
-        batch: { select: { shopId: true, invoiceNumber: true, batchNumber: true } },
+        batch: { select: { shopId: true, invoiceNumber: true, batchNumber: true, sellType: true } },
       },
     }),
     db.sell.findMany({
@@ -83,6 +87,7 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
         selledPrice: true,
         stockLocation: true,
         isOnlineOrder: true,
+        isHallSale: true,
         sellerName: true,
       },
     }),
@@ -138,8 +143,12 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
     const from = isStockLocation(s.stockLocation)
       ? s.stockLocation
       : asLocation(locationForShopId(s.batch?.shopId));
+    // A hall bill is a hall sale wherever its pieces came from; other bills are
+    // their shop's counter sale.
     rows.push({
-      soldBy: from,
+      soldBy: isHallSellType(s.batch?.sellType)
+        ? "HALL"
+        : locationForShopId(s.batch?.shopId) || from,
       stockFrom: from,
       channel: "SHOP_BILL",
       soldAt: s.sellTime,
@@ -156,7 +165,7 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
     const unit = s.selledPrice || priceByCode.get(s.code.toUpperCase()) || 0;
     const from = asLocation(s.stockLocation);
     rows.push({
-      soldBy: s.isOnlineOrder ? "ONLINE" : from,
+      soldBy: s.isOnlineOrder ? "ONLINE" : s.isHallSale ? "HALL" : from,
       stockFrom: from,
       channel: "SCAN",
       soldAt: s.sellTime,

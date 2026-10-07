@@ -10,6 +10,7 @@ import {
   addToLocation,
   deductFromLocation,
   isStockLocation,
+  defaultLocationForBill,
   locationForShopId,
 } from "@/src/lib/godown";
 
@@ -268,15 +269,20 @@ export async function PUT(
     // NOTE:
     // This endpoint can legitimately touch 100+ rows (sales + stock updates).
     // Prisma interactive transactions default to a 5s timeout, which can be exceeded on large updates.
-    // Lines on this bill sell from (and return to) the bill's shop location.
-    const billLocation = locationForShopId(existingSale.shopId);
-    if (!billLocation && (removedItems?.length || newProducts?.length)) {
+    // New lines sell from the bill's default location (hall bills: the godown, others:
+    // the shop's own floor). Existing lines return to the location they came from.
+    const billLocation = defaultLocationForBill(existingSale.shopId, existingSale.sellType);
+    if (!billLocation && newProducts?.length) {
       return new NextResponse(
-        JSON.stringify({ error: "This bill's shop has no stock location, so products can't be added or removed" }),
+        JSON.stringify({ error: "This bill's shop has no stock location, so products can't be added" }),
         { status: 400 }
       );
     }
     const stockLocation = billLocation!;
+    // Lines saved before locations existed carry none; they came from the shop's floor.
+    const legacyLocation = locationForShopId(existingSale.shopId);
+    const rowLocation = (row: { stockLocation?: string | null }): StockLocation | null =>
+      isStockLocation(row.stockLocation) ? row.stockLocation : legacyLocation;
 
     const result = await db.$transaction(
       async (tx) => {
@@ -314,7 +320,7 @@ export async function PUT(
         for (const row of originals) {
           const delta = (newQtyById.get(row.id) || 0) - (row.quantity || 1);
           if (!delta || !row.kurtiId) continue;
-          const location = isStockLocation(row.stockLocation) ? row.stockLocation : billLocation;
+          const location = rowLocation(row);
           if (!location) {
             throw new Error("This bill's shop has no stock location, so quantities can't be changed");
           }
@@ -391,23 +397,30 @@ export async function PUT(
           // Fetch all items once (instead of N findUnique calls)
           const itemsToDelete = await tx.offlineSell.findMany({
             where: { id: { in: ids } },
-            select: { id: true, kurtiId: true, kurtiSize: true, quantity: true },
+            select: { id: true, kurtiId: true, kurtiSize: true, quantity: true, stockLocation: true },
           });
 
-          // Restore stock grouped by kurtiId (update each kurti at most once)
+          // Restore stock grouped by kurtiId (update each kurti at most once),
+          // back into the location each line was taken from.
           const restoreByKurti = new Map<
             string,
-            Map<string, number>
+            Map<string, Map<StockLocation, number>>
           >();
           for (const it of itemsToDelete) {
             const size = String(it.kurtiSize || "").toUpperCase();
             if (!it.kurtiId || !size) continue;
+            const location = rowLocation(it);
+            if (!location) {
+              throw new Error("This bill's shop has no stock location, so products can't be removed");
+            }
             const qty = it.quantity || 1;
             if (!restoreByKurti.has(it.kurtiId)) {
               restoreByKurti.set(it.kurtiId, new Map());
             }
-            const m = restoreByKurti.get(it.kurtiId)!;
-            m.set(size, (m.get(size) || 0) + qty);
+            const bySize = restoreByKurti.get(it.kurtiId)!;
+            if (!bySize.has(size)) bySize.set(size, new Map());
+            const byLoc = bySize.get(size)!;
+            byLoc.set(location, (byLoc.get(location) || 0) + qty);
           }
 
           const kurtiIds = Array.from(restoreByKurti.keys());
@@ -424,9 +437,13 @@ export async function PUT(
 
                 const updatedSizes = (k.sizes as any[]).map((s: any) => {
                   const key = String(s?.size || "").toUpperCase();
-                  const add = restoreMap.get(key) || 0;
-                  if (!add) return s;
-                  return addToLocation(s, add, stockLocation);
+                  const byLoc = restoreMap.get(key);
+                  if (!byLoc) return s;
+                  let row = s;
+                  for (const [loc, add] of byLoc.entries()) {
+                    row = addToLocation(row, add, loc);
+                  }
+                  return row;
                 });
 
                 await tx.kurti.update({

@@ -55,6 +55,18 @@ export const SHOP_LOCATIONS: Record<string, StockLocation> = {
 export const locationForShopId = (shopId?: string | null): StockLocation | null =>
   (shopId && SHOP_LOCATIONS[shopId]) || null;
 
+export const isHallSellType = (sellType?: string | null): boolean =>
+  sellType === "HALL_SELL_OFFLINE" || sellType === "HALL_SELL_ONLINE";
+
+/**
+ * Where a shop bill's lines take stock from unless a line names its own location.
+ * Hall bills are made at the godown; other bills sell their shop's own stock.
+ */
+export const defaultLocationForBill = (
+  shopId?: string | null,
+  sellType?: string | null
+): StockLocation | null => (isHallSellType(sellType) ? "GODOWN" : locationForShopId(shopId));
+
 export const VALID_SIZES: string[] = [
   "XS", "S", "M", "L", "XL", "XXL",
   "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL",

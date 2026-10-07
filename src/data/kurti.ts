@@ -16,6 +16,7 @@ import {
   StockLocation,
   addToLocation,
   deductFromLocation,
+  defaultLocationForBill,
   isStockLocation,
   locationForShopId,
   normalizeSizesLocations,
@@ -561,6 +562,7 @@ export const sellKurti2 = async (data: any) => {
                 kurtiSize: cmp,
                 stockLocation,
                 isOnlineOrder: data?.isOnlineOrder === true,
+                isHallSale: data?.isOnlineOrder !== true && data?.isHallSale === true,
               },
             });
             await db.category.update({
@@ -1573,8 +1575,12 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
     if (tracked.length === 0 && untracked.length === 0) {
       return { error: "No products provided" };
     }
-    const billStockLocation = locationForShopId(shopId);
-    if (tracked.length > 0 && !billStockLocation) {
+    // A line may name its own location (hall bills mix godown and floor stock);
+    // otherwise it sells from the bill's default location.
+    const billStockLocation = defaultLocationForBill(shopId, sellType);
+    const lineLocation = (p: any): StockLocation | null =>
+      isStockLocation(p?.stockLocation) ? p.stockLocation : billStockLocation;
+    if (tracked.some((p: any) => !lineLocation(p))) {
       return { error: "This shop has no stock location set up - select 1st floor, 2nd floor or Shop 316" };
     }
 
@@ -1651,6 +1657,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
               cmp,
               quantity,
               sellingPrice,
+              location: lineLocation(p) as StockLocation,
             };
           })
           .filter((p: any) => {
@@ -1706,8 +1713,8 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
           k.pricesId = prices.id;
         }
 
-        // Build stock decrement per kurtiCode -> size -> qty
-        const decByKurti = new Map<string, Map<string, number>>();
+        // Build stock decrement per kurtiCode -> size -> location -> qty
+        const decByKurti = new Map<string, Map<string, Map<StockLocation, number>>>();
         for (const p of normalized) {
           const k = kurtiByCode.get(p.search);
           if (!k) {
@@ -1715,16 +1722,15 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
             continue;
           }
           if (!decByKurti.has(p.search)) decByKurti.set(p.search, new Map());
-          const m = decByKurti.get(p.search)!;
-          m.set(p.cmp, (m.get(p.cmp) || 0) + p.quantity);
+          const bySize = decByKurti.get(p.search)!;
+          if (!bySize.has(p.cmp)) bySize.set(p.cmp, new Map());
+          const byLoc = bySize.get(p.cmp)!;
+          byLoc.set(p.location, (byLoc.get(p.location) || 0) + p.quantity);
         }
 
-        // Each shop sells its own stock: 1st floor, 2nd floor or shop 316.
-        const stockLocation = billStockLocation!;
-
-        // Deduct each kurti's sizes in memory; a size that lacks stock at this
-        // location is skipped (and reported) instead of being sold.
-        const failedLines = new Set<string>();
+        // Deduct each kurti's sizes in memory, location by location; a line that
+        // lacks stock at its location is skipped (and reported) instead of sold.
+        const failedLines = new Set<string>(); // `${code}|${size}|${location}`
         for (const [code, sizeMap] of decByKurti.entries()) {
           const k = kurtiByCode.get(code);
           if (!k?.sizes) {
@@ -1734,22 +1740,24 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
           let changed = false;
           const updatedSizes = normalizeSizesLocations(k.sizes as any[]).map((s: any) => {
             const key = String(s?.size || "").toUpperCase();
-            const dec = sizeMap.get(key) || 0;
-            if (!dec) return s;
-            try {
-              const next = deductFromLocation(s, dec, stockLocation, `${code}-${key}`);
-              changed = true;
-              return next;
-            } catch (e: any) {
-              errors.push(`Insufficient stock for ${e.message}`);
-              failedLines.add(`${code}|${key}`);
-              return s;
+            const byLoc = sizeMap.get(key);
+            if (!byLoc) return s;
+            let row = s;
+            for (const [loc, dec] of byLoc.entries()) {
+              try {
+                row = deductFromLocation(row, dec, loc, `${code}-${key}`);
+                changed = true;
+              } catch (e: any) {
+                errors.push(`Insufficient stock for ${e.message}`);
+                failedLines.add(`${code}|${key}|${loc}`);
+              }
             }
+            return row;
           });
-          for (const size of sizeMap.keys()) {
+          for (const [size, byLoc] of sizeMap.entries()) {
             if (!updatedSizes.some((s: any) => String(s?.size || "").toUpperCase() === size)) {
               errors.push(`Insufficient stock for ${code}-${size}. Size not in stock`);
-              failedLines.add(`${code}|${size}`);
+              for (const loc of byLoc.keys()) failedLines.add(`${code}|${size}|${loc}`);
             }
           }
           if (!changed) continue;
@@ -1766,7 +1774,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
             const k = kurtiByCode.get(p.search);
             if (!k) return null;
             // If validation logged error, don't sell this line
-            if (failedLines.has(`${p.search}|${p.cmp}`)) return null;
+            if (failedLines.has(`${p.search}|${p.cmp}|${p.location}`)) return null;
 
             totalAmount += p.sellingPrice * p.quantity;
             return {
@@ -1777,7 +1785,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
               pricesId: k.pricesId,
               kurtiSize: p.cmp,
               shopLocation: selectedLocation,
-              stockLocation,
+              stockLocation: p.location,
               customerName: customerName,
               customerPhone: customerPhone,
               selledPrice: p.sellingPrice,
@@ -2718,7 +2726,7 @@ export const addProductsToExistingOfflineBatch = async (data: any) => {
           continue;
         }
         let deducted: any;
-        const batchLocation = locationForShopId(existingBatch.shopId);
+        const batchLocation = defaultLocationForBill(existingBatch.shopId, existingBatch.sellType);
         if (!batchLocation) {
           errors.push(`${search}-${cmp}: this bill's shop has no stock location`);
           continue;

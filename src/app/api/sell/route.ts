@@ -27,9 +27,10 @@ export async function POST(request: NextRequest) {
         let data = await request.json();
         console.log("its sell data",data);
 
-        // Shop logins (1st floor, 2nd floor, Shop 316) can only sell their own location's stock.
+        // Shop logins (1st floor, 2nd floor, Shop 316) can only sell their own location's stock,
+        // except hall sales, where the piece can be picked up from any location.
         const user = await currentUser();
-        if (user?.role === UserRole.SHOP_SELLER) {
+        if (user?.role === UserRole.SHOP_SELLER && data?.isHallSale !== true) {
             const shop = user.id ? await getUserShop(user.id) : null;
             const own = locationForShopId(shop?.id);
             if (!own) {
