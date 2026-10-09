@@ -2,7 +2,7 @@
 
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import { Card, CardContent } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
 import {
@@ -97,7 +97,8 @@ function SellPage() {
     null,
   );
   const shouldPrintAfterSaveRef = useRef(false);
-  const [gstType, setGstType] = useState<GSTType>("SGST_CGST");
+  // GST selection is hidden on this page; offline sales are always intra-state.
+  const gstType: GSTType = "SGST_CGST";
   // Sale details
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -119,7 +120,9 @@ function SellPage() {
   const sizeRowOf = (item: CartItem) =>
     item.kurti?.sizes?.find((sz: any) => sz.size === item.selectedSize);
   const availableFor = (item: CartItem): number | null =>
-    item.lineType === "TRACKED" ? availableAtLocation(sizeRowOf(item), billLocation) : null;
+    item.lineType === "TRACKED"
+      ? availableAtLocation(sizeRowOf(item), billLocation)
+      : null;
 
   // Scan / focus
   const productCodeInputRef = useRef<HTMLInputElement>(null);
@@ -142,7 +145,9 @@ function SellPage() {
     if (!foundKurti) return false;
     const customerPrice = Number(foundKurti?.customerPrice);
     const autoFilledPrice =
-      Number.isFinite(customerPrice) && customerPrice > 0 ? customerPrice : null;
+      Number.isFinite(customerPrice) && customerPrice > 0
+        ? customerPrice
+        : null;
 
     if (!size) {
       toast.error("Please scan/enter product code with size (e.g. CODEXL)");
@@ -157,7 +162,7 @@ function SellPage() {
       toast.error(
         sizeInfo
           ? `No ${size} in ${where} (${describeLocations(sizeInfo)})`
-          : "Insufficient stock for selected size"
+          : "Insufficient stock for selected size",
       );
       return false;
     }
@@ -166,7 +171,8 @@ function SellPage() {
     const existingItemIndex = cart.findIndex(
       (item) =>
         item.lineType === "TRACKED" &&
-        item.kurti.code === foundKurti.code && item.selectedSize === size,
+        item.kurti.code === foundKurti.code &&
+        item.selectedSize === size,
     );
 
     if (existingItemIndex >= 0) {
@@ -347,7 +353,7 @@ function SellPage() {
         const available = availableFor(item);
         if (available !== null && newQuantity > available) {
           toast.error(
-            `Only ${available} in ${billLocation ? LOCATION_LABELS[billLocation] : "stock"}`
+            `Only ${available} in ${billLocation ? LOCATION_LABELS[billLocation] : "stock"}`,
           );
           return item;
         }
@@ -427,11 +433,8 @@ function SellPage() {
       gstType,
       soldProducts: cart.map((item) => ({
         kurti: {
-            code:
-              item.lineType === "TRACKED"
-                ? item.kurti.code
-                : item.category,
-            hsnCode: item.hsnCode || "6204",
+          code: item.lineType === "TRACKED" ? item.kurti.code : item.category,
+          hsnCode: item.hsnCode || "6204",
         },
         size: item.selectedSize,
         quantity: item.quantity,
@@ -479,11 +482,6 @@ function SellPage() {
         return;
       }
 
-      if (!customerName.trim()) {
-        toast.error("Please enter customer name");
-        return;
-      }
-
       if (!selectedShopId.trim()) {
         if (currentUser?.role === UserRole.ADMIN) {
           toast.error("Please select a shop");
@@ -501,16 +499,15 @@ function SellPage() {
       if (short.length > 0) {
         toast.error(
           `Not enough in ${billLocation ? LOCATION_LABELS[billLocation] : "stock"}: ${short
-            .map((i) => `${i.kurti.code.toUpperCase()}-${i.selectedSize} (${availableFor(i)} there)`)
-            .join(", ")}`
+            .map(
+              (i) =>
+                `${i.kurti.code.toUpperCase()}-${i.selectedSize} (${availableFor(i)} there)`,
+            )
+            .join(", ")}`,
         );
         return;
       }
 
-      if (!billCreatedBy.trim()) {
-        toast.error("Please enter bill created by");
-        return;
-      }
       if (!paymentType.trim()) {
         toast.error("Please select payment type");
         return;
@@ -526,8 +523,7 @@ function SellPage() {
       const trackedProducts = cart
         .filter((item) => item.lineType === "TRACKED")
         .map((item) => ({
-          code:
-            item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
+          code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
           kurti: item.kurti,
           selectedSize: item.selectedSize,
           quantity: item.quantity,
@@ -548,9 +544,9 @@ function SellPage() {
         untrackedProducts,
         currentUser,
         currentTime: currentTime,
-        customerName: customerName.trim(),
+        customerName: customerName.trim() || "-",
         customerPhone: customerPhone.trim(),
-        billCreatedBy: billCreatedBy.trim(),
+        billCreatedBy: billCreatedBy.trim() || "-",
         paymentType: paymentType.trim(),
         gstType: gstType,
         shopId: selectedShopId.trim(),
@@ -588,10 +584,7 @@ function SellPage() {
     try {
       const soldProducts = cart.map((item) => ({
         kurti: {
-          code:
-            item.lineType === "TRACKED"
-              ? item.kurti.code
-              : item.category,
+          code: item.lineType === "TRACKED" ? item.kurti.code : item.category,
           hsnCode: item.hsnCode || "6204",
         },
         size: item.selectedSize,
@@ -611,9 +604,9 @@ function SellPage() {
           `OFFLINE-INV-${Date.now()}`,
         displayBatchNumber: displayNo,
         displayInvoiceNumber: displayNo,
-        customerName: customerName.trim(),
+        customerName: customerName.trim() || "-",
         customerPhone: customerPhone.trim(),
-        billCreatedBy: billCreatedBy.trim(),
+        billCreatedBy: billCreatedBy.trim() || "-",
         paymentType: paymentType.trim(),
         remark: remark.trim() || "",
         discountAmount: getDiscountValue(),
@@ -666,7 +659,6 @@ function SellPage() {
     }
     setBillCreatedBy("");
     setpaymentType("");
-    setGstType("SGST_CGST");
     setRemark("");
     setDiscountAmount("");
     setUntrackedCategory("kurti");
@@ -698,9 +690,7 @@ function SellPage() {
   const canCompleteSale =
     cart.length > 0 &&
     cart.every((item) => !!item.sellingPrice && item.sellingPrice > 0) &&
-    customerName.trim().length > 0 &&
     selectedShopId.trim().length > 0 &&
-    billCreatedBy.trim().length > 0 &&
     paymentType.trim().length > 0 &&
     !selling;
 
@@ -709,12 +699,10 @@ function SellPage() {
     if (cart.length === 0) missing.push("Add at least 1 item");
     if (cart.some((item) => !item.sellingPrice || item.sellingPrice <= 0))
       missing.push("Prices");
-    if (!customerName.trim()) missing.push("Customer Name");
     if (!selectedShopId.trim()) missing.push("Shop");
     if (!paymentType.trim()) missing.push("Payment Type");
-    if (!billCreatedBy.trim()) missing.push("Bill Created By");
     return missing;
-  }, [billCreatedBy, cart, customerName, paymentType, selectedShopId]);
+  }, [cart, paymentType, selectedShopId]);
 
   return (
     <Card className="rounded-none w-full h-full">
@@ -735,124 +723,196 @@ function SellPage() {
           }
         }
       `}</style>
-      <CardHeader>
-        <p className="text-2xl font-semibold text-center">
-          🛒 Offline Multi-Product Sale System
-        </p>
-      </CardHeader>
-      <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4">
-        <div className="bg-purple-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">GST Configuration</h3>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="gstType"
-                value="SGST_CGST"
-                checked={gstType === "SGST_CGST"}
-                onChange={(e) => setGstType(e.target.value as GSTType)}
-              />
-              <span>SGST + CGST (2.5% + 2.5%)</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="gstType"
-                value="IGST"
-                checked={gstType === "IGST"}
-                onChange={(e) => setGstType(e.target.value as GSTType)}
-              />
-              <span>IGST (5%)</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Search Section */}
-        <div className="bg-slate-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Find Product</h3>
-          <div className="flex flex-row flex-wrap gap-2 items-end">
-            <div className="flex flex-col flex-wrap">
-              <Label htmlFor="product-code" className="mb-[10px]">
-                Product Code
-              </Label>
+      <CardContent className="w-full flex flex-col space-evenly justify-center flex-wrap gap-4 pt-6 pb-24">
+        {/* Customer Details Section */}
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div>
+              <Label htmlFor="customer-phone">Customer Phone (Optional)</Label>
               <Input
-                id="product-code"
-                className="w-[250px] p-2"
-                placeholder="Enter product code (without size)"
-                value={code}
-                ref={productCodeInputRef}
-                onKeyUp={(e) => {
-                  if (e.key === "Enter") {
-                    handleFind();
+                id="customer-phone"
+                placeholder="Enter customer phone"
+                value={customerPhone}
+                maxLength={10}
+                onChange={(e) => {
+                  const input = e.target.value;
+                  // Only allow digits
+                  if (/^\d*$/.test(input)) {
+                    setCustomerPhone(input);
                   }
                 }}
-                onChange={(e) => {
-                  setCode(e.target.value);
-                }}
               />
             </div>
-            <Button
-              type="button"
-              onClick={handleFind}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <div>
+              <Label htmlFor="customer-name">Customer Name (Optional)</Label>
+              <Input
+                id="customer-name"
+                placeholder="Enter customer name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="shop-select">
+                {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER)
+                  ? "Select Shop *"
+                  : "Shop"}
+              </Label>
+              {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER) ? (
+                <select
+                  id="shop-select"
+                  name="shop-select"
+                  aria-label="Select shop"
+                  className="w-full p-2 border rounded-md"
+                  value={selectedShopId}
+                  onChange={(e) => setSelectedShopId(e.target.value)}
+                >
+                  <option value="">Select Shop</option>
+                  {shops.map((shop) => (
+                    <option key={shop.id} value={shop.id}>
+                      {shop.shopName} - {shop.shopLocation}
+                    </option>
+                  ))}
+                </select>
               ) : (
-                <Search className="mr-2 h-4 w-4" />
+                <div className="w-full p-2 border rounded-md bg-gray-50">
+                  {userShop ? (
+                    <span className="text-gray-700 font-medium">
+                      {userShop.shopName} - {userShop.shopLocation}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500">No shop associated</span>
+                  )}
+                </div>
               )}
-              Find Product
-            </Button>
+            </div>
+
+            <div>
+              <Label htmlFor="payment-type">Payment Type *</Label>
+              <select
+                id="payment-type"
+                name="payment-type"
+                aria-label="Select payment type"
+                className="w-full p-2 border rounded-md"
+                value={paymentType}
+                onChange={(e) => setpaymentType(e.target.value)}
+              >
+                <option value="">Select Payment Type</option>
+                <option value="GPay">GPay</option>
+                <option value="Cash">Cash</option>
+                <option value="BankTransfer">Bank Transfer</option>
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="bill-by">Bill Created By (Optional)</Label>
+              <Input
+                id="bill-by"
+                placeholder="Enter person name"
+                value={billCreatedBy}
+                onChange={(e) => setBillCreatedBy(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-3 lg:col-span-5">
+              <Label htmlFor="remark">Remark</Label>
+              <Input
+                id="remark"
+                placeholder="Enter remark (optional)"
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+              />
+            </div>
           </div>
         </div>
-        <div className="bg-amber-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Add Untracked Kurti</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 items-end">
-            <div>
-              <Label htmlFor="untracked-category">Category *</Label>
-              <Input
-                id="untracked-category"
-                placeholder="Category"
-                value={untrackedCategory}
-                onChange={(e) => setUntrackedCategory(e.target.value)}
-              />
+        <div className="grid grid-cols-1 xl:grid-cols-[auto_1fr] gap-4">
+          {/* Search Section */}
+          <div className="bg-slate-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3">Find Product</h3>
+            <div className="flex flex-row flex-wrap gap-2 items-end">
+              <div className="flex flex-col flex-wrap">
+                <Label htmlFor="product-code" className="mb-[10px]">
+                  Product Code
+                </Label>
+                <Input
+                  id="product-code"
+                  className="w-[250px] p-2"
+                  placeholder="Enter product code (without size)"
+                  value={code}
+                  ref={productCodeInputRef}
+                  onKeyUp={(e) => {
+                    if (e.key === "Enter") {
+                      handleFind();
+                    }
+                  }}
+                  onChange={(e) => {
+                    setCode(e.target.value);
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={handleFind}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {loading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="mr-2 h-4 w-4" />
+                )}
+                Find Product
+              </Button>
             </div>
-            <div>
-              <Label htmlFor="untracked-size">Size (Optional)</Label>
-              <Input
-                id="untracked-size"
-                placeholder="e.g. M"
-                value={untrackedSize}
-                onChange={(e) => setUntrackedSize(e.target.value)}
-              />
+          </div>
+          <div className="bg-amber-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3">Add Untracked Kurti</h3>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+              <div>
+                <Label htmlFor="untracked-category">Category *</Label>
+                <Input
+                  id="untracked-category"
+                  placeholder="Category"
+                  value={untrackedCategory}
+                  onChange={(e) => setUntrackedCategory(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="untracked-size">Size (Optional)</Label>
+                <Input
+                  id="untracked-size"
+                  placeholder="e.g. M"
+                  value={untrackedSize}
+                  onChange={(e) => setUntrackedSize(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="untracked-qty">Quantity *</Label>
+                <Input
+                  id="untracked-qty"
+                  type="number"
+                  min="1"
+                  value={untrackedQuantity}
+                  onChange={(e) => setUntrackedQuantity(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="untracked-price">Unit Price *</Label>
+                <Input
+                  id="untracked-price"
+                  type="number"
+                  min="1"
+                  value={untrackedPrice}
+                  onChange={(e) => setUntrackedPrice(e.target.value)}
+                />
+              </div>
+              <Button type="button" onClick={addUntrackedToCart}>
+                Add Untracked
+              </Button>
             </div>
-            <div>
-              <Label htmlFor="untracked-qty">Quantity *</Label>
-              <Input
-                id="untracked-qty"
-                type="number"
-                min="1"
-                value={untrackedQuantity}
-                onChange={(e) => setUntrackedQuantity(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="untracked-price">Unit Price *</Label>
-              <Input
-                id="untracked-price"
-                type="number"
-                min="1"
-                value={untrackedPrice}
-                onChange={(e) => setUntrackedPrice(e.target.value)}
-              />
-            </div>
-            <Button type="button" onClick={addUntrackedToCart}>
-              Add Untracked
-            </Button>
           </div>
         </div>
-        {/* Customer Details Section */}
 
         {/* Add-to-cart section removed: scanning/entering code adds directly to shipping details */}
 
@@ -988,126 +1048,57 @@ function SellPage() {
           </div>
         )}
 
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Customer Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="customer-name">Customer Name *</Label>
-              <Input
-                id="customer-name"
-                placeholder="Enter customer name"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="customer-phone">Customer Phone (Optional)</Label>
-              <Input
-                id="customer-phone"
-                placeholder="Enter customer phone"
-                value={customerPhone}
-                maxLength={10}
-                onChange={(e) => {
-                  const input = e.target.value;
-                  // Only allow digits
-                  if (/^\d*$/.test(input)) {
-                    setCustomerPhone(input);
-                  }
-                }}
-              />
-            </div>
-            <div>
-              <Label htmlFor="shop-select">
-                {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER)
-                  ? "Select Shop *"
-                  : "Shop"}
-              </Label>
-              {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER) ? (
-                <select
-                  id="shop-select"
-                  name="shop-select"
-                  aria-label="Select shop"
-                  className="w-full p-2 border rounded-md"
-                  value={selectedShopId}
-                  onChange={(e) => setSelectedShopId(e.target.value)}
-                >
-                  <option value="">Select Shop</option>
-                  {shops.map((shop) => (
-                    <option key={shop.id} value={shop.id}>
-                      {shop.shopName} - {shop.shopLocation}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="w-full p-2 border rounded-md bg-gray-50">
-                  {userShop ? (
-                    <span className="text-gray-700 font-medium">
-                      {userShop.shopName} - {userShop.shopLocation}
-                    </span>
-                  ) : (
-                    <span className="text-gray-500">No shop associated</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="payment-type">Payment Type *</Label>
-              <select
-                id="payment-type"
-                name="payment-type"
-                aria-label="Select payment type"
-                className="w-full p-2 border rounded-md"
-                value={paymentType}
-                onChange={(e) => setpaymentType(e.target.value)}
-              >
-                <option value="">Select Payment Type</option>
-                <option value="GPay">GPay</option>
-                <option value="Cash">Cash</option>
-                <option value="BankTransfer">Bank Transfer</option>
-              </select>
-            </div>
-
-            <div>
-              <Label htmlFor="bill-by">Bill Created By *</Label>
-              <Input
-                id="bill-by"
-                placeholder="Enter person name"
-                value={billCreatedBy}
-                onChange={(e) => setBillCreatedBy(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="discount-amount">Discount (Amount)</Label>
-              <Input
-                id="discount-amount"
-                type="number"
-                min="0"
-                placeholder="Enter discount amount"
-                value={discountAmount}
-                onChange={(e) => setDiscountAmount(e.target.value)}
-              />
-            </div>
-
-            <div className="md:col-span-2 lg:col-span-3">
-              <Label htmlFor="remark">Remark</Label>
-              <Input
-                id="remark"
-                placeholder="Enter remark (optional)"
-                value={remark}
-                onChange={(e) => setRemark(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
         {/* Invoice Preview (shown as items are added) */}
         {(invoicePreview || draftInvoicePreview) && (
           <div className="border rounded-lg p-3 bg-white print-area">
-            <div className="flex items-center justify-between mb-2 print:hidden">
-              <div className="font-semibold">
-                {invoicePreview ? "Invoice Preview" : "Draft Invoice Preview"}
-              </div>
+            <div className="font-semibold mb-2 print:hidden">
+              {invoicePreview ? "Invoice Preview" : "Draft Invoice Preview"}
+            </div>
+            <div className="h-px w-full bg-gray-200 mb-3 print:hidden" />
+            <InvoicePreview
+              embedded
+              showPrintButton={false}
+              invoice={(invoicePreview || draftInvoicePreview)!}
+            />
+          </div>
+        )}
+
+        {/* Bill actions stay pinned to the bottom of the screen so billing never needs a scroll */}
+        {(invoicePreview || draftInvoicePreview) && (
+          <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-white/95 backdrop-blur shadow-[0_-2px_8px_rgba(0,0,0,0.08)] px-4 py-3 print:hidden">
+            <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+              {!canCompleteSale && missingCompleteSaleFields.length > 0 && (
+                <div className="text-sm text-gray-600">
+                  To enable <span className="font-medium">Save</span>, fill:{" "}
+                  <span className="font-medium">
+                    {missingCompleteSaleFields.join(", ")}
+                  </span>
+                </div>
+              )}
+              {cart.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Label
+                    htmlFor="discount-amount"
+                    className="whitespace-nowrap"
+                  >
+                    Discount ₹
+                  </Label>
+                  <Input
+                    id="discount-amount"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={discountAmount}
+                    onChange={(e) => setDiscountAmount(e.target.value)}
+                    className="w-28"
+                  />
+                </div>
+              )}
+              {cart.length > 0 && (
+                <div className="text-lg font-bold text-green-800">
+                  Total: ₹{getNetTotalAmount()}
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
@@ -1143,20 +1134,6 @@ function SellPage() {
                 </Button>
               </div>
             </div>
-            {!canCompleteSale && missingCompleteSaleFields.length > 0 && (
-              <div className="text-sm text-gray-600 mb-2 print:hidden">
-                To enable <span className="font-medium">Save</span>, fill:{" "}
-                <span className="font-medium">
-                  {missingCompleteSaleFields.join(", ")}
-                </span>
-              </div>
-            )}
-            <div className="h-px w-full bg-gray-200 mb-3 print:hidden" />
-            <InvoicePreview
-              embedded
-              showPrintButton={false}
-              invoice={(invoicePreview || draftInvoicePreview)!}
-            />
           </div>
         )}
       </CardContent>

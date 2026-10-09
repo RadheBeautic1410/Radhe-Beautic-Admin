@@ -44,7 +44,7 @@ import {
   LOCATION_LABELS,
   availableAtLocation,
   describeLocations,
-  locationForShopId,
+  defaultLocationForBill,
 } from "@/src/lib/godown";
 
 const getCurrTime = () => {
@@ -117,8 +117,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   const currentUser = useCurrentUser();
   const router = useRouter();
 
-  // Lines added to this bill come out of the bill's shop location.
-  const billLocation = locationForShopId(selectedShopId);
+  // Lines added to this bill come out of its default location (hall bills: the godown).
+  const billLocation = defaultLocationForBill(selectedShopId, sellType);
   const whereLabel = billLocation ? LOCATION_LABELS[billLocation] : "stock";
   const stockOf = (sz: any) => availableAtLocation(sz, billLocation);
 

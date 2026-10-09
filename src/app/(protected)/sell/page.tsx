@@ -69,16 +69,27 @@ function SellPage() {
       })
       .catch(() => {});
   }, [isShopLogin, currentUser?.id]);
+  // WhatsApp / online order: stock still comes off `floor`, but the report counts
+  // it as an online sale. Stays ticked for the whole order; not remembered.
+  const [isOnlineOrder, setIsOnlineOrder] = useState(false);
+  // Hall sale: the piece can be picked up from any location (even on a shop
+  // login), and the report counts it as a hall sale. Not remembered.
+  const [isHallSale, setIsHallSale] = useState(false);
+  const locationLocked = !!lockedLocation && !isHallSale;
   const chooseFloor = (loc: StockLocation) => {
-    if (lockedLocation) return;
+    if (locationLocked) return;
     setFloor(loc);
+    if (lockedLocation) return; // hall sale on a shop login: don't remember
     try {
       localStorage.setItem("sellFloor", loc);
     } catch {}
   };
-  // WhatsApp / online order: stock still comes off `floor`, but the report counts
-  // it as an online sale. Stays ticked for the whole order; not remembered.
-  const [isOnlineOrder, setIsOnlineOrder] = useState(false);
+  const toggleHallSale = (checked: boolean) => {
+    setIsHallSale(checked);
+    if (checked) setIsOnlineOrder(false);
+    // Back to a normal sale: a shop login sells its own location again.
+    else if (lockedLocation) setFloor(lockedLocation);
+  };
   // console.log(currentUser);
   const handleSell = async () => {
     try {
@@ -107,6 +118,7 @@ function SellPage() {
           currentTime: ISTTime,
           stockLocation: floor,
           isOnlineOrder,
+          isHallSale,
         });
         // const response = await fetch(`/api/sell?code=${code}`); // Adjust the API endpoint based on your actual setup
         // const result = await response.json();
@@ -118,7 +130,9 @@ function SellPage() {
           setKurti(null);
         } else {
           setErrorMessage(null); // Clear error on success
-          toast.success(isOnlineOrder ? "Sold as online order" : "Sold Successfully");
+          toast.success(
+            isOnlineOrder ? "Sold as online order" : isHallSale ? "Sold as hall sale" : "Sold Successfully"
+          );
           // console.log(result);
 
           setKurti(data.kurti);
@@ -162,12 +176,12 @@ function SellPage() {
             <button
               key={loc}
               type="button"
-              disabled={isShopLogin && loc !== lockedLocation}
+              disabled={locationLocked && loc !== lockedLocation}
               onClick={() => chooseFloor(loc)}
               className={`px-4 py-2 rounded-lg border text-sm font-semibold ${
                 floor === loc
                   ? "bg-slate-800 border-slate-800 text-white"
-                  : isShopLogin
+                  : locationLocked
                     ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
                     : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
               }`}
@@ -187,12 +201,35 @@ function SellPage() {
             type="checkbox"
             className="h-4 w-4"
             checked={isOnlineOrder}
-            onChange={(e) => setIsOnlineOrder(e.target.checked)}
+            onChange={(e) => {
+              setIsOnlineOrder(e.target.checked);
+              if (e.target.checked) toggleHallSale(false);
+            }}
           />
           Online order (WhatsApp)
           {isOnlineOrder && (
             <span className="font-normal text-xs">
               - counted as an online sale; untick for counter sales
+            </span>
+          )}
+        </label>
+        <label
+          className={`flex w-fit items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold cursor-pointer ${
+            isHallSale
+              ? "bg-purple-100 border-purple-400 text-purple-900"
+              : "bg-white border-gray-300 text-gray-700"
+          }`}
+        >
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={isHallSale}
+            onChange={(e) => toggleHallSale(e.target.checked)}
+          />
+          Hall sale
+          {isHallSale && (
+            <span className="font-normal text-xs">
+              - pick the location the piece came from; counted as a hall sale
             </span>
           )}
         </label>

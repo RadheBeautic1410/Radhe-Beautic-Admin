@@ -33,7 +33,13 @@ const CHANNEL_LABELS: Record<SaleChannel, string> = {
 };
 
 const placeLabel = (p: SoldBy | ReportLocation) =>
-  p === "UNRECORDED" ? "Not recorded" : p === "ONLINE" ? "Online" : LOCATION_LABELS[p];
+  p === "UNRECORDED"
+    ? "Not recorded"
+    : p === "ONLINE"
+      ? "Online"
+      : p === "HALL"
+        ? "Hall"
+        : LOCATION_LABELS[p];
 
 type Totals = { pieces: number; amount: number };
 interface SummaryRow extends Totals {
@@ -163,8 +169,8 @@ function SalesByLocationPage() {
       <CardHeader>
         <p className="text-2xl font-semibold text-center">📍 Sales by Location</p>
         <p className="text-sm text-center text-gray-600">
-          Counter sales of the 1st Floor, 2nd Floor and Shop 316, and online sales -
-          with where the online pieces were taken from.
+          Counter sales of the 1st Floor, 2nd Floor and Shop 316, hall sales and online sales -
+          with where the hall and online pieces were taken from.
         </p>
       </CardHeader>
       <CardContent className="w-full flex flex-col gap-4">
@@ -207,7 +213,7 @@ function SalesByLocationPage() {
                     <TableRow
                       key={r.soldBy}
                       className={
-                        r.soldBy === "ONLINE"
+                        r.soldBy === "ONLINE" || r.soldBy === "HALL"
                           ? "bg-blue-50"
                           : r.soldBy === "UNRECORDED"
                             ? "bg-amber-50"
@@ -216,7 +222,7 @@ function SalesByLocationPage() {
                     >
                       <TableCell className="border font-semibold">
                         {placeLabel(r.soldBy)}
-                        {r.soldBy !== "ONLINE" && r.soldBy !== "UNRECORDED" && (
+                        {r.soldBy !== "ONLINE" && r.soldBy !== "HALL" && r.soldBy !== "UNRECORDED" && (
                           <span className="block text-xs font-normal text-gray-500">counter</span>
                         )}
                       </TableCell>
@@ -229,7 +235,7 @@ function SalesByLocationPage() {
                         <Cell totals={r} bold onOpen={() => openDetail(r.soldBy)} />
                       </TableCell>
                       <TableCell className="border text-xs">
-                        {r.soldBy === "ONLINE" ? stockFromText(r) || "-" : "-"}
+                        {r.soldBy === "ONLINE" || r.soldBy === "HALL" ? stockFromText(r) || "-" : "-"}
                       </TableCell>
                     </TableRow>
                   ))}

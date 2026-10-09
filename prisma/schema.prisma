@@ -313,6 +313,7 @@ model Sell {
   batch         SaleBatch? @relation("BatchSales", fields: [batchId], references: [id])
   stockLocation String? // StockLocation the pieces were taken from (null = before locations existed)
   isOnlineOrder Boolean? // true = WhatsApp/online order scanned on /sell; reported as an online sale
+  isHallSale    Boolean? // true = hall sale scanned on /sell; piece may come from any location, reported as a hall sale
 
   @@index([code])
   @@index([sellTime])
