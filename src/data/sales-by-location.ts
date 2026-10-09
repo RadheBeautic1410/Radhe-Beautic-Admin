@@ -48,6 +48,14 @@ export interface LocationSaleRow {
   category: string;
   quantity: number;
   amount: number;
+  /** What the pieces cost us (the product's actual price x quantity), for profit. */
+  cost: number;
+  party: string;
+  /** Identifies the bill / order / scan this piece belongs to (for bill counts). */
+  billId: string;
+  paymentType: string;
+  /** This line's share of the bill-level discount (shop bills only). */
+  discount: number;
   reference: string;
 }
 
@@ -58,7 +66,7 @@ interface RangeArgs {
 
 const asLocation = (val: any): ReportLocation => (isStockLocation(val) ? val : "UNRECORDED");
 
-const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> => {
+export const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> => {
   const range = {
     gte: new Date(`${from}T00:00:00.000Z`),
     lte: new Date(`${to}T23:59:59.999Z`),
@@ -74,7 +82,17 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
         quantity: true,
         selledPrice: true,
         stockLocation: true,
-        batch: { select: { shopId: true, invoiceNumber: true, batchNumber: true, sellType: true } },
+        batchId: true,
+        batch: {
+          select: {
+            shopId: true,
+            invoiceNumber: true,
+            batchNumber: true,
+            sellType: true,
+            paymentType: true,
+            discountAmount: true,
+          },
+        },
       },
     }),
     db.sell.findMany({
@@ -89,6 +107,9 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
         isOnlineOrder: true,
         isHallSale: true,
         sellerName: true,
+        id: true,
+        batchId: true,
+        paymentType: true,
       },
     }),
     db.onlineSell.findMany({
@@ -100,6 +121,7 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
         quantity: true,
         selledPrice: true,
         stockLocation: true,
+        batchId: true,
         batch: { select: { invoiceNumber: true, orderId: true } },
       },
     }),
@@ -107,6 +129,7 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
       where: { acceptedAt: range },
       select: {
         orderId: true,
+        paymentType: true,
         acceptedAt: true,
         total: true,
         shippingCharge: true,
@@ -127,16 +150,29 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
   // faster than a huge `code in [...]` filter.
   const priceByCode = new Map<string, number>();
   const categoryByCode = new Map<string, string>();
+  const costByCode = new Map<string, number>();
+  const partyByCode = new Map<string, string>();
   const kurtis = await db.kurti.findMany({
-    select: { code: true, sellingPrice: true, category: true },
+    select: { code: true, sellingPrice: true, actualPrice: true, category: true, party: true },
   });
   kurtis.forEach((k) => {
     const code = k.code.toUpperCase();
     priceByCode.set(code, parseInt(k.sellingPrice) || 0);
+    costByCode.set(code, parseInt(k.actualPrice) || 0);
+    partyByCode.set(code, k.party || "Unknown");
     categoryByCode.set(code, String(k.category || "").toUpperCase());
   });
 
-  const rows: Omit<LocationSaleRow, "category">[] = [];
+  const rows: (Omit<LocationSaleRow, "category" | "cost" | "party" | "discount"> & {
+    discount?: number;
+  })[] = [];
+  // Bill-level discounts, spread over each bill's lines by value.
+  const billDiscount = new Map<string, { discount: number; lines: number }>();
+  for (const s of shopSales) {
+    const entry = billDiscount.get(s.batchId) || { discount: s.batch?.discountAmount || 0, lines: 0 };
+    entry.lines += (s.selledPrice || 0) * (s.quantity || 1);
+    billDiscount.set(s.batchId, entry);
+  }
 
   for (const s of shopSales) {
     const qty = s.quantity || 1;
@@ -156,6 +192,12 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
       size: s.kurtiSize,
       quantity: qty,
       amount: (s.selledPrice || 0) * qty,
+      billId: `SHOP_BILL:${s.batchId}`,
+      discount: (() => {
+        const bill = billDiscount.get(s.batchId);
+        return bill?.lines ? Math.round((bill.discount * (s.selledPrice || 0) * qty) / bill.lines) : 0;
+      })(),
+      paymentType: s.batch?.paymentType || "UNKNOWN",
       reference: s.batch?.invoiceNumber ? `Bill #${s.batch.invoiceNumber}` : s.batch?.batchNumber || "",
     });
   }
@@ -173,6 +215,8 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
       size: s.kurtiSize,
       quantity: qty,
       amount: unit * qty,
+      billId: `SCAN:${s.batchId || s.id}`,
+      paymentType: s.paymentType || "UNKNOWN",
       reference: s.sellerName || "",
     });
   }
@@ -188,6 +232,8 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
       size: s.kurtiSize,
       quantity: qty,
       amount: (s.selledPrice || 0) * qty,
+      billId: `ORDER_BILL:${s.batchId}`,
+      paymentType: "ONLINE",
       reference: s.batch?.orderId
         ? `Order ${s.batch.orderId}`
         : s.batch?.invoiceNumber
@@ -217,6 +263,8 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
         size: l.size,
         quantity: l.quantity,
         amount: pieces ? Math.round((goods * l.quantity) / pieces) : 0,
+        billId: `CUSTOMER_ORDER:${o.orderId}`,
+        paymentType: o.paymentType || "ONLINE",
         reference: `Order ${o.orderId}`,
       });
     }
@@ -226,6 +274,9 @@ const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> 
   return rows.map((r) => ({
     ...r,
     category: categoryByCode.get(r.code.toUpperCase()) || r.code.substring(0, 3).toUpperCase(),
+    cost: (costByCode.get(r.code.toUpperCase()) || 0) * r.quantity,
+    party: partyByCode.get(r.code.toUpperCase()) || "Unknown",
+    discount: r.discount || 0,
   }));
 };
 

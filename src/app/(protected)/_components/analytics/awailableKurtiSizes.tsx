@@ -13,12 +13,14 @@ import {
   TableRow,
 } from "@/src/components/ui/table";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { LOCATION_LABELS, STOCK_LOCATIONS, StockLocation } from "@/src/lib/godown";
 
 const headerCells = [
   { name: "Sr. No.", key: "sr_no" },
   { name: "Kurti Code", key: "kurti_code" },
   { name: "Size", key: "size" },
   { name: "Available Pieces", key: "available_pieces" },
+  ...STOCK_LOCATIONS.map((loc) => ({ name: LOCATION_LABELS[loc], key: loc })),
 ];
 
 const DayAnalytics = () => {
@@ -44,7 +46,11 @@ const DayAnalytics = () => {
   });
 
   const kurtiSizeData: {
-    [code: string]: { size: string; pieces: number }[];
+    [code: string]: {
+      size: string;
+      pieces: number;
+      locations: Record<StockLocation, number>;
+    }[];
   } = data?.data?.sizeDataByKurtiCode ?? {};
 
   // Extract unique sizes
@@ -179,6 +185,14 @@ const DayAnalytics = () => {
                           <TableCell className="text-center text-blue-600 font-semibold">
                             {entry.pieces}
                           </TableCell>
+                          {STOCK_LOCATIONS.map((loc) => (
+                            <TableCell
+                              key={loc}
+                              className="text-center text-gray-700"
+                            >
+                              {entry.locations?.[loc] ?? 0}
+                            </TableCell>
+                          ))}
                         </TableRow>
                       );
                     });

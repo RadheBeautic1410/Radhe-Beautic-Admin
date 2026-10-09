@@ -9,58 +9,22 @@ export async function POST(request: NextRequest) {
     const { date, filter } = await request.json();
     const baseData = await getFilteredSales(date, filter);
 
-    // ✅ Use returned start/end dates from baseData
-    const { startDate, endDate } = baseData;
+    const { salesList: soldCodes, ...summary } = baseData;
 
-    if (!startDate || !endDate || isNaN(Date.parse(startDate)) || isNaN(Date.parse(endDate))) {
-      throw new Error("Invalid start or end date");
-    }
-
-    const salesGroup = await db.sell.groupBy({
-      by: ["code"],
-      _count: {
-        code: true,
-      },
-      where: {
-        sellTime: {
-          gte: new Date(`${startDate}T00:00:00.000Z`),
-          lt: new Date(`${endDate}T23:59:59.999Z`),
-        },
-        code: {
-          not: {
-            startsWith: "TES",
-          },
-        },
-      },
-      orderBy: {
-        _count: {
-          code: "desc",
-        },
-      },
-    });
-
-    const codes = salesGroup.map((item) => item.code);
     const kurtiImages = await db.kurti.findMany({
-      where: {
-        code: { in: codes },
-      },
-      select: {
-        code: true,
-        images: true,
-      },
+      where: { code: { in: soldCodes.map((item) => item.code) } },
+      select: { code: true, images: true },
     });
+    const imageByCode = new Map(kurtiImages.map((k) => [k.code, k.images?.[0] || null]));
 
-    const salesList = salesGroup.map((item) => {
-      const kurti = kurtiImages.find(k => k.code === item.code);
-      return {
-        code: item.code,
-        count: item._count.code,
-        image: kurti?.images?.[0] || null,
-      };
-    });
+    const salesList = soldCodes.map((item) => ({
+      code: item.code,
+      count: item.count,
+      image: imageByCode.get(item.code) || null,
+    }));
 
     return NextResponse.json({
-      data: baseData,
+      data: summary,
       salesList,
     }, { status: 200 });
 

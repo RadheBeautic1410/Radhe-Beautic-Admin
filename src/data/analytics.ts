@@ -1,6 +1,8 @@
 "use server";
 
 import { db } from "@/src/lib/db";
+import { collectRows } from "@/src/data/sales-by-location";
+import { STOCK_LOCATIONS, StockLocation, getLocationQty, getTotalQty } from "@/src/lib/godown";
 import {
   addDays,
   endOfMonth,
@@ -62,129 +64,83 @@ const selectBasedOnFilter = (date: any, filter: filter) => {
   }
 };
 
+/**
+ * Sales for a day / month / year, from every channel that sells stock: scans on
+ * /sell, shop bills, bills made from /orders and accepted customer orders. Test
+ * codes (TES...) are left out. Profit uses the product's current actual price.
+ */
+const getSaleRowsFor = async (range: { start: string; end: string }) => {
+  const rows = await collectRows({ from: range.start, to: range.end });
+  return rows.filter((r) => !r.code.toUpperCase().startsWith("TES"));
+};
+
 export const getFilteredSales = async (date: any, filter: filter) => {
   const ISTTime = await selectBasedOnFilter(date, filter);
-  const sellData: any = await db.sell.findMany({
-    where: {
-      sellTime: {
-        gte: new Date(`${ISTTime?.start}T00:00:00.000Z`),
-        lt: new Date(`${ISTTime?.end}T23:59:59.999Z`),
-      },
-      code: {
-        not: {
-          startsWith: "TES",
-        },
-      },
-    },
-    select: {
-      id: true,
-      code: true,
-      prices: {
-        select: {
-          sellingPrice1: true,
-          actualPrice1: true,
-        },
-      },
-    },
-  });
+  if (!ISTTime) throw new Error("Invalid filter");
+  const rows = await getSaleRowsFor(ISTTime);
 
   let totalSales = 0,
-    totalProfit = 0;
+    totalProfit = 0,
+    count = 0;
+  const bySoldBy: Record<string, { pieces: number; amount: number }> = {};
+  const byCode: Record<string, number> = {};
 
-  let count = 0;
-  for (let i = 0; i < sellData.length; i++) {
-    // if(sellData[i].code.includes('TES')){
-    //     continue;
-    // }
-    const sellingPrice = Number(sellData[i].prices?.sellingPrice1);
-    const actualPrice = Number(sellData[i].prices?.actualPrice1);
-    console.log(sellingPrice, actualPrice, count, totalProfit);
-    if (!sellingPrice || !actualPrice) {
-      console.log(sellData[i].code);
-      let sell: any = await db.sell.findUnique({
-        where: {
-          id: sellData[i].id,
-        },
-      });
-      let sellPrice = parseInt(sell.kurti[0].sellingPrice || "0");
-      let actualP = parseInt(sell.kurti[0].actualPrice || "0");
-      let sellPriceId = await db.prices.create({
-        data: {
-          sellingPrice1: sellPrice,
-          sellingPrice2: sellPrice,
-          sellingPrice3: sellPrice,
-          actualPrice1: actualP,
-          actualPrice2: actualP,
-          actualPrice3: actualP,
-        },
-      });
-      await db.sell.update({
-        where: {
-          id: sellData[i].id,
-        },
-        data: {
-          pricesId: sellPriceId.id,
-        },
-      });
-      await db.kurti.update({
-        where: {
-          id: sellData[i].code,
-        },
-        data: {
-          pricesId: sellPriceId.id,
-        },
-      });
-      count++;
-      totalSales += sellPrice;
-      totalProfit += sellPrice - actualP;
-      continue;
-    }
-    count++;
-    totalSales += sellingPrice;
-    totalProfit += sellingPrice - actualPrice;
+  for (const r of rows) {
+    totalSales += r.amount - r.discount;
+    totalProfit += r.amount - r.discount - r.cost;
+    count += r.quantity;
+    const group = (bySoldBy[r.soldBy] ||= { pieces: 0, amount: 0 });
+    group.pieces += r.quantity;
+    group.amount += r.amount - r.discount;
+    byCode[r.code] = (byCode[r.code] || 0) + r.quantity;
   }
+
+  const salesList = Object.entries(byCode)
+    .map(([code, pieces]) => ({ code, count: pieces }))
+    .sort((x, y) => y.count - x.count);
 
   return {
     totalSales,
     totalProfit,
     count,
-    startDate: ISTTime?.start, // Add this
-    endDate: ISTTime?.end, // Add this
+    bySoldBy,
+    salesList,
+    startDate: ISTTime.start,
+    endDate: ISTTime.end,
   };
 };
 
 export const getMonthlyTopTenKurties = async (date: month) => {
   const ISTTime = await getCurrMonth(date);
-  console.log(ISTTime);
+  const rows = await getSaleRowsFor(ISTTime);
 
-  const sellData: any = await db.sell.groupBy({
-    by: ["code"],
-    _count: {
-      code: true,
-    },
-    where: {
-      sellTime: {
-        gte: new Date(`${ISTTime?.start}T00:00:00.000Z`),
-        lt: new Date(`${ISTTime?.end}T23:59:59.999Z`),
-      },
-      code: {
-        not: {
-          startsWith: "TES",
-        },
-      },
-    },
-    orderBy: {
-      _count: {
-        code: "desc",
-      },
-    },
-    take: 10,
-  });
+  const byCode: Record<string, number> = {};
+  for (const r of rows) byCode[r.code] = (byCode[r.code] || 0) + r.quantity;
 
-  return sellData;
+  return Object.entries(byCode)
+    .sort((x, y) => y[1] - x[1])
+    .slice(0, 10)
+    .map(([code, pieces]) => ({ code, _count: { code: pieces } }));
 };
+
+/** Pieces sold per party (supplier) in a "YYYY-MM" month. */
+export const getPartyWiseCount = async (monthParam: string) => {
+  const [year, month] = monthParam.split("-").map(Number);
+  const rows = await getSaleRowsFor(await getCurrMonth({ year, month }));
+
+  const result: Record<string, number> = {};
+  for (const r of rows) result[r.party] = (result[r.party] || 0) + r.quantity;
+  return result;
+};
+
+type SizeStock = {
+  size: string;
+  pieces: number;
+  locations: Record<StockLocation, number>;
+};
+
 export const getAvailableKurtiSizes = async () => {
-  const sellData: any = await db.kurti.findMany({
+  const kurtis = await db.kurti.findMany({
     where: {
       code: {
         not: {
@@ -199,37 +155,28 @@ export const getAvailableKurtiSizes = async () => {
     },
   });
 
-  const sizeDataByKurtiCode: Record<string, { size: string; pieces: number }[]> = {};
+  const sizeDataByKurtiCode: Record<string, SizeStock[]> = {};
 
-  for (const kurti of sellData) {
-    const sizeMap: Record<string, number> = {};
+  for (const kurti of kurtis) {
+    const sizeMap: Record<string, SizeStock> = {};
 
-    for (const s of kurti.sizes) {
-      if (!sizeMap[s.size]) sizeMap[s.size] = 0;
-      sizeMap[s.size] += s.quantity;
+    for (const s of kurti.sizes as any[]) {
+      const entry = (sizeMap[s.size] ||= {
+        size: s.size,
+        pieces: 0,
+        locations: { FLOOR_1: 0, FLOOR_2: 0, SHOP_316: 0, GODOWN: 0 },
+      });
+      entry.pieces += getTotalQty(s);
+      for (const loc of STOCK_LOCATIONS) entry.locations[loc] += getLocationQty(s, loc);
     }
 
-    sizeDataByKurtiCode[kurti.code] = Object.entries(sizeMap)
-      .filter(([_, pieces]) => pieces > 0) // ✅ Only include valid positive sizes
-      .map(([size, pieces]) => ({
-        size,
-        pieces,
-      }));
+    sizeDataByKurtiCode[kurti.code] = Object.values(sizeMap).filter((e) => e.pieces > 0);
   }
-
-  // Optional debug log
-  // Object.entries(sizeDataByKurtiCode).forEach(([code, sizes]) => {
-  //   console.log(`Kurti Code: ${code}`);
-  //   sizes.forEach(({ size, pieces }) => {
-  //     console.log(`  Size: ${size} => Available Pieces: ${pieces}`);
-  //   });
-  // });
 
   return {
     sizeDataByKurtiCode,
   };
 };
-
 
 // export const getAvailableKurtiSizes = async () => {
 //   const sellData: any = await db.kurti.findMany({

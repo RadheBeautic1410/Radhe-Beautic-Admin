@@ -171,12 +171,6 @@ const routes: MenuItem[] = [
     icon: "📈",
     submenu: [
       {
-        name: "Dashboard",
-        href: "/dashboard",
-        role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
-        icon: "📊",
-      },
-      {
         name: "Analytics",
         href: "/analytics",
         role: [UserRole.ADMIN, UserRole.SELLER_MANAGER],
