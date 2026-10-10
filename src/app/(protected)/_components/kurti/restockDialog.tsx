@@ -42,7 +42,13 @@ interface Row {
   add: Additions;
 }
 
+/** Sizes shown when the dialog opens; anything else is added with "Add new size". */
+const DEFAULT_SIZES = ["M", "L", "XL", "XXL", "3XL"];
+
 const emptyAdditions = (): Additions => ({ FLOOR_1: 0, FLOOR_2: 0, SHOP_316: 0, GODOWN: 0 });
+
+/** Column order in the dialog: the godown first, since new stock lands there. */
+const DISPLAY_LOCATIONS: StockLocation[] = ["GODOWN", "FLOOR_1", "FLOOR_2", "SHOP_316"];
 
 const rowTotal = (row: Row) => STOCK_LOCATIONS.reduce((sum, loc) => sum + row.add[loc], 0);
 
@@ -76,11 +82,11 @@ export const RestockDialog: React.FC<RestockDialogProps> = ({ code, sizes, onSav
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
     if (!next) return;
-    // One row per size the kurti already has; nothing to add yet.
+    // M to 3XL by default, whether or not the kurti has them yet.
     setRows(
-      (sizes || []).map((s) => ({
-        size: String(s.size).toUpperCase(),
-        isNew: false,
+      DEFAULT_SIZES.map((size) => ({
+        size,
+        isNew: !currentRow(size),
         add: emptyAdditions(),
       }))
     );
@@ -96,7 +102,7 @@ export const RestockDialog: React.FC<RestockDialogProps> = ({ code, sizes, onSav
   const freeSizes = VALID_SIZES.filter((s) => !usedSizes.has(s));
 
   const addSizeRow = (size: string) => {
-    setRows((prev) => [...prev, { size, isNew: true, add: emptyAdditions() }]);
+    setRows((prev) => [...prev, { size, isNew: !currentRow(size), add: emptyAdditions() }]);
   };
 
   const totalAdded = rows.reduce((sum, r) => sum + rowTotal(r), 0);
@@ -175,7 +181,7 @@ export const RestockDialog: React.FC<RestockDialogProps> = ({ code, sizes, onSav
               className={`${grid} sticky top-0 z-10 bg-white pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-500`}
             >
               <span className="px-1">Size</span>
-              {STOCK_LOCATIONS.map((loc) => (
+              {DISPLAY_LOCATIONS.map((loc) => (
                 <span key={loc} className="text-center">
                   {LOCATION_LABELS[loc]}
                 </span>
@@ -184,7 +190,7 @@ export const RestockDialog: React.FC<RestockDialogProps> = ({ code, sizes, onSav
             </div>
 
             {rows.length === 0 && (
-              <p className="text-sm text-gray-400 py-2">This kurti has no sizes yet - add one below.</p>
+              <p className="text-sm text-gray-400 py-2">No sizes - add one below.</p>
             )}
 
             {rows.map((row, index) => {
@@ -197,7 +203,7 @@ export const RestockDialog: React.FC<RestockDialogProps> = ({ code, sizes, onSav
                       has {cur ? getTotalQty(cur) : 0}
                     </span>
                   </div>
-                  {STOCK_LOCATIONS.map((loc) => (
+                  {DISPLAY_LOCATIONS.map((loc) => (
                     <div key={loc} className="flex flex-col items-center">
                       <Input
                         className={QTY_INPUT}

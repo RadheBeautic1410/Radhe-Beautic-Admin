@@ -101,7 +101,7 @@ const stockFromText = (r: SummaryRow) =>
     .join(" · ");
 
 function SalesByLocationPage() {
-  const [from, setFrom] = useState(istDay(-6));
+  const [from, setFrom] = useState(istDay());
   const [to, setTo] = useState(istDay());
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
