@@ -9,15 +9,18 @@ import {
   DialogTitle,
 } from "@/src/components/ui/dialog";
 import { Input } from "@/src/components/ui/input";
-import { LOCATION_LABELS, StockLocation, getLocationQty } from "@/src/lib/godown";
+import {
+  LOCATION_LABELS,
+  StockLocation,
+  getLocationQty,
+  splitCodeAndSize,
+} from "@/src/lib/godown";
 import axios from "axios";
 import { Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
 interface BulkMoveDialogProps {
-  /** Design code as typed or scanned, with or without the size. */
-  code: string;
   from: StockLocation;
   to: StockLocation;
   /** Called with the updated product after a successful move. */
@@ -28,8 +31,20 @@ interface BulkMoveDialogProps {
  * "Move multiple sizes" for /godown, like Hall Sales' "Add multiple sizes": pick
  * sizes (or all of them, for a full set) and how many pieces of each to move
  * from `from` to `to` in one go.
+ *
+ * It has its own code input, separate from the one-scan-one-piece box, because a
+ * scanned barcode carries a size (JR41223XL) while this needs the design code
+ * only. A size typed or scanned here is dropped.
  */
-export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({ code, from, to, onMoved }) => {
+
+/** "JR41223XL" -> "JR41223"; a code without a size is returned as is. */
+const designCodeOnly = (raw: string): string => {
+  const entered = raw.trim().toUpperCase();
+  return splitCodeAndSize(entered)?.code ?? entered;
+};
+
+export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({ from, to, onMoved }) => {
+  const [code, setCode] = useState("");
   const [open, setOpen] = useState(false);
   const [kurti, setKurti] = useState<any>(null);
   // size -> pieces to move; a size is selected while it has a quantity
@@ -49,13 +64,15 @@ export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({ code, from, to, 
   const allSelected = movable.length > 0 && movable.every((s) => (qty[s.size] || 0) > 0);
 
   const openFor = async () => {
-    if (code.trim().length < 6) {
+    const designCode = designCodeOnly(code);
+    if (designCode.length < 6) {
       toast.error("Enter the design code first, e.g. JR41223");
       return;
     }
+    setCode(designCode);
     try {
       setLoading(true);
-      const res = await axios.post(`/api/kurti/find-kurti`, { code: code.trim() });
+      const res = await axios.post(`/api/kurti/find-kurti`, { code: designCode });
       const data = res.data.data;
       if (data?.error) {
         toast.error(data.error);
@@ -95,6 +112,7 @@ export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({ code, from, to, 
       }
       toast.success(data.success);
       setOpen(false);
+      setCode("");
       onMoved(data.data);
     } catch (e) {
       console.error(e);
@@ -106,10 +124,37 @@ export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({ code, from, to, 
 
   return (
     <>
-      <Button type="button" variant="outline" className="mt-5" onClick={openFor} disabled={loading}>
-        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : ""}
-        Move multiple sizes
-      </Button>
+      <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div>
+          <h3 className="text-sm font-bold text-gray-800">Move multiple sizes</h3>
+          <p className="text-xs text-gray-500">
+            Design code only, e.g. JR41223 - a size is ignored. Pick the sizes next.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 mt-auto">
+          <Input
+            className="h-10 flex-1 min-w-0"
+            placeholder="e.g. JR41223"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            // A scanned barcode ends in its size - drop it as soon as the scan is in.
+            onBlur={() => code.trim() && setCode(designCodeOnly(code))}
+            onKeyUp={(e) => {
+              if (e.key === "Enter") openFor();
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 shrink-0"
+            onClick={openFor}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : ""}
+            Choose sizes
+          </Button>
+        </div>
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-auto">

@@ -65,8 +65,9 @@ export const {
         session.user.role = token.role as UserRole;
       }
 
-      if (token.role && session.user) {
-        session.user.role = token.role as UserRole;
+      if (session.user) {
+        // Sidebar hrefs this user may open; null = built-in defaults for their role.
+        session.user.menus = (token.menus as string[] | null | undefined) ?? null;
       }
 
       if (session.user) {
@@ -96,7 +97,20 @@ export const {
       // token.isOAuth = !!existingAccount;
       token.name = existingUser.name;
       token.phoneNumber = existingUser.phoneNumber;
-      token.role = existingUser.role;
+      // A custom role (or the system Role row for the fixed role) decides the
+      // menus. The session role is the fixed role the custom role acts as, so
+      // every existing in-page role check keeps working.
+      // A failed lookup (e.g. before the Role collection exists) falls back to
+      // the built-in defaults for the fixed role instead of blocking sign-in.
+      const roleRow = await (existingUser.roleId
+        ? db.role.findUnique({ where: { id: existingUser.roleId } })
+        : db.role.findUnique({ where: { name: existingUser.role } })
+      ).catch(() => null);
+      token.role = roleRow?.baseRole ?? existingUser.role;
+      token.menus =
+        existingUser.role === UserRole.ADMIN && !existingUser.roleId
+          ? null
+          : roleRow?.menus ?? null;
       token.organization = existingUser.organization;
       token.isTwoFactorEnabled = existingUser.isTwoFactorEnabled;
 

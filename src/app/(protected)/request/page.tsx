@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/src/components/ui/table";
 import { ModeratorRow } from "../_components/request/moderatorRow";
+import { listRoles } from "@/src/actions/roles";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import Link from "next/link";
 import { CustomerRow } from "../_components/request/customerRow";
@@ -44,6 +45,7 @@ const ModeratorPage = () => {
   const [users, setUsers] = useState<userProps[]>([]);
   const [customers, setCustomers] = useState<userProps[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [roles, setRoles] = useState<any[]>([]);
   const [tab, setTab] = useState<0 | 1>(0);
   const [search, setSearch] = useState("");
   const [verificationFilter, setVerificationFilter] = useState<
@@ -69,6 +71,9 @@ const ModeratorPage = () => {
               staff.push(u);
             }
           }
+
+          const rolesRes = await listRoles();
+          if (rolesRes.data) setRoles(rolesRes.data);
 
           setUsers(staff);
           setCustomers(customerList);
@@ -209,6 +214,10 @@ const ModeratorPage = () => {
                     <TableHead className="text-center">Phone Number</TableHead>
                     <TableHead className="text-center">Verified</TableHead>
                     <TableHead className="text-center">Role</TableHead>
+                    <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+                      <TableHead className="text-center">Salary</TableHead>
+                      <TableHead className="text-center">Password</TableHead>
+                    </RoleGateForComponent>
                     <RoleGateForComponent
                       allowedRole={[UserRole.ADMIN, UserRole.MOD]}
                     >
@@ -224,7 +233,9 @@ const ModeratorPage = () => {
                       <ModeratorRow
                         key={user.id}
                         userData={user}
+                        roles={roles}
                         onUpdateUserData={updateUserData}
+                        onDeleted={(id) => setUsers((prev) => prev.filter((u) => u.id !== id))}
                       />
                     ))}
                 </TableBody>

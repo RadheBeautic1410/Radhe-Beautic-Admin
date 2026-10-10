@@ -31,6 +31,7 @@
 
 "use client";
 import Sidebar from "./_components/navbar/navbar";
+import { MenuGuard } from "./_components/menuGuard";
 import {
   useQuery,
   useMutation,
@@ -51,7 +52,9 @@ const ProtectedLayout = ({ children }: ProtectedLayoutProps) => {
         <Sidebar />
         <main className="flex-1 overflow-y-auto">
           <div className="h-full">
-            <div className="mx-auto min-h-full">{children}</div>
+            <div className="mx-auto min-h-full">
+              <MenuGuard>{children}</MenuGuard>
+            </div>
           </div>
         </main>
         <ReactQueryDevtools />
