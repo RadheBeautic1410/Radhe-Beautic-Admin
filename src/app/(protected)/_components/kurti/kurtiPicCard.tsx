@@ -28,6 +28,7 @@ import {
 } from "@/src/components/ui/dialog";
 import { Input } from "@/src/components/ui/input";
 import { CustomBarcodeDialog } from "./customBarcodeDialog";
+import { useCurrentRole } from "@/src/hooks/use-currrent-role";
 import { RestockDialog } from "./restockDialog";
 import { LOCATION_LABELS, STOCK_LOCATIONS, getLocationQty } from "@/src/lib/godown";
 
@@ -128,6 +129,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({
   ], []);
 
   const pathname = usePathname();
+  // A shop login must not see the reseller (wholesale) price.
+  const hideResellerPrice = useCurrentRole() === UserRole.SHOP_SELLER;
 
   const stockByLocation = useMemo(() => {
     return STOCK_LOCATIONS.map((location) => {
@@ -533,14 +536,16 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({
                 {activeVariant.images?.length || 0} img
               </span>
             </div>
-            <span className="text-base font-bold text-gray-900 whitespace-nowrap">
-              ₹{activeVariant.sellingPrice}/-
-            </span>
+            {!hideResellerPrice && (
+              <span className="text-base font-bold text-gray-900 whitespace-nowrap">
+                ₹{activeVariant.sellingPrice}/-
+              </span>
+            )}
           </div>
 
           {/* Pricing */}
           <div className="flex flex-col gap-0.5">
-            {activeVariant.isBigPrice && activeVariant.bigPrice && (
+            {!hideResellerPrice && activeVariant.isBigPrice && activeVariant.bigPrice && (
               <span className="text-xs text-blue-600 font-semibold">
                 Big Size: ₹{parseFloat(activeVariant.bigPrice) + parseFloat(activeVariant.sellingPrice)}/-
               </span>

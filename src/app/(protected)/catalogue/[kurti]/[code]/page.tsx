@@ -12,6 +12,7 @@ import { UserRole } from "@prisma/client";
 import KurtiVideoCardSingle from "../../../_components/kurti/KurtiVideoSingle";
 import Link from "next/link";
 import { Skeleton } from "@/src/components/ui/skeleton";
+import { LOCATION_LABELS, STOCK_LOCATIONS, getLocationQty, getTotalQty } from "@/src/lib/godown";
 
 function ProductEditorSkeleton() {
   return (
@@ -73,7 +74,69 @@ const getColorHex = (colorName: string) => {
   return colorsMap[normalized] || "#cbd5e1";
 };
 
-function OneKurtiPage() {
+/** What a billing login sees instead of the editor: details and stock, nothing to change. */
+const ReadOnlyDetails = ({ data }: { data: kurti }) => {
+  const sizes = (data.sizes || []).filter((s: any) => s && getTotalQty(s) > 0);
+  return (
+    <Card className="shadow-sm border-gray-200 bg-white">
+      <CardHeader className="border-b py-3 bg-gray-50">
+        <p className="text-sm font-bold text-gray-800">Product Information</p>
+      </CardHeader>
+      <CardContent className="p-4 space-y-4">
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <span className="block text-[10px] font-bold uppercase text-gray-400">Code</span>
+            <span className="font-semibold">{data.code?.toUpperCase()}</span>
+          </div>
+          <div>
+            <span className="block text-[10px] font-bold uppercase text-gray-400">Category</span>
+            <span className="font-semibold">{data.category?.toUpperCase()}</span>
+          </div>
+          <div>
+            <span className="block text-[10px] font-bold uppercase text-gray-400">Color</span>
+            <span className="font-semibold">{data.color || "-"}</span>
+          </div>
+        </div>
+
+        <div>
+          <span className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Stock by size</span>
+          {sizes.length === 0 ? (
+            <p className="text-sm text-gray-400">Out of stock</p>
+          ) : (
+            <div className="overflow-x-auto rounded-md border">
+              <table className="w-full text-sm text-center">
+                <thead>
+                  <tr className="bg-gray-50 text-[11px] uppercase text-gray-500">
+                    <th className="px-3 py-2 text-left">Size</th>
+                    {STOCK_LOCATIONS.map((loc) => (
+                      <th key={loc} className="px-3 py-2">{LOCATION_LABELS[loc]}</th>
+                    ))}
+                    <th className="px-3 py-2">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {sizes.map((s: any) => (
+                    <tr key={s.size}>
+                      <td className="px-3 py-2 text-left font-semibold">{String(s.size).toUpperCase()}</td>
+                      {STOCK_LOCATIONS.map((loc) => (
+                        <td key={loc} className={getLocationQty(s, loc) ? "px-3 py-2" : "px-3 py-2 text-gray-300"}>
+                          {getLocationQty(s, loc) || "-"}
+                        </td>
+                      ))}
+                      <td className="px-3 py-2 font-bold">{getTotalQty(s)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+function OneKurtiPage({ readOnly = false }: { readOnly?: boolean }) {
   const [kurtiData, setKurtiData] = useState<kurti>();
   const [siblings, setSiblings] = useState<kurti[]>([]);
   const [loader, setLoader] = useState(true);
@@ -186,9 +249,12 @@ function OneKurtiPage() {
                     </Card>
                   )}
 
-                  {kurtiData && (
-                    <KurtiUpdate data={kurtiData} onKurtiUpdate={handleKurtiUpdate} />
-                  )}
+                  {kurtiData &&
+                    (readOnly ? (
+                      <ReadOnlyDetails data={kurtiData} />
+                    ) : (
+                      <KurtiUpdate data={kurtiData} onKurtiUpdate={handleKurtiUpdate} />
+                    ))}
                 </div>
 
                 {/* Right side: images and videos */}
@@ -201,18 +267,26 @@ function OneKurtiPage() {
                     <CardContent className="p-6 space-y-4">
                       {kurtiData?.images && kurtiData.images.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                          {kurtiData.images.map((img, idx) => (
+                          {kurtiData.images.map((img, idx) => (readOnly && img.is_hidden ? null : (
                             <Card key={img.id || idx} className="overflow-hidden border border-gray-200 hover:shadow-md transition-all">
                               <CardContent className="p-2">
-                                <KurtiPicCardSingle
-                                  data={kurtiData}
-                                  idx={idx}
-                                  onPicDelete={handleKurtiUpdate}
-                                  onImageToggle={handleKurtiUpdate}
-                                />
+                                {readOnly ? (
+                                  <img
+                                    src={img.url}
+                                    alt={`${kurtiData.code} ${idx + 1}`}
+                                    className="w-full h-auto rounded"
+                                  />
+                                ) : (
+                                  <KurtiPicCardSingle
+                                    data={kurtiData}
+                                    idx={idx}
+                                    onPicDelete={handleKurtiUpdate}
+                                    onImageToggle={handleKurtiUpdate}
+                                  />
+                                )}
                               </CardContent>
                             </Card>
-                          ))}
+                          )))}
                         </div>
                       ) : (
                         <div className="text-center py-12 bg-white rounded-lg border border-dashed border-gray-300 text-gray-400 font-semibold">
@@ -233,12 +307,20 @@ function OneKurtiPage() {
                           {kurtiData.videos.map((video, idx) => (
                             <Card key={video.id || idx} className="overflow-hidden border border-gray-200 hover:shadow-md transition-all">
                               <CardContent className="p-2">
-                                <KurtiVideoCardSingle
-                                  data={kurtiData}
-                                  idx={idx}
-                                  onVideoDelete={handleKurtiUpdate}
-                                  onVideoToggle={handleKurtiUpdate}
-                                />
+                                {readOnly ? (
+                                  <video
+                                    src={video.url}
+                                    controls
+                                    className="w-full rounded"
+                                  />
+                                ) : (
+                                  <KurtiVideoCardSingle
+                                    data={kurtiData}
+                                    idx={idx}
+                                    onVideoDelete={handleKurtiUpdate}
+                                    onVideoToggle={handleKurtiUpdate}
+                                  />
+                                )}
                               </CardContent>
                             </Card>
                           ))}
@@ -265,6 +347,10 @@ const CatalogueKurtiHelper = () => {
     <>
       <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
         <OneKurtiPage />
+      </RoleGateForComponent>
+      {/* Billing logins can look at a product, but not edit it. */}
+      <RoleGateForComponent allowedRole={[UserRole.SHOP_SELLER]}>
+        <OneKurtiPage readOnly />
       </RoleGateForComponent>
       <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.RESELLER]}>
         <NotAllowedPage />

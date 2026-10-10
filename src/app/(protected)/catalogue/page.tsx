@@ -65,6 +65,7 @@ import { useCategories } from "@/src/hooks/useCategories";
 import { useKurtiSearch } from "@/src/hooks/useKurtieSearch";
 import { categoryAddSchema } from "@/src/schemas";
 import { UserRole } from "@prisma/client";
+import { useCurrentRole } from "@/src/hooks/use-currrent-role";
 import {
   Brush,
   BrushIcon,
@@ -188,6 +189,8 @@ const KURTI_ITEMS_PER_PAGE = 12;
 type SearchTypeValue = (typeof SEARCH_TYPES)[keyof typeof SEARCH_TYPES];
 
 const ListPage = () => {
+  // A shop login must not see the reseller (wholesale) price.
+  const hideResellerPrice = useCurrentRole() === UserRole.SHOP_SELLER;
   const [isLoading, setIsLoading] = useState(true);
   const [searchValue, setSearchValue] = useState("");
   const [searchType, setSearchType] = useState<SearchTypeValue>(
@@ -1569,15 +1572,19 @@ const ListPage = () => {
                 </div>
               </RoleGateForComponent>
               <div className="flex flex-col gap-1 col-span-2">
-                <div className="flex items-center gap-1">
-                  <TrendingUp size={14} className="text-blue-500" />
-                  <span className="text-gray-600">Reseller:</span>
-                  <span className="font-medium text-blue-600">₹{cat.sellingPrice || 0}</span>
-                </div>
+                {!hideResellerPrice && (
+                  <div className="flex items-center gap-1">
+                    <TrendingUp size={14} className="text-blue-500" />
+                    <span className="text-gray-600">Reseller:</span>
+                    <span className="font-medium text-blue-600">₹{cat.sellingPrice || 0}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1">
                   <TrendingUp size={14} className="text-green-500" />
                   <span className="text-gray-600">Customer:</span>
-                  <span className="font-medium text-green-600">₹{cat.customerPrice || cat.sellingPrice || 0}</span>
+                  <span className="font-medium text-green-600">
+                    ₹{hideResellerPrice ? cat.customerPrice || 0 : cat.customerPrice || cat.sellingPrice || 0}
+                  </span>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -2314,11 +2321,16 @@ const ListPage = () => {
                           </RoleGateForComponent>
                           <TableCell className="text-center">
                             <div className="flex flex-col gap-1 items-center">
-                              <div className="text-blue-600 font-semibold">
-                                Reseller: ₹{cat.sellingPrice || 0}
-                              </div>
+                              {!hideResellerPrice && (
+                                <div className="text-blue-600 font-semibold">
+                                  Reseller: ₹{cat.sellingPrice || 0}
+                                </div>
+                              )}
                               <div className="text-green-600 font-semibold">
-                                Customer: ₹{cat.customerPrice || cat.sellingPrice || 0}
+                                Customer: ₹
+                                {hideResellerPrice
+                                  ? cat.customerPrice || 0
+                                  : cat.customerPrice || cat.sellingPrice || 0}
                               </div>
                             </div>
                           </TableCell>
