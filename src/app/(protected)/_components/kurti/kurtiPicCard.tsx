@@ -11,7 +11,7 @@ import {
 } from "@/src/components/ui/card";
 import { UserRole } from "@prisma/client";
 import axios from "axios";
-import { Loader2, Download, Trash2 } from "lucide-react";
+import { Loader2, Download, Trash2, Barcode, PackagePlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState, useMemo } from "react";
@@ -27,6 +27,9 @@ import {
   DialogTrigger,
 } from "@/src/components/ui/dialog";
 import { Input } from "@/src/components/ui/input";
+import { CustomBarcodeDialog } from "./customBarcodeDialog";
+import { RestockDialog } from "./restockDialog";
+import { LOCATION_LABELS, STOCK_LOCATIONS, getLocationQty } from "@/src/lib/godown";
 
 interface kurti {
   id: string;
@@ -47,6 +50,9 @@ interface kurti {
 interface KurtiPicCardProps {
   data: any; // A single kurti object or a list of grouped variant kurtis
   onKurtiDelete: (data: any) => void;
+  /** Called after stock was added from the card, so the list can reload. */
+  onStockUpdated?: () => void;
+  showLocationStock?: boolean;
 }
 
 const getColorHex = (colorName: string) => {
@@ -76,7 +82,12 @@ const getColorHex = (colorName: string) => {
   return colorsMap[normalized] || "#cbd5e1";
 };
 
-const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
+const KurtiPicCard: React.FC<KurtiPicCardProps> = ({
+  data,
+  onKurtiDelete,
+  onStockUpdated,
+  showLocationStock = false,
+}) => {
   const variants = useMemo<kurti[]>(() => {
     return Array.isArray(data) ? data : [data];
   }, [data]);
@@ -117,6 +128,20 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
   ], []);
 
   const pathname = usePathname();
+
+  const stockByLocation = useMemo(() => {
+    return STOCK_LOCATIONS.map((location) => {
+      const sizes = (activeVariant.sizes || [])
+        .map((row) => ({ size: String(row.size || "").toUpperCase(), quantity: getLocationQty(row, location) }))
+        .filter((row) => row.quantity > 0)
+        .sort((a, b) => {
+          const ai = selectSizes.indexOf(a.size);
+          const bi = selectSizes.indexOf(b.size);
+          return (ai < 0 ? selectSizes.length : ai) - (bi < 0 ? selectSizes.length : bi) || a.size.localeCompare(b.size);
+        });
+      return { location, sizes, total: sizes.reduce((sum, row) => sum + row.quantity, 0) };
+    });
+  }, [activeVariant.sizes, selectSizes]);
 
   const sortedAvailableSizes = useMemo(() => {
     const sizesArray: any[] = activeVariant.sizes || [];
@@ -448,7 +473,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
   return (
     <div
       id="container"
-      className="group w-[300px] bg-white rounded-2xl shadow-md hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 flex flex-col justify-between"
+      className="group w-full max-w-[300px] bg-white rounded-2xl shadow-md hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 flex flex-col justify-between"
     >
       {/* Hidden container for watermark source image */}
       <div className="w-[2200px] h-[2200px]" hidden>
@@ -499,20 +524,22 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
       <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
         <div className="space-y-2">
           {/* Title / Code */}
-          <div className="flex items-center justify-between">
-            <span className="bg-gray-100 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-md border border-gray-200">
-              Code: {activeVariant.code?.toUpperCase()}
-            </span>
-            <span className="text-[10px] text-gray-500 font-medium">
-              {activeVariant.images?.length || 0} Images
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="bg-gray-100 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-md border border-gray-200 whitespace-nowrap">
+                Code: {activeVariant.code?.toUpperCase()}
+              </span>
+              <span className="text-[10px] text-gray-500 font-medium whitespace-nowrap">
+                {activeVariant.images?.length || 0} img
+              </span>
+            </div>
+            <span className="text-base font-bold text-gray-900 whitespace-nowrap">
+              ₹{activeVariant.sellingPrice}/-
             </span>
           </div>
 
           {/* Pricing */}
           <div className="flex flex-col gap-0.5">
-            <span className="text-lg font-bold text-gray-900">
-              ₹{activeVariant.sellingPrice}/-
-            </span>
             {activeVariant.isBigPrice && activeVariant.bigPrice && (
               <span className="text-xs text-blue-600 font-semibold">
                 Big Size: ₹{parseFloat(activeVariant.bigPrice) + parseFloat(activeVariant.sellingPrice)}/-
@@ -552,7 +579,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
           {/* Size badging system */}
           <div className="space-y-1 pt-1.5">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-              Stock Inventory
+              {showLocationStock ? "Available Stock" : "Stock Inventory"}
             </span>
             <div className="flex flex-wrap gap-1.5">
               {sortedAvailableSizes.length === 0 && (
@@ -573,6 +600,46 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
               ))}
             </div>
           </div>
+          {showLocationStock && (
+            <div className="pt-2 border-t border-gray-100">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                Stock by Location
+              </span>
+              <div className="rounded-md border border-gray-200 bg-gray-50 divide-y divide-gray-200 text-[11px]">
+                {stockByLocation
+                  .filter(({ total }) => total > 0)
+                  .map(({ location, sizes, total }) => (
+                    <div key={location} className="flex items-start gap-2 px-2 py-1">
+                      <span className="w-14 shrink-0 font-semibold text-gray-700">
+                        {LOCATION_LABELS[location]}
+                      </span>
+                      <span className="flex-1 flex flex-wrap gap-x-2 gap-y-0.5">
+                        {sizes.map(({ size, quantity }) => (
+                          <span key={size} className="whitespace-nowrap">
+                            <span className="font-semibold text-gray-600">{size}</span>
+                            <span className="font-extrabold text-purple-800 ml-0.5">{quantity}</span>
+                          </span>
+                        ))}
+                      </span>
+                      <span className="font-bold text-gray-800">{total}</span>
+                    </div>
+                  ))}
+                {stockByLocation.every(({ total }) => total === 0) ? (
+                  <div className="px-2 py-1 text-gray-400">No stock</div>
+                ) : (
+                  stockByLocation.some(({ total }) => total === 0) && (
+                    <div className="px-2 py-1 text-gray-400">
+                      Empty:{" "}
+                      {stockByLocation
+                        .filter(({ total }) => total === 0)
+                        .map(({ location }) => LOCATION_LABELS[location])
+                        .join(", ")}
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Buttons footer */}
@@ -585,17 +652,42 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({ data, onKurtiDelete }) => {
             }}
             variant="outline"
             disabled={downloading}
+            title="Download"
+            aria-label="Download"
             className="flex-1 text-xs border-gray-200 text-gray-700 hover:bg-gray-50 h-9 font-medium"
           >
             {downloading ? (
-              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Download className="w-3.5 h-3.5 mr-1.5" />
+              <Download className="w-4 h-4" />
             )}
-            Download
           </Button>
 
           <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+            <CustomBarcodeDialog code={activeVariant.code} sizes={activeVariant.sizes || []}>
+              <Button
+                type="button"
+                variant="outline"
+                title="Custom Barcodes"
+                aria-label="Custom Barcodes"
+                className="w-9 h-9 p-0 flex-shrink-0 border-gray-200 hover:bg-gray-50 text-gray-600"
+              >
+                <Barcode className="w-4 h-4" />
+              </Button>
+            </CustomBarcodeDialog>
+
+            <RestockDialog code={activeVariant.code} sizes={activeVariant.sizes || []} onSaved={onStockUpdated}>
+              <Button
+                type="button"
+                variant="outline"
+                title="Add Stock"
+                aria-label="Add Stock"
+                className="w-9 h-9 p-0 flex-shrink-0 border-gray-200 hover:bg-gray-50 text-gray-600"
+              >
+                <PackagePlus className="w-4 h-4" />
+              </Button>
+            </RestockDialog>
+
             <Link
               href={
                 pathname.split("/").length !== 2

@@ -13,6 +13,10 @@ interface moderatorUpdateProps {
   id: string;
   groupName?: string; // 👈 allow groupName
   creditLimit?: number;
+  /** Role table id chosen in the editor; system roles are applied through `role`. */
+  customRoleId?: string | null;
+  /** Monthly salary; only an ADMIN can set it. */
+  salary?: number | null;
 }
 
 export const moderatorUpdate = async (data: moderatorUpdateProps) => {
@@ -22,7 +26,7 @@ export const moderatorUpdate = async (data: moderatorUpdateProps) => {
     return { error: "Unauthorized" };
   }
 
-  const { role, isVerified, id, groupName, creditLimit } = data;
+  const { role, isVerified, id, groupName, creditLimit, customRoleId, salary } = data;
 
   const dbUser = await getUserById(id);
 
@@ -37,9 +41,12 @@ export const moderatorUpdate = async (data: moderatorUpdateProps) => {
       where: { id: id },
       data: {
         role: role,
+        // null clears a previous custom role (back to the fixed role)
+        roleId: customRoleId === undefined ? undefined : customRoleId,
         isVerified: isVerified,
         groupName: groupName,
         creditLimit: typeof creditLimit === "number" ? creditLimit : undefined,
+        salary: user.role === UserRole.ADMIN && salary !== undefined ? salary : undefined,
         verifiedBy: user.id,
         verifiedAt: new Date(),
         emailVerified: new Date(),

@@ -72,6 +72,9 @@ model User {
   verifiedAt DateTime?
   groupName  String?   @default("")
   role       UserRole  @default(USER)
+  // Custom role from the Role table. Null = the user is on their fixed `role` above.
+  roleId     String?   @db.ObjectId
+  roleRef    Role?     @relation("UserCustomRole", fields: [roleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   isTwoFactorEnabled    Boolean                @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
@@ -84,6 +87,8 @@ model User {
   Address            Address[]
   balance            Float               @default(0)
   creditLimit        Float               @default(0)
+  /// Monthly salary - only used for staff members, set by the admin.
+  salary             Float?
   WalletHistory      WalletHistory[]     @relation(name: "UserWalletHistory")
   shop               Shop?               @relation("ShopOwner")
   ShippingChangeLog  ShippingChangeLog[]
@@ -103,6 +108,7 @@ model User {
   @@index([isVerified, organization])
   @@index([groupName, role])
   @@index([verifiedBy])
+  @@index([roleId])
   @@index([name])
 }
 
@@ -912,4 +918,22 @@ model Reel {
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+/// A named set of admin-panel menus. `menus` holds the sidebar hrefs the role can
+/// open; having a menu means full access to that page (view, add, edit).
+/// System rows (isSystem) mirror the fixed UserRole enum values; the rest are custom.
+model Role {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  /// The fixed role that in-page checks (buttons, actions) treat this role as.
+  baseRole  UserRole @default(USER)
+  menus     String[]
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[] @relation("UserCustomRole")
+
+  @@map("roles")
 }

@@ -156,8 +156,9 @@ function GodownStockPage() {
         </p>
       </CardHeader>
 
-      <CardContent className="w-full flex flex-col justify-center flex-wrap gap-3">
-        <div className="flex flex-col gap-2">
+      <CardContent className="w-full flex flex-col gap-5">
+        {/* Where the pieces go */}
+        <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-4">
           <LocationButtons title="From" value={from} isDisabled={() => false} onChange={chooseFrom} />
           <LocationButtons title="To" value={to} isDisabled={toDisabled} onChange={setTo} />
           {ownLocation && (
@@ -165,43 +166,50 @@ function GodownStockPage() {
               Your login can move stock into or out of {LOCATION_LABELS[ownLocation]}.
             </p>
           )}
-          <p className="text-xs font-semibold rounded-md px-2 py-1.5 border w-fit bg-slate-50 border-slate-200 text-slate-700">
-            Each scan moves 1 piece from {LOCATION_LABELS[from]} to {LOCATION_LABELS[to]}.
+          <p className="text-xs font-semibold rounded-md px-2.5 py-1.5 border w-fit bg-white border-slate-200 text-slate-700">
+            Moving from {LOCATION_LABELS[from]} to {LOCATION_LABELS[to]}
           </p>
         </div>
 
-        <div className="flex flex-row flex-wrap gap-2">
-          <div className="flex flex-col flex-wrap">
-            <h3>Product Code (with size; without size for multiple sizes)</h3>
-            <Input
-              className="w-[100%]"
-              placeholder="e.g. JR41223XL"
-              value={code}
-              onKeyUp={(e) => {
-                if (e.key === "Enter") {
-                  handleMove();
-                }
-              }}
-              onChange={(e) => setCode(e.target.value)}
-            />
+        {/* Two ways to move: scan one piece, or pick sizes for a design */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+          <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div>
+              <h3 className="text-sm font-bold text-gray-800">Scan a barcode</h3>
+              <p className="text-xs text-gray-500">
+                Code with size, e.g. JR41223XL. Each scan moves 1 piece.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 mt-auto">
+              <Input
+                className="h-10 flex-1 min-w-0"
+                placeholder="e.g. JR41223XL"
+                value={code}
+                onKeyUp={(e) => {
+                  if (e.key === "Enter") {
+                    handleMove();
+                  }
+                }}
+                onChange={(e) => setCode(e.target.value)}
+              />
+              <Button
+                type="button"
+                className="h-10 shrink-0"
+                onClick={handleMove}
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : ""}
+                Move to {LOCATION_LABELS[to]}
+              </Button>
+            </div>
           </div>
-          <Button
-            type="button"
-            className="mt-5"
-            onClick={handleMove}
-            disabled={saving}
-          >
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : ""}
-            Move to {LOCATION_LABELS[to]}
-          </Button>
+
           <BulkMoveDialog
-            code={code}
             from={from}
             to={to}
             onMoved={(updated) => {
               setKurti(updated);
               setLastMove(null);
-              setCode("");
               setRefreshKey((k) => k + 1);
             }}
           />

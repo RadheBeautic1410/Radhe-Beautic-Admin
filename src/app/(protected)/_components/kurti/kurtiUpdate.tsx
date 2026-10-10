@@ -46,6 +46,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AddSizeForm } from "../dynamicFields/sizes";
+import { CustomBarcodeDialog } from "./customBarcodeDialog";
 import ImageUpload2, { ImageUploadRef } from "../upload/imageUpload2";
 import { v4 as uuidv4 } from "uuid";
 import { Switch } from "@/src/components/ui/switch";
@@ -162,7 +163,6 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [downloadSize, setDownloadSize] = useState("");
   const [downloadQuantity, setDownloadQuantity] = useState(0);
   const [downloading1, setDownloading1] = useState(false);
-  const [downloading2, setDownloading2] = useState(false);
   const [allCategory, setAllCategory] = useState<any[]>([]);
   const [changedCategory, setCategory] = useState(data?.category?.toLowerCase() || "");
   const [uploading, setUploading] = useState(false);
@@ -185,7 +185,6 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [isSpecsOpen, setIsSpecsOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
 
-  const [sizesDownload, setSizesDownload] = useState<Size[]>([]);
   const selectSizes = [
     "XS",
     "S",
@@ -284,39 +283,6 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
 
   const handleAddSize = (sizes: Size[]) => {
     setSizes(sizes);
-  };
-
-  const handleAddSizeDownload = (sizes: Size[]) => {
-    setSizesDownload(sizes);
-  };
-
-  const handleDownload = async () => {
-    if (sizesDownload.length === 0) {
-      toast.error("Please add sizes first");
-      return;
-    }
-    try {
-      setDownloading2(true);
-      const obj = JSON.stringify(sizesDownload);
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${data?.code}`,
-        { responseType: "blob" }
-      );
-      const url = window.URL.createObjectURL(res.data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${data?.code}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("Barcodes downloaded!");
-    } catch (e: any) {
-      console.error(e.message);
-      toast.error("Failed to download barcodes");
-    } finally {
-      setDownloading2(false);
-    }
   };
 
   const handleDownload2 = async () => {
@@ -557,37 +523,11 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
               </div>
 
               {/* Barcode / Print */}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="text-xs h-9 border-gray-200 hover:bg-gray-50 font-semibold">
-                    🏷️ Custom Barcodes
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Download Custom Barcodes</DialogTitle>
-                    <DialogDescription>Add size and quantity to generate custom barcode labels</DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4 max-h-60 overflow-y-auto pr-1">
-                    <AddSizeForm
-                      preSizes={[]}
-                      sizes={sizesDownload}
-                      onAddSize={handleAddSizeDownload}
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      onClick={handleDownload}
-                      disabled={downloading2}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                    >
-                      {downloading2 && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-                      Generate & Download
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <CustomBarcodeDialog code={data?.code} sizes={allSizes}>
+                <Button variant="outline" className="text-xs h-9 border-gray-200 hover:bg-gray-50 font-semibold">
+                  🏷️ Custom Barcodes
+                </Button>
+              </CustomBarcodeDialog>
 
               <Button
                 type="button"

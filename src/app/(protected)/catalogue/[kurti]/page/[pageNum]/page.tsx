@@ -33,6 +33,7 @@ import {
 } from "@/src/components/ui/dialog";
 import { Input } from "@/src/components/ui/input";
 import { Skeleton } from "@/src/components/ui/skeleton";
+import { LOCATION_LABELS, STOCK_LOCATIONS, getLocationQty } from "@/src/lib/godown";
 
 function KurtiCardSkeleton() {
   return (
@@ -181,6 +182,38 @@ function KurtiListPage() {
     setTotalPages(pages);
     setDisplayData(groupedList.slice(20 * (safePage - 1), 20 * (safePage - 1) + 20));
   };
+
+  // Whole-category stock per location (ignores search/size filters).
+  const categoryStock = React.useMemo(() => {
+    const grid: Record<string, Record<string, number>> = {};
+    const sizeSet = new Set<string>();
+    for (const location of STOCK_LOCATIONS) grid[location] = {};
+    for (const k of kurtiData) {
+      for (const row of k.sizes || []) {
+        const size = String(row?.size || "").toUpperCase();
+        if (!size) continue;
+        for (const location of STOCK_LOCATIONS) {
+          const qty = getLocationQty(row, location);
+          if (qty <= 0) continue;
+          grid[location][size] = (grid[location][size] || 0) + qty;
+          sizeSet.add(size);
+        }
+      }
+    }
+    const sizes = Array.from(sizeSet).sort((a, b) => {
+      const ai = SIZE_ORDER.indexOf(a);
+      const bi = SIZE_ORDER.indexOf(b);
+      return (ai < 0 ? SIZE_ORDER.length : ai) - (bi < 0 ? SIZE_ORDER.length : bi) || a.localeCompare(b);
+    });
+    const rows = STOCK_LOCATIONS.map((location) => ({
+      location,
+      bySize: grid[location],
+      qty: Object.values(grid[location]).reduce((s, q) => s + q, 0),
+    }));
+    const sizeTotals: Record<string, number> = {};
+    for (const size of sizes) sizeTotals[size] = rows.reduce((s, r) => s + (r.bySize[size] || 0), 0);
+    return { sizes, rows, sizeTotals, total: rows.reduce((s, r) => s + r.qty, 0) };
+  }, [kurtiData]);
 
   const buildUrl = (page: number, search: string, sizes: string[]) => {
     const params = new URLSearchParams();
@@ -403,8 +436,61 @@ function KurtiListPage() {
           </CardHeader>
           <CardContent className="p-6 max-w-7xl mx-auto space-y-6">
 
+            {/* Category stock summary */}
+            {kurtiData.length > 0 && (
+              <details className="rounded-md border bg-white shadow-sm">
+                <summary className="cursor-pointer select-none px-3 py-2 font-medium">
+                  Category Stock
+                  <span className="ml-2 text-sm font-semibold text-purple-800">
+                    {categoryStock.total} pcs · {kurtiData.length} designs
+                  </span>
+                </summary>
+                <div className="overflow-x-auto border-t">
+                <table className="w-full text-sm text-center">
+                  <thead>
+                    <tr className="bg-gray-50 text-[11px] uppercase tracking-wider text-gray-500">
+                      <th className="px-4 py-2 text-left font-bold">Location</th>
+                      {categoryStock.sizes.map((size) => (
+                        <th key={size} className="px-3 py-2 font-bold">{size}</th>
+                      ))}
+                      <th className="px-4 py-2 font-bold text-purple-600">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {categoryStock.rows.map(({ location, bySize, qty }) => (
+                      <tr key={location}>
+                        <td className="px-4 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
+                          {LOCATION_LABELS[location]}
+                        </td>
+                        {categoryStock.sizes.map((size) => (
+                          <td
+                            key={size}
+                            className={bySize[size] ? "px-3 py-2 font-semibold text-gray-800" : "px-3 py-2 text-gray-300"}
+                          >
+                            {bySize[size] || "-"}
+                          </td>
+                        ))}
+                        <td className="px-4 py-2 font-extrabold text-purple-800">{qty}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-purple-50">
+                      <td className="px-4 py-2 text-left font-bold text-purple-700">Total</td>
+                      {categoryStock.sizes.map((size) => (
+                        <td key={size} className="px-3 py-2 font-extrabold text-purple-800">
+                          {categoryStock.sizeTotals[size]}
+                        </td>
+                      ))}
+                      <td className="px-4 py-2 font-extrabold text-purple-800">{categoryStock.total}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                </div>
+              </details>
+            )}
+
+            <div className="flex flex-col md:flex-row md:items-start gap-3">
             {/* Size Filter */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 flex-1 min-w-0">
               <details className="rounded-md border bg-white">
                 <summary className="cursor-pointer select-none px-3 py-2 font-medium">
                   Size Filter
@@ -454,7 +540,7 @@ function KurtiListPage() {
             </div>
 
             {/* Selection and Multi-Delete Bar */}
-            <div className="mt-4 flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3.5 shadow-xs">
+            <div className="flex items-center justify-between gap-4 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-1.5 shadow-xs md:shrink-0">
               <div className="flex items-center gap-3">
                 <Button
                   type="button"
@@ -487,9 +573,10 @@ function KurtiListPage() {
                 </Button>
               )}
             </div>
+            </div>
           </CardContent>
 
-          <CardContent className="w-full flex flex-wrap justify-center gap-4">
+          <CardContent className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 min-[1400px]:grid-cols-4 gap-4 justify-items-center">
             {loading || pageLoader ? (
               Array.from({ length: 8 }).map((_, idx) => (
                 <KurtiCardSkeleton key={idx} />
@@ -506,7 +593,7 @@ function KurtiListPage() {
                 const isSelected = selectedIds.includes(primaryVariant.id);
                 
                 return (
-                  <div key={i} className="relative group">
+                  <div key={i} className="relative group w-[300px] max-w-full">
                     {/* Select Checkbox Checkmark */}
                     <div className="absolute top-3 left-3 z-20 flex items-center justify-center bg-white/95 border border-gray-200 rounded-lg p-1.5 shadow-sm hover:scale-105 transition-all">
                       <input
@@ -519,6 +606,8 @@ function KurtiListPage() {
                     <KurtiPicCard
                       data={variantsList}
                       onKurtiDelete={handleKurtiDelete}
+                      onStockUpdated={() => setLoading(true)}
+                      showLocationStock
                     />
                   </div>
                 );

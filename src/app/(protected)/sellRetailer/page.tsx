@@ -771,7 +771,7 @@ function SellPage() {
                   <option value="">Select Shop</option>
                   {shops.map((shop) => (
                     <option key={shop.id} value={shop.id}>
-                      {shop.shopName} - {shop.shopLocation}
+                      {shop.shopName}
                     </option>
                   ))}
                 </select>
@@ -779,30 +779,13 @@ function SellPage() {
                 <div className="w-full p-2 border rounded-md bg-gray-50">
                   {userShop ? (
                     <span className="text-gray-700 font-medium">
-                      {userShop.shopName} - {userShop.shopLocation}
+                      {userShop.shopName}
                     </span>
                   ) : (
                     <span className="text-gray-500">No shop associated</span>
                   )}
                 </div>
               )}
-            </div>
-
-            <div>
-              <Label htmlFor="payment-type">Payment Type *</Label>
-              <select
-                id="payment-type"
-                name="payment-type"
-                aria-label="Select payment type"
-                className="w-full p-2 border rounded-md"
-                value={paymentType}
-                onChange={(e) => setpaymentType(e.target.value)}
-              >
-                <option value="">Select Payment Type</option>
-                <option value="GPay">GPay</option>
-                <option value="Cash">Cash</option>
-                <option value="BankTransfer">Bank Transfer</option>
-              </select>
             </div>
 
             <div>
@@ -815,7 +798,7 @@ function SellPage() {
               />
             </div>
 
-            <div className="md:col-span-3 lg:col-span-5">
+            <div>
               <Label htmlFor="remark">Remark</Label>
               <Input
                 id="remark"
@@ -1095,19 +1078,31 @@ function SellPage() {
                 </div>
               )}
               {cart.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="payment-type" className="whitespace-nowrap">
+                    Payment By *
+                  </Label>
+                  <select
+                    id="payment-type"
+                    name="payment-type"
+                    aria-label="Select payment type"
+                    className="h-10 rounded-md border bg-white px-2 text-sm"
+                    value={paymentType}
+                    onChange={(e) => setpaymentType(e.target.value)}
+                  >
+                    <option value="">Select</option>
+                    <option value="GPay">GPay</option>
+                    <option value="Cash">Cash</option>
+                    <option value="BankTransfer">Bank Transfer</option>
+                  </select>
+                </div>
+              )}
+              {cart.length > 0 && (
                 <div className="text-lg font-bold text-green-800">
                   Total: ₹{getNetTotalAmount()}
                 </div>
               )}
               <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={clearAll}
-                  disabled={selling && cart.length === 0}
-                >
-                  Clear
-                </Button>
                 <Button
                   type="button"
                   onClick={() => handleSave(false)}
@@ -1131,6 +1126,14 @@ function SellPage() {
                     <ShoppingCart className="mr-2 h-4 w-4" />
                   )}
                   Save & Print
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={clearAll}
+                  disabled={selling && cart.length === 0}
+                >
+                  Clear
                 </Button>
               </div>
             </div>
