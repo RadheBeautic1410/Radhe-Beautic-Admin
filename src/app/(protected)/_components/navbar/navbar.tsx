@@ -230,6 +230,12 @@ const routes: MenuItem[] = [
         role: [UserRole.ADMIN],
         icon: "🧭",
       },
+      {
+        name: "Reels",
+        href: "/reels",
+        role: [UserRole.ADMIN],
+        icon: "🎬",
+      },
     ],
   },
   {

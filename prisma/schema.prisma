@@ -898,3 +898,18 @@ model StorefrontMenuItem {
 
   @@index([parentId, order])
 }
+
+// YouTube Shorts/reels shown in the customer "Watch & Shop" section, managed from admin (Reels page).
+// The reel page shows kurtiCodes first, then every kurti of categoryCodes.
+model Reel {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  title         String
+  youtubeUrl    String
+  videoId       String
+  kurtiCodes    String[]
+  categoryCodes String[]
+  order         Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
