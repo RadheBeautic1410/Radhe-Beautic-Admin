@@ -789,6 +789,7 @@ const KurtiListPageHelper = () => {
         UserRole.UPLOADER,
         UserRole.SELLER,
         UserRole.RESELLER,
+        UserRole.SHOP_SELLER,
       ]}
     >
       <Suspense fallback={<PageLoader loading={true} />}>
