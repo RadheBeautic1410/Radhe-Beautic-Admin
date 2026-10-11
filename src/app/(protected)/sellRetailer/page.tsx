@@ -21,6 +21,12 @@ import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { getShopList, getUserShop } from "@/src/actions/shop";
+import { getOfferPricingContext } from "@/src/actions/offer";
+import {
+  PricingCategory,
+  PricingOffer,
+  priceLines,
+} from "@/src/lib/offerPricing";
 import {
   LOCATION_LABELS,
   availableAtLocation,
@@ -49,6 +55,12 @@ interface CartItem {
   sellingPrice: number | null;
   availableStock: number | null;
   hsnCode?: string;
+  // Seller typed the price; skip the customer-price / big-size / offer rules.
+  manualPrice?: boolean;
+  // Filled by pricedCart, never stored in state.
+  regularPrice?: number | null;
+  offerName?: string;
+  offerPieces?: number;
 }
 type GSTType = "IGST" | "SGST_CGST";
 
@@ -113,6 +125,54 @@ function SellPage() {
   const [untrackedSize, setUntrackedSize] = useState("");
   const [untrackedQuantity, setUntrackedQuantity] = useState<string>("1");
   const [untrackedPrice, setUntrackedPrice] = useState<string>("");
+
+  const [offers, setOffers] = useState<PricingOffer[]>([]);
+  const [pricingCategories, setPricingCategories] = useState<
+    PricingCategory[]
+  >([]);
+
+  useEffect(() => {
+    getOfferPricingContext().then((res) => {
+      if ("success" in res && res.success) {
+        setOffers(res.offers as PricingOffer[]);
+        setPricingCategories(res.categories as PricingCategory[]);
+      } else {
+        toast.error("Could not load offers; billing at regular prices");
+      }
+    });
+  }, []);
+
+  // Customer price + big-size price, then offers. Typed prices and untracked
+  // lines are left exactly as entered.
+  const pricedCart = useMemo<CartItem[]>(() => {
+    const auto = cart.filter(
+      (i) => i.lineType === "TRACKED" && !i.manualPrice,
+    );
+    const priced = priceLines(
+      auto.map((i) => ({
+        key: i.id,
+        category: i.kurti?.category || i.category,
+        size: i.selectedSize,
+        quantity: i.quantity,
+        customerPrice: Number(i.kurti?.customerPrice) || null,
+        isBigPrice: !!i.kurti?.isBigPrice,
+      })),
+      offers,
+      pricingCategories,
+    );
+    const byKey = new Map(priced.map((p) => [p.key, p]));
+    return cart.map((item) => {
+      const p = byKey.get(item.id);
+      if (!p || p.unitPrice === null) return item;
+      return {
+        ...item,
+        sellingPrice: p.unitPrice,
+        regularPrice: p.regularUnitPrice,
+        offerName: p.offerName,
+        offerPieces: p.offerPieces,
+      };
+    });
+  }, [cart, offers, pricingCategories]);
 
   // The bill's stock location follows the selected shop; recomputed on every
   // render so a shop change re-checks the whole cart.
@@ -367,7 +427,7 @@ function SellPage() {
   const updateCartItemPrice = (itemId: string, newPrice: number | null) => {
     const updatedCart = cart.map((item) => {
       if (item.id === itemId) {
-        return { ...item, sellingPrice: newPrice };
+        return { ...item, sellingPrice: newPrice, manualPrice: true };
       }
       return item;
     });
@@ -375,7 +435,7 @@ function SellPage() {
   };
 
   const getSubTotalAmount = () => {
-    return cart.reduce(
+    return pricedCart.reduce(
       (total, item) => total + (item.sellingPrice || 0) * item.quantity,
       0,
     );
@@ -431,7 +491,7 @@ function SellPage() {
       remark: remark.trim() || "",
       discountAmount: getDiscountValue(),
       gstType,
-      soldProducts: cart.map((item) => ({
+      soldProducts: pricedCart.map((item) => ({
         kurti: {
           code: item.lineType === "TRACKED" ? item.kurti.code : item.category,
           hsnCode: item.hsnCode || "6204",
@@ -447,7 +507,7 @@ function SellPage() {
     };
   }, [
     billCreatedBy,
-    cart,
+    pricedCart,
     customerName,
     customerPhone,
     discountAmount,
@@ -467,7 +527,7 @@ function SellPage() {
         return;
       }
 
-      const hasMissingPrice = cart.some(
+      const hasMissingPrice = pricedCart.some(
         (item) => !item.sellingPrice || item.sellingPrice <= 0,
       );
       if (hasMissingPrice) {
@@ -520,7 +580,7 @@ function SellPage() {
       const currentTime = getCurrTime();
 
       // Prepare products data for API
-      const trackedProducts = cart
+      const trackedProducts = pricedCart
         .filter((item) => item.lineType === "TRACKED")
         .map((item) => ({
           code: item.kurti.code.toUpperCase() + item.selectedSize.toUpperCase(),
@@ -529,7 +589,7 @@ function SellPage() {
           quantity: item.quantity,
           sellingPrice: item.sellingPrice!,
         }));
-      const untrackedProducts = cart
+      const untrackedProducts = pricedCart
         .filter((item) => item.lineType === "UNTRACKED")
         .map((item) => ({
           category: item.category,
@@ -582,7 +642,7 @@ function SellPage() {
 
   const generateInvoice = async (saleData: any) => {
     try {
-      const soldProducts = cart.map((item) => ({
+      const soldProducts = pricedCart.map((item) => ({
         kurti: {
           code: item.lineType === "TRACKED" ? item.kurti.code : item.category,
           hsnCode: item.hsnCode || "6204",
@@ -689,7 +749,7 @@ function SellPage() {
 
   const canCompleteSale =
     cart.length > 0 &&
-    cart.every((item) => !!item.sellingPrice && item.sellingPrice > 0) &&
+    pricedCart.every((item) => !!item.sellingPrice && item.sellingPrice > 0) &&
     selectedShopId.trim().length > 0 &&
     paymentType.trim().length > 0 &&
     !selling;
@@ -697,12 +757,12 @@ function SellPage() {
   const missingCompleteSaleFields = useMemo(() => {
     const missing: string[] = [];
     if (cart.length === 0) missing.push("Add at least 1 item");
-    if (cart.some((item) => !item.sellingPrice || item.sellingPrice <= 0))
+    if (pricedCart.some((item) => !item.sellingPrice || item.sellingPrice <= 0))
       missing.push("Prices");
     if (!selectedShopId.trim()) missing.push("Shop");
     if (!paymentType.trim()) missing.push("Payment Type");
     return missing;
-  }, [cart, paymentType, selectedShopId]);
+  }, [pricedCart, cart.length, paymentType, selectedShopId]);
 
   return (
     <Card className="rounded-none w-full h-full">
@@ -931,7 +991,7 @@ function SellPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cart.map((item) => (
+                  {pricedCart.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="border">
                         <div className="flex items-center gap-3">
@@ -989,6 +1049,14 @@ function SellPage() {
                         />
                       </TableCell>
                       <TableCell className="border">
+                        {!item.manualPrice &&
+                          item.regularPrice != null &&
+                          item.sellingPrice != null &&
+                          item.sellingPrice < item.regularPrice && (
+                            <span className="block text-[11px] text-gray-500 line-through">
+                              ₹{item.regularPrice}
+                            </span>
+                          )}
                         <Input
                           type="number"
                           min="1"
@@ -1003,6 +1071,12 @@ function SellPage() {
                           }
                           className="w-24"
                         />
+                        {!item.manualPrice && item.offerName && (
+                          <span className="block text-[11px] font-semibold text-green-700">
+                            {item.offerName} ({item.offerPieces}/{item.quantity}{" "}
+                            pcs)
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="border font-semibold">
                         ₹{(item.sellingPrice || 0) * item.quantity}

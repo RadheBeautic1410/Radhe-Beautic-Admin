@@ -76,6 +76,34 @@ export const getAllOffers = async () => {
   }
 };
 
+// Offers plus the per-category big-size price, for billing screens. Open to
+// any signed-in user (the admin-only getAllOffers is for managing offers).
+export const getOfferPricingContext = async () => {
+  const user = await currentUser();
+  if (!user) {
+    return { error: "Unauthorized" };
+  }
+
+  try {
+    const offers = await db.offer.findMany({
+      where: { totalAmount: { not: null } },
+      select: { id: true, name: true, qty: true, totalAmount: true, categories: true },
+    });
+
+    // Every category, not just offer ones: the big-size price applies even
+    // when no offer does.
+    const categories = await db.category.findMany({
+      where: { isDeleted: false },
+      select: { id: true, normalizedLowerCase: true, customerBigPrice: true },
+    });
+
+    return { success: true, offers, categories };
+  } catch (error: any) {
+    console.error("Error fetching offer pricing context:", error);
+    return { error: error.message || "Failed to fetch offers" };
+  }
+};
+
 export const updateOffer = async (offerId: string, data: OfferAdditionProps) => {
   const user = await currentUser();
   const role = await currentRole();
