@@ -173,6 +173,17 @@ export const canOpenMenu = (
 };
 
 /**
+ * Where to land a user who has no particular page in mind: the catalogue when
+ * their role has it (most do), otherwise the first menu they may open.
+ */
+export const firstAllowedPath = (
+  user: { role?: UserRole; menus?: string[] | null } | undefined | null
+): string | null => {
+  if (canOpenMenu("/catalogue", user)) return "/catalogue";
+  return ALL_MENU_ITEMS.find((m) => canOpenMenu(m.href, user))?.href ?? null;
+};
+
+/**
  * Whether `pathname` is allowed. Paths that are not a menu item (home, detail
  * routes under an unknown prefix, auth pages) are not restricted here.
  */

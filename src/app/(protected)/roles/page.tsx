@@ -16,7 +16,7 @@ import {
 import { MENU_GROUPS, SYSTEM_ROLES } from "@/src/lib/menus";
 import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { UserRole } from "@prisma/client";
-import { Loader2, Lock, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 type RoleRow = {
@@ -65,7 +65,7 @@ function RolesPage() {
     );
   };
 
-  const locked = !!selected?.isSystem && selected.name === UserRole.ADMIN;
+  const locked = false;
   const nameLocked = !!selected?.isSystem;
 
   const toggleMenu = (href: string) =>
@@ -175,9 +175,9 @@ function RolesPage() {
           <CardHeader>
             <CardTitle>{form.id ? `Edit role - ${form.name}` : "Create role"}</CardTitle>
             <CardDescription>
-              {locked
-                ? "ADMIN always has every menu and cannot be changed."
-                : "Tick the sidebar menus this role should see and be able to open."}
+              Tick the sidebar menus this role should see and be able to open.
+              {selected?.isSystem && selected.name === UserRole.ADMIN &&
+                " Everyone on the built-in ADMIN role is limited to what is ticked here. To keep full access for yourself, create a Super Admin role that works like ADMIN and move your user to it first."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -204,7 +204,7 @@ function RolesPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {SYSTEM_ROLES.filter((r) => r !== UserRole.ADMIN && r !== UserRole.MOD).map((r) => (
+                      {SYSTEM_ROLES.filter((r) => r !== UserRole.MOD).map((r) => (
                         <SelectItem key={r} value={r}>
                           {r}
                         </SelectItem>
@@ -216,6 +216,30 @@ function RolesPage() {
                   </p>
                 </div>
               )}
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setForm((f) => ({
+                    ...f,
+                    menus: MENU_GROUPS.flatMap((g) => g.items.map((i) => i.href)),
+                  }))
+                }
+              >
+                Select all
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setForm((f) => ({ ...f, menus: [] }))}
+              >
+                Clear all
+              </Button>
             </div>
 
             <div className="space-y-3">
@@ -290,7 +314,6 @@ const RoleButton = ({
     }`}
   >
     <span className="font-semibold truncate flex items-center gap-1.5">
-      {role.isSystem && role.name === UserRole.ADMIN && <Lock className="w-3 h-3 text-gray-400" />}
       {role.name}
     </span>
     <span className="text-[11px] text-gray-500 whitespace-nowrap">

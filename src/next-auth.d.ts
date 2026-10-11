@@ -8,6 +8,9 @@ export type ExtendedUser = DefaultSession["user"] & {
     role: UserRole
     /** Sidebar hrefs the user's role grants; null = defaults for their fixed role. */
     menus: string[] | null
+    /** Display name of the role (a custom role's name, or the fixed role). */
+    roleName?: string
+    phoneNumber?: string | null
     isTwoFactorEnabled: boolean
     isOAuth: boolean
     organization: string

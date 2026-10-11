@@ -216,9 +216,18 @@ const Sidebar = () => {
             <div className="flex items-center gap-3">
               <UserButton />
               {!isCollapsed && (
-                <div className="flex-1">
-                  <div className="text-white/70 text-sm">Welcome back!</div>
-                </div>
+                <Link
+                  href="/profile"
+                  onClick={() => setIsMobileOpen(false)}
+                  className="flex-1 min-w-0 rounded-lg px-2 py-1 hover:bg-white/10"
+                >
+                  <div className="truncate text-sm font-semibold text-white">
+                    {user?.name || "My profile"}
+                  </div>
+                  <div className="truncate text-xs text-white/70">
+                    {user?.roleName || user?.role}
+                  </div>
+                </Link>
               )}
             </div>
           </div>

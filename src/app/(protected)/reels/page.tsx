@@ -12,6 +12,14 @@ import {
 } from "@/src/actions/reels"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/src/components/ui/dialog"
 import { Input } from "@/src/components/ui/input"
 import { Label } from "@/src/components/ui/label"
 import { Switch } from "@/src/components/ui/switch"
@@ -50,6 +58,8 @@ export default function ReelsPage() {
   const [categories, setCategories] = useState<CategoryOption[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [reelToDelete, setReelToDelete] = useState<ReelRow | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -182,9 +192,13 @@ export default function ReelsPage() {
     loadData()
   }
 
-  const handleDelete = async (reel: ReelRow) => {
-    if (!confirm(`Delete reel "${reel.title}"?`)) return
+  const handleDelete = async () => {
+    if (!reelToDelete) return
+    const reel = reelToDelete
+    setDeleting(true)
     const res = await deleteReel(reel.id)
+    setDeleting(false)
+    setReelToDelete(null)
     if (!res.success) alert(res.error || "Failed to delete.")
     if (editingId === reel.id) resetForm()
     loadData()
@@ -472,7 +486,7 @@ export default function ReelsPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(reel)}
+                        onClick={() => setReelToDelete(reel)}
                         className="text-red-500 hover:text-red-600"
                         aria-label="Delete"
                       >
@@ -486,6 +500,35 @@ export default function ReelsPage() {
           </div>
         </div>
       )}
+
+      <Dialog
+        open={!!reelToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setReelToDelete(null)
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete reel?</DialogTitle>
+            <DialogDescription>
+              &ldquo;{reelToDelete?.title}&rdquo; will be removed from the website. This can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" disabled={deleting} onClick={() => setReelToDelete(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={deleting}
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

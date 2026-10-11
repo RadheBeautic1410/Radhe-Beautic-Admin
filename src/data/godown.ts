@@ -363,8 +363,27 @@ export const getLocationSummary = async () => {
     STOCK_LOCATIONS.map((loc) => [loc, { pieces: 0, amount: 0, designs: 0 }])
   ) as Record<StockLocation, { pieces: number; amount: number; designs: number }>;
 
+  // size -> pieces at each location, so the admin sees e.g. how many M / L / XL
+  // sit on each floor.
+  const bySize = new Map<string, Record<StockLocation, number>>();
+
   for (const k of kurtis) {
     const price = parseInt(String(k.sellingPrice || "0"), 10) || 0;
+    for (const s of ((k.sizes as any[]) || [])) {
+      if (!s) continue;
+      const label = String(s.size || "").trim().toUpperCase();
+      if (!label) continue;
+      for (const loc of STOCK_LOCATIONS) {
+        const q = getLocationQty(s, loc);
+        if (!q) continue;
+        let row = bySize.get(label);
+        if (!row) {
+          row = Object.fromEntries(STOCK_LOCATIONS.map((l) => [l, 0])) as Record<StockLocation, number>;
+          bySize.set(label, row);
+        }
+        row[loc] += q;
+      }
+    }
     for (const loc of STOCK_LOCATIONS) {
       const pieces = ((k.sizes as any[]) || []).reduce(
         (sum: number, s: any) => sum + (s ? getLocationQty(s, loc) : 0),
@@ -377,8 +396,22 @@ export const getLocationSummary = async () => {
     }
   }
 
+  const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "2XL", "3XL", "XXXL", "4XL", "5XL", "6XL", "7XL"];
+  const rank = (size: string) => {
+    const i = SIZE_ORDER.indexOf(size);
+    return i === -1 ? SIZE_ORDER.length : i;
+  };
+  const sizes = [...bySize.entries()]
+    .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b, undefined, { numeric: true }))
+    .map(([size, perLocation]) => ({
+      size,
+      perLocation,
+      total: STOCK_LOCATIONS.reduce((sum, loc) => sum + perLocation[loc], 0),
+    }));
+
   const locations = STOCK_LOCATIONS.map((location) => ({ location, ...totals[location] }));
   return {
+    sizes,
     locations,
     pieces: locations.reduce((sum, l) => sum + l.pieces, 0),
     amount: locations.reduce((sum, l) => sum + l.amount, 0),

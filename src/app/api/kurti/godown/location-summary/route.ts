@@ -15,7 +15,7 @@ export async function GET() {
     }
     const data = await getLocationSummary();
     if (user.role !== UserRole.ADMIN) {
-      const { amount, ...rest } = data;
+      const { amount, ...rest } = data; // sizes carry pieces only, no value
       return new NextResponse(
         JSON.stringify({
           data: { ...rest, locations: data.locations.map(({ amount, ...l }) => l) },

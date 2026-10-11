@@ -13,6 +13,7 @@ import {
     AvatarImage,
     AvatarFallback
 } from "@/src/components/ui/avatar"
+import Link from "next/link"
 import { FaUser } from "react-icons/fa"
 import { ExitIcon } from "@radix-ui/react-icons"
 
@@ -35,6 +36,12 @@ export const UserButton = () => {
                 </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
+                <DropdownMenuItem asChild>
+                    <Link href="/profile" className="cursor-pointer">
+                        <FaUser className="h-3.5 w-3.5 mr-2" />
+                        Profile
+                    </Link>
+                </DropdownMenuItem>
                 <LogoutButton>
                     <DropdownMenuItem>
                         <ExitIcon className="h-4 w-4 mr-2" />
