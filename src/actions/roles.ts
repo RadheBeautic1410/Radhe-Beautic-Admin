@@ -67,6 +67,31 @@ export const listRoles = async () => {
   return { data };
 };
 
+/**
+ * The Roles page must stay reachable: after a change there has to be at least
+ * one role that acts as ADMIN, has "/roles", and has a user on it. Otherwise
+ * hiding Roles from every admin would lock everybody out of this page.
+ * `changed` is the role being saved, with its new menus / baseRole.
+ */
+const rolesPageStaysReachable = async (changed: {
+  id: string;
+  baseRole: UserRole;
+  menus: string[];
+}) => {
+  const [roles, users] = await Promise.all([
+    db.role.findMany(),
+    db.user.findMany({ select: { role: true, roleId: true } }),
+  ]);
+  return roles.some((r) => {
+    const next = r.id === changed.id ? { ...r, ...changed } : r;
+    if (next.baseRole !== UserRole.ADMIN || !next.menus.includes("/roles")) return false;
+    return users.some((u) => (r.isSystem ? !u.roleId && u.role === r.name : u.roleId === r.id));
+  });
+};
+
+const LOCKOUT_ERROR =
+  'Roles & Permissions must stay open for at least one role that has users. Keep "Roles & Permissions" ticked here, or give it to a role (e.g. Super Admin) that already has a user.';
+
 export const saveRole = async (input: {
   id?: string;
   name: string;
@@ -76,16 +101,20 @@ export const saveRole = async (input: {
   if (!(await isAdmin())) return { error: "Unauthorized" };
 
   const menus = cleanMenus(input.menus);
+  if (input.baseRole === UserRole.MOD || !SYSTEM_ROLES.includes(input.baseRole)) {
+    return { error: "Pick a valid role for \"Works like\"." };
+  }
 
   if (input.id) {
     const role = await db.role.findUnique({ where: { id: input.id } });
     if (!role) return { error: "Role not found" };
-    if (role.name === UserRole.ADMIN && role.isSystem) {
-      return { error: "The ADMIN role always has every menu and cannot be changed." };
-    }
     // System roles keep their name and fixed role; only the menus change.
     const name = role.isSystem ? role.name : input.name.trim();
     if (!name) return { error: "Role name is required" };
+    const baseRole = role.isSystem ? role.baseRole : input.baseRole;
+    if (!(await rolesPageStaysReachable({ id: role.id, baseRole, menus }))) {
+      return { error: LOCKOUT_ERROR };
+    }
     try {
       await db.role.update({
         where: { id: role.id },

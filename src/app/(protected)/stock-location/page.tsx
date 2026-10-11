@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/src/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import Link from "next/link";
 import {
   LOCATION_LABELS,
@@ -229,7 +229,88 @@ interface SummaryBox {
   amount?: number; // admins only
 }
 
+interface SizeRow {
+  size: string;
+  perLocation: Record<StockLocation, number>;
+  total: number;
+}
+
 const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+
+/** Size x location grid: how many M, L, XL... sit in each place. */
+function SizeStockTable({
+  sizes,
+  selected,
+}: {
+  sizes: SizeRow[];
+  selected: StockLocation;
+}) {
+  const [open, setOpen] = useState(true);
+  if (!sizes.length) return null;
+  const n =(v: number) => (v ? v.toLocaleString("en-IN") : "-");
+  const columnTotal = (loc: StockLocation) => sizes.reduce((s, r) => s + r.perLocation[loc], 0);
+  const grandTotal = sizes.reduce((s, r) => s + r.total, 0);
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-left hover:bg-gray-50"
+      >
+        <span className="text-lg font-semibold">📏 Size-wise stock</span>
+        <ChevronDown
+          className={`h-5 w-5 text-gray-600 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+      <div className="overflow-x-auto">
+        <Table className="border border-collapse w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-center font-bold">Size</TableHead>
+              {STOCK_LOCATIONS.map((loc) => (
+                <TableHead
+                  key={loc}
+                  className={`text-center font-bold ${loc === selected ? "bg-slate-100" : ""}`}
+                >
+                  {LOCATION_LABELS[loc]}
+                </TableHead>
+              ))}
+              <TableHead className="text-center font-bold">Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sizes.map((row) => (
+              <TableRow key={row.size}>
+                <TableCell className="text-center font-bold">{row.size}</TableCell>
+                {STOCK_LOCATIONS.map((loc) => (
+                  <TableCell
+                    key={loc}
+                    className={`text-center ${loc === selected ? "bg-slate-50 font-semibold" : ""}`}
+                  >
+                    {n(row.perLocation[loc])}
+                  </TableCell>
+                ))}
+                <TableCell className="text-center font-semibold">{n(row.total)}</TableCell>
+              </TableRow>
+            ))}
+            <TableRow className="bg-slate-800 hover:bg-slate-800">
+              <TableCell className="text-center font-bold text-white">Total</TableCell>
+              {STOCK_LOCATIONS.map((loc) => (
+                <TableCell key={loc} className="text-center font-bold text-white">
+                  {n(columnTotal(loc))}
+                </TableCell>
+              ))}
+              <TableCell className="text-center font-bold text-white">{n(grandTotal)}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+      )}
+    </div>
+  );
+}
 
 /** One box per location plus a total: pieces, designs and (admins) stock value. */
 function LocationSummary({
@@ -243,6 +324,7 @@ function LocationSummary({
 }) {
   const [data, setData] = useState<{
     locations: SummaryBox[];
+    sizes?: SizeRow[];
     pieces: number;
     amount?: number;
   } | null>(null);
@@ -274,6 +356,7 @@ function LocationSummary({
 
   const box = "rounded-lg border p-3 min-w-[150px] flex-1 text-left";
   return (
+    <div className="flex flex-col gap-4">
     <div className="flex flex-wrap gap-2">
       {data.locations.map((l) => (
         <button
@@ -302,6 +385,8 @@ function LocationSummary({
         )}
         <p className="text-xs text-slate-300">Amount = pieces × selling price</p>
       </div>
+    </div>
+    <SizeStockTable sizes={data.sizes || []} selected={selected} />
     </div>
   );
 }
