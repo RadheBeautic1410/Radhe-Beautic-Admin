@@ -42,4 +42,6 @@ export const apiAuthPrefix = "/api/auth"
 * The default redirect path after logging in
 * @type {string}
 */
-export const DEFAULT_LOGIN_REDIRECT = "/upload"
+// The catalogue is open to every built-in role. MenuGuard falls back to the first
+// allowed page for a custom role that does not include it.
+export const DEFAULT_LOGIN_REDIRECT = "/catalogue"
