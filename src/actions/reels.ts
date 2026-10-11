@@ -53,11 +53,21 @@ function clean(input: ReelInput) {
   return { title, youtubeUrl, videoId, kurtiCodes, categoryCodes, isActive: input.isActive ?? true };
 }
 
-export type KurtiPick = { code: string; category: string; image: string | null };
+export type KurtiPick = { code: string; category: string; image: string | null; createdAt?: string | null };
 
-function toPick(k: { code: string; category: string; images: unknown[] }): KurtiPick {
+function toPick(k: {
+  code: string;
+  category: string;
+  images: unknown[];
+  createdAt?: Date | null;
+}): KurtiPick {
   const first = (k.images as any[]).find((img) => img && !img.is_hidden && img.url);
-  return { code: k.code, category: k.category, image: first?.url ?? null };
+  return {
+    code: k.code,
+    category: k.category,
+    image: first?.url ?? null,
+    createdAt: k.createdAt ? k.createdAt.toISOString() : null,
+  };
 }
 
 export async function getReelsAdmin() {
@@ -80,6 +90,26 @@ export async function getReelsAdmin() {
   return { reels, categories, kurtis: kurtis.map(toPick) };
 }
 
+/** One reel plus what the add/edit form needs (categories, thumbnails of its kurtis). */
+export async function getReelFormData(id?: string) {
+  await requirePermission("reels.view");
+  const [reel, categories] = await Promise.all([
+    id ? db.reel.findUnique({ where: { id } }) : Promise.resolve(null),
+    db.category.findMany({
+      where: { isDeleted: false, code: { not: null } },
+      select: { code: true, name: true, isVisibleForCustomer: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+  const kurtis = reel?.kurtiCodes.length
+    ? await db.kurti.findMany({
+        where: { code: { in: reel.kurtiCodes } },
+        select: { code: true, category: true, images: true },
+      })
+    : [];
+  return { reel, categories, kurtis: kurtis.map(toPick) };
+}
+
 /** Search kurtis by code or category for the reel picker. */
 export async function searchKurtisForReel(query: string): Promise<KurtiPick[]> {
   await requirePermission("reels.view");
@@ -96,6 +126,24 @@ export async function searchKurtisForReel(query: string): Promise<KurtiPick[]> {
     select: { code: true, category: true, images: true },
     orderBy: { lastUpdatedTime: "desc" },
     take: 24,
+  });
+  return kurtis.map(toPick);
+}
+
+/** All live kurtis of one category (by category code) for the reel picker's card grid. */
+export async function getKurtisForCategory(categoryCode: string): Promise<KurtiPick[]> {
+  await requirePermission("reels.view");
+  const category = await db.category.findUnique({
+    where: { code: categoryCode },
+    select: { name: true },
+  });
+  if (!category) return [];
+  const kurtis = await db.kurti.findMany({
+    where: { isDeleted: false, category: { equals: category.name, mode: "insensitive" } },
+    select: { code: true, category: true, images: true, createdAt: true },
+    // newest created first; older rows without createdAt fall back to last update
+    orderBy: [{ createdAt: "desc" }, { lastUpdatedTime: "desc" }],
+    take: 500,
   });
   return kurtis.map(toPick);
 }
