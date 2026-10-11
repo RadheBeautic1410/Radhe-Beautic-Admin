@@ -1,8 +1,7 @@
 "use server";
 
 import { db } from "@/src/lib/db";
-import { currentUser, currentRole } from "@/src/lib/auth";
-import { UserRole } from "@prisma/client";
+import { checkPermission, permissionError } from "@/src/lib/permissions/server";
 
 // ========== Expense Reason Actions ==========
 
@@ -14,12 +13,8 @@ export interface ExpenseReasonData {
 
 export const createExpenseReason = async (data: ExpenseReasonData) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.create");
+    if (denied) return denied;
 
     if (!data.name || data.name.trim().length === 0) {
       return { error: "Reason name is required" };
@@ -53,12 +48,8 @@ export const updateExpenseReason = async (
   data: Partial<ExpenseReasonData>
 ) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.edit");
+    if (denied) return denied;
 
     if (data.name && data.name.trim().length === 0) {
       return { error: "Reason name cannot be empty" };
@@ -102,12 +93,8 @@ export const updateExpenseReason = async (
 
 export const deleteExpenseReason = async (id: string) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.delete");
+    if (denied) return denied;
 
     const reason = await db.expenseReason.findUnique({
       where: { id },
@@ -137,12 +124,8 @@ export const deleteExpenseReason = async (id: string) => {
 
 export const getAllExpenseReasons = async (includeInactive = false) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.view");
+    if (denied) return denied;
 
     const reasons = await db.expenseReason.findMany({
       where: includeInactive ? {} : { isActive: true },
@@ -176,12 +159,8 @@ export interface ExpenseSubReasonData {
 
 export const createExpenseSubReason = async (data: ExpenseSubReasonData) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.create");
+    if (denied) return denied;
 
     if (!data.name || data.name.trim().length === 0) {
       return { error: "SubReason name is required" };
@@ -242,12 +221,8 @@ export const updateExpenseSubReason = async (
   data: Partial<ExpenseSubReasonData>
 ) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.edit");
+    if (denied) return denied;
 
     if (data.name && data.name.trim().length === 0) {
       return { error: "SubReason name cannot be empty" };
@@ -310,12 +285,8 @@ export const updateExpenseSubReason = async (
 
 export const deleteExpenseSubReason = async (id: string) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.delete");
+    if (denied) return denied;
 
     const subReason = await db.expenseSubReason.findUnique({
       where: { id },
@@ -346,12 +317,8 @@ export const deleteExpenseSubReason = async (id: string) => {
 
 export const getSubReasonsByReasonId = async (reasonId: string) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.view");
+    if (denied) return denied;
 
     const subReasons = await db.expenseSubReason.findMany({
       where: {
@@ -383,12 +350,9 @@ export interface ExpenseData {
 
 export const createExpense = async (data: ExpenseData) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const auth = await checkPermission("expenses.create");
+    if (!auth.ok) return { error: auth.error };
+    const user = { id: auth.access.userId };
 
     if (!user.id) {
       return { error: "User ID is required" };
@@ -460,12 +424,8 @@ export const createExpense = async (data: ExpenseData) => {
 
 export const updateExpense = async (id: string, data: Partial<ExpenseData>) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.edit");
+    if (denied) return denied;
 
     const existingExpense = await db.expense.findUnique({
       where: { id },
@@ -550,12 +510,8 @@ export const updateExpense = async (id: string, data: Partial<ExpenseData>) => {
 
 export const deleteExpense = async (id: string) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.delete");
+    if (denied) return denied;
 
     const expense = await db.expense.findUnique({
       where: { id },
@@ -584,12 +540,8 @@ export const getAllExpenses = async (
   endDate?: Date
 ) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.view");
+    if (denied) return denied;
 
     const skip = (page - 1) * pageSize;
 
@@ -653,12 +605,8 @@ export const getExpenseStats = async (
   endDate?: Date
 ) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("expenses.view");
+    if (denied) return denied;
 
     const where: any = {};
 

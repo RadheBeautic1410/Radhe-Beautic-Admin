@@ -26,6 +26,7 @@ import {
 import { Badge } from "@/src/components/ui/badge";
 import { toast } from "sonner";
 import { useCurrentRole } from "@/src/hooks/use-currrent-role";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 import { UserRole } from "@prisma/client";
 import { Eye } from "lucide-react";
 import {
@@ -76,6 +77,8 @@ interface WalletRequestListResponse {
 
 const WalletRequest = () => {
   const role = useCurrentRole();
+  const { can: canDo } = usePermissions();
+  const canApprove = canDo("wallet.approve");
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);
@@ -328,7 +331,7 @@ const WalletRequest = () => {
                           </Button>
                         )}
                         {req.status === "PENDING" &&
-                          (role === "ADMIN" || role === "MOD") && (
+                          canApprove && (
                             <>
                               <Button
                                 size="sm"
@@ -438,7 +441,7 @@ const WalletRequest = () => {
                     </Button>
                   )}
                   {req.status === "PENDING" &&
-                    (role === "ADMIN" || role === "MOD") && (
+                    canApprove && (
                       <>
                         <Button
                           size="sm"

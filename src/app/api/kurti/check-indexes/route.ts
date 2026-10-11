@@ -2,8 +2,11 @@ export const dynamic = 'force-dynamic';
 
 import { db } from "@/src/lib/db";
 import { NextResponse, NextRequest } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(request: NextRequest) {
+  const guard = await apiPermission("catalogue.maintenance");
+  if (guard.response) return guard.response;
   try {
     const result = await db.$runCommandRaw({
       aggregate: "Kurti",

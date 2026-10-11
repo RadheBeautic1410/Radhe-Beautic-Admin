@@ -2,10 +2,14 @@ export const dynamic = "force-dynamic";
 
 import { getFullSetKurtis } from "@/src/data/fullSet";
 import { NextRequest, NextResponse } from "next/server";
+import { PRODUCT_READ_PERMISSIONS } from "@/src/lib/permissions/registry";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 const MAX_LIMIT = 100;
 
 export async function GET(req: NextRequest) {
+  const guard = await apiPermission(PRODUCT_READ_PERMISSIONS);
+  if (guard.response) return guard.response;
   try {
     const { searchParams } = new URL(req.url);
 

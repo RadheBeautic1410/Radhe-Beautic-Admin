@@ -1,6 +1,9 @@
 import { db } from "@/src/lib/db";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function POST(req: Request) {
+  const guard = await apiPermission("upload.create");
+  if (guard.response) return guard.response;
   try {
     const { name } = await req.json();
 

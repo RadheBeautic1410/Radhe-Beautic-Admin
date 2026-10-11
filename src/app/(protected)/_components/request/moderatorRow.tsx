@@ -33,15 +33,17 @@ import { Switch } from "@/src/components/ui/switch";
 import { moderatorUpdate } from "@/src/actions/moderator";
 import { ImCross } from "react-icons/im";
 import { IoMdCheckmark } from "react-icons/io";
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 import { VerifierDetail } from "./verifierDetail";
-import { useCurrentRole } from "@/src/hooks/use-currrent-role";
 
 export interface RoleOption {
   id: string;
   name: string;
   baseRole: UserRole;
   isSystem: boolean;
+  /** Effective permissions the role grants (from listRoles). */
+  permissions?: string[];
 }
 
 interface userProps {
@@ -78,7 +80,11 @@ export const ModeratorRow = ({
   onDeleted,
 }: moderatorRowProps) => {
   const { id } = userData;
-  const currentRole = useCurrentRole();
+  const { can, isAdmin } = usePermissions();
+  const canSalary = can("staff.viewSalary");
+  const canReset = can("staff.resetPassword");
+  const canDeleteStaff = can("staff.delete");
+  const canAssign = can("staff.assignRole");
 
   // The Role row this user is on: their custom role, or the system row for
   // their fixed role.
@@ -86,12 +92,20 @@ export const ModeratorRow = ({
     ? roles.find((r) => r.id === userData.roleId)
     : roles.find((r) => r.isSystem && r.name === userData.role);
 
-  // ADMIN can hand out every role; MOD only the roles it could always assign.
-  const assignable = roles.filter(
-    (r) =>
-      currentRole === UserRole.ADMIN ||
-      (r.isSystem && (r.name === UserRole.UPLOADER || r.name === UserRole.RESELLER))
-  );
+  // Only roles the signed-in user may hand out: they need the "change a role"
+  // permission and (unless ADMIN) can never give more access than they hold
+  // themselves. The server enforces the same rules.
+  const assignable = canAssign
+    ? roles.filter(
+        (r) =>
+          isAdmin ||
+          (r.name !== UserRole.ADMIN &&
+            r.name !== UserRole.MOD &&
+            (r.permissions ?? []).every((p) => can(p)))
+      )
+    : currentRoleRow
+    ? [currentRoleRow]
+    : [];
   const form = useForm({
     defaultValues: {
       isVerified: userData?.isVerified,
@@ -105,8 +119,6 @@ export const ModeratorRow = ({
   const [password, setPassword] = useState(userData.password || "");
   const [newPassword, setNewPassword] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const isAdmin = currentRole === UserRole.ADMIN;
 
   const onChangePassword = (closeDialog: () => void) => {
     startTransition(() => {
@@ -151,7 +163,7 @@ export const ModeratorRow = ({
       role: picked ? picked.baseRole : userData.role,
       customRoleId: picked ? (picked.isSystem ? null : picked.id) : undefined,
       // Blank clears the salary; MOD never sends one.
-      salary: !isAdmin
+      salary: !canSalary
         ? undefined
         : String(values.salary ?? "").trim() === ""
         ? null
@@ -207,10 +219,12 @@ export const ModeratorRow = ({
         {currentRoleRow && !currentRoleRow.isSystem ? currentRoleRow.name : userData.role}
       </TableCell>
 
-      <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+      <PermissionGate permission="staff.viewSalary">
         <TableCell className="text-center font-medium">
           {userData.salary != null ? `₹${userData.salary.toLocaleString("en-IN")}` : "-"}
         </TableCell>
+      </PermissionGate>
+      <PermissionGate permission="staff.resetPassword">
         <TableCell className="text-center">
           <div className="flex items-center justify-center gap-2">
             <span className="font-mono text-sm">
@@ -228,9 +242,9 @@ export const ModeratorRow = ({
             )}
           </div>
         </TableCell>
-      </RoleGateForComponent>
+      </PermissionGate>
 
-      <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+      <PermissionGate permission="staff.view">
         <TableCell className="text-center">
           {userData.verifiedBy ? (
             <VerifierDetail id={userData.verifiedBy} />
@@ -238,7 +252,7 @@ export const ModeratorRow = ({
             <Button variant="ghost">Not verified</Button>
           )}
         </TableCell>
-      </RoleGateForComponent>
+      </PermissionGate>
 
       {/* <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
                 <TableCell className="text-center">
@@ -319,7 +333,7 @@ export const ModeratorRow = ({
                   </FormItem>
                 )}
               />
-              {isAdmin && (
+              {canSalary && (
                 <FormField
                   control={form.control}
                   name="salary"
@@ -348,8 +362,7 @@ export const ModeratorRow = ({
           )}
         </DialogDemo>
 
-        {isAdmin && (
-          <>
+        {canReset && (
             <DialogDemo
               dialogTrigger="Change Password"
               dialogTitle={`Change password - ${userData.name || userData.phoneNumber}`}
@@ -377,7 +390,9 @@ export const ModeratorRow = ({
                 </div>
               )}
             </DialogDemo>
+        )}
 
+        {canDeleteStaff && (
             <DialogDemo
               open={deleteOpen}
               onOpenChange={setDeleteOpen}
@@ -403,7 +418,6 @@ export const ModeratorRow = ({
                 </Button>
               </div>
             </DialogDemo>
-          </>
         )}
         </div>
       </TableCell>

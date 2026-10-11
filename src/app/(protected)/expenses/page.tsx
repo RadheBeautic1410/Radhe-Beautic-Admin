@@ -60,8 +60,8 @@ import { Trash2, Pencil, Plus, DollarSign, TrendingUp } from "lucide-react";
 import { DeleteConfirmationDialog } from "@/src/components/delete-confirmation-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui/tabs";
 import { Badge } from "@/src/components/ui/badge";
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
-import { UserRole } from "@prisma/client";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
+import { useCan } from "@/src/components/auth/permissions-provider";
 import {
   Pagination,
   PaginationContent,
@@ -141,6 +141,9 @@ interface ExpenseSubReason {
 }
 
 const ExpensesPage = () => {
+  const canCreate = useCan("expenses.create");
+  const canEdit = useCan("expenses.edit");
+  const canDelete = useCan("expenses.delete");
   const [isPending, startTransition] = useTransition();
   const [activeTab, setActiveTab] = useState("expenses");
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -460,7 +463,7 @@ const ExpensesPage = () => {
   };
 
   return (
-    <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+    <PermissionGate permission="expenses.view">
       <Card className="rounded-none w-full h-full">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -536,12 +539,14 @@ const ExpensesPage = () => {
                     if (!open) resetForms();
                   }}
                 >
+                  {canCreate && (
                   <DialogTrigger asChild>
                     <Button>
                       <Plus className="mr-2 h-4 w-4" />
                       Add Expense
                     </Button>
                   </DialogTrigger>
+                  )}
                   <DialogContent className="max-w-2xl max-h-[85vh] !flex !flex-col">
                     <DialogHeader className="flex-shrink-0">
                       <DialogTitle>
@@ -851,6 +856,7 @@ const ExpensesPage = () => {
                           <TableCell>{expense.createdBy.name || "Unknown"}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
+                              {canEdit && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -858,6 +864,8 @@ const ExpensesPage = () => {
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
+                              )}
+                              {canDelete && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -871,6 +879,7 @@ const ExpensesPage = () => {
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -974,12 +983,14 @@ const ExpensesPage = () => {
                     if (!open) resetForms();
                   }}
                 >
+                  {canCreate && (
                   <DialogTrigger asChild>
                     <Button>
                       <Plus className="mr-2 h-4 w-4" />
                       Add Reason
                     </Button>
                   </DialogTrigger>
+                  )}
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>
@@ -1109,6 +1120,7 @@ const ExpensesPage = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
+                              {canEdit && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1116,6 +1128,8 @@ const ExpensesPage = () => {
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
+                              )}
+                              {canDelete && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1126,6 +1140,7 @@ const ExpensesPage = () => {
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1149,12 +1164,14 @@ const ExpensesPage = () => {
                     if (!open) resetForms();
                   }}
                 >
+                  {canCreate && (
                   <DialogTrigger asChild>
                     <Button>
                       <Plus className="mr-2 h-4 w-4" />
                       Add SubReason
                     </Button>
                   </DialogTrigger>
+                  )}
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>
@@ -1328,6 +1345,7 @@ const ExpensesPage = () => {
                                     </TableCell>
                                     <TableCell>
                                       <div className="flex gap-2">
+                                        {canEdit && (
                                         <Button
                                           variant="ghost"
                                           size="icon"
@@ -1335,6 +1353,8 @@ const ExpensesPage = () => {
                                         >
                                           <Pencil className="h-4 w-4" />
                                         </Button>
+                                        )}
+                                        {canDelete && (
                                         <Button
                                           variant="ghost"
                                           size="icon"
@@ -1348,6 +1368,7 @@ const ExpensesPage = () => {
                                         >
                                           <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>
+                                        )}
                                       </div>
                                     </TableCell>
                                   </TableRow>
@@ -1380,7 +1401,7 @@ const ExpensesPage = () => {
         />
         </CardContent>
       </Card>
-    </RoleGateForComponent>
+    </PermissionGate>
   );
 };
 

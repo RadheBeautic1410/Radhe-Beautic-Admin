@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import {  sellMultipleKurtis } from "@/src/data/kurti";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 
 // export async function GET(request: NextRequest) {
@@ -60,6 +61,8 @@ const isSize = (str: string): boolean => {
 // }
 // API Route Handler
 export async function POST(request: NextRequest) {
+  const guard = await apiPermission("sellRetailer.create");
+  if (guard.response) return guard.response;
   try {
     const data = await request.json();
     console.log('Multiple sell request data:', data);

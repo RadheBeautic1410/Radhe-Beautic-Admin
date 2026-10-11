@@ -1,8 +1,7 @@
 "use server"
 
-import { UserRole } from "@prisma/client";
 import { db } from "@/src/lib/db";
-import { currentRole } from "@/src/lib/auth";
+import { requirePermission } from "@/src/lib/permissions/server";
 
 // Customer storefront top menu (StorefrontMenuItem). Only one level of nesting:
 // top-level items, each with an optional dropdown of children.
@@ -14,11 +13,6 @@ export type MenuItemInput = {
   href?: string | null;
   isActive?: boolean;
 };
-
-async function requireAdmin() {
-  const role = await currentRole();
-  if (role !== UserRole.ADMIN) throw new Error("Unauthorized");
-}
 
 function clean(input: MenuItemInput) {
   const label = input.label?.trim();
@@ -45,7 +39,7 @@ async function assertValidParent(parentId: string | null, selfId?: string) {
 }
 
 export async function getStorefrontMenuAdmin() {
-  await requireAdmin();
+  await requirePermission("storefrontMenu.view");
   const [items, categories] = await Promise.all([
     db.storefrontMenuItem.findMany({ orderBy: [{ order: "asc" }, { createdAt: "asc" }] }),
     db.category.findMany({
@@ -59,7 +53,7 @@ export async function getStorefrontMenuAdmin() {
 
 export async function createStorefrontMenuItem(input: MenuItemInput) {
   try {
-    await requireAdmin();
+    await requirePermission("storefrontMenu.create");
     const data = clean(input);
     await assertValidParent(data.parentId);
     const last = await db.storefrontMenuItem.findFirst({
@@ -76,7 +70,7 @@ export async function createStorefrontMenuItem(input: MenuItemInput) {
 
 export async function updateStorefrontMenuItem(id: string, input: MenuItemInput) {
   try {
-    await requireAdmin();
+    await requirePermission("storefrontMenu.edit");
     const data = clean(input);
     await assertValidParent(data.parentId, id);
     const current = await db.storefrontMenuItem.findUnique({ where: { id }, select: { parentId: true } });
@@ -102,7 +96,7 @@ export async function updateStorefrontMenuItem(id: string, input: MenuItemInput)
 /** Deletes the item and its dropdown children. */
 export async function deleteStorefrontMenuItem(id: string) {
   try {
-    await requireAdmin();
+    await requirePermission("storefrontMenu.delete");
     await db.storefrontMenuItem.deleteMany({ where: { OR: [{ id }, { parentId: id }] } });
     return { success: true };
   } catch (error: any) {
@@ -113,7 +107,7 @@ export async function deleteStorefrontMenuItem(id: string) {
 /** Swap with the neighbour above/below within the same level. */
 export async function moveStorefrontMenuItem(id: string, direction: "up" | "down") {
   try {
-    await requireAdmin();
+    await requirePermission("storefrontMenu.edit");
     const item = await db.storefrontMenuItem.findUnique({ where: { id } });
     if (!item) throw new Error("Menu item not found");
 

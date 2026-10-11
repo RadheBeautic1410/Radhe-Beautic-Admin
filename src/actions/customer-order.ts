@@ -5,6 +5,7 @@ import { currentUser } from "@/src/lib/auth";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { notifyPaymentConfirmed, notifyOrderShipped } from "@/src/lib/order-notifications";
 import { StockLocation, addToLocation, deductFromLocation, isStockLocation } from "@/src/lib/godown";
+import { permissionError } from "@/src/lib/permissions/server";
 
 // Helper type for size quantity objects
 type SizeQuantity = { [size: string]: number };
@@ -128,6 +129,8 @@ export const getPendingCustomerOrders = async (
   page: number = 1,
   pageSize: number = 20
 ) => {
+  const denied = await permissionError("customerOrders.view");
+  if (denied) return { error: denied.error };
   try {
     const curUser = await currentUser();
     if (!curUser) {
@@ -236,6 +239,8 @@ export const acceptCustomerOrder = async (
     stockLocations?: Record<string, StockLocation>;
   }
 ) => {
+  const denied = await permissionError("customerOrders.edit");
+  if (denied) return { error: denied.error };
   try {
     const curUser = await currentUser();
     if (!curUser) {
@@ -459,6 +464,8 @@ export const updateOrderTracking = async (
     trackingId?: string;
   }
 ) => {
+  const denied = await permissionError("customerOrders.edit");
+  if (denied) return { error: denied.error };
   try {
     const curUser = await currentUser();
     if (!curUser) {
@@ -542,6 +549,8 @@ export const updateOrderTracking = async (
 
 // Get a single customer order by ID with full details
 export const getCustomerOrderById = async (orderId: string) => {
+  const denied = await permissionError("customerOrders.view");
+  if (denied) return { error: denied.error };
   try {
     const curUser = await currentUser();
     if (!curUser) {
@@ -596,6 +605,8 @@ export const getCustomerOrderById = async (orderId: string) => {
 
 // Cancel/Reject a customer order and release reserved quantities
 export const cancelCustomerOrder = async (orderId: string) => {
+  const denied = await permissionError("customerOrders.edit");
+  if (denied) return { error: denied.error };
   try {
     const curUser = await currentUser();
     if (!curUser) {

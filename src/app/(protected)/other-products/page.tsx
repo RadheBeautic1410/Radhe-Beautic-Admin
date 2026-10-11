@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
 import { Textarea } from "@/src/components/ui/textarea";
@@ -21,7 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/src/components/ui/table";
-import { UserRole } from "@prisma/client";
 import {
   Edit,
   Plus,
@@ -63,6 +61,7 @@ import {
 } from "@/src/actions/other-products";
 import axios from "axios";
 import JSZip from "jszip";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 
 interface OtherProduct {
   id: string;
@@ -1439,18 +1438,9 @@ function OtherProductsPage() {
 
 const OtherProductsPageHelper = () => {
   return (
-    <>
-      <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-        <OtherProductsPage />
-      </RoleGateForComponent>
-      <RoleGateForComponent
-        allowedRole={[
-          UserRole.SELLER,
-          UserRole.RESELLER,
-          UserRole.SHOP_SELLER,
-          UserRole.SELLER_MANAGER,
-        ]}
-      >
+    <PermissionGate
+      permission="otherProducts.view"
+      fallback={
         <div className="p-6">
           <Card>
             <CardContent className="p-6">
@@ -1460,8 +1450,10 @@ const OtherProductsPageHelper = () => {
             </CardContent>
           </Card>
         </div>
-      </RoleGateForComponent>
-    </>
+      }
+    >
+      <OtherProductsPage />
+    </PermissionGate>
   );
 };
 

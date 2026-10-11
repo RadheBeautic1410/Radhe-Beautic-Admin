@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { db } from "@/src/lib/db";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 const getISTDateStrDDMMYYYY = () => {
   const now = new Date();
@@ -18,6 +19,8 @@ const getISTDateStrDDMMYYYY = () => {
 };
 
 export async function POST() {
+  const guard = await apiPermission("hallSales.create");
+  if (guard.response) return guard.response;
   try {
     const dateKey = getISTDateStrDDMMYYYY();
 

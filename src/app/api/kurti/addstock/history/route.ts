@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { db } from "@/src/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 function getDefaultLast7DaysIST() {
   const now = new Date();
@@ -30,6 +31,8 @@ function getDefaultLast7DaysIST() {
 }
 
 export async function GET(request: NextRequest) {
+  const guard = await apiPermission(["addStock.view","catalogue.view"]);
+  if (guard.response) return guard.response;
   try {
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get("page") || "1");

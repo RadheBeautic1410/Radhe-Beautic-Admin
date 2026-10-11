@@ -2,8 +2,12 @@ export const dynamic = 'force-dynamic'
 
 import { db } from "@/src/lib/db";
 import { NextResponse } from "next/server";
+import { PRODUCT_READ_PERMISSIONS } from "@/src/lib/permissions/registry";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(request: Request) {
+    const guard = await apiPermission(PRODUCT_READ_PERMISSIONS);
+    if (guard.response) return guard.response;
     try {
         let data = await db.color.findMany({
             orderBy: {

@@ -4,10 +4,12 @@ import { getRecentStockMovements, moveStockBulk, moveStockLocation } from "@/src
 import { currentUser } from "@/src/lib/auth";
 import { LOCATION_LABELS, isStockLocation, locationForShopId } from "@/src/lib/godown";
 import { getUserShop } from "@/src/actions/shop";
-import { UserRole } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { accessCan, apiPermission } from "@/src/lib/permissions/server";
 
 export async function POST(request: NextRequest) {
+  const guard = await apiPermission(["moveToFloor.moveStock","godown.edit","stockLocation.moveStock"]);
+  if (guard.response) return guard.response;
   try {
     const body = await request.json();
     const code: string = body?.code || "";
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Shop logins (1st floor, 2nd floor, Shop 316) may only move stock into or
     // out of their own location.
-    if (user.role === UserRole.SHOP_SELLER) {
+    if (!accessCan(guard.access, "stockLocation.anyLocation")) {
       const shop = user.id ? await getUserShop(user.id) : null;
       const own = locationForShopId(shop?.id);
       if (!own) {
@@ -60,6 +62,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const guard = await apiPermission(["stockLocation.viewMoves","godown.view","moveToFloor.view"]);
+  if (guard.response) return guard.response;
   const limit = parseInt(request.nextUrl.searchParams.get("limit") || "50", 10) || 50;
   const data = await getRecentStockMovements(Math.min(limit, 200));
   return new NextResponse(JSON.stringify({ data }), { status: 200 });

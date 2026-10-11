@@ -3,10 +3,14 @@ import sharp from "sharp";
 import { v4 as uuidv4 } from "uuid";
 import { storage } from "@/src/lib/firebase/firebase";
 import { ref as ImgRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { IMAGE_UPLOAD_PERMISSIONS } from "@/src/lib/permissions/registry";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export const maxDuration = 60; // Allow enough time for processing larger images
 
 export async function POST(request: NextRequest) {
+  const guard = await apiPermission(IMAGE_UPLOAD_PERMISSIONS);
+  if (guard.response) return guard.response;
   try {
     const formData = await request.formData();
     const file = formData.get("image") as File | null;

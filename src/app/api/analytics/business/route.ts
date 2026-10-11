@@ -10,8 +10,7 @@ import {
   getProducts,
   getStock,
 } from "@/src/data/business-analytics";
-import { currentUser } from "@/src/lib/auth";
-import { UserRole } from "@prisma/client";
+import { accessCan, checkPermission } from "@/src/lib/permissions/server";
 import { NextRequest, NextResponse } from "next/server";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -20,11 +19,10 @@ const fail = (error: string, status: number) =>
 
 // GET ?tab=overview|products|stock|money|online|alerts&from=YYYY-MM-DD&to=YYYY-MM-DD
 export async function GET(request: NextRequest) {
-  const user = await currentUser();
-  if (user?.role !== UserRole.ADMIN && user?.role !== UserRole.SELLER_MANAGER) {
-    return fail("Access denied", 403);
-  }
-  const isAdmin = user.role === UserRole.ADMIN;
+  const guard = await checkPermission("analytics.view");
+  if (!guard.ok) return fail("Access denied", guard.status);
+  // Profit and cost figures are a separate permission from seeing the dashboard.
+  const isAdmin = accessCan(guard.access, "analytics.viewProfit");
 
   const params = request.nextUrl.searchParams;
   const tab = params.get("tab") || "overview";

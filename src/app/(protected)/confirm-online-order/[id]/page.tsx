@@ -1,6 +1,5 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
@@ -13,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/src/components/ui/table";
-import { UserRole } from "@prisma/client";
 import axios from "axios";
 import {
   Loader2,
@@ -31,6 +29,7 @@ import { getShopList, getUserShop } from "@/src/actions/shop";
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { StockLocation } from "@/src/lib/godown";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 import {
   StockLocationPicker,
   suggestStockLocation,
@@ -1365,21 +1364,9 @@ function SellPage() {
 
 const SellerHelp = () => {
   return (
-    <>
-      <RoleGateForComponent
-        allowedRole={[
-          UserRole.ADMIN,
-          UserRole.SELLER,
-          UserRole.SHOP_SELLER,
-          UserRole.SELLER_MANAGER,
-        ]}
-      >
-        <SellPage />
-      </RoleGateForComponent>
-      <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
-        <NotAllowedPage />
-      </RoleGateForComponent>
-    </>
+    <PermissionGate anyOf={["onlineSales.edit", "orders.edit"]} fallback={<NotAllowedPage />}>
+      <SellPage />
+    </PermissionGate>
   );
 };
 

@@ -2,9 +2,12 @@ export const dynamic = 'force-dynamic'
 
 import { getSellHistory, getSellingHistoryFiltered } from "@/src/data/kurti";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 
 export async function GET(request: NextRequest) {
+  const guard = await apiPermission("sellingHistory.view");
+  if (guard.response) return guard.response;
   try {
     const searchParams = request.nextUrl.searchParams;
     const dateISO = searchParams.get("date") || undefined; // YYYY-MM-DD

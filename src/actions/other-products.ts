@@ -1,8 +1,7 @@
 "use server";
 
 import { db } from "@/src/lib/db";
-import { currentUser } from "@/src/lib/auth";
-import { currentRole } from "@/src/lib/auth";
+import { permissionError } from "@/src/lib/permissions/server";
 
 export interface OtherProductData {
   categoryName: string;
@@ -14,12 +13,8 @@ export interface OtherProductData {
 
 export const createOtherProduct = async (data: OtherProductData) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || (role !== "ADMIN" && role !== "UPLOADER")) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("otherProducts.create");
+    if (denied) return { error: denied.error };
 
     if (!data.categoryName || !data.productType) {
       return { error: "Category name and product type are required" };
@@ -51,12 +46,8 @@ export const updateOtherProduct = async (
   data: OtherProductData
 ) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || (role !== "ADMIN" && role !== "UPLOADER")) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("otherProducts.edit");
+    if (denied) return { error: denied.error };
 
     if (!data.categoryName || !data.productType) {
       return { error: "Category name and product type are required" };
@@ -86,12 +77,8 @@ export const updateOtherProduct = async (
 
 export const deleteOtherProduct = async (id: string) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || (role !== "ADMIN" && role !== "UPLOADER")) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("otherProducts.delete");
+    if (denied) return { error: denied.error };
 
     // Soft delete
     const deletedProduct = await db.otherProduct.update({

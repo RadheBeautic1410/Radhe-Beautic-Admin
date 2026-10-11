@@ -2,6 +2,7 @@
 
  import { NextRequest, NextResponse } from "next/server";
  import { auth } from "@/src/auth";
+import { apiPermission } from "@/src/lib/permissions/server";
 import { db } from "@/src/lib/db";
 import { PaymentStatus, OrderStatus } from "@prisma/client";
 
@@ -10,6 +11,8 @@ import { PaymentStatus, OrderStatus } from "@prisma/client";
    { params }: { params: Promise<{ id: string }> }
  ) {
    try {
+     const guard = await apiPermission(["onlineSales.view", "orders.view", "wallet.view", "staff.view"]);
+     if (guard.response) return guard.response;
      const session = await auth();
      if (!session?.user) {
        return new NextResponse(JSON.stringify({ error: "Unauthorized" }), { status: 401 });

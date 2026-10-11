@@ -1,9 +1,12 @@
 import { getUserByIdReqInfo } from "@/src/data/user";
 import { NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 
 
 export async function GET(req: Request) {
+  const guard = await apiPermission("staff.view");
+  if (guard.response) return guard.response;
 
     const id = req.url.split("referrers/")[1];
 

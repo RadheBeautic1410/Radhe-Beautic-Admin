@@ -1,6 +1,5 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
@@ -20,6 +19,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 import { getShopList, getUserShop } from "@/src/actions/shop";
 import { getOfferPricingContext } from "@/src/actions/offer";
 import {
@@ -34,6 +34,7 @@ import {
   locationForShopId,
 } from "@/src/lib/godown";
 import { useEffect } from "react";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 import InvoicePreview, {
   InvoicePayload,
 } from "./invoice-preview/InvoicePreview";
@@ -273,6 +274,8 @@ function SellPage() {
   };
 
   const currentUser = useCurrentUser();
+  const { can: canDo } = usePermissions();
+  const canChooseShop = canDo("sellRetailer.chooseShop");
 
   const fetchNextDisplayBillNo = async (type: "RB" | "HS"): Promise<string> => {
     const res = await fetch(`/api/sales/next-bill-no?type=${type}`, {
@@ -295,10 +298,7 @@ function SellPage() {
         setShops(shopList);
         // If user is SELLER or SELLER_MANAGER, get their associated shop
         if (
-          currentUser?.id &&
-          (currentUser.role === UserRole.SELLER ||
-            currentUser.role === UserRole.SELLER_MANAGER ||
-            currentUser.role === UserRole.SHOP_SELLER)
+          currentUser?.id
         ) {
           const userShopData = await getUserShop(currentUser.id);
           if (userShopData) {
@@ -543,7 +543,7 @@ function SellPage() {
       }
 
       if (!selectedShopId.trim()) {
-        if (currentUser?.role === UserRole.ADMIN) {
+        if (canChooseShop) {
           toast.error("Please select a shop");
         } else {
           toast.error("No shop associated with your account");
@@ -712,7 +712,7 @@ function SellPage() {
     setCustomerName("");
     setCustomerPhone("");
     // Reset shop based on user role
-    if (currentUser?.role === UserRole.ADMIN) {
+    if (canChooseShop) {
       setSelectedShopId("");
     } else if (userShop) {
       setSelectedShopId(userShop.id);
@@ -815,11 +815,11 @@ function SellPage() {
             </div>
             <div>
               <Label htmlFor="shop-select">
-                {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER)
+                {canChooseShop
                   ? "Select Shop *"
                   : "Shop"}
               </Label>
-              {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER) ? (
+              {canChooseShop ? (
                 <select
                   id="shop-select"
                   name="shop-select"
@@ -1220,21 +1220,9 @@ function SellPage() {
 
 const SellerHelp = () => {
   return (
-    <>
-      <RoleGateForComponent
-        allowedRole={[
-          UserRole.ADMIN,
-          UserRole.SELLER,
-          UserRole.SHOP_SELLER,
-          UserRole.SELLER_MANAGER,
-        ]}
-      >
-        <SellPage />
-      </RoleGateForComponent>
-      <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
-        <NotAllowedPage />
-      </RoleGateForComponent>
-    </>
+    <PermissionGate permission="sellRetailer.view" fallback={<NotAllowedPage />}>
+      <SellPage />
+    </PermissionGate>
   );
 };
 

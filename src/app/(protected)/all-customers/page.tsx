@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RoleGate } from "@/src/components/auth/role-gate";
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import PageLoader from "@/src/components/loader";
 import { UserRole } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
@@ -28,6 +26,7 @@ import {
 import { adminResetPassword } from "@/src/actions/moderator";
 import { toast } from "sonner";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 
 interface CustomerProps {
   id: string;
@@ -124,7 +123,7 @@ const AllCustomersPage = () => {
   return (
     <>
       <PageLoader loading={loading} />
-      <RoleGate allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+      <PermissionGate permission="allCustomers.view">
         <div className="p-6 space-y-6 max-w-[1400px] mx-auto w-full">
           <Card className="w-full shadow-lg border border-white/20 bg-white/95 backdrop-blur-sm dark:bg-zinc-950/95">
             <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-5">
@@ -205,6 +204,7 @@ const AllCustomersPage = () => {
                             {cust.balance !== null ? `₹${cust.balance.toFixed(2)}` : "₹0.00"}
                           </TableCell>
                           <TableCell className="py-4 text-center pr-6">
+                            <PermissionGate permission="staff.resetPassword">
                             <Button
                               variant="outline"
                               size="sm"
@@ -213,6 +213,7 @@ const AllCustomersPage = () => {
                             >
                               <KeyRound className="h-3.5 w-3.5 text-zinc-500" /> Reset Password
                             </Button>
+                            </PermissionGate>
                           </TableCell>
                         </TableRow>
                       ))
@@ -290,7 +291,7 @@ const AllCustomersPage = () => {
             )}
           </Card>
         </div>
-      </RoleGate>
+      </PermissionGate>
 
       {/* Reset Password Dialog */}
       <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
@@ -343,16 +344,9 @@ const AllCustomersPage = () => {
 };
 
 const AllCustomersPageWrapper = () => (
-  <>
-    <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
-      <AllCustomersPage />
-    </RoleGateForComponent>
-    <RoleGateForComponent
-      allowedRole={[UserRole.SELLER, UserRole.UPLOADER, UserRole.RESELLER]}
-    >
-      <NotAllowedPage />
-    </RoleGateForComponent>
-  </>
+  <PermissionGate permission="allCustomers.view" fallback={<NotAllowedPage />}>
+    <AllCustomersPage />
+  </PermissionGate>
 );
 
 export default AllCustomersPageWrapper;

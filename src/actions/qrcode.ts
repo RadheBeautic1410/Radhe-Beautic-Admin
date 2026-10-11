@@ -5,6 +5,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'fire
 import { storage } from '@/src/lib/firebase/firebase';
 import { v4 as uuidv4 } from "uuid";
 import { isValidUpiId } from "@/src/lib/upi";
+import { permissionError } from "@/src/lib/permissions/server";
 
 export interface QRCodeData {
   id: string;
@@ -38,6 +39,8 @@ export async function getActiveQRCode(): Promise<{ success: boolean; data?: QRCo
 
 // Update payment QR code
 export async function updateQRCode(file: File): Promise<{ success: boolean; data?: QRCodeData; error?: string }> {
+  const denied = await permissionError("settings.managePayment");
+  if (denied) return { success: false as const, error: denied.error };
   try {
     // Validate file
     if (!file) {
@@ -125,6 +128,8 @@ export async function updateQRCode(file: File): Promise<{ success: boolean; data
 
 // Delete current active QR code
 export async function deleteQRCode(): Promise<{ success: boolean; error?: string }> {
+  const denied = await permissionError("settings.managePayment");
+  if (denied) return { success: false as const, error: denied.error };
   try {
     await db.$transaction(async (tx) => {
       // Find active QR code
@@ -174,6 +179,8 @@ export async function updateUpiDetails(
   upiId: string,
   payeeName?: string
 ): Promise<{ success: boolean; data?: QRCodeData; error?: string }> {
+  const denied = await permissionError("settings.managePayment");
+  if (denied) return { success: false as const, error: denied.error };
   try {
     const vpa = (upiId || "").trim();
     const name = (payeeName || "").trim();

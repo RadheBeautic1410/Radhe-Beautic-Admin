@@ -3,22 +3,20 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
 import { db } from "@/src/lib/db";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await apiPermission("onlineSales.editShipping");
+  if (guard.response) return guard.response;
   try {
     const session = await auth();
     const { id } = await params;
     
     if (!session?.user) {
       return new NextResponse(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
-    }
-
-    // Check if user is admin
-    if (session.user.role !== "ADMIN") {
-      return new NextResponse(JSON.stringify({ error: "Only admins can view shipping history" }), { status: 403 });
     }
 
     // Get the online sale batch to find the order

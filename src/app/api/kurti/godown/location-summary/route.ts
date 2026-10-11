@@ -1,20 +1,19 @@
 export const dynamic = "force-dynamic";
 
 import { getLocationSummary } from "@/src/data/godown";
-import { currentUser } from "@/src/lib/auth";
-import { UserRole } from "@prisma/client";
+import { accessCan, checkPermission } from "@/src/lib/permissions/server";
 import { NextResponse } from "next/server";
 
 // Pieces per location for everyone who can open /stock-location; the stock
-// value (amount) only for admins.
+// value (amount) only with stockLocation.viewStockValue.
 export async function GET() {
   try {
-    const user = await currentUser();
-    if (!user) {
-      return new NextResponse(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    const guard = await checkPermission(["stockLocation.view", "godown.view", "moveToFloor.view"]);
+    if (!guard.ok) {
+      return new NextResponse(JSON.stringify({ error: "Unauthorized" }), { status: guard.status });
     }
     const data = await getLocationSummary();
-    if (user.role !== UserRole.ADMIN) {
+    if (!accessCan(guard.access, "stockLocation.viewStockValue")) {
       const { amount, ...rest } = data; // sizes carry pieces only, no value
       return new NextResponse(
         JSON.stringify({

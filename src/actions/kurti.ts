@@ -7,6 +7,7 @@ import { UserRole } from "@prisma/client";
 import { getKurtiByCode } from "../data/kurti";
 import { v4 as uuidv4 } from "uuid";
 import { CURRENT_EMBEDDING_VERSION } from "@/src/lib/embeddingVersion";
+import { permissionError } from "@/src/lib/permissions/server";
 import {
   movesToGodown,
   normalizeSizesLocations,
@@ -19,6 +20,8 @@ export const getCurrTime = async () => {
 };
 
 export const kurtiAddition = async (data: any) => {
+  const denied = await permissionError("upload.create");
+  if (denied) return { error: denied.error };
   const user = await currentUser();
   const role = await currentRole();
 
@@ -201,6 +204,8 @@ function isSize(size: string) {
 // };
 
 export const stockAddition = async (data: any) => {
+  const denied = await permissionError(["catalogue.edit","addStock.create"]);
+  if (denied) return { error: denied.error };
   const { code } = data;
   // Clamp every size into shape first: showroom + shop 316 counts must stay
   // within quantity so godown stock (the remainder) can never go negative.
@@ -289,6 +294,8 @@ export const stockAddition = async (data: any) => {
 };
 
 export const priceChange = async (data: any) => {
+  const denied = await permissionError("catalogue.edit");
+  if (denied) return { error: denied.error };
   const user = await currentUser();
   const role = await currentRole();
 
@@ -334,6 +341,8 @@ export const priceChange = async (data: any) => {
 };
 
 export const specificationsChange = async (data: any) => {
+  const denied = await permissionError("catalogue.edit");
+  if (denied) return { error: denied.error };
   const { code } = data;
   const currTime = await getCurrTime();
 
@@ -393,6 +402,8 @@ export const specificationsChange = async (data: any) => {
 
 
 export const categoryChange = async (data: any) => {
+  const denied = await permissionError("catalogue.edit");
+  if (denied) return { error: denied.error };
   const { code, newCode, category, selectedSizes, isPartialMove, bigPrice } =
     data;
   const currTime = await getCurrTime();
@@ -663,6 +674,8 @@ export const categoryChange = async (data: any) => {
 };
 
 export const deleteCategory = async (data: any) => {
+  const denied = await permissionError("catalogue.delete");
+  if (denied) return { error: denied.error };
   const { category } = data;
 
   const currTime = await getCurrTime();
@@ -712,6 +725,8 @@ export const deleteCategory = async (data: any) => {
 };
 
 export const addNewImages = async (data: any) => {
+  const denied = await permissionError("catalogue.edit");
+  if (denied) return { error: denied.error };
   const { images, videos, code } = data;
 
   const currTime = await getCurrTime();
@@ -768,17 +783,11 @@ export async function toggleKurtiImageVisibility(
   isHidden: boolean
 ) {
   try {
-    const user = await currentUser();
-    if (!user) {
+    const denied = await permissionError("catalogue.edit");
+    if (denied) {
       return {
         success: false,
-        error: "Unauthorized - Please login",
-      };
-    }
-    if (user.role !== UserRole.ADMIN && user.role !== UserRole.UPLOADER) {
-      return {
-        success: false,
-        error: "Insufficient permissions",
+        error: denied.error,
       };
     }
 
@@ -871,17 +880,11 @@ export async function reorderKurtiImages(
   direction: "left" | "right"
 ) {
   try {
-    const user = await currentUser();
-    if (!user) {
+    const denied = await permissionError("catalogue.edit");
+    if (denied) {
       return {
         success: false,
-        error: "Unauthorized - Please login",
-      };
-    }
-    if (user.role !== UserRole.ADMIN && user.role !== UserRole.UPLOADER) {
-      return {
-        success: false,
-        error: "Insufficient permissions",
+        error: denied.error,
       };
     }
 
@@ -996,17 +999,11 @@ export async function toggleKurtiVideoVisibility(
   isHidden: boolean
 ) {
   try {
-    const user = await currentUser();
-    if (!user) {
+    const denied = await permissionError("catalogue.edit");
+    if (denied) {
       return {
         success: false,
-        error: "Unauthorized - Please login",
-      };
-    }
-    if (user.role !== UserRole.ADMIN && user.role !== UserRole.UPLOADER) {
-      return {
-        success: false,
-        error: "Insufficient permissions",
+        error: denied.error,
       };
     }
 
@@ -1085,6 +1082,8 @@ export const toggleKurtiBigPrice = async (
   kurtiId: string,
   isBigPrice: boolean
 ) => {
+  const denied = await permissionError("catalogue.edit");
+  if (denied) return { error: denied.error };
   const currTime = await getCurrTime();
 
   const existingKurti = await db.kurti.findUnique({
@@ -1143,6 +1142,8 @@ export const toggleKurtiBigPrice = async (
 };
 
 export const fetchMovedKurtiHistory = async () => {
+  const denied = await permissionError("movedHistory.view");
+  if (denied) return { success: false as const, error: denied.error };
   try {
     const movedKurtis = await db.movedKurtiHistory.findMany({});
     return {
@@ -1158,6 +1159,8 @@ export const fetchMovedKurtiHistory = async () => {
 };
 
 export const fetchKurtiByCategory = async (category: string) => {
+  const denied = await permissionError("catalogue.view");
+  if (denied) return { data: [] };
   try {
     const kurties = await db.kurti.findMany({
       where: {

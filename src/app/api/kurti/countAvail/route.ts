@@ -2,9 +2,13 @@ export const dynamic = 'force-dynamic'
 
 import { getKurtiCountWithoutDeleted } from "@/src/data/kurti";
 import { NextRequest, NextResponse } from "next/server";
+import { PRODUCT_READ_PERMISSIONS } from "@/src/lib/permissions/registry";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 
 export async function GET(request: NextRequest) {
+    const guard = await apiPermission(PRODUCT_READ_PERMISSIONS);
+    if (guard.response) return guard.response;
     try {
         const cat = request.nextUrl.searchParams.get("cat") || "";
         console.log(cat);

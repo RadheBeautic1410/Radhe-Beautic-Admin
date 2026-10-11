@@ -1,6 +1,5 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
@@ -31,11 +30,13 @@ import {
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 import { useParams, useRouter } from "next/navigation";
 import { PasswordDialog } from "@/src/app/(protected)/_components/PasswordDialog";
 import Link from "next/link";
 import { StockLocation } from "@/src/lib/godown";
 import { StockLocationPicker } from "@/src/app/(protected)/_components/godown/stock-location-picker";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 
 interface CartItem {
   id: string;
@@ -121,6 +122,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   const [selectedCourier, setSelectedCourier] = useState<string>("indianpost");
 
   const currentUser = useCurrentUser();
+  const { can: canDo } = usePermissions();
+  const canEditShipping = canDo("onlineSales.editShipping");
   const router = useRouter();
 
   // Fetch user wallet balance
@@ -1458,7 +1461,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
               <h3 className="text-lg font-semibold text-blue-800">
                 🚚 Shipping Information
               </h3>
-              {currentUser?.role === "ADMIN" && (
+              {canEditShipping && (
                 <div className="flex gap-2">
                   <Button
                     onClick={fetchShippingHistory}
@@ -1480,7 +1483,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
               )}
             </div>
 
-            {editingShipping && currentUser?.role === "ADMIN" ? (
+            {editingShipping && canEditShipping ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -1891,22 +1894,13 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
 const SaleDetailsPageWrapper = () => {
   const params = useParams();
   return (
-    <>
-      <RoleGateForComponent
-        allowedRole={[
-          UserRole.ADMIN,
-          UserRole.SELLER,
-          UserRole.SHOP_SELLER,
-          UserRole.SELLER_MANAGER,
-        ]}
-      >
-        <SaleDetailsPage
-          params={{
-            id: params.id as string,
-          }}
-        />
-      </RoleGateForComponent>
-    </>
+    <PermissionGate permission="onlineSales.view">
+      <SaleDetailsPage
+        params={{
+          id: params.id as string,
+        }}
+      />
+    </PermissionGate>
   );
 };
 

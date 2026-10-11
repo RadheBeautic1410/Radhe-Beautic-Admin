@@ -1,8 +1,6 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import React, { useCallback, useEffect, useState } from "react";
-import { UserRole } from "@prisma/client";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
@@ -16,6 +14,7 @@ import {
 } from "@/src/components/ui/table";
 import { Loader2 } from "lucide-react";
 import { LOCATION_LABELS } from "@/src/lib/godown";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 import type {
   LocationSaleRow,
   ReportLocation,
@@ -390,9 +389,9 @@ function SalesByLocationPage() {
 }
 
 const SalesByLocationHelp = () => (
-  <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+  <PermissionGate permission="salesByLocation.view">
     <SalesByLocationPage />
-  </RoleGateForComponent>
+  </PermissionGate>
 );
 
 export default SalesByLocationHelp;

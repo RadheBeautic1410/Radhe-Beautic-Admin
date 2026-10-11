@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/src/lib/db";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
@@ -24,6 +25,8 @@ const getISTDateStrDDMMYYYY = () => {
 };
 
 export async function POST(req: NextRequest) {
+  const guard = await apiPermission(["hallSales.create","sellRetailer.create"]);
+  if (guard.response) return guard.response;
   try {
     const url = new URL(req.url);
     const typeParam = url.searchParams.get("type");

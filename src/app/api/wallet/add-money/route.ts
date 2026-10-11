@@ -1,6 +1,7 @@
 import { db } from "@/src/lib/db";
 import { NextResponse } from "next/server";
 import { auth } from "@/src/auth";
+import { apiPermission } from "@/src/lib/permissions/server";
 import { UserRole } from "@prisma/client";
 
 /**
@@ -14,9 +15,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.MOD) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const guard = await apiPermission("wallet.addMoney");
+    if (guard.response) return guard.response;
 
     const body = await req.json();
     const { amount, paymentMethod, userId } = body;

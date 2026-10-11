@@ -6,6 +6,7 @@ import { SettingSchema } from "@/src/schemas";
 import { getUserById } from "@/src/data/user";
 import { currentUser } from "@/src/lib/auth";
 import { removeImage } from "../lib/upload";
+import { permissionError } from "@/src/lib/permissions/server";
 
 export const settings = async (values: z.infer<typeof SettingSchema>) => {
   const user = await currentUser();
@@ -56,6 +57,8 @@ export async function updateNewRelese(
     imagePath?: string;
   }
 ) {
+  const denied = await permissionError("settings.manageNewRelease");
+  if (denied) return { success: false as const, message: denied.error };
   try {
     const existing = await db.newReleseSetting.findUnique({
       where: { id },

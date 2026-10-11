@@ -1,8 +1,7 @@
 "use server";
 
 import { db } from "@/src/lib/db";
-import { currentRole, currentUser } from "@/src/lib/auth";
-import { UserRole } from "@prisma/client";
+import { permissionError } from "@/src/lib/permissions/server";
 
 export interface ShippingRateData {
   pincode: string;
@@ -66,12 +65,8 @@ const validatePincodePattern = (pincode: string): { valid: boolean; error?: stri
 
 export const createShippingRate = async (data: ShippingRateData) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("shippingRates.create");
+    if (denied) return denied;
 
     // Validate pincode pattern
     const validation = validatePincodePattern(data.pincode);
@@ -105,12 +100,8 @@ export const createShippingRate = async (data: ShippingRateData) => {
 
 export const updateShippingRate = async (id: string, data: Partial<ShippingRateData>) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("shippingRates.edit");
+    if (denied) return denied;
 
     const updateData: any = {};
 
@@ -156,12 +147,8 @@ export const updateShippingRate = async (id: string, data: Partial<ShippingRateD
 
 export const deleteShippingRate = async (id: string) => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("shippingRates.delete");
+    if (denied) return denied;
 
     await db.shippingRate.delete({
       where: { id },
@@ -176,12 +163,8 @@ export const deleteShippingRate = async (id: string) => {
 
 export const getAllShippingRates = async () => {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return { error: "Unauthorized" };
-    }
+    const denied = await permissionError("shippingRates.view");
+    if (denied) return denied;
 
     const shippingRates = await db.shippingRate.findMany({
       orderBy: { createdAt: "desc" },

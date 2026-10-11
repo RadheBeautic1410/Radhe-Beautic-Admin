@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '@/src/lib/firebase/firebase';
 import { v4 as uuidv4 } from "uuid";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 // GET - Get current active QR code
 export async function GET() {
@@ -28,6 +29,8 @@ export async function GET() {
 
 // POST - Update payment QR code
 export async function POST(request: NextRequest) {
+  const guard = await apiPermission("settings.managePayment");
+  if (guard.response) return guard.response;
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -125,6 +128,8 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Delete current active QR code
 export async function DELETE() {
+  const guard = await apiPermission("settings.managePayment");
+  if (guard.response) return guard.response;
   try {
     const result = await db.$transaction(async (tx) => {
       // Find active QR code

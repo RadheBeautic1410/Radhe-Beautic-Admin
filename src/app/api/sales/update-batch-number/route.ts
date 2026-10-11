@@ -2,8 +2,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/src/lib/db";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function POST(req: NextRequest) {
+  const guard = await apiPermission(["hallSales.create","sellRetailer.create"]);
+  if (guard.response) return guard.response;
   try {
     const body = await req.json();
     const oldBatchNumber = String(body?.oldBatchNumber || "").trim();

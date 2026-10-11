@@ -1,7 +1,6 @@
 import { db } from "@/src/lib/db";
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser, currentRole } from "@/src/lib/auth";
-import { UserRole } from "@prisma/client";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function PUT(
   req: NextRequest,
@@ -9,14 +8,8 @@ export async function PUT(
 ) {
   const { id } = await context.params;
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-      });
-    }
+    const guard = await apiPermission("shippingRates.edit");
+    if (guard.response) return guard.response;
 
     const body = await req.json();
     const { pincode, rate, type, description, isActive } = body;
@@ -106,14 +99,8 @@ export async function DELETE(
 ) {
   const { id } = await context.params;
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-      });
-    }
+    const guard = await apiPermission("shippingRates.delete");
+    if (guard.response) return guard.response;
 
     await db.shippingRate.delete({
       where: { id },

@@ -4,17 +4,19 @@ export const maxDuration = 60;
 import { clearLocationEverywhere } from "@/src/data/godown";
 import { currentUser } from "@/src/lib/auth";
 import { LOCATION_LABELS, isStockLocation } from "@/src/lib/godown";
-import { UserRole } from "@prisma/client";
+import { checkPermission } from "@/src/lib/permissions/server";
 import { NextRequest, NextResponse } from "next/server";
 
-// POST { location, password } - admin only; the same password as Clear Stock.
+// POST { location, password } - needs stockLocation.clearLocation; the same password as Clear Stock.
 export async function POST(request: NextRequest) {
-  const user = await currentUser();
-  if (user?.role !== UserRole.ADMIN) {
-    return new NextResponse(JSON.stringify({ error: "Only an admin can clear a location" }), {
-      status: 403,
-    });
+  const guard = await checkPermission("stockLocation.clearLocation");
+  if (!guard.ok) {
+    return new NextResponse(
+      JSON.stringify({ error: "You do not have permission to clear a location" }),
+      { status: guard.status }
+    );
   }
+  const user = await currentUser();
 
   const { location, password } = (await request.json()) || {};
   if (!isStockLocation(location)) {

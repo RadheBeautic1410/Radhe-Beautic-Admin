@@ -2,13 +2,14 @@ export const dynamic = 'force-dynamic'
 
 import { sellMultipleOfflineKurtis } from "@/src/data/kurti";
 import { getUserShop } from "@/src/actions/shop";
-import { currentUser } from "@/src/lib/auth";
 import { locationForShopId } from "@/src/lib/godown";
-import { UserRole } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { accessCan, apiPermission } from "@/src/lib/permissions/server";
 
 // API Route Handler for Offline Retailer Sales
 export async function POST(request: NextRequest) {
+  const guard = await apiPermission(["sellRetailer.create","hallSales.create"]);
+  if (guard.response) return guard.response;
   try {
     const data = await request.json();
 
@@ -39,9 +40,8 @@ export async function POST(request: NextRequest) {
 
     // Shop-floor logins sell only their own floor's stock; picking a line's
     // location (godown, other floors) is for hall bills made by admins/managers.
-    const user = await currentUser();
-    if (user?.role === UserRole.SHOP_SELLER) {
-      const own = locationForShopId(user.id ? (await getUserShop(user.id))?.id : null);
+    if (!accessCan(guard.access, "stockLocation.anyLocation")) {
+      const own = locationForShopId((await getUserShop(guard.access.userId))?.id);
       const foreign = trackedProducts.find((p: any) => p?.stockLocation && p.stockLocation !== own);
       if (foreign) {
         return new NextResponse(

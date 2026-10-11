@@ -1,9 +1,12 @@
 import { UserRole } from "@prisma/client";
 
 /**
- * The admin sidebar. Each item's `href` is its permission key: a Role's `menus`
- * lists the hrefs it may open. `roles` is the built-in default - used to seed the
- * system roles, and as the fallback for a user whose role has no Role row yet.
+ * The admin sidebar structure (groups, names, icons, hrefs). What a user may open
+ * is decided by permissions (src/lib/permissions): the module whose `menu` is an
+ * item's href must grant `<module>.view`.
+ * `roles` is the LEGACY per-role default. It is kept only to seed the system
+ * roles and to map the old menu model onto permissions (permissions/registry.ts);
+ * nothing authorizes from it directly any more.
  */
 export interface MenuItem {
   name: string;
@@ -154,44 +157,5 @@ export const SYSTEM_ROLES: UserRole[] = [
 export const defaultMenusForRole = (role: UserRole): string[] =>
   ALL_MENU_ITEMS.filter((m) => m.roles.includes(role)).map((m) => m.href);
 
-// "/orders" must not match "/customer-orders", nor "/sell" match "/sellRetailer".
-const matches = (pathname: string, href: string) =>
-  pathname === href || pathname.startsWith(`${href}/`);
-
-/**
- * Can this user open `href`? `menus` comes from the session (their Role row);
- * when it is missing the built-in per-role defaults apply. ADMIN is never locked out.
- */
-export const canOpenMenu = (
-  href: string,
-  user: { role?: UserRole; menus?: string[] | null } | undefined | null
-): boolean => {
-  if (!user?.role) return false;
-  if (user.role === UserRole.ADMIN && !user.menus) return true;
-  if (user.menus) return user.menus.includes(href);
-  return !!ALL_MENU_ITEMS.find((m) => m.href === href)?.roles.includes(user.role);
-};
-
-/**
- * Where to land a user who has no particular page in mind: the catalogue when
- * their role has it (most do), otherwise the first menu they may open.
- */
-export const firstAllowedPath = (
-  user: { role?: UserRole; menus?: string[] | null } | undefined | null
-): string | null => {
-  if (canOpenMenu("/catalogue", user)) return "/catalogue";
-  return ALL_MENU_ITEMS.find((m) => canOpenMenu(m.href, user))?.href ?? null;
-};
-
-/**
- * Whether `pathname` is allowed. Paths that are not a menu item (home, detail
- * routes under an unknown prefix, auth pages) are not restricted here.
- */
-export const canOpenPath = (
-  pathname: string,
-  user: { role?: UserRole; menus?: string[] | null } | undefined | null
-): boolean => {
-  const item = ALL_MENU_ITEMS.find((m) => matches(pathname, m.href));
-  if (!item) return true;
-  return canOpenMenu(item.href, user);
-};
+// Whether a user may open a menu / path is decided by permissions:
+// see canOpenPath in src/lib/permissions/resolve.ts.

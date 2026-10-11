@@ -1,7 +1,10 @@
 import { db } from "@/src/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function POST(req: Request) {
+  const guard = await apiPermission(["onlineSales.view","orders.view","onlineSales.edit","staff.view","wallet.view"]);
+  if (guard.response) return guard.response;
   try {
     const body = await req.json();
     const { userId } = body;

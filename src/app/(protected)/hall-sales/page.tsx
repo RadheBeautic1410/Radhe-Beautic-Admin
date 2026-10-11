@@ -1,6 +1,5 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
@@ -28,6 +27,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 import { getUserShop, getHallSaleShops } from "@/src/actions/shop";
 import {
   LOCATION_LABELS,
@@ -38,6 +38,7 @@ import {
 } from "@/src/lib/godown";
 import { CategoryCombobox } from "@/src/app/(protected)/_components/category-combobox";
 import { StockLocationPicker } from "@/src/app/(protected)/_components/godown/stock-location-picker";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 import InvoicePreview, {
   InvoicePayload,
 } from "@/src/app/(protected)/sellRetailer/invoice-preview/InvoicePreview";
@@ -123,10 +124,12 @@ function HallSalesPage() {
   const selectAllSizesRef = useRef<HTMLInputElement | null>(null);
 
   const currentUser = useCurrentUser();
+  const { can: canDo } = usePermissions();
+  const canChooseShop = canDo("hallSales.chooseShop");
   const selectedShop = useMemo(() => {
-    if (currentUser?.role !== UserRole.ADMIN) return userShop;
+    if (!canChooseShop) return userShop;
     return shops.find((s) => s.id === selectedShopId) || null;
-  }, [currentUser?.role, selectedShopId, shops, userShop]);
+  }, [canChooseShop, selectedShopId, shops, userShop]);
 
   // Where the bill takes stock from; a cart line can override it for itself.
   const [billLocation, setBillLocation] = useState<StockLocation>(
@@ -187,14 +190,11 @@ function HallSalesPage() {
       try {
         // For admin users, get only shops with isHallSell = true
         // For seller managers, get their associated shop
-        if (currentUser?.role === UserRole.ADMIN) {
+        if (canChooseShop) {
           const hallSaleShops = await getHallSaleShops();
           setShops(hallSaleShops);
         } else if (
-          currentUser?.id &&
-          (currentUser.role === UserRole.SELLER ||
-            currentUser.role === UserRole.SELLER_MANAGER ||
-            currentUser.role === UserRole.SHOP_SELLER)
+          currentUser?.id
         ) {
           const userShopData = await getUserShop(currentUser.id);
           if (userShopData) {
@@ -670,7 +670,7 @@ function HallSalesPage() {
       }
 
       if (!selectedShopId.trim()) {
-        if (currentUser?.role === UserRole.ADMIN) {
+        if (canChooseShop) {
           toast.error("Please select a shop");
         } else {
           toast.error("No shop associated with your account");
@@ -848,7 +848,7 @@ function HallSalesPage() {
     setCustomerName("");
     setCustomerPhone("");
     // Reset shop based on user role
-    if (currentUser?.role === UserRole.ADMIN) {
+    if (canChooseShop) {
       setSelectedShopId("");
     } else if (userShop) {
       setSelectedShopId(userShop.id);
@@ -956,11 +956,11 @@ function HallSalesPage() {
             </div>
             <div>
               <Label htmlFor="shop-select">
-                {currentUser?.role === UserRole.ADMIN
+                {canChooseShop
                   ? "Select Hall Sale Shop *"
                   : "Hall Sale Shop"}
               </Label>
-              {currentUser?.role === UserRole.ADMIN ? (
+              {canChooseShop ? (
                 <select
                   id="shop-select"
                   name="shop-select"
@@ -1660,21 +1660,9 @@ function HallSalesPage() {
 
 const HallSalesPageWrapper = () => {
   return (
-    <>
-      <RoleGateForComponent
-        allowedRole={[
-          UserRole.ADMIN,
-          // UserRole.SELLER,
-          // UserRole.SHOP_SELLER,
-          UserRole.SELLER_MANAGER,
-        ]}
-      >
-        <HallSalesPage />
-      </RoleGateForComponent>
-      <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
-        <NotAllowedPage />
-      </RoleGateForComponent>
-    </>
+    <PermissionGate permission="hallSales.view" fallback={<NotAllowedPage />}>
+      <HallSalesPage />
+    </PermissionGate>
   );
 };
 

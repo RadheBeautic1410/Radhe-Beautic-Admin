@@ -1,6 +1,5 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
@@ -32,6 +31,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 import { generateInvoicePDF } from "@/src/actions/generate-pdf";
 import { getShopList, getUserShop } from "@/src/actions/shop";
 import { useEffect } from "react";
@@ -40,6 +40,7 @@ import { PasswordDialog } from "@/src/app/(protected)/_components/PasswordDialog
 import Link from "next/link";
 import { Select, SelectValue, SelectTrigger } from "@/src/components/ui/select";
 import { SelectContent, SelectItem } from "@/components/ui/select";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 import {
   LOCATION_LABELS,
   availableAtLocation,
@@ -115,6 +116,8 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   const currentUser = useCurrentUser();
+  const { can: canDo } = usePermissions();
+  const canViewAllShops = canDo("offlineSales.viewAllShops");
   const router = useRouter();
 
   // Lines added to this bill come out of its default location (hall bills: the godown).
@@ -219,10 +222,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
 
         // If user is SELLER or SELLER_MANAGER, get their associated shop
         if (
-          currentUser?.id &&
-          (currentUser.role === UserRole.SELLER ||
-            currentUser.role === UserRole.SELLER_MANAGER ||
-            currentUser.role === UserRole.SHOP_SELLER)
+          currentUser?.id
         ) {
           const userShopData = await getUserShop(currentUser.id);
           if (userShopData) {
@@ -668,7 +668,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
       }
 
       if (!selectedShopId.trim()) {
-        if (currentUser?.role === UserRole.ADMIN) {
+        if (canViewAllShops) {
           toast.error("Please select a shop");
         } else {
           toast.error("No shop associated with your account");
@@ -808,7 +808,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
     setCustomerName("");
     setCustomerPhone("");
     // Reset shop based on user role
-    if (currentUser?.role === UserRole.ADMIN) {
+    if (canViewAllShops) {
       setSelectedShopId("");
     } else if (userShop) {
       setSelectedShopId(userShop.id);
@@ -1055,11 +1055,11 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
             </div>
             <div>
               <Label htmlFor="shop-select">
-                {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER)
+                {canViewAllShops
                   ? "Select Shop *"
                   : "Shop"}
               </Label>
-              {currentUser?.role === (UserRole.ADMIN || UserRole.SELLER) ? (
+              {canViewAllShops ? (
                 <select
                   id="shop-select"
                   name="shop-select"
@@ -1567,22 +1567,13 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
 const SaleDetailsPageWrapper = () => {
   const params = useParams();
   return (
-    <>
-      <RoleGateForComponent
-        allowedRole={[
-          UserRole.ADMIN,
-          UserRole.SELLER,
-          UserRole.SHOP_SELLER,
-          UserRole.SELLER_MANAGER,
-        ]}
-      >
-        <SaleDetailsPage
-          params={{
-            id: params.id as string,
-          }}
-        />
-      </RoleGateForComponent>
-    </>
+    <PermissionGate permission="offlineSales.view">
+      <SaleDetailsPage
+        params={{
+          id: params.id as string,
+        }}
+      />
+    </PermissionGate>
   );
 };
 

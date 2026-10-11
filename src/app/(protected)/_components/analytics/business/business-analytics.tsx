@@ -17,6 +17,7 @@ import TopMonthlySellingKurti from "../topMonthlySellingKurti";
 import AvailableKurtiSizes from "../awailableKurtiSizes";
 import KurtiReports from "../kurtiReports";
 import KurtiOnlineReports from "../kurtiOnlineReports";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 
 const IST_OFFSET = 5.5 * 60 * 60 * 1000;
 const istToday = () => new Date(Date.now() + IST_OFFSET).toISOString().slice(0, 10);
@@ -497,8 +498,8 @@ function Alerts({ from, to }: { from: string; to: string }) {
 // ------------------------------------------------------------------ page
 
 export default function BusinessAnalytics() {
-  const user = useCurrentUser();
-  const canSeeProfit = user?.role === UserRole.ADMIN;
+  const { can } = usePermissions();
+  const canSeeProfit = can("analytics.viewProfit");
   const [preset, setPreset] = useState("month");
   const [custom, setCustom] = useState<[string, string]>([istToday(), istToday()]);
 

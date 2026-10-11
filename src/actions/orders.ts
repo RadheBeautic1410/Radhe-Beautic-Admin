@@ -4,6 +4,7 @@ import { db } from "@/src/lib/db";
 import { currentRole, currentUser } from "@/src/lib/auth";
 
 import { UserRole } from "@prisma/client";
+import { permissionError } from "@/src/lib/permissions/server";
 
 export const getCurrTime = () => {
     const currentTime = new Date();
@@ -13,6 +14,8 @@ export const getCurrTime = () => {
 }
 
 export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number) => {
+  const denied = await permissionError(["orders.view","onlineSales.view"]);
+  if (denied) return { error: denied.error };
 
     const currUser: any = await currentUser();
 

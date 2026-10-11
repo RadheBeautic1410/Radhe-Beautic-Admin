@@ -1,7 +1,10 @@
 import { db } from "@/src/lib/db"; 
 import { NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(req: Request) {
+  const guard = await apiPermission(["staff.view","wallet.view"]);
+  if (guard.response) return guard.response;
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
 

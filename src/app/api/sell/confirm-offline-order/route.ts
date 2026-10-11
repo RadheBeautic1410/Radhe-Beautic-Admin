@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { sellMultipleOnlineKurtis } from "@/src/data/kurti";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 const getCurrTime = () => {
   const currentTime = new Date();
@@ -11,6 +12,8 @@ const getCurrTime = () => {
 };
 // API Route Handler for Offline Retailer Sales
 export async function POST(request: NextRequest) {
+  const guard = await apiPermission(["onlineSales.edit","orders.edit"]);
+  if (guard.response) return guard.response;
   try {
     const data = await request.json();
 

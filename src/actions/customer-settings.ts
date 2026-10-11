@@ -2,8 +2,11 @@
 
 import { db } from "@/src/lib/db";
 import { revalidatePath } from "next/cache";
+import { permissionError } from "@/src/lib/permissions/server";
 
 export async function getHomepageSliders() {
+  const denied = await permissionError("homepageSliders.view");
+  if (denied) return [];
   try {
     return await db.homepageSlider.findMany({
       orderBy: { createdAt: "asc" }
@@ -22,6 +25,8 @@ export async function addHomepageSlider(data: {
   title?: string;
   subtitle?: string;
 }) {
+  const denied = await permissionError("homepageSliders.create");
+  if (denied) return { success: false as const, error: denied.error };
   try {
     const slider = await db.homepageSlider.create({
       data
@@ -35,6 +40,8 @@ export async function addHomepageSlider(data: {
 }
 
 export async function deleteHomepageSlider(id: string) {
+  const denied = await permissionError("homepageSliders.delete");
+  if (denied) return { success: false as const, error: denied.error };
   try {
     await db.homepageSlider.delete({
       where: { id }
@@ -48,6 +55,8 @@ export async function deleteHomepageSlider(id: string) {
 }
 
 export async function getKurtiTypeImages() {
+  const denied = await permissionError("kurtiTypes.view");
+  if (denied) return [];
   try {
     return await db.kurtiTypeImage.findMany();
   } catch (error) {
@@ -61,6 +70,8 @@ export async function saveKurtiTypeImage(data: {
   imageUrl: string;
   imagePath: string;
 }) {
+  const denied = await permissionError("kurtiTypes.edit");
+  if (denied) return { success: false as const, error: denied.error };
   try {
     const kurtiTypeImage = await db.kurtiTypeImage.upsert({
       where: { key: data.key },
@@ -83,6 +94,8 @@ export async function saveKurtiTypeImage(data: {
 }
 
 export async function deleteKurtiTypeImage(key: string) {
+  const denied = await permissionError("kurtiTypes.delete");
+  if (denied) return { success: false as const, error: denied.error };
   try {
     await db.kurtiTypeImage.delete({
       where: { key }

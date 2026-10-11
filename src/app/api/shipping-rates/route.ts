@@ -1,18 +1,11 @@
 import { db } from "@/src/lib/db";
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser, currentRole } from "@/src/lib/auth";
-import { UserRole } from "@prisma/client";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-      });
-    }
+    const guard = await apiPermission("shippingRates.view");
+    if (guard.response) return guard.response;
 
     const shippingRates = await db.shippingRate.findMany({
       orderBy: { createdAt: "desc" },
@@ -28,14 +21,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await currentUser();
-    const role = await currentRole();
-
-    if (!user || role !== UserRole.ADMIN) {
-      return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-      });
-    }
+    const guard = await apiPermission("shippingRates.create");
+    if (guard.response) return guard.response;
 
     const body = await req.json();
     const { pincode, rate, type, description, isActive } = body;

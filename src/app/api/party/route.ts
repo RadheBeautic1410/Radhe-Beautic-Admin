@@ -2,9 +2,13 @@ export const dynamic = 'force-dynamic'
 
 import { getAllParty } from "@/src/data/organization";
 import { NextResponse } from "next/server";
+import { PRODUCT_READ_PERMISSIONS } from "@/src/lib/permissions/registry";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 
 export async function GET(request: Request) {
+    const guard = await apiPermission(PRODUCT_READ_PERMISSIONS);
+    if (guard.response) return guard.response;
     try {
         const data = await getAllParty();
         return new NextResponse(JSON.stringify({ data }), { status: 200 });

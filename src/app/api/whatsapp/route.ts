@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import FormData from "form-data";
 import { Readable } from "stream";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function POST(request: NextRequest) {
+  const guard = await apiPermission("settings.sendWhatsapp");
+  if (guard.response) return guard.response;
   try {
     // Check environment variables
     if (!process.env.WHATSAPP_ACCESS_TOKEN) {
@@ -365,6 +368,8 @@ function getMediaType(mimeType: string) {
 
 // GET method for API info
 export async function GET() {
+  const guard = await apiPermission("settings.sendWhatsapp");
+  if (guard.response) return guard.response;
   return NextResponse.json({
     message: "WhatsApp Unified API",
     endpoints: {

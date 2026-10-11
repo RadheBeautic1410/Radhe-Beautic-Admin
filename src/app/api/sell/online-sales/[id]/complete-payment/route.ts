@@ -3,11 +3,14 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
 import { completePendingOrderPayment } from "@/src/data/online-sales";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await apiPermission(["onlineSales.edit","orders.edit"]);
+  if (guard.response) return guard.response;
   try {
     const session = await auth();
     const { id } = await params;
