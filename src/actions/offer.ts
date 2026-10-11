@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/src/lib/db";
-import { currentRole, currentUser } from "@/src/lib/auth";
-import { UserRole } from "@prisma/client";
+import { currentUser } from "@/src/lib/auth";
+import { permissionError } from "@/src/lib/permissions/server";
 
 interface OfferAdditionProps {
   name: string;
@@ -14,12 +14,8 @@ interface OfferAdditionProps {
 }
 
 export const createOffer = async (data: OfferAdditionProps) => {
-  const user = await currentUser();
-  const role = await currentRole();
-
-  if (!user || role !== UserRole.ADMIN) {
-    return { error: "Unauthorized" };
-  }
+  const denied = await permissionError("offers.create");
+  if (denied) return denied;
 
   const { name, qty, totalAmount, categories, image, description } = data;
 
@@ -55,12 +51,8 @@ export const createOffer = async (data: OfferAdditionProps) => {
 };
 
 export const getAllOffers = async () => {
-  const user = await currentUser();
-  const role = await currentRole();
-
-  if (!user || role !== UserRole.ADMIN) {
-    return { error: "Unauthorized" };
-  }
+  const denied = await permissionError("offers.view");
+  if (denied) return denied;
 
   try {
     const offers = await db.offer.findMany({
@@ -105,12 +97,8 @@ export const getOfferPricingContext = async () => {
 };
 
 export const updateOffer = async (offerId: string, data: OfferAdditionProps) => {
-  const user = await currentUser();
-  const role = await currentRole();
-
-  if (!user || role !== UserRole.ADMIN) {
-    return { error: "Unauthorized" };
-  }
+  const denied = await permissionError("offers.edit");
+  if (denied) return denied;
 
   const { name, qty, totalAmount, categories, image, description } = data;
 
@@ -149,12 +137,8 @@ export const updateOffer = async (offerId: string, data: OfferAdditionProps) => 
 };
 
 export const deleteOffer = async (offerId: string) => {
-  const user = await currentUser();
-  const role = await currentRole();
-
-  if (!user || role !== UserRole.ADMIN) {
-    return { error: "Unauthorized" };
-  }
+  const denied = await permissionError("offers.delete");
+  if (denied) return denied;
 
   try {
     await db.offer.delete({

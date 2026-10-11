@@ -17,8 +17,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/src/components/ui/pagination";
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
-import { UserRole } from "@prisma/client";
 import { SearchBar } from "@/src/components/Searchbar";
 import { Button } from "@/src/components/ui/button";
 import { Search } from "lucide-react";
@@ -34,6 +32,7 @@ import {
 import { Input } from "@/src/components/ui/input";
 import { Skeleton } from "@/src/components/ui/skeleton";
 import { LOCATION_LABELS, STOCK_LOCATIONS, getLocationQty } from "@/src/lib/godown";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 
 function KurtiCardSkeleton() {
   return (
@@ -783,19 +782,11 @@ function KurtiListPage() {
 
 const KurtiListPageHelper = () => {
   return (
-    <RoleGateForComponent
-      allowedRole={[
-        UserRole.ADMIN,
-        UserRole.UPLOADER,
-        UserRole.SELLER,
-        UserRole.RESELLER,
-        UserRole.SHOP_SELLER,
-      ]}
-    >
+    <PermissionGate permission="catalogue.browse">
       <Suspense fallback={<PageLoader loading={true} />}>
         <KurtiListPage />
       </Suspense>
-    </RoleGateForComponent>
+    </PermissionGate>
   );
 };
 

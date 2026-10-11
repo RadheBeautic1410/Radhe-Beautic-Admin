@@ -3,8 +3,11 @@ export const dynamic = 'force-dynamic'
 import { getFilteredSales } from "@/src/data/analytics";
 import { db } from "@/src/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function POST(request: NextRequest) {
+  const guard = await apiPermission("analytics.view");
+  if (guard.response) return guard.response;
   try {
     const { date, filter } = await request.json();
     const baseData = await getFilteredSales(date, filter);

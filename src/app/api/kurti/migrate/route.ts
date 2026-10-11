@@ -3,9 +3,12 @@ export const dynamic = 'force-dynamic'
 import { migrate, migrate2 } from "@/src/data/kurti";
 import { migrate10, migrate3, migrate4, migrate5, migrate6 } from "@/src/data/migrate";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 
 export async function GET(request: NextRequest) {
+    const guard = await apiPermission("catalogue.maintenance");
+    if (guard.response) return guard.response;
     try {
         // const code = request.nextUrl.searchParams.get("code") || "";
         // console.log(code, code.substring(0, 7), code.substring(7));

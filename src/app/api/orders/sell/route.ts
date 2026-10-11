@@ -4,10 +4,13 @@ import { getKurtiCount } from "@/src/data/kurti";
 import { getOrdersOfUserbyStatus, sellOrder } from "@/src/data/orders";
 import { addDays } from "date-fns";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 // import { date } from "zod";
 
 
 export async function POST(request: NextRequest) {
+    const guard = await apiPermission(["orders.edit","onlineSales.edit"]);
+    if (guard.response) return guard.response;
     try {
         let { code, cartId, currentUser, currentTime, stockLocation } = await request.json();
         console.log(code, cartId, currentUser, currentTime, stockLocation);

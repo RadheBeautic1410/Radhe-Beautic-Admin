@@ -1,6 +1,5 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
 import {
   Card,
@@ -31,6 +30,8 @@ import { CustomBarcodeDialog } from "./customBarcodeDialog";
 import { useCurrentRole } from "@/src/hooks/use-currrent-role";
 import { RestockDialog } from "./restockDialog";
 import { LOCATION_LABELS, STOCK_LOCATIONS, getLocationQty } from "@/src/lib/godown";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 
 interface kurti {
   id: string;
@@ -130,7 +131,8 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({
 
   const pathname = usePathname();
   // A shop login must not see the reseller (wholesale) price.
-  const hideResellerPrice = useCurrentRole() === UserRole.SHOP_SELLER;
+  const { can: canSee } = usePermissions();
+  const hideResellerPrice = !canSee("catalogue.viewResellerPrice");
 
   const stockByLocation = useMemo(() => {
     return STOCK_LOCATIONS.map((location) => {
@@ -668,7 +670,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({
             )}
           </Button>
 
-          <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
+          <PermissionGate permission="catalogue.edit">
             <CustomBarcodeDialog code={activeVariant.code} sizes={activeVariant.sizes || []}>
               <Button
                 type="button"
@@ -772,7 +774,7 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </RoleGateForComponent>
+          </PermissionGate>
         </div>
       </div>
     </div>

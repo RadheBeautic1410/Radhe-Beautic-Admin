@@ -40,6 +40,7 @@ import {
   calculateShippingRate as calcShippingRate,
 } from "@/src/actions/shipping-rate";
 import { Trash2, Edit, Search } from "lucide-react";
+import { useCan } from "@/src/components/auth/permissions-provider";
 import { Badge } from "@/src/components/ui/badge";
 import {
   Select,
@@ -73,6 +74,9 @@ interface ShippingRate {
 }
 
 const ShippingCalculatorPage = () => {
+  const canCreate = useCan("shippingRates.create");
+  const canEdit = useCan("shippingRates.edit");
+  const canDelete = useCan("shippingRates.delete");
   const [isPending, startTransition] = useTransition();
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -259,6 +263,7 @@ const ShippingCalculatorPage = () => {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">
             <CardTitle className="text-2xl font-semibold">🚚 Shipping Calculator</CardTitle>
             <div className="flex gap-2">
+              {canCreate && (
               <DialogDemo
                 dialogTrigger={<Button>+ Add Shipping Rate</Button>}
                 dialogTitle="Add New Shipping Rate"
@@ -413,6 +418,7 @@ const ShippingCalculatorPage = () => {
                   </Form>
                 )}
               </DialogDemo>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -491,6 +497,7 @@ const ShippingCalculatorPage = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          {canEdit && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -499,6 +506,8 @@ const ShippingCalculatorPage = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
+                          )}
+                          {canDelete && (
                           <Button
                             variant="destructive"
                             size="sm"
@@ -507,6 +516,7 @@ const ShippingCalculatorPage = () => {
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

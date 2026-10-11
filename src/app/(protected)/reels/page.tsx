@@ -24,6 +24,7 @@ import { Input } from "@/src/components/ui/input"
 import { Label } from "@/src/components/ui/label"
 import { Switch } from "@/src/components/ui/switch"
 import { ArrowDown, ArrowUp, Pencil, RefreshCw, Trash2, X } from "lucide-react"
+import { useCan } from "@/src/components/auth/permissions-provider"
 
 type ReelRow = {
   id: string
@@ -54,6 +55,9 @@ function previewVideoId(raw: string): string | null {
 }
 
 export default function ReelsPage() {
+  const canCreate = useCan("reels.create")
+  const canEdit = useCan("reels.edit")
+  const canDelete = useCan("reels.delete")
   const [reels, setReels] = useState<ReelRow[]>([])
   const [categories, setCategories] = useState<CategoryOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -233,6 +237,7 @@ export default function ReelsPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Add / edit form */}
+          {(canCreate || (canEdit && editingId)) && (
           <div className="lg:col-span-5">
             <Card className="shadow-sm border-gray-200">
               <CardHeader>
@@ -418,9 +423,10 @@ export default function ReelsPage() {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Current reels */}
-          <div className="lg:col-span-7">
+          <div className={canCreate || (canEdit && editingId) ? "lg:col-span-7" : "lg:col-span-12"}>
             <Card className="shadow-sm border-gray-200">
               <CardHeader>
                 <CardTitle className="text-lg">Current Reels</CardTitle>
@@ -439,6 +445,7 @@ export default function ReelsPage() {
                         editingId === reel.id ? "border-pink-400 ring-1 ring-pink-200" : "border-gray-200"
                       }`}
                     >
+                      {canEdit && (
                       <div className="flex flex-col">
                         <button
                           type="button"
@@ -459,6 +466,7 @@ export default function ReelsPage() {
                           <ArrowDown className="w-3.5 h-3.5" />
                         </button>
                       </div>
+                      )}
                       <img
                         src={`https://img.youtube.com/vi/${reel.videoId}/mqdefault.jpg`}
                         alt=""
@@ -479,9 +487,12 @@ export default function ReelsPage() {
                             ` · ${reel.categoryCodes.map(categoryName).join(", ")}`}
                         </p>
                       </div>
+                      {canEdit && (
                       <Button type="button" variant="ghost" size="icon" onClick={() => startEdit(reel)} aria-label="Edit">
                         <Pencil className="w-4 h-4" />
                       </Button>
+                      )}
+                      {canDelete && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -492,6 +503,7 @@ export default function ReelsPage() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
+                      )}
                     </div>
                   ))
                 )}

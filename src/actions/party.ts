@@ -5,6 +5,7 @@ import { currentRole, currentUser } from "@/src/lib/auth";
 
 import { UserRole } from "@prisma/client";
 import { getPartybyId, getPartybyName } from "../data/party";
+import { permissionError } from "@/src/lib/permissions/server";
 
 interface partyAddtionProps {
     name: string
@@ -13,6 +14,8 @@ interface partyAddtionProps {
 export const partyAddition = async (
     data: partyAddtionProps
 ) => {
+    const denied = await permissionError("upload.create");
+    if (denied) return { error: denied.error };
     const user = await currentUser();
     const role = await currentRole();
 
@@ -45,6 +48,8 @@ export const partyAddition = async (
 export const partyDelete = async (
     id: string
 ) => {
+    const denied = await permissionError("upload.create");
+    if (denied) return { error: denied.error };
     const user = await currentUser();
 
     const role = await currentRole();

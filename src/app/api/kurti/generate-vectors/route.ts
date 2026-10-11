@@ -4,8 +4,11 @@ import { db } from "@/src/lib/db";
 import { NextResponse, NextRequest } from "next/server";
 import axios from "axios";
 import { CURRENT_EMBEDDING_VERSION } from "@/src/lib/embeddingVersion";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(request: NextRequest) {
+  const guard = await apiPermission("catalogue.maintenance");
+  if (guard.response) return guard.response;
   try {
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "10");
 

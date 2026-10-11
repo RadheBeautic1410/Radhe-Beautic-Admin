@@ -6,13 +6,13 @@ import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import KurtiPicCardSingle from "../../../_components/kurti/kurtiPicCardSingle";
 import KurtiUpdate from "../../../_components/kurti/kurtiUpdate";
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import NotAllowedPage from "../../../_components/errorPages/NotAllowedPage";
-import { UserRole } from "@prisma/client";
 import KurtiVideoCardSingle from "../../../_components/kurti/KurtiVideoSingle";
 import Link from "next/link";
 import { Skeleton } from "@/src/components/ui/skeleton";
 import { LOCATION_LABELS, STOCK_LOCATIONS, getLocationQty, getTotalQty } from "@/src/lib/godown";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 
 function ProductEditorSkeleton() {
   return (
@@ -343,20 +343,12 @@ function OneKurtiPage({ readOnly = false }: { readOnly?: boolean }) {
 }
 
 const CatalogueKurtiHelper = () => {
-  return (
-    <>
-      <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-        <OneKurtiPage />
-      </RoleGateForComponent>
-      {/* Billing logins can look at a product, but not edit it. */}
-      <RoleGateForComponent allowedRole={[UserRole.SHOP_SELLER]}>
-        <OneKurtiPage readOnly />
-      </RoleGateForComponent>
-      <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.RESELLER]}>
-        <NotAllowedPage />
-      </RoleGateForComponent>
-    </>
-  );
+  const { ready, can } = usePermissions();
+  if (!ready) return null;
+  // Editors get the editable page; billing logins can look but not edit.
+  if (can("catalogue.edit")) return <OneKurtiPage />;
+  if (can("catalogue.viewDetails")) return <OneKurtiPage readOnly />;
+  return <NotAllowedPage />;
 };
 
 export default CatalogueKurtiHelper;

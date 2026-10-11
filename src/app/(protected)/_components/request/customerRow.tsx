@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { TableCell, TableRow } from "@/src/components/ui/table";
 import { Button } from "@/src/components/ui/button";
 import { DialogDemo } from "@/src/components/dialog-demo";
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 import { VerifierDetail } from "./verifierDetail";
 
 import {
@@ -201,7 +201,7 @@ export const CustomerRow = ({
       </TableCell>
       <TableCell className="text-center">{userData.role}</TableCell>
 
-      <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+      <PermissionGate permission="staff.view">
         <TableCell className="text-center">
           {userData.verifiedBy ? (
             <VerifierDetail id={userData.verifiedBy} />
@@ -209,7 +209,7 @@ export const CustomerRow = ({
             <Button variant="ghost">Not verified</Button>
           )}
         </TableCell>
-      </RoleGateForComponent>
+      </PermissionGate>
 
       {/* Edit User Dialog */}
       <TableCell className="text-center">

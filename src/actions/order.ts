@@ -7,6 +7,7 @@ import { currentRole, currentUser } from "@/src/lib/auth";
 import { UserRole } from "@prisma/client";
 import { notifyResellerShipped } from "@/src/lib/reseller-order-notifications";
 import { error } from "console";
+import { permissionError } from "@/src/lib/permissions/server";
 
 type SizeQuantity = { [size: string]: number };
 
@@ -85,6 +86,8 @@ export const removeCartProduct = async (
   code: string,
   cartProductId: string
 ) => {
+  const denied = await permissionError("orders.edit");
+  if (denied) return { error: denied.error };
   try {
     const released = await db.$transaction((transaction) =>
       releaseCartProductReservation(transaction, code, cartProductId)
@@ -288,6 +291,8 @@ async function generateOrderId() {
 // };
 
 export const deleteOrder = async (orderId: string) => {
+  const denied = await permissionError("orders.delete");
+  if (denied) return { error: denied.error };
   const curUser = await currentUser();
 
   if (!curUser) {
@@ -377,6 +382,8 @@ export const deleteOrder = async (orderId: string) => {
 };
 
 export const readyOrder = async (orderId: any) => {
+  const denied = await permissionError("orders.edit");
+  if (denied) return { error: denied.error };
   const newOrder = await db.orders.update({
     where: {
       id: orderId,
@@ -394,6 +401,8 @@ export const readyOrder = async (orderId: any) => {
 };
 
 export const packedOrder = async (orderId: any) => {
+  const denied = await permissionError("orders.edit");
+  if (denied) return { error: denied.error };
   const newOrder = await db.orders.update({
     where: {
       id: orderId,
@@ -416,6 +425,8 @@ export const shippedOrder = async (
   shipCharge: number,
   selectedCourier: any = ""
 ) => {
+  const denied = await permissionError(["orders.edit","onlineSales.edit"]);
+  if (denied) return { error: denied.error };
   const newOrder = await db.orders.update({
     where: {
       orderId: orderId,

@@ -2,10 +2,9 @@ export const dynamic = 'force-dynamic'
 
 import { sellKurti2 } from "@/src/data/kurti";
 import { getUserShop } from "@/src/actions/shop";
-import { currentUser } from "@/src/lib/auth";
 import { LOCATION_LABELS, locationForShopId } from "@/src/lib/godown";
-import { UserRole } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { accessCan, apiPermission } from "@/src/lib/permissions/server";
 
 
 // export async function GET(request: NextRequest) {
@@ -22,6 +21,8 @@ import { NextRequest, NextResponse } from "next/server";
 // }
 
 export async function POST(request: NextRequest) {
+    const guard = await apiPermission(["sell.create","sellRetailer.create","hallSales.create"]);
+    if (guard.response) return guard.response;
     try {
         // const code = request.nextUrl.searchParams.get("code") || "";
         let data = await request.json();
@@ -29,9 +30,8 @@ export async function POST(request: NextRequest) {
 
         // Shop logins (1st floor, 2nd floor, Shop 316) can only sell their own location's stock,
         // except hall sales, where the piece can be picked up from any location.
-        const user = await currentUser();
-        if (user?.role === UserRole.SHOP_SELLER && data?.isHallSale !== true) {
-            const shop = user.id ? await getUserShop(user.id) : null;
+        if (!accessCan(guard.access, "stockLocation.anyLocation") && data?.isHallSale !== true) {
+            const shop = await getUserShop(guard.access.userId);
             const own = locationForShopId(shop?.id);
             if (!own) {
                 return new NextResponse(JSON.stringify({ data: { error: "Your login is not linked to a shop location." } }), { status: 200 });

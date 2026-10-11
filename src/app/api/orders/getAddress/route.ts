@@ -4,10 +4,13 @@ import { getKurtiCount } from "@/src/data/kurti";
 import { getAddresses } from "@/src/data/orders";
 import { addDays } from "date-fns";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 // import { date } from "zod";
 
 
 export async function GET(request: NextRequest) {
+    const guard = await apiPermission(["orders.view","onlineSales.view"]);
+    if (guard.response) return guard.response;
     try {
         const data: any = await getAddresses();
         // console.log('data', data?.length);

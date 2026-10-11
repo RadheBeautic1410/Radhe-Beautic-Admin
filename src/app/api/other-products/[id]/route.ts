@@ -1,10 +1,13 @@
 import { db } from "@/src/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await apiPermission("otherProducts.view");
+  if (guard.response) return guard.response;
   try {
     const { id } = await params;
     const product = await db.otherProduct.findUnique({
@@ -30,6 +33,8 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await apiPermission("otherProducts.edit");
+  if (guard.response) return guard.response;
   try {
     const { id } = await params;
     const body = await req.json();
@@ -73,6 +78,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await apiPermission("otherProducts.delete");
+  if (guard.response) return guard.response;
   try {
     const { id } = await params;
     // Soft delete

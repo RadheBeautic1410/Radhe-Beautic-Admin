@@ -9,10 +9,18 @@ import syncCategoryData, {
   toggleVisibilityForCustomer,
 } from "@/src/actions/category";
 import { deleteCategory, fetchKurtiByCategory } from "@/src/actions/kurti";
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
 import { Skeleton } from "@/src/components/ui/skeleton";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
+
+/** The Actions / Stock Ready columns show when any admin action is allowed. */
+const CATALOGUE_ADMIN_ACTIONS = [
+  "catalogue.manageCategories",
+  "catalogue.export",
+  "catalogue.delete",
+] as const;
 
 function KurtiCardSkeleton() {
   return (
@@ -190,7 +198,8 @@ type SearchTypeValue = (typeof SEARCH_TYPES)[keyof typeof SEARCH_TYPES];
 
 const ListPage = () => {
   // A shop login must not see the reseller (wholesale) price.
-  const hideResellerPrice = useCurrentRole() === UserRole.SHOP_SELLER;
+  const { can: canSee } = usePermissions();
+  const hideResellerPrice = !canSee("catalogue.viewResellerPrice");
   const [isLoading, setIsLoading] = useState(true);
   const [searchValue, setSearchValue] = useState("");
   const [searchType, setSearchType] = useState<SearchTypeValue>(
@@ -1371,9 +1380,9 @@ const ListPage = () => {
               }}
             />
           </TableCell>
-          <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+          <PermissionGate anyOf={CATALOGUE_ADMIN_ACTIONS}>
             <div className="flex gap-3 ml-2 items-center">
-              <div title="Download by size (no watermark)">
+              <PermissionGate permission="catalogue.export"><div title="Download by size (no watermark)">
                 <SizeSelectionModal
                   categoryName={cat.name}
                   trigger={
@@ -1384,13 +1393,13 @@ const ListPage = () => {
                     />
                   }
                 />
-              </div>
+              </div></PermissionGate>
               <Download
                 role="img"
                 size={0}
                 className="hidden"
               />
-              <button
+              <PermissionGate permission="catalogue.export"><button
                 type="button"
                 title="Download media"
                 className={`inline-flex items-center justify-center p-0.5 rounded hover:bg-gray-100 ${
@@ -1404,7 +1413,7 @@ const ListPage = () => {
                   size={16}
                   className="text-green-600 hover:text-green-800"
                 />
-              </button>
+              </button></PermissionGate>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -1416,6 +1425,7 @@ const ListPage = () => {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <PermissionGate permission="catalogue.manageCategories">
                   <EditCategoryModal
                     category={cat}
                     onCategoryUpdate={(updatedCat) => {
@@ -1431,7 +1441,8 @@ const ListPage = () => {
                       </DropdownMenuItem>
                     }
                   />
-                  <DropdownMenuItem
+                  </PermissionGate>
+                  <PermissionGate permission="catalogue.export"><DropdownMenuItem
                     className="cursor-pointer"
                     disabled={isGenerating}
                     onSelect={() => {
@@ -1440,16 +1451,16 @@ const ListPage = () => {
                   >
                     <FileDownIcon className="mr-2 h-4 w-4 text-blue-600" />
                     Generate PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
+                  </DropdownMenuItem></PermissionGate>
+                  <PermissionGate permission="catalogue.export"><DropdownMenuItem
                     className="cursor-pointer"
                     onSelect={() => handleShareToReseller(cat.name)}
                   >
                     <Share2 className="mr-2 h-4 w-4 text-blue-600" />
                     Share to Reseller
-                  </DropdownMenuItem>
+                  </DropdownMenuItem></PermissionGate>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
+                  <PermissionGate permission="catalogue.manageCategories"><DropdownMenuItem
                     className="cursor-pointer"
                     onSelect={() => {
                       if (cat.code) handleToggleVisibility(cat.code);
@@ -1466,9 +1477,9 @@ const ListPage = () => {
                         Show for customer
                       </>
                     )}
-                  </DropdownMenuItem>
+                  </DropdownMenuItem></PermissionGate>
                   <DropdownMenuSeparator />
-                  <DialogDemo
+                  <PermissionGate permission="catalogue.delete"><DialogDemo
                     isTriggerElement
                     dialogTrigger={
                       <DropdownMenuItem
@@ -1495,7 +1506,8 @@ const ListPage = () => {
                     >
                       Delete
                     </Button>
-                  </DialogDemo>
+                  </DialogDemo></PermissionGate>
+                  <PermissionGate permission="catalogue.delete">
                   <ClearStockModal
                     categoryCode={cat.code!}
                     categoryName={cat.name}
@@ -1510,10 +1522,11 @@ const ListPage = () => {
                       </DropdownMenuItem>
                     }
                   />
+                  </PermissionGate>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          </RoleGateForComponent>
+          </PermissionGate>
         </div>
         <div className="flex items-start gap-4">
           <div className="flex-1 min-w-0">
@@ -1537,9 +1550,7 @@ const ListPage = () => {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <RoleGateForComponent
-                allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
-              >
+              <PermissionGate permission="catalogue.viewStats">
                 <div className="flex items-center gap-1">
                   <ShoppingBag size={14} className="text-blue-500" />
                   <span className="text-gray-600">Items:</span>
@@ -1570,7 +1581,7 @@ const ListPage = () => {
                     <span className="font-medium">0</span>
                   )}
                 </div>
-              </RoleGateForComponent>
+              </PermissionGate>
               <div className="flex flex-col gap-1 col-span-2">
                 {!hideResellerPrice && (
                   <div className="flex items-center gap-1">
@@ -1589,7 +1600,7 @@ const ListPage = () => {
               </div>
               <div className="flex items-center gap-4">
                 Stock Ready: {cat.isStockReady ? "Yes" : "No"}
-                {!cat.isStockReady && (
+                <PermissionGate permission="catalogue.manageCategories">{!cat.isStockReady && (
                   <SetStockReadyModal
                     categoryCode={cat.code!}
                     categoryName={cat.name}
@@ -1598,7 +1609,7 @@ const ListPage = () => {
                       handleSetStockReady(categoryCode)
                     }
                   />
-                )}
+                )}</PermissionGate>
               </div>
             </div>
           </div>
@@ -2217,9 +2228,7 @@ const ListPage = () => {
                         <TableHead className="text-center font-bold text-base">
                           Kurti Type
                         </TableHead>
-                        <RoleGateForComponent
-                          allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
-                        >
+                        <PermissionGate permission="catalogue.viewStats">
                           <TableHead className="text-center font-bold text-base">
                             Total Items
                           </TableHead>
@@ -2232,21 +2241,21 @@ const ListPage = () => {
                           >
                             Full Set Items
                           </TableHead>
-                        </RoleGateForComponent>
+                        </PermissionGate>
                         <TableHead className="text-center font-bold text-base">
                           Reseller/Customer Price
                         </TableHead>
                         <TableHead className="text-center font-bold text-base">
                           Wallet Discount
                         </TableHead>
-                        <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+                        <PermissionGate anyOf={CATALOGUE_ADMIN_ACTIONS}>
                           <TableHead className="text-center font-bold text-base">
                             Actions
                           </TableHead>
                           <TableHead className="text-center font-bold text-base">
                             Stock Ready
                           </TableHead>
-                        </RoleGateForComponent>
+                        </PermissionGate>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2290,9 +2299,7 @@ const ListPage = () => {
                               ?.value || ""}
                           </TableCell>
 
-                          <RoleGateForComponent
-                            allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}
-                          >
+                          <PermissionGate permission="catalogue.viewStats">
                             <TableCell className="text-center">
                               {cat.totalItems}
                             </TableCell>
@@ -2318,7 +2325,7 @@ const ListPage = () => {
                                 0
                               )}
                             </TableCell>
-                          </RoleGateForComponent>
+                          </PermissionGate>
                           <TableCell className="text-center">
                             <div className="flex flex-col gap-1 items-center">
                               {!hideResellerPrice && (
@@ -2337,11 +2344,11 @@ const ListPage = () => {
                           <TableCell className="text-center">
                             {cat.walletDiscount || 0}
                           </TableCell>
-                          <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+                          <PermissionGate anyOf={CATALOGUE_ADMIN_ACTIONS}>
                             <TableCell className="text-center">
                               <div className="flex justify-center items-center gap-3">
                                 {/* Keep outside per request */}
-                                <div title="Download by size (no watermark)">
+                                <PermissionGate permission="catalogue.export"><div title="Download by size (no watermark)">
                                   <SizeSelectionModal
                                     categoryName={cat.name}
                                     trigger={
@@ -2352,13 +2359,13 @@ const ListPage = () => {
                                       />
                                     }
                                   />
-                                </div>
+                                </div></PermissionGate>
                                 <Download
                                   role="img"
                                   size={0}
                                   className="hidden"
                                 />
-                                <button
+                                <PermissionGate permission="catalogue.export"><button
                                   type="button"
                                   title="Download media"
                                   className={`inline-flex items-center justify-center p-0.5 rounded hover:bg-gray-100 ${
@@ -2374,7 +2381,7 @@ const ListPage = () => {
                                     size={20}
                                     className="text-green-600 hover:text-green-800"
                                   />
-                                </button>
+                                </button></PermissionGate>
 
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
@@ -2387,6 +2394,7 @@ const ListPage = () => {
                                     </button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
+                                    <PermissionGate permission="catalogue.manageCategories">
                                     <EditCategoryModal
                                       category={cat}
                                       onCategoryUpdate={(updatedCat) => {
@@ -2402,7 +2410,8 @@ const ListPage = () => {
                                         </DropdownMenuItem>
                                       }
                                     />
-                                    <DropdownMenuItem
+                                    </PermissionGate>
+                                    <PermissionGate permission="catalogue.export"><DropdownMenuItem
                                       className="cursor-pointer"
                                       disabled={isGenerating}
                                       onSelect={() => {
@@ -2411,16 +2420,16 @@ const ListPage = () => {
                                     >
                                       <FileDownIcon className="mr-2 h-4 w-4 text-blue-600" />
                                       Generate PDF
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
+                                    </DropdownMenuItem></PermissionGate>
+                                    <PermissionGate permission="catalogue.export"><DropdownMenuItem
                                       className="cursor-pointer"
                                       onSelect={() => handleShareToReseller(cat.name)}
                                     >
                                       <Share2 className="mr-2 h-4 w-4 text-blue-600" />
                                       Share to Reseller
-                                    </DropdownMenuItem>
+                                    </DropdownMenuItem></PermissionGate>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem
+                                    <PermissionGate permission="catalogue.manageCategories"><DropdownMenuItem
                                       className="cursor-pointer"
                                       onSelect={() => {
                                         if (cat.code) handleToggleVisibility(cat.code);
@@ -2437,9 +2446,9 @@ const ListPage = () => {
                                           Show for customer
                                         </>
                                       )}
-                                    </DropdownMenuItem>
+                                    </DropdownMenuItem></PermissionGate>
                                     <DropdownMenuSeparator />
-                                    <DialogDemo
+                                    <PermissionGate permission="catalogue.delete"><DialogDemo
                                       isTriggerElement
                                       dialogTrigger={
                                         <DropdownMenuItem
@@ -2467,7 +2476,8 @@ const ListPage = () => {
                                       >
                                         Delete
                                       </Button>
-                                    </DialogDemo>
+                                    </DialogDemo></PermissionGate>
+                                    <PermissionGate permission="catalogue.delete">
                                     <ClearStockModal
                                       categoryCode={cat.code!}
                                       categoryName={cat.name}
@@ -2482,6 +2492,7 @@ const ListPage = () => {
                                         </DropdownMenuItem>
                                       }
                                     />
+                                    </PermissionGate>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
@@ -2489,7 +2500,7 @@ const ListPage = () => {
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center gap-4">
                                 {cat.isStockReady ? "Yes" : "No"}
-                                {!cat.isStockReady && (
+                                <PermissionGate permission="catalogue.manageCategories">{!cat.isStockReady && (
                                   <SetStockReadyModal
                                     categoryCode={cat.code!}
                                     categoryName={cat.name}
@@ -2503,10 +2514,10 @@ const ListPage = () => {
                                       handleSetStockReady(categoryCode)
                                     }
                                   />
-                                )}
+                                )}</PermissionGate>
                               </div>
                             </TableCell>
-                          </RoleGateForComponent>
+                          </PermissionGate>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -2555,18 +2566,9 @@ const ListPage = () => {
 
 const CatalogueListHelper = () => {
   return (
-    <RoleGateForComponent
-      allowedRole={[
-        UserRole.ADMIN,
-        UserRole.UPLOADER,
-        UserRole.SELLER,
-        UserRole.RESELLER,
-        UserRole.SELLER_MANAGER,
-        UserRole.SHOP_SELLER,
-      ]}
-    >
+    <PermissionGate permission="catalogue.view">
       <ListPage />
-    </RoleGateForComponent>
+    </PermissionGate>
   );
 };
 

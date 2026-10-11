@@ -3,8 +3,11 @@ export const dynamic = "force-dynamic";
 
 import { getPartyWiseCount } from "@/src/data/analytics";
 import { NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(req: Request) {
+  const guard = await apiPermission("analytics.view");
+  if (guard.response) return guard.response;
   const { searchParams } = new URL(req.url);
   const monthParam = searchParams.get("month"); // e.g. "2025-06"
 

@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { auth } from "@/src/auth";
+import { apiPermission } from "@/src/lib/permissions/server";
 import { db } from "@/src/lib/db";
 import { UserRole } from "@prisma/client";
 
@@ -18,10 +19,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const role = session.user.role;
-    if (role !== UserRole.ADMIN && role !== UserRole.MOD) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const guard = await apiPermission("wallet.addMoney");
+    if (guard.response) return guard.response;
 
     const body = await req.json();
     const { amount, paymentMethod, userId } = body as {

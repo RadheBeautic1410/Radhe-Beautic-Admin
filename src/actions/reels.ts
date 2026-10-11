@@ -1,8 +1,7 @@
 "use server"
 
-import { UserRole } from "@prisma/client";
 import { db } from "@/src/lib/db";
-import { currentRole } from "@/src/lib/auth";
+import { requirePermission } from "@/src/lib/permissions/server";
 
 // Customer "Watch & Shop" reels (Reel). Each reel is a YouTube Short plus the kurtis and
 // categories it shows; the customer reel page lists kurtiCodes first, then the categories.
@@ -14,11 +13,6 @@ export type ReelInput = {
   categoryCodes?: string[];
   isActive?: boolean;
 };
-
-async function requireAdmin() {
-  const role = await currentRole();
-  if (role !== UserRole.ADMIN) throw new Error("Unauthorized");
-}
 
 /** Pulls the 11-char video id out of a shorts / watch / youtu.be / embed link (or a bare id). */
 function parseYoutubeId(raw: string): string | null {
@@ -67,7 +61,7 @@ function toPick(k: { code: string; category: string; images: unknown[] }): Kurti
 }
 
 export async function getReelsAdmin() {
-  await requireAdmin();
+  await requirePermission("reels.view");
   const [reels, categories] = await Promise.all([
     db.reel.findMany({ orderBy: [{ order: "asc" }, { createdAt: "asc" }] }),
     db.category.findMany({
@@ -88,7 +82,7 @@ export async function getReelsAdmin() {
 
 /** Search kurtis by code or category for the reel picker. */
 export async function searchKurtisForReel(query: string): Promise<KurtiPick[]> {
-  await requireAdmin();
+  await requirePermission("reels.view");
   const q = query.trim();
   if (!q) return [];
   const kurtis = await db.kurti.findMany({
@@ -108,7 +102,7 @@ export async function searchKurtisForReel(query: string): Promise<KurtiPick[]> {
 
 export async function createReel(input: ReelInput) {
   try {
-    await requireAdmin();
+    await requirePermission("reels.create");
     const data = clean(input);
     const last = await db.reel.findFirst({ orderBy: { order: "desc" }, select: { order: true } });
     await db.reel.create({ data: { ...data, order: (last?.order ?? -1) + 1 } });
@@ -120,7 +114,7 @@ export async function createReel(input: ReelInput) {
 
 export async function updateReel(id: string, input: ReelInput) {
   try {
-    await requireAdmin();
+    await requirePermission("reels.edit");
     await db.reel.update({ where: { id }, data: clean(input) });
     return { success: true };
   } catch (error: any) {
@@ -130,7 +124,7 @@ export async function updateReel(id: string, input: ReelInput) {
 
 export async function deleteReel(id: string) {
   try {
-    await requireAdmin();
+    await requirePermission("reels.delete");
     await db.reel.delete({ where: { id } });
     return { success: true };
   } catch (error: any) {
@@ -141,7 +135,7 @@ export async function deleteReel(id: string) {
 /** Swap with the neighbour above/below. */
 export async function moveReel(id: string, direction: "up" | "down") {
   try {
-    await requireAdmin();
+    await requirePermission("reels.edit");
     const all = await db.reel.findMany({
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       select: { id: true },

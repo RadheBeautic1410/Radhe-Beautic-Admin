@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { notifyResellerPaymentConfirmedMany } from "@/src/lib/reseller-order-notifications";
 import { auth } from "@/src/auth";
+import { accessCan, checkPermission } from "@/src/lib/permissions/server";
 import { db } from "@/src/lib/db";
 import {
   UserRole,
@@ -21,6 +22,20 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const guard = await checkPermission([
+      "wallet.view",
+      "wallet.approve",
+      "orders.view",
+      "onlineSales.view",
+    ]);
+    if (!guard.ok) {
+      return new NextResponse(JSON.stringify({ error: guard.error }), {
+        status: guard.status,
+      });
+    }
+    // Reviewers see every reseller's requests; everyone else only their own.
+    const seesAll = accessCan(guard.access, "wallet.approve");
+
     const { searchParams } = new URL(request.url);
     const page = Math.max(parseInt(searchParams.get("page") || "1", 10), 1);
     const limit = Math.max(parseInt(searchParams.get("limit") || "20", 10), 1);
@@ -37,12 +52,7 @@ export async function GET(request: NextRequest) {
 
     if (resellerIdParam) {
       where.resellerId = resellerIdParam;
-    } else if (
-      !(
-        session.user.role === UserRole.ADMIN ||
-        session.user.role === UserRole.MOD
-      )
-    ) {
+    } else if (!seesAll) {
       where.resellerId = session.user.id;
     }
 
@@ -107,14 +117,10 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    if (
-      !(
-        session.user.role === UserRole.ADMIN ||
-        session.user.role === UserRole.MOD
-      )
-    ) {
+    const approve = await checkPermission("wallet.approve");
+    if (!approve.ok) {
       return new NextResponse(JSON.stringify({ error: "Forbidden" }), {
-        status: 403,
+        status: approve.status,
       });
     }
 

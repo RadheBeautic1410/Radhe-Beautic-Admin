@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/src/lib/db";
-import { currentUser } from "@/src/lib/auth";
+import { permissionError } from "@/src/lib/permissions/server";
 import { getUserById } from "@/src/data/user";
 
 
@@ -9,11 +9,8 @@ import { getUserById } from "@/src/data/user";
 export const userDelete = async (
     id: string
 ) => {
-    const user = await currentUser();
-
-    if (!user) {
-        return { error: "Unauthorized" }
-    }
+    const denied = await permissionError("staff.delete");
+    if (denied) return denied;
 
     const dbForm = await getUserById(id);
 

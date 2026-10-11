@@ -8,7 +8,7 @@ import { Button } from "@/src/components/ui/button";
 import { LogoutButton } from "@/src/components/auth/logout-button";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { getUserShop } from "@/src/actions/shop";
-import { canOpenMenu } from "@/src/lib/menus";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Admin",
@@ -39,15 +39,18 @@ const Row = ({
 
 const ProfilePage = () => {
   const user = useCurrentUser();
+  const { can } = usePermissions();
+  // Logins limited to their own shop have one attached.
+  const ownShopOnly = !can("stockLocation.anyLocation");
   const [shopName, setShopName] = useState<string | null>(null);
 
   // Only shop logins have a shop attached.
   useEffect(() => {
-    if (!user?.id || user.role !== "SHOP_SELLER") return;
+    if (!user?.id || !ownShopOnly) return;
     getUserShop(user.id)
       .then((shop) => setShopName(shop?.shopName || null))
       .catch(() => {});
-  }, [user?.id, user?.role]);
+  }, [user?.id, ownShopOnly]);
 
   if (!user) return null;
 
@@ -87,7 +90,7 @@ const ProfilePage = () => {
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row">
-            {canOpenMenu("/settings", user) && (
+            {can("settings.view") && (
               <Button asChild variant={"outline" as any} className="flex-1">
                 <Link href="/settings">Settings &amp; password</Link>
               </Button>

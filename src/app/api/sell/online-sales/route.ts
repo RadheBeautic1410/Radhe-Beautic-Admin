@@ -3,8 +3,11 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
 import { getOnlineSales } from "@/src/data/online-sales";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(request: NextRequest) {
+  const guard = await apiPermission(["onlineSales.view","orders.view"]);
+  if (guard.response) return guard.response;
   try {
     const session = await auth();
     

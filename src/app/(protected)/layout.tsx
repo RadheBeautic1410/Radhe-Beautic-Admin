@@ -32,6 +32,7 @@
 "use client";
 import Sidebar from "./_components/navbar/navbar";
 import { MenuGuard } from "./_components/menuGuard";
+import { PermissionsProvider } from "@/src/components/auth/permissions-provider";
 import {
   useQuery,
   useMutation,
@@ -48,17 +49,19 @@ const queryClient = new QueryClient();
 const ProtectedLayout = ({ children }: ProtectedLayoutProps) => {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="w-full flex bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400 to-blue-800">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto">
-          <div className="h-full">
-            <div className="mx-auto min-h-full">
-              <MenuGuard>{children}</MenuGuard>
+      <PermissionsProvider>
+        <div className="w-full flex bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400 to-blue-800">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto">
+            <div className="h-full">
+              <div className="mx-auto min-h-full">
+                <MenuGuard>{children}</MenuGuard>
+              </div>
             </div>
-          </div>
-        </main>
-        <ReactQueryDevtools />
-      </div>
+          </main>
+          <ReactQueryDevtools />
+        </div>
+      </PermissionsProvider>
     </QueryClientProvider>
   );
 };

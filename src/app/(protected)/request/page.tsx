@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RoleGate } from "@/src/components/auth/role-gate";
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
-import { useCurrentRole } from "@/src/hooks/use-currrent-role";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 import PageLoader from "@/src/components/loader";
 import { UserRole } from "@prisma/client";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
@@ -52,11 +51,11 @@ const ModeratorPage = () => {
     "all" | "verified" | "unverified"
   >("all");
 
-  const currentRole = useCurrentRole();
+  const { can } = usePermissions();
 
   useEffect(() => {
     const fetchData = async () => {
-      if (currentRole === UserRole.ADMIN || currentRole === UserRole.MOD) {
+      if (can("staff.view")) {
         try {
           const response = await fetch("/api/users");
           const result = await response.json();
@@ -73,7 +72,7 @@ const ModeratorPage = () => {
           }
 
           const rolesRes = await listRoles();
-          if (rolesRes.data) setRoles(rolesRes.data);
+          if ("data" in rolesRes && rolesRes.data) setRoles(rolesRes.data);
 
           setUsers(staff);
           setCustomers(customerList);
@@ -129,7 +128,7 @@ const ModeratorPage = () => {
   return (
     <>
       <PageLoader loading={loadingUsers} />
-      <RoleGate allowedRole={[UserRole.ADMIN, UserRole.MOD]}>
+      <PermissionGate permission="staff.view">
         <Card className="w-full h-full">
           <CardHeader className="bg-secondary rounded-xl">
             <div className="space-y-4">
@@ -214,15 +213,15 @@ const ModeratorPage = () => {
                     <TableHead className="text-center">Phone Number</TableHead>
                     <TableHead className="text-center">Verified</TableHead>
                     <TableHead className="text-center">Role</TableHead>
-                    <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
+                    <PermissionGate permission="staff.viewSalary">
                       <TableHead className="text-center">Salary</TableHead>
+                    </PermissionGate>
+                    <PermissionGate permission="staff.resetPassword">
                       <TableHead className="text-center">Password</TableHead>
-                    </RoleGateForComponent>
-                    <RoleGateForComponent
-                      allowedRole={[UserRole.ADMIN, UserRole.MOD]}
-                    >
+                    </PermissionGate>
+                    <PermissionGate permission="staff.view">
                       <TableHead className="text-center">Verified By</TableHead>
-                    </RoleGateForComponent>
+                    </PermissionGate>
                     <TableHead className="text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -249,11 +248,9 @@ const ModeratorPage = () => {
                     <TableHead className="text-center">Phone Number</TableHead>
                     <TableHead className="text-center">Verified</TableHead>
                     <TableHead className="text-center">Role</TableHead>
-                    <RoleGateForComponent
-                      allowedRole={[UserRole.ADMIN, UserRole.MOD]}
-                    >
+                    <PermissionGate permission="staff.view">
                       <TableHead className="text-center">Verified By</TableHead>
-                    </RoleGateForComponent>
+                    </PermissionGate>
                     <TableHead className="text-center">Action</TableHead>
                     <TableHead className="text-center">Balance</TableHead>
                     <TableHead className="text-center">Add Money</TableHead>
@@ -278,22 +275,15 @@ const ModeratorPage = () => {
             )}
           </CardContent>
         </Card>
-      </RoleGate>
+      </PermissionGate>
     </>
   );
 };
 
 const ModeratorPage2 = () => (
-  <>
-    <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-      <ModeratorPage />
-    </RoleGateForComponent>
-    <RoleGateForComponent
-      allowedRole={[UserRole.SELLER, UserRole.UPLOADER, UserRole.RESELLER]}
-    >
-      <NotAllowedPage />
-    </RoleGateForComponent>
-  </>
+  <PermissionGate permission="staff.view" fallback={<NotAllowedPage />}>
+    <ModeratorPage />
+  </PermissionGate>
 );
 
 export default ModeratorPage2;

@@ -2,8 +2,11 @@ export const dynamic = "force-dynamic";
 
 import { getPendingFloorMoves } from "@/src/data/godown";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(request: NextRequest) {
+  const guard = await apiPermission(["godown.view","stockLocation.view","moveToFloor.view"]);
+  if (guard.response) return guard.response;
   try {
     const params = request.nextUrl.searchParams;
     const page = parseInt(params.get("page") || "1", 10) || 1;

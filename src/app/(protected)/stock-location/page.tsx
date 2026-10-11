@@ -1,6 +1,5 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import React, { useCallback, useEffect, useState } from "react";
 import { UserRole } from "@prisma/client";
 import { Button } from "@/src/components/ui/button";
@@ -24,6 +23,8 @@ import {
 } from "@/src/lib/godown";
 import { getUserShop } from "@/src/actions/shop";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 
 interface LocationStockItem {
   id: string;
@@ -544,21 +545,23 @@ function RecentMovements() {
 
 function StockLocationPage() {
   const user = useCurrentUser();
+  const { can } = usePermissions();
   const [location, setLocation] = useState<StockLocation>("FLOOR_1");
-  const canSeeMoves = user?.role === UserRole.ADMIN || user?.role === UserRole.UPLOADER;
+  const canSeeMoves = can("stockLocation.viewMoves");
+  const canClearLocation = can("stockLocation.clearLocation");
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Shop logins (1st floor, 2nd floor, Shop 316) start on their own location.
   // The session can load after the first render, hence the effect.
   useEffect(() => {
-    if (user?.role !== UserRole.SHOP_SELLER || !user?.id) return;
+    if (can("stockLocation.anyLocation") || !user?.id) return;
     getUserShop(user.id)
       .then((shop) => {
         const loc = locationForShopId(shop?.id);
         if (loc) setLocation(loc);
       })
       .catch(() => {});
-  }, [user?.role, user?.id]);
+  }, [can, user?.id]);
 
   return (
     <Card className="w-full h-full rounded-none">
@@ -589,7 +592,7 @@ function StockLocationPage() {
 
         <LocationSummary refreshKey={refreshKey} selected={location} onSelect={setLocation} />
 
-        {user?.role === UserRole.ADMIN && (
+        {canClearLocation && (
           <ClearLocationButton
             key={location}
             location={location}
@@ -612,16 +615,9 @@ function StockLocationPage() {
 
 const StockLocationHelp = () => {
   return (
-    <RoleGateForComponent
-      allowedRole={[
-        UserRole.ADMIN,
-        UserRole.UPLOADER,
-        UserRole.SELLER,
-        UserRole.SHOP_SELLER,
-      ]}
-    >
+    <PermissionGate permission="stockLocation.view">
       <StockLocationPage />
-    </RoleGateForComponent>
+    </PermissionGate>
   );
 };
 

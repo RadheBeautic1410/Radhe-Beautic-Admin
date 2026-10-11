@@ -4,13 +4,14 @@ import PageLoader from "@/src/components/loader";
 import { Card, CardContent, CardHeader } from '@/src/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
 import { Input } from '@/src/components/ui/input';
-import { RoleGateForComponent } from '@/src/components/auth/role-gate-component';
 import { UserRole } from '@prisma/client';
 import NotAllowedPage from '../_components/errorPages/NotAllowedPage';
 import { format } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz'
 import { useCurrentUser } from '@/src/hooks/use-current-user';
 import { getUserShop } from '@/src/actions/shop';
+import { PermissionGate } from "@/src/components/auth/permission-gate";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 const headerCells = [
     {
         name: 'Sr.',
@@ -50,6 +51,9 @@ function SellingHistory() {
         return `${yyyy}-${mm}-${dd}`;
     });
     const currentUser = useCurrentUser();
+    const { can } = usePermissions();
+    // Without "use any stock location" the login is locked to its own shop.
+    const ownShopOnly = !can("stockLocation.anyLocation");
     useEffect(() => {
         // Load shops for dropdown (include Direct Sell option locally)
         const loadShops = async () => {
@@ -68,7 +72,7 @@ function SellingHistory() {
     useEffect(() => {
         const initForShopSeller = async () => {
             try {
-                if (currentUser?.id && currentUser.role === UserRole.SHOP_SELLER) {
+                if (currentUser?.id && ownShopOnly) {
                     const shop = await getUserShop(currentUser.id);
                     if (shop) {
                         setUserShop(shop);
@@ -173,7 +177,7 @@ function SellingHistory() {
                     </div>
                     <div className="flex flex-col">
                       <label htmlFor="shop" className="text-sm mb-1">Shop</label>
-                      {currentUser?.role === UserRole.SHOP_SELLER ? (
+                      {ownShopOnly ? (
                         <div className="p-2 border rounded-md bg-gray-50 min-w-[220px]">
                           {userShop ? (
                             <span className="text-gray-700 font-medium">
@@ -289,17 +293,11 @@ function SellingHistory() {
 }
 
 const SellHistoruHelper = () => {
-    return (
-        <>
-
-            <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SHOP_SELLER]}>
-                <SellingHistory />
-            </RoleGateForComponent>
-            <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.RESELLER]}>
-                <NotAllowedPage />
-            </RoleGateForComponent>
-        </>
-    )
-}
+  return (
+    <PermissionGate permission="sellingHistory.view" fallback={<NotAllowedPage />}>
+      <SellingHistory />
+    </PermissionGate>
+  );
+};
 
 export default SellingHistory

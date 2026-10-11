@@ -2,11 +2,13 @@
 import { UserButton } from "@/src/components/ui/user-button";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import React, { useEffect, useMemo, useState } from "react";
 import { cn } from "@/src/lib/utils";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { MENU_GROUPS, canOpenMenu } from "@/src/lib/menus";
+import { MENU_GROUPS } from "@/src/lib/menus";
+import { viewPermissionForMenu } from "@/src/lib/permissions/registry";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 
 // "/orders" must not light up on "/customer-orders", nor "/sell" on "/sellRetailer".
 const isActive = (pathname: string, href: string) =>
@@ -17,17 +19,22 @@ const Sidebar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set());
   const pathname = usePathname();
+  const { ready, can } = usePermissions();
   const { data: session } = useSession();
   const user = session?.user;
 
-  // Only the menus this user's role grants; a group with none is dropped.
+  // Only the pages this user holds `<module>.view` for; a group with none is
+  // dropped. Follows live permission changes (see PermissionsProvider).
   const routes = useMemo(
     () =>
       MENU_GROUPS.map((group) => ({
         ...group,
-        items: group.items.filter((item) => canOpenMenu(item.href, user)),
+        items: group.items.filter((item) => {
+          const key = viewPermissionForMenu(item.href);
+          return ready && !!key && can(key);
+        }),
       })).filter((group) => group.items.length > 0),
-    [user?.role, user?.menus]
+    [ready, can]
   );
 
   // Auto-expand submenu if current path matches any submenu item

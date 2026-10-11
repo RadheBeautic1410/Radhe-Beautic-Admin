@@ -23,13 +23,13 @@ import { toast } from "sonner";
 import { kurtiAddition } from "@/src/actions/kurti";
 import { useRouter } from "next/navigation";
 import { Category, Party, UserRole } from "@prisma/client";
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import PageLoader from "@/src/components/loader";
 import DesignUpload from "../_components/upload/deisgnUpload";
 import React from "react";
 import { v4 as uuidv4 } from "uuid";
 import { updateTotalItem, updateTotalPiece } from "@/src/actions/category";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 import {
   FABRICS,
   FIT_SHAPES,
@@ -1267,14 +1267,9 @@ const BulkUploadPage = () => {
 
 const BulkUploadHelper = () => {
   return (
-    <>
-      <RoleGateForComponent allowedRole={[UserRole.ADMIN, UserRole.UPLOADER]}>
-        <BulkUploadPage />
-      </RoleGateForComponent>
-      <RoleGateForComponent allowedRole={[UserRole.SELLER, UserRole.RESELLER]}>
-        <NotAllowedPage />
-      </RoleGateForComponent>
-    </>
+    <PermissionGate permission="upload.view" fallback={<NotAllowedPage />}>
+      <BulkUploadPage />
+    </PermissionGate>
   );
 };
 

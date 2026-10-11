@@ -8,8 +8,7 @@ import {
   getSalesByLocation,
   getSalesByLocationItems,
 } from "@/src/data/sales-by-location";
-import { currentUser } from "@/src/lib/auth";
-import { UserRole } from "@prisma/client";
+import { checkPermission } from "@/src/lib/permissions/server";
 import { NextRequest, NextResponse } from "next/server";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -17,9 +16,9 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 // GET ?from=YYYY-MM-DD&to=YYYY-MM-DD            -> summary per location
 // GET ...&soldBy=ONLINE[&channel=SCAN]          -> the sales behind one cell
 export async function GET(request: NextRequest) {
-  const user = await currentUser();
-  if (user?.role !== UserRole.ADMIN) {
-    return new NextResponse(JSON.stringify({ error: "Access denied" }), { status: 403 });
+  const guard = await checkPermission("salesByLocation.view");
+  if (!guard.ok) {
+    return new NextResponse(JSON.stringify({ error: "Access denied" }), { status: guard.status });
   }
 
   const params = request.nextUrl.searchParams;

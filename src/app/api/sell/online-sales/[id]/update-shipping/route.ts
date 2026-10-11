@@ -3,11 +3,14 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
 import { db } from "@/src/lib/db";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await apiPermission("onlineSales.editShipping");
+  if (guard.response) return guard.response;
   try {
     const session = await auth();
     const { id } = await params;
@@ -16,16 +19,6 @@ export async function PUT(
       return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
       });
-    }
-
-    // Check if user is admin
-    if (session.user.role !== "ADMIN") {
-      return new NextResponse(
-        JSON.stringify({
-          error: "Only admins can update shipping information",
-        }),
-        { status: 403 }
-      );
     }
 
     if (!session.user.id) {

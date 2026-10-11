@@ -3,8 +3,11 @@ export const dynamic = "force-dynamic";
 import { getLocationStock } from "@/src/data/godown";
 import { isStockLocation } from "@/src/lib/godown";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(request: NextRequest) {
+  const guard = await apiPermission(["stockLocation.view","godown.view"]);
+  if (guard.response) return guard.response;
   const params = request.nextUrl.searchParams;
   const location = params.get("location");
   if (!isStockLocation(location)) {

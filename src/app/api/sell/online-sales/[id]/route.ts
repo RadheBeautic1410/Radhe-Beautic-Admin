@@ -4,11 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
 import { getOnlineSaleById } from "@/src/data/online-sales";
 import { updateOnlineSaleWithWalletAndCart } from "@/src/data/online-sales";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await apiPermission(["onlineSales.view","orders.view"]);
+  if (guard.response) return guard.response;
 
   const { id } = await params;
 
@@ -38,6 +41,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await apiPermission(["onlineSales.edit","orders.edit"]);
+  if (guard.response) return guard.response;
   try {
     const session = await auth();
 

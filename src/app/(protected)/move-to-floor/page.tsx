@@ -1,13 +1,12 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import React from "react";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
-import { UserRole } from "@prisma/client";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/src/components/ui/button";
 import { PendingFloorMoves } from "../_components/godown/pending-floor-moves";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 
 function MoveToFloorPage() {
   return (
@@ -39,13 +38,9 @@ function MoveToFloorPage() {
 
 const MoveToFloorHelp = () => {
   return (
-    <>
-      <RoleGateForComponent
-        allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SELLER]}
-      >
-        <MoveToFloorPage />
-      </RoleGateForComponent>
-    </>
+    <PermissionGate permission="moveToFloor.view">
+      <MoveToFloorPage />
+    </PermissionGate>
   );
 };
 

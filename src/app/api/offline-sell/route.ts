@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { db as prisma } from "@/src/lib/db";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET() {
+  const guard = await apiPermission("offlineSales.view");
+  if (guard.response) return guard.response;
   try {
     const offlineSales = await prisma.offlineSell.findMany({
       select: {

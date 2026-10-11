@@ -5,10 +5,13 @@ import { notifyResellerPaymentConfirmedMany } from "@/src/lib/reseller-order-not
 import { auth } from "@/src/auth";
 import { db } from "@/src/lib/db";
 import { PaymentStatus, UserRole } from "@prisma/client";
+import { apiPermission } from "@/src/lib/permissions/server";
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await apiPermission(["onlineSales.edit", "orders.edit", "wallet.approve", "staff.edit"]);
+  if (guard.response) return guard.response;
   try {
     const session = await auth();
     if (!session?.user) {

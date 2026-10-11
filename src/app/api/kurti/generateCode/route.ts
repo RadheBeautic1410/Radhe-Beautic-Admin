@@ -2,9 +2,12 @@ export const dynamic = 'force-dynamic'
 import { db } from "@/src/lib/db";
 import { getCode, getKurtiCount } from "@/src/data/kurti";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 // search for the highest existing code
 export async function GET(request: NextRequest) {
+  const guard = await apiPermission(["upload.create","catalogue.edit"]);
+  if (guard.response) return guard.response;
   try {
     const cat = (request.nextUrl.searchParams.get("cat") || "").toUpperCase();
     const prefix = await getCode(cat);

@@ -2,9 +2,13 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
+import { accessCan } from "@/src/lib/permissions/server";
 import { getOfflineSalesReport } from "@/src/data/offline-sales";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(request: NextRequest) {
+  const guard = await apiPermission("offlineSales.view");
+  if (guard.response) return guard.response;
   try {
     const session = await auth();
     
@@ -30,7 +34,9 @@ export async function GET(request: NextRequest) {
       endDate,
     //   paymentStatus,
       userId: session.user.id,
-      userRole: session.user.role
+      // Shop scoping inside getOfflineSales keys on "ADMIN": hand it that only
+      // when the user may see every shop's bills.
+      userRole: accessCan(guard.access, "offlineSales.viewAllShops") ? "ADMIN" : guard.access.baseRole,
     });
 
     return new NextResponse(JSON.stringify({

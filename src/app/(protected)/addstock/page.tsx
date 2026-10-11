@@ -1,9 +1,7 @@
 "use client";
-import { RoleGateForComponent } from '@/src/components/auth/role-gate-component'
 import { LOCATION_LABELS, STOCK_LOCATIONS, StockLocation, describeLocations } from "@/src/lib/godown";
 import React, { useState } from 'react'
 import NotAllowedPage from '../_components/errorPages/NotAllowedPage'
-import { UserRole } from '@prisma/client'
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/src/components/ui/card';
 import { Input } from '@/src/components/ui/input';
@@ -11,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import axios from 'axios';
 import { Axis3D, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 
 function StockAddPage() {
     const [code, setCode] = useState("");
@@ -401,16 +400,11 @@ function StockAddPage() {
 }
 
 const StockHelp = () => {
-    return (
-        <>
+  return (
+    <PermissionGate permission="addStock.view" fallback={<NotAllowedPage />}>
+      <StockAddPage />
+    </PermissionGate>
+  );
+};
 
-            <RoleGateForComponent allowedRole={[UserRole.ADMIN]}>
-                <StockAddPage />
-            </RoleGateForComponent>
-            <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
-                <NotAllowedPage />
-            </RoleGateForComponent>
-        </>
-    )
-}
 export default StockHelp

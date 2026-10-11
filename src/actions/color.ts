@@ -1,8 +1,11 @@
 "use server";
 
 import { db } from "@/src/lib/db";
+import { permissionError } from "@/src/lib/permissions/server";
 
 export const colorAddition = async (data: { name: string }) => {
+  const denied = await permissionError("upload.create");
+  if (denied) return { error: denied.error };
   const { name } = data;
   if (!name || name.trim() === "") {
     return { error: "Color name is required" };

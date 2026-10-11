@@ -1,6 +1,5 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import React, { useEffect, useState } from "react";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { getUserShop } from "@/src/actions/shop";
@@ -31,6 +30,8 @@ import {
 } from "@/src/lib/godown";
 import { PendingFloorMoves } from "../_components/godown/pending-floor-moves";
 import { BulkMoveDialog } from "../_components/godown/bulk-move-dialog";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 
 interface LastMove {
   code: string;
@@ -74,6 +75,8 @@ const LocationButtons = ({
 
 function GodownStockPage() {
   const user = useCurrentUser();
+  const { can } = usePermissions();
+  const anyLocation = can("stockLocation.anyLocation");
   const [code, setCode] = useState("");
   const [from, setFrom] = useState<StockLocation>("GODOWN");
   const [to, setTo] = useState<StockLocation>("FLOOR_1");
@@ -85,7 +88,7 @@ function GodownStockPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (user?.role !== UserRole.SHOP_SELLER || !user?.id) return;
+    if (anyLocation || !user?.id) return;
     getUserShop(user.id)
       .then((shop) => {
         const loc = locationForShopId(shop?.id);
@@ -95,7 +98,7 @@ function GodownStockPage() {
         setTo(loc);
       })
       .catch(() => {});
-  }, [user?.role, user?.id]);
+  }, [anyLocation, user?.id]);
 
   const chooseFrom = (loc: StockLocation) => {
     setFrom(loc);
@@ -295,16 +298,9 @@ function GodownStockPage() {
 
 const GodownStockHelp = () => {
   return (
-    <>
-      <RoleGateForComponent
-        allowedRole={[UserRole.ADMIN, UserRole.UPLOADER, UserRole.SHOP_SELLER]}
-      >
-        <GodownStockPage />
-      </RoleGateForComponent>
-      <RoleGateForComponent allowedRole={[UserRole.SELLER]}>
-        <NotAllowedPage />
-      </RoleGateForComponent>
-    </>
+    <PermissionGate permission="godown.view" fallback={<NotAllowedPage />}>
+      <GodownStockPage />
+    </PermissionGate>
   );
 };
 

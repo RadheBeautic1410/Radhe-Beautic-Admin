@@ -41,6 +41,8 @@ import {
 import { Badge } from "@/src/components/ui/badge";
 import { cn } from "@/src/lib/utils";
 import { DeleteConfirmationDialog } from "@/src/components/delete-confirmation-dialog";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
+import { useCan } from "@/src/components/auth/permissions-provider";
 
 const offerSchema = z.object({
   name: z.string().min(1, "Offer name is required"),
@@ -71,6 +73,9 @@ interface Category {
 }
 
 const OffersPage = () => {
+  const canCreate = useCan("offers.create");
+  const canEdit = useCan("offers.edit");
+  const canDelete = useCan("offers.delete");
   const [isPending, startTransition] = useTransition();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -271,6 +276,7 @@ const OffersPage = () => {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-2 w-full">
             <CardTitle className="text-2xl font-semibold">🎁 Offers</CardTitle>
             <div>
+              {canCreate && (
               <Button asChild>
                 <DialogDemo
                   dialogTrigger="+ Add Offer"
@@ -495,6 +501,7 @@ const OffersPage = () => {
                   )}
                 </DialogDemo>
               </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -566,6 +573,7 @@ const OffersPage = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        {canEdit && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -574,6 +582,8 @@ const OffersPage = () => {
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
+                        )}
+                        {canDelete && (
                         <Button
                           variant="destructive"
                           size="sm"
@@ -582,6 +592,7 @@ const OffersPage = () => {
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

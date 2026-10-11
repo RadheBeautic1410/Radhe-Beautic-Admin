@@ -928,7 +928,14 @@ model Role {
   name      String   @unique
   /// The fixed role that in-page checks (buttons, actions) treat this role as.
   baseRole  UserRole @default(USER)
+  /// LEGACY sidebar hrefs. Kept in step with `permissions` (the modules whose
+  /// `.view` is granted) until every consumer has moved over; then it is removed.
   menus     String[]
+  /// Granted permission keys, "<module>.<action>" (see src/lib/permissions/registry.ts).
+  /// Authoritative only once `permissionsSetAt` is set; before that the role is
+  /// still resolved from `menus` + `baseRole` so nothing changes on deploy.
+  permissions      String[]
+  permissionsSetAt DateTime?
   isSystem  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

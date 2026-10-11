@@ -3,8 +3,11 @@ export const dynamic = 'force-dynamic';
 import { NextResponse, NextRequest } from "next/server";
 import axios from "axios";
 import { searchKurtiByVector } from "@/src/lib/kurtiVectorSearch";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function POST(request: NextRequest) {
+  const guard = await apiPermission("catalogue.view");
+  if (guard.response) return guard.response;
   try {
     const { text } = await request.json();
 

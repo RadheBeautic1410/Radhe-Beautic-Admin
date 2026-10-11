@@ -1,7 +1,10 @@
 import { db } from "@/src/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 export async function GET(req: NextRequest) {
+  const guard = await apiPermission("otherProducts.view");
+  if (guard.response) return guard.response;
   try {
     const { searchParams } = new URL(req.url);
 
@@ -83,6 +86,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const guard = await apiPermission("otherProducts.create");
+  if (guard.response) return guard.response;
   try {
     const body = await req.json();
     const { categoryName, productType, subType, description, images } = body;

@@ -1,13 +1,8 @@
 "use server";
 
 import { db } from "@/src/lib/db";
-import { currentUser } from "@/src/lib/auth";
 import { UserRole } from "@prisma/client";
-
-const requireAdmin = async () => {
-  const user = await currentUser();
-  return user?.role === UserRole.ADMIN ? user : null;
-};
+import { checkPermission } from "@/src/lib/permissions/server";
 
 /**
  * Set a staff member's password. Sign-in compares the stored password as plain
@@ -15,7 +10,8 @@ const requireAdmin = async () => {
  * shows it to the admin.
  */
 export const staffChangePassword = async (userId: string, newPassword: string) => {
-  if (!(await requireAdmin())) return { error: "Unauthorized" };
+  const guard = await checkPermission("staff.resetPassword");
+  if (!guard.ok) return { error: guard.error };
 
   const password = (newPassword || "").trim();
   if (password.length < 6) return { error: "Password must be at least 6 characters" };
@@ -28,9 +24,9 @@ export const staffChangePassword = async (userId: string, newPassword: string) =
 };
 
 export const staffDelete = async (userId: string) => {
-  const admin = await requireAdmin();
-  if (!admin) return { error: "Unauthorized" };
-  if (admin.id === userId) return { error: "You cannot delete your own account." };
+  const guard = await checkPermission("staff.delete");
+  if (!guard.ok) return { error: guard.error };
+  if (guard.access.userId === userId) return { error: "You cannot delete your own account." };
 
   const target = await db.user.findUnique({ where: { id: userId } });
   if (!target) return { error: "User not found" };

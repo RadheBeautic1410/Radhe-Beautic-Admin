@@ -3,9 +3,12 @@ export const dynamic = 'force-dynamic'
 import { addStock } from "@/src/data/kurti";
 import { isStockLocation } from "@/src/lib/godown";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPermission } from "@/src/lib/permissions/server";
 
 
 export async function POST(request: NextRequest) {
+    const guard = await apiPermission(["addStock.create","catalogue.edit"]);
+    if (guard.response) return guard.response;
     try {
         let data = await request.json();
         console.log(data);

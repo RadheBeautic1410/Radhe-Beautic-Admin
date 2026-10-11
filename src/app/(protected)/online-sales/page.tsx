@@ -1,6 +1,5 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import {
@@ -52,6 +51,7 @@ import { format, addDays } from "date-fns";
 import { cn, generateAddressInfoHtml } from "@/src/lib/utils";
 import { date } from "zod";
 import { generateAddressInfo } from "@/src/actions/generate-pdf";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 interface ShippingAddress {
   address: string;
   city?: string;
@@ -814,21 +814,9 @@ function OnlineSalesPage() {
 
 const OnlineSalesPageWrapper = () => {
   return (
-    <>
-      <RoleGateForComponent
-        allowedRole={[
-          UserRole.ADMIN,
-          UserRole.SELLER,
-          UserRole.SHOP_SELLER,
-          UserRole.SELLER_MANAGER,
-        ]}
-      >
-        <OnlineSalesPage />
-      </RoleGateForComponent>
-      <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
-        <NotAllowedPage />
-      </RoleGateForComponent>
-    </>
+    <PermissionGate permission="onlineSales.view" fallback={<NotAllowedPage />}>
+      <OnlineSalesPage />
+    </PermissionGate>
   );
 };
 

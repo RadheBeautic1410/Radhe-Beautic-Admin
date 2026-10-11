@@ -13,6 +13,7 @@ import {
 import { getTotalFullSetCount } from "../data/fullSet";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { permissionError } from "@/src/lib/permissions/server";
 import {
   LOCATION_LABELS,
   StockLocation,
@@ -47,6 +48,8 @@ interface categoryAddtionProps {
 }
 
 export const categoryAddition = async (data: categoryAddtionProps) => {
+  const denied = await permissionError(["catalogue.manageCategories","upload.create"]);
+  if (denied) return { error: denied.error };
   const user = await currentUser();
   const role = await currentRole();
 
@@ -118,6 +121,8 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
 };
 
 export const categoryDelete = async (id: string) => {
+  const denied = await permissionError("catalogue.delete");
+  if (denied) return { error: denied.error };
   const user = await currentUser();
 
   const role = await currentRole();
@@ -136,6 +141,8 @@ export const categoryDelete = async (id: string) => {
 };
 
 export const updateTotalItem = async (code: string, total: number) => {
+  const denied = await permissionError(["upload.create","catalogue.manageCategories"]);
+  if (denied) return { error: denied.error };
   console.log("code and total ---------------", code, total);
   const result = await db.category.update({
     where: { code: code },
@@ -149,6 +156,8 @@ export const updateTotalItem = async (code: string, total: number) => {
 };
 
 export const updateTotalPiece = async (code: string, total: number) => {
+  const denied = await permissionError(["upload.create","catalogue.manageCategories"]);
+  if (denied) return { error: denied.error };
   console.log("code and total in piece---------------", code, total);
   const result = await db.category.update({
     where: { code: code },
@@ -164,6 +173,8 @@ export const categoryTypeUpdate = async (
   lowercaseName: string,
   newType: string
 ) => {
+  const denied = await permissionError("catalogue.manageCategories");
+  if (denied) return { error: denied.error };
   const newCategory = await db.category.update({
     where: { normalizedLowerCase: lowercaseName },
     data: {
@@ -178,6 +189,8 @@ export const categoryUpdate = async (
   id: string,
   data: categoryAddtionProps
 ) => {
+  const denied = await permissionError("catalogue.manageCategories");
+  if (denied) return { error: denied.error };
   const user = await currentUser();
   const role = await currentRole();
 
@@ -461,6 +474,8 @@ export async function generateMultipleCategoryPDFs(categoryCodes: string[]) {
 }
 
 export const getCategoryOverallStates = async () => {
+  const denied = await permissionError("catalogue.view");
+  if (denied) return { totalItems: 0, totalPices: 0, totalStockPrice: 0, totalFullSets: 0 };
   try {
     const rows = await db.category.findMany({
       where: { isDeleted: false },
@@ -531,6 +546,8 @@ export const clearStockData = async (
   categoryCode: string,
   location?: StockLocation
 ) => {
+  const denied = await permissionError("catalogue.delete");
+  if (denied) return { error: denied.error };
   if (location) {
     if (!isStockLocation(location)) {
       return { success: false, error: "Unknown stock location" };
@@ -670,6 +687,8 @@ const clearCategoryLocation = async (
 };
 
 export const setStockReady = async (categoryCode: string) => {
+  const denied = await permissionError("catalogue.manageCategories");
+  if (denied) return { error: denied.error };
   try {
     const category = await db.category.findUnique({
       where: {
@@ -714,6 +733,8 @@ export const setStockReady = async (categoryCode: string) => {
 };
 
 export const toggleVisibilityForCustomer = async (categoryCode: string) => {
+  const denied = await permissionError("catalogue.manageCategories");
+  if (denied) return { error: denied.error };
   try {
     const category = await db.category.findUnique({
       where: {
@@ -805,6 +826,8 @@ type SizeObject = {
 // }
 
 export default async function syncCategoryData() {
+  const denied = await permissionError("catalogue.view");
+  if (denied) return;
   const categories = await db.category.findMany();
 
   await Promise.all(

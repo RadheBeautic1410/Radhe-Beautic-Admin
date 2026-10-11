@@ -2,9 +2,11 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/auth";
+import { accessCan } from "@/src/lib/permissions/server";
 import { getOfflineSaleById } from "@/src/data/offline-sales";
 import { regenerateOfflineSaleInvoice } from "@/src/data/kurti";
 import { db } from "@/src/lib/db";
+import { apiPermission } from "@/src/lib/permissions/server";
 import {
   StockLocation,
   addToLocation,
@@ -24,6 +26,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await apiPermission("offlineSales.view");
+  if (guard.response) return guard.response;
   const { id } = await params;
   try {
     const session = await auth();
@@ -50,7 +54,7 @@ export async function GET(
     }
 
     // Check if user has access to this sale
-    if (session.user.role !== "ADMIN") {
+    if (!accessCan(guard.access, "offlineSales.viewAllShops")) {
       // For non-admin users, check if the sale belongs to their shop
       const userShop = await db.user.findUnique({
         where: { id: session.user.id },
@@ -83,6 +87,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await apiPermission("offlineSales.edit");
+  if (guard.response) return guard.response;
   try {
     const session = await auth();
     const currTime = await getCurrTime();
@@ -241,7 +247,7 @@ export async function PUT(
     }
 
     // Check if user has access to this sale
-    if (session.user.role !== "ADMIN") {
+    if (!accessCan(guard.access, "offlineSales.viewAllShops")) {
       // For non-admin users, check if the sale belongs to their shop
       const userShop = await db.user.findUnique({
         where: { id: session.user.id },

@@ -1,6 +1,5 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import {
   LOCATION_LABELS,
   STOCK_LOCATIONS,
@@ -29,6 +28,8 @@ import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import NotAllowedPage from "../_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 
 const getCurrTime = () => {
   const currentTime = new Date();
@@ -48,7 +49,9 @@ function SellPage() {
   const [floor, setFloor] = useState<StockLocation | null>(null);
   // Shop logins (1st floor, 2nd floor, Shop 316) always sell their own location.
   const [lockedLocation, setLockedLocation] = useState<StockLocation | null>(null);
-  const isShopLogin = currentUser?.role === UserRole.SHOP_SELLER;
+  const { can } = usePermissions();
+  // Without "use any stock location" a login sells only from its own shop.
+  const isShopLogin = !can("stockLocation.anyLocation");
   useEffect(() => {
     if (isShopLogin) return;
     try {
@@ -370,16 +373,9 @@ function SellPage() {
 
 const SellerHelp = () => {
   return (
-    <>
-      <RoleGateForComponent
-        allowedRole={[UserRole.ADMIN, UserRole.SELLER, UserRole.SHOP_SELLER]}
-      >
-        <SellPage />
-      </RoleGateForComponent>
-      <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
-        <NotAllowedPage />
-      </RoleGateForComponent>
-    </>
+    <PermissionGate permission="sell.view" fallback={<NotAllowedPage />}>
+      <SellPage />
+    </PermissionGate>
   );
 };
 

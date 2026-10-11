@@ -1,6 +1,7 @@
 "use server";
 
 import { OfflineSellType, OnlineSellType } from "@prisma/client";
+import { permissionError } from "@/src/lib/permissions/server";
 
 export const generateInvoicePDF = async (data: {
   saleData: any;
@@ -18,6 +19,8 @@ export const generateInvoicePDF = async (data: {
   shippingCharge?: number;
   trackingId?: string;
 }): Promise<{ success: boolean; pdfBase64?: string; error?: string }> => {
+  const denied = await permissionError(["offlineSales.view","onlineSales.view","hallSales.view","sellRetailer.view"]);
+  if (denied) return { success: false as const, error: denied.error };
   try {
     const {
       batchNumber,
@@ -150,6 +153,8 @@ export const generateAddressInfo = async ({
   group: string;
   address: string;
 }) => {
+  const denied = await permissionError(["onlineSales.view","orders.view"]);
+  if (denied) return { success: false as const, error: denied.error };
   try {
     // Prepare the request payload for the backend API
     const requestPayload = {

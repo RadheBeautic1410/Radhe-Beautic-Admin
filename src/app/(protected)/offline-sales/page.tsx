@@ -1,6 +1,5 @@
 "use client";
 
-import { RoleGateForComponent } from "@/src/components/auth/role-gate-component";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import {
@@ -45,11 +44,13 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import NotAllowedPage from "@/src/app/(protected)/_components/errorPages/NotAllowedPage";
 import { useCurrentUser } from "@/src/hooks/use-current-user";
+import { usePermissions } from "@/src/components/auth/permissions-provider";
 import { getShopList } from "@/src/actions/shop";
 import { useDebounce } from "@/src/hooks/useDebounce";
 import { DateRange } from "react-day-picker";
 import { format, addDays } from "date-fns";
 import { cn } from "@/src/lib/utils";
+import { PermissionGate } from "@/src/components/auth/permission-gate";
 
 const isHallOfflineSale = (sellType: OfflineSellType) =>
   sellType === OfflineSellType.HALL_SELL_OFFLINE ||
@@ -121,12 +122,14 @@ function OfflineSalesPage() {
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   const currentUser = useCurrentUser();
+  const { can: canDo } = usePermissions();
+  const canViewAllShops = canDo("offlineSales.viewAllShops");
   const router = useRouter();
 
   // Load shops for admin
   useEffect(() => {
     const loadShops = async () => {
-      if (currentUser?.role === UserRole.ADMIN) {
+      if (canViewAllShops) {
         try {
           setShopsLoading(true);
           const shopList = await getShopList();
@@ -400,7 +403,7 @@ function OfflineSalesPage() {
             </div>
 
             {/* Shop Filter for Admin */}
-            {currentUser?.role === UserRole.ADMIN && shops.length > 0 && (
+            {canViewAllShops && shops.length > 0 && (
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium">Filter by Shop:</label>
                 <Select
@@ -757,21 +760,9 @@ function OfflineSalesPage() {
 
 const OfflineSalesPageWrapper = () => {
   return (
-    <>
-      <RoleGateForComponent
-        allowedRole={[
-          UserRole.ADMIN,
-          UserRole.SELLER,
-          UserRole.SHOP_SELLER,
-          UserRole.SELLER_MANAGER,
-        ]}
-      >
-        <OfflineSalesPage />
-      </RoleGateForComponent>
-      <RoleGateForComponent allowedRole={[UserRole.UPLOADER]}>
-        <NotAllowedPage />
-      </RoleGateForComponent>
-    </>
+    <PermissionGate permission="offlineSales.view" fallback={<NotAllowedPage />}>
+      <OfflineSalesPage />
+    </PermissionGate>
   );
 };
 
