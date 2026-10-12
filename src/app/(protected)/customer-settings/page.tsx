@@ -188,6 +188,9 @@ export default function CustomerSettingsPage() {
 
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-gray-600 block">Desktop Image (Required)</Label>
+                    <p className="text-[11px] text-gray-500">
+                      Recommended: 2520 × 960 px (21:8, wide). Keep faces and products in the middle; the edges may be cropped.
+                    </p>
                     <div className="flex items-center gap-3">
                       <Button
                         type="button"
@@ -210,6 +213,9 @@ export default function CustomerSettingsPage() {
 
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-gray-600 block">Mobile Image (Optional)</Label>
+                    <p className="text-[11px] text-gray-500">
+                      Recommended: 1080 × 1350 px (4:5, portrait). If left empty, the desktop image is used.
+                    </p>
                     <div className="flex items-center gap-3">
                       <Button
                         type="button"

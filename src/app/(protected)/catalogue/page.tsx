@@ -2185,6 +2185,7 @@ const ListPage = () => {
                       data={data}
                       key={`${data.id}-${i}`}
                       onKurtiDelete={handleKurtiDelete}
+                      showLocationStock
                     />
                   ))}
                 </CardContent>

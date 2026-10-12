@@ -1,6 +1,7 @@
 "use client";
 import * as z from "zod";
 import axios, { AxiosProgressEvent, CancelTokenSource } from "axios";
+import { interleaveBarcodeRows } from "@/src/lib/barcodePdf";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { useDropzone } from "react-dropzone";
 import { Input } from "@/src/components/ui/input";
@@ -111,7 +112,7 @@ const UploadPage = () => {
     } else {
       try {
         setBarcodeDownloading(true);
-        let obj = JSON.stringify(sizes);
+        let obj = JSON.stringify(interleaveBarcodeRows(sizes));
         const res = await axios.get(
           `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${generatedCode}`,
           {

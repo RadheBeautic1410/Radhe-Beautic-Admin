@@ -1,6 +1,7 @@
 "use client";
 import * as z from "zod";
 import axios from "axios";
+import { interleaveBarcodeRows } from "@/src/lib/barcodePdf";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
 import { CheckIcon, ChevronsUpDownIcon, Loader2, Trash2, Plus } from "lucide-react";
@@ -497,7 +498,8 @@ const BulkUploadPage = () => {
     colors.find((c) => c.normalizedLowerCase === value)?.name || value;
 
   const downloadLabel = async (item: UploadSummaryItem) => {
-    const obj = JSON.stringify(item.sizes);
+    // Labels come out round by round (M, L, M, L ...) rather than all M then all L
+    const obj = JSON.stringify(interleaveBarcodeRows(item.sizes));
     const res = await axios.get(
       `${process.env.NEXT_PUBLIC_SERVER_URL}/generate-pdf2?data=${obj}&id=${item.code}`,
       { responseType: "blob" }
