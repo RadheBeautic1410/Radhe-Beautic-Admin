@@ -119,6 +119,9 @@ function SellPage() {
   const [selectedShopId, setSelectedShopId] = useState("");
   const [shops, setShops] = useState<any[]>([]);
   const [paymentType, setpaymentType] = useState("");
+  // "Split" = part cash, part online; online part is the rest of the bill.
+  const [splitCash, setSplitCash] = useState("");
+  const [splitOnlineMethod, setSplitOnlineMethod] = useState("GPay");
   const [userShop, setUserShop] = useState<any>(null);
   const [remark, setRemark] = useState("");
   const [discountAmount, setDiscountAmount] = useState<string>("");
@@ -453,6 +456,16 @@ function SellPage() {
     return Math.max(0, sub - disc);
   };
 
+  const isSplitPayment = paymentType === "Split";
+  const splitCashValue = Math.max(0, Math.round(Number(splitCash) || 0));
+  const splitOnlineValue = getNetTotalAmount() - splitCashValue;
+  const splitValid =
+    splitCashValue > 0 && splitOnlineValue > 0 && splitCashValue < getNetTotalAmount();
+  // What is stored / printed as the payment type.
+  const paymentLabel = isSplitPayment
+    ? `Cash ₹${splitCashValue} + ${splitOnlineMethod} ₹${Math.max(0, splitOnlineValue)}`
+    : paymentType.trim();
+
   const draftInvoiceRef = useRef(`DRAFT-${Date.now()}`);
   const [draftDisplayBillNo, setDraftDisplayBillNo] = useState<string>("");
 
@@ -487,7 +500,7 @@ function SellPage() {
       customerName: customerName.trim() || "-",
       customerPhone: customerPhone.trim() || "-",
       billCreatedBy: billCreatedBy.trim() || "-",
-      paymentType: paymentType.trim() || "-",
+      paymentType: paymentLabel || "-",
       remark: remark.trim() || "",
       discountAmount: getDiscountValue(),
       gstType,
@@ -516,6 +529,7 @@ function SellPage() {
     userShop?.shopLocation,
     userShop?.shopName,
     draftDisplayBillNo,
+    paymentLabel,
   ]);
 
   const handleSell = async () => {
@@ -572,6 +586,12 @@ function SellPage() {
         toast.error("Please select payment type");
         return;
       }
+      if (isSplitPayment && !splitValid) {
+        toast.error(
+          "Split payment: enter a cash amount less than the bill total (the rest goes online)",
+        );
+        return;
+      }
       // if (!shopName.trim()) {
       //   toast.error("Please enter shop name");
       //   return;
@@ -607,7 +627,16 @@ function SellPage() {
         customerName: customerName.trim() || "-",
         customerPhone: customerPhone.trim(),
         billCreatedBy: billCreatedBy.trim() || "-",
-        paymentType: paymentType.trim(),
+        paymentType: isSplitPayment
+          ? `Cash + ${splitOnlineMethod}`
+          : paymentType.trim(),
+        paymentSplit: isSplitPayment
+          ? {
+              cash: splitCashValue,
+              online: splitOnlineValue,
+              onlineMethod: splitOnlineMethod,
+            }
+          : undefined,
         gstType: gstType,
         shopId: selectedShopId.trim(),
         sellType: "SHOP_SELL_OFFLINE",
@@ -667,7 +696,7 @@ function SellPage() {
         customerName: customerName.trim() || "-",
         customerPhone: customerPhone.trim(),
         billCreatedBy: billCreatedBy.trim() || "-",
-        paymentType: paymentType.trim(),
+        paymentType: paymentLabel,
         remark: remark.trim() || "",
         discountAmount: getDiscountValue(),
         gstType,
@@ -719,6 +748,8 @@ function SellPage() {
     }
     setBillCreatedBy("");
     setpaymentType("");
+    setSplitCash("");
+    setSplitOnlineMethod("GPay");
     setRemark("");
     setDiscountAmount("");
     setUntrackedCategory("kurti");
@@ -752,6 +783,7 @@ function SellPage() {
     pricedCart.every((item) => !!item.sellingPrice && item.sellingPrice > 0) &&
     selectedShopId.trim().length > 0 &&
     paymentType.trim().length > 0 &&
+    (!isSplitPayment || splitValid) &&
     !selling;
 
   const missingCompleteSaleFields = useMemo(() => {
@@ -761,8 +793,9 @@ function SellPage() {
       missing.push("Prices");
     if (!selectedShopId.trim()) missing.push("Shop");
     if (!paymentType.trim()) missing.push("Payment Type");
+    if (isSplitPayment && !splitValid) missing.push("Split amounts");
     return missing;
-  }, [pricedCart, cart.length, paymentType, selectedShopId]);
+  }, [pricedCart, cart.length, paymentType, selectedShopId, isSplitPayment, splitValid]);
 
   return (
     <Card className="rounded-none w-full h-full">
@@ -1168,7 +1201,40 @@ function SellPage() {
                     <option value="GPay">GPay</option>
                     <option value="Cash">Cash</option>
                     <option value="BankTransfer">Bank Transfer</option>
+                    <option value="Split">Split (Cash + Online)</option>
                   </select>
+                  {isSplitPayment && (
+                    <>
+                      <Label htmlFor="split-cash" className="whitespace-nowrap">
+                        Cash ₹
+                      </Label>
+                      <Input
+                        id="split-cash"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={splitCash}
+                        onChange={(e) => setSplitCash(e.target.value)}
+                        className="w-24"
+                      />
+                      <select
+                        aria-label="Online payment method"
+                        className="h-10 rounded-md border bg-white px-2 text-sm"
+                        value={splitOnlineMethod}
+                        onChange={(e) => setSplitOnlineMethod(e.target.value)}
+                      >
+                        <option value="GPay">GPay</option>
+                        <option value="BankTransfer">Bank Transfer</option>
+                      </select>
+                      <span
+                        className={`text-sm whitespace-nowrap ${
+                          splitValid ? "text-gray-700" : "text-red-600"
+                        }`}
+                      >
+                        Online ₹{Math.max(0, splitOnlineValue)}
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
               {cart.length > 0 && (
