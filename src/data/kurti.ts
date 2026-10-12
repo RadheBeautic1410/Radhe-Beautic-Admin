@@ -1564,7 +1564,19 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
       sellType = OfflineSellType.SHOP_SELL_OFFLINE,
       remark,
       discountAmount,
+      paymentSplit: rawPaymentSplit,
     } = data;
+    // Part cash / part online. Must add up to the net total (checked below).
+    const paymentSplit = rawPaymentSplit
+      ? {
+          cash: Math.max(0, Math.round(Number(rawPaymentSplit.cash) || 0)),
+          online: Math.max(0, Math.round(Number(rawPaymentSplit.online) || 0)),
+          onlineMethod: String(rawPaymentSplit.onlineMethod || "").trim(),
+        }
+      : null;
+    if (paymentSplit && !paymentSplit.onlineMethod) {
+      return { error: "Select the online payment method for the split" };
+    }
     const tracked = Array.isArray(trackedProducts)
       ? trackedProducts
       : Array.isArray(products)
@@ -1851,9 +1863,15 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
 
         // Update batch totals (apply discount)
         const netTotalAmount = Math.max(0, totalAmount - discount);
+        if (paymentSplit && paymentSplit.cash + paymentSplit.online !== netTotalAmount) {
+          throw new Error(
+            `Split payment ₹${paymentSplit.cash} + ₹${paymentSplit.online} does not match bill total ₹${netTotalAmount}`
+          );
+        }
         await tx.offlineSellBatch.update({
           where: { id: offlineBatch.id },
           data: {
+            paymentSplit: paymentSplit ?? undefined,
             totalAmount: netTotalAmount,
             totalItems: salesRows.reduce((sum, r) => sum + (r.quantity || 1), 0),
             updatedAt: currTime,
@@ -1917,6 +1935,9 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
     return txResult as any;
   } catch (error) {
     console.error("Multiple offline sell error:", error);
+    if (error instanceof Error && error.message.startsWith("Split payment")) {
+      return { error: error.message };
+    }
     return { error: "Something went wrong during the offline sale process!" };
   }
 };

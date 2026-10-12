@@ -377,6 +377,7 @@ model OfflineSellBatch {
   createdAt      DateTime?
   updatedAt      DateTime?
   paymentType    String?
+  paymentSplit   Json? // { cash, online, onlineMethod } when paid part cash, part online
   gstType        String?
   Orders         Orders?         @relation(fields: [ordersId], references: [id])
   ordersId       String?         @db.ObjectId

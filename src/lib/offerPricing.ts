@@ -98,21 +98,36 @@ export const priceLines = (
 
   const claimed = new Set<Unit>();
   for (const offer of usable) {
-    const perPiece = offer.totalAmount! / offer.qty;
+    const total = offer.totalAmount!;
     const eligible = units
       .filter(
         (u) =>
           !claimed.has(u) &&
           u.categoryId &&
-          offer.categories.includes(u.categoryId) &&
-          perPiece < u.base, // never make a piece dearer than its own price
+          offer.categories.includes(u.categoryId),
       )
       .sort((a, b) => b.base - a.base);
-    const bundled = Math.floor(eligible.length / offer.qty) * offer.qty;
-    for (const u of eligible.slice(0, bundled)) {
-      u.price = Math.round(perPiece) + u.bigAddon;
-      u.offerName = offer.name;
-      claimed.add(u);
+
+    // Bundles may mix categories and prices (e.g. 280 + 280 + 300 for ₹850).
+    // A bundle is only applied when it is cheaper than its regular total; the
+    // offer total is then shared in proportion to each piece's own price, so
+    // no piece ends up dearer than it was.
+    for (let i = 0; i + offer.qty <= eligible.length; i += offer.qty) {
+      const bundle = eligible.slice(i, i + offer.qty);
+      const regularTotal = bundle.reduce((s, u) => s + u.base, 0);
+      if (total >= regularTotal) break; // later bundles are cheaper still
+
+      let allocated = 0;
+      bundle.forEach((u, j) => {
+        const share =
+          j === bundle.length - 1
+            ? total - allocated
+            : Math.round((u.base * total) / regularTotal);
+        allocated += share;
+        u.price = share + u.bigAddon;
+        u.offerName = offer.name;
+        claimed.add(u);
+      });
     }
   }
 
