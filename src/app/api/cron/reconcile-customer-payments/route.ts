@@ -107,10 +107,38 @@ export async function GET(request: NextRequest) {
             };
           }
 
-          const statusResponse = await getPhonePeOrderStatus(
+          // Each pay click is its own PhonePe session (CustomerPaymentAttempt); legacy
+          // orders were keyed by the plain orderId. A paid session on any of them wins.
+          const attempts = await db.customerPaymentAttempt.findMany({
+            where: { orderId: order.orderId },
+            orderBy: { createdAt: "desc" },
+            take: 3,
+            select: { attemptId: true },
+          });
+          const gatewayIds = [
+            ...attempts.map((a) => a.attemptId),
             order.orderId,
-            true,
-          );
+          ];
+
+          let statusResponse:
+            | Awaited<ReturnType<typeof getPhonePeOrderStatus>>
+            | undefined;
+          let lastError: unknown = null;
+          for (const gatewayId of gatewayIds) {
+            try {
+              const res = await getPhonePeOrderStatus(gatewayId, true);
+              if (!statusResponse || res?.data?.state === "COMPLETED") {
+                statusResponse = res;
+              }
+              if (res?.data?.state === "COMPLETED") break;
+            } catch (e) {
+              lastError = e;
+            }
+          }
+          if (!statusResponse) {
+            throw lastError ?? new Error("Unknown status error");
+          }
+
           const state = statusResponse?.data?.state as string | undefined;
           const paymentDetails = Array.isArray(
             statusResponse?.data?.paymentDetails,
