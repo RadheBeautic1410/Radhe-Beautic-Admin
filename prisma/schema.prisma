@@ -780,6 +780,20 @@ model CustomerOrder {
   @@index([addressId])
 }
 
+// One row per "Pay" click. attemptId is the unique merchantOrderId sent to PhonePe,
+// so a retry gets a fresh checkout session instead of resuming the abandoned one.
+model CustomerPaymentAttempt {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  attemptId String   @unique
+  orderId   String // CustomerOrder.orderId
+  amount    Float
+  status    String   @default("INITIATED") // INITIATED | COMPLETED | FAILED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId, createdAt])
+}
+
 model ExpenseReason {
   id          String             @id @default(auto()) @map("_id") @db.ObjectId
   name        String             @unique
