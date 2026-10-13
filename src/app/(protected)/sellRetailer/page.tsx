@@ -159,7 +159,6 @@ function SellPage() {
         size: i.selectedSize,
         quantity: i.quantity,
         customerPrice: Number(i.kurti?.customerPrice) || null,
-        isBigPrice: !!i.kurti?.isBigPrice,
       })),
       offers,
       pricingCategories,

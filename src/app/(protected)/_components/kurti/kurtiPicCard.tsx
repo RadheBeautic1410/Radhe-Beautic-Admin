@@ -44,7 +44,6 @@ interface kurti {
   sellingPrice: string;
   actualPrice: string;
   color?: string;
-  isBigPrice?: boolean;
   bigPrice?: string;
   videos?: any[];
 }
@@ -547,9 +546,9 @@ const KurtiPicCard: React.FC<KurtiPicCardProps> = ({
 
           {/* Pricing */}
           <div className="flex flex-col gap-0.5">
-            {!hideResellerPrice && activeVariant.isBigPrice && activeVariant.bigPrice && (
+            {!hideResellerPrice && parseFloat(activeVariant.bigPrice || "0") > 0 && (
               <span className="text-xs text-blue-600 font-semibold">
-                Big Size: ₹{parseFloat(activeVariant.bigPrice) + parseFloat(activeVariant.sellingPrice)}/-
+                Big Size: ₹{parseFloat(activeVariant.bigPrice || "0") + parseFloat(activeVariant.sellingPrice)}/-
               </span>
             )}
           </div>

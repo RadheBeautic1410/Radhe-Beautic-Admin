@@ -1287,11 +1287,11 @@ function HallSalesPage() {
                 <p className="text-lg font-semibold text-green-600">
                   SP: RB{kurti.sellingPrice}
                 </p>
-                {kurti?.isBigPrice && (
+                {Number(kurti?.bigPrice) > 0 && (
                   <p className="text-lg font-semibold text-green-600">
                     BSP: RB
                     {parseInt(kurti.sellingPrice) +
-                      (kurti?.isBigPrice ? kurti?.bigPrice : 0)}
+                      Number(kurti?.bigPrice)}
                   </p>
                 )}
 

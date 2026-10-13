@@ -27,7 +27,6 @@ export interface PricingLine {
   size: string;
   quantity: number;
   customerPrice: number | null;
-  isBigPrice: boolean;
 }
 
 export interface PricedLine {
@@ -77,8 +76,9 @@ export const priceLines = (
     const base = Number(l.customerPrice);
     if (!Number.isFinite(base) || base <= 0) return;
     const cat = catByName.get(String(l.category || "").trim().toLowerCase());
-    const bigAddon =
-      l.isBigPrice && isBigSize(l.size) ? Number(cat?.customerBigPrice) || 0 : 0;
+    const bigAddon = isBigSize(l.size)
+      ? Number(cat?.customerBigPrice) || 0
+      : 0;
     results[idx].regularUnitPrice = base + bigAddon;
     for (let i = 0; i < l.quantity; i++) {
       units.push({

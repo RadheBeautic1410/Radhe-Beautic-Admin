@@ -89,6 +89,8 @@ export const kurtiAddition = async (data: any) => {
   dataWithTime["sellingPrice"] = finalSellingPrice;
   dataWithTime["actualPrice"] = finalActualPrice;
   dataWithTime["customerPrice"] = finalCustomerPrice;
+  // Big-size price always follows the category.
+  dataWithTime["bigPrice"] = categoryData?.bigPrice || null;
 
   let obj = {
     sellingPrice1: parseInt(finalSellingPrice || "0"),
@@ -497,12 +499,15 @@ export const categoryChange = async (data: any) => {
         return { error: "Target category not found" };
       }
 
-      // Update category bigPrice if needed
-      if (oldKurti.isBigPrice && !targetCategory.bigPrice && bigPrice) {
+      // A kurti that carried a big-size price into a category without one
+      // sets that category's big-size price.
+      let targetBigPrice = targetCategory.bigPrice || null;
+      if (oldKurti.bigPrice && !targetBigPrice && bigPrice) {
         await transaction.category.update({
           where: { normalizedLowerCase: category.toLowerCase() },
           data: { bigPrice: bigPrice },
         });
+        targetBigPrice = bigPrice;
       }
 
       let newKurti;
@@ -559,6 +564,7 @@ export const categoryChange = async (data: any) => {
           code: newCode,
           sizes: validSelectedSizes,
           countOfPiece: pieces(movedRows),
+          bigPrice: targetBigPrice,
           lastUpdatedTime: currTime,
         };
 
@@ -596,6 +602,7 @@ export const categoryChange = async (data: any) => {
           category: category,
           code: newCode,
           sizes: movedRows.map(sendAllToGodown),
+          bigPrice: targetBigPrice,
           lastUpdatedTime: currTime,
         };
 
@@ -1077,69 +1084,6 @@ export async function toggleKurtiVideoVisibility(
     };
   }
 }
-
-export const toggleKurtiBigPrice = async (
-  kurtiId: string,
-  isBigPrice: boolean
-) => {
-  const denied = await permissionError("catalogue.edit");
-  if (denied) return { error: denied.error };
-  const currTime = await getCurrTime();
-
-  const existingKurti = await db.kurti.findUnique({
-    where: {
-      id: kurtiId,
-    },
-  });
-
-  if (!existingKurti) {
-    return {
-      success: false,
-      error: "Kurti not found",
-    };
-  }
-
-  const category = await db.category.findUnique({
-    where: {
-      normalizedLowerCase: existingKurti.category.toLowerCase(),
-    },
-  });
-
-  if (!category?.bigPrice) {
-    return {
-      success: false,
-      error: "Category has no big price, please set it first.",
-      code: "NO_BIG_PRICE",
-    };
-  }
-
-  const updatedKurti = await db.kurti.update({
-    where: {
-      id: kurtiId,
-    },
-    data: {
-      isBigPrice: isBigPrice,
-      bigPrice: isBigPrice ? category.bigPrice : null,
-      lastUpdatedTime: currTime,
-    },
-  });
-
-  const updateKurtiPrices = await db.prices.update({
-    where: {
-      id: existingKurti.pricesId!,
-    },
-    data: {
-      sellingPrice2: isBigPrice
-        ? (category.sellingPrice || 0) + category.bigPrice
-        : category.sellingPrice || 0,
-      sellingPrice3: isBigPrice
-        ? (category.sellingPrice || 0) + category.bigPrice
-        : category.sellingPrice || 0,
-    },
-  });
-
-  return { success: "Kurti Big Size Price Updated!", kurti: updatedKurti };
-};
 
 export const fetchMovedKurtiHistory = async () => {
   const denied = await permissionError("movedHistory.view");

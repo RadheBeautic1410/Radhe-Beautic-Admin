@@ -193,7 +193,7 @@ function StockAddPage() {
                 key={"price"}
                 className="text-2xl font-semibold mt-2 mb-1"
               >{`Price - ${kurti.sellingPrice}/-`}</p>
-              {kurti.isBigPrice && kurti.bigPrice && (
+              {parseFloat(kurti.bigPrice || "0") > 0 && (
                 <p
                   key={"bigprice"}
                   className="text-base font-semibold mb-1"

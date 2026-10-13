@@ -175,7 +175,7 @@ function SellPage() {
       const size = selectedSize.toUpperCase();
       const isBigSize = ["3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"].includes(size);
       const basePrice = parseInt(kurti.sellingPrice) || 0;
-      const categoryBigPrice = kurti.isBigPrice && kurti.bigPrice ? Number(kurti.bigPrice) : 0;
+      const categoryBigPrice = kurti.bigPrice ? Number(kurti.bigPrice) : 0;
       const price = isBigSize ? (basePrice + categoryBigPrice) : basePrice;
       setSellingPrice(String(price));
     } else {
@@ -224,7 +224,7 @@ function SellPage() {
               const size = (sizeInfo.size || "").toUpperCase();
               const isBigSize = ["3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"].includes(size);
               const basePrice = parseInt(kurti.sellingPrice) || 0;
-              const categoryBigPrice = kurti.isBigPrice && kurti.bigPrice ? Number(kurti.bigPrice) : 0;
+              const categoryBigPrice = kurti.bigPrice ? Number(kurti.bigPrice) : 0;
               const itemPrice = isBigSize ? (basePrice + categoryBigPrice) : basePrice;
 
               // Check if this is a lower size replacement
@@ -1031,11 +1031,11 @@ function SellPage() {
                 <p className="text-lg font-semibold text-green-600">
                   SP: RB{kurti.sellingPrice}
                 </p>
-                {kurti?.isBigPrice && (
+                {Number(kurti?.bigPrice) > 0 && (
                   <p className="text-lg font-semibold text-green-600">
                     BSP: RB
                     {parseInt(kurti.sellingPrice) +
-                      (kurti?.isBigPrice ? kurti?.bigPrice : 0)}
+                      Number(kurti?.bigPrice)}
                   </p>
                 )}
 
