@@ -306,7 +306,9 @@ const ImageUpload2 = React.forwardRef(
       });
     };
 
-    const uploadImageToServer = async (file: File) => {
+    // `trackedFile` is the original dropped file: the processed file gets renamed
+    // (e.g. .jpg -> .webp), so progress must be matched against the original.
+    const uploadImageToServer = async (file: File, trackedFile: File) => {
       const formData = new FormData();
       formData.append("image", file);
 
@@ -320,7 +322,7 @@ const ImageUpload2 = React.forwardRef(
           );
           setFilesToUpload((prevUploadProgress) => {
             return prevUploadProgress.map((item) => {
-              if (item.File.name === file.name) {
+              if (item.File === trackedFile) {
                 return {
                   ...item,
                   progress,
@@ -394,14 +396,14 @@ const ImageUpload2 = React.forwardRef(
               storagePath = `videos/${uuidv4()}`;
               downloadURL = await uploadFile(processedFile, storagePath);
             } else {
-              const res = await uploadImageToServer(processedFile);
+              const res = await uploadImageToServer(processedFile, file);
               downloadURL = res.url;
               storagePath = res.path;
             }
 
             setFilesToUpload((prevUploadProgress) =>
               prevUploadProgress.map((item) =>
-                item.File.name === file.name ? { ...item, storagePath } : item
+                item.File === file ? { ...item, storagePath, progress: 100 } : item
               )
             );
 
