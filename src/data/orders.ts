@@ -201,7 +201,6 @@ export const getOrderByOrderId = async (orderId: string, status?: any) => {
                 const categoryBigPrice = cat?.bigPrice || null;
                 cp.kurti = {
                     ...kurti,
-                    isBigPrice: categoryBigPrice !== null && categoryBigPrice > 0,
                     bigPrice: categoryBigPrice,
                 };
             }

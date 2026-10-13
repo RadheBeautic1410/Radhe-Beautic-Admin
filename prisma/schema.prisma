@@ -233,7 +233,6 @@ model Kurti {
   countOfPiece    Int      @default(0)
   lastUpdatedTime DateTime
   videos          Json[]
-  isBigPrice      Boolean  @default(false)
   bigPrice        Float?
   weight          Int? // Weight in grams
 
@@ -268,12 +267,10 @@ model Kurti {
   @@index([category])
   @@index([isDeleted])
   @@index([party])
-  @@index([isBigPrice])
   @@index([countOfPiece])
   @@index([pricesId])
   @@index([category, isDeleted])
   @@index([party, isDeleted])
-  @@index([category, isBigPrice])
   @@index([isDeleted, countOfPiece])
   @@index([lastUpdatedTime])
   @@index([createdAt])

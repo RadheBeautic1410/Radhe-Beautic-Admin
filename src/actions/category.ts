@@ -245,16 +245,15 @@ export const categoryUpdate = async (
       },
     });
 
-    if (bigPrice !== undefined && bigPrice !== existingCategory.bigPrice) {
-      const categoryName = updatedCategory.name;
-
-      const updatedKurtis = await prisma.kurti.updateMany({
+    // Every kurti in the category carries the category's big-size price.
+    // Synced on each save (not only on change) so older kurtis catch up.
+    if (bigPrice !== undefined) {
+      await prisma.kurti.updateMany({
         where: {
-          category: categoryName,
-          isBigPrice: true,
+          category: updatedCategory.name,
         },
         data: {
-          bigPrice: bigPrice,
+          bigPrice: bigPrice || null,
         },
       });
     }

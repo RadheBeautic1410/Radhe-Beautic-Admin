@@ -5,7 +5,6 @@ import {
   categoryChange,
   priceChange,
   stockAddition,
-  toggleKurtiBigPrice,
   specificationsChange,
 } from "@/src/actions/kurti";
 import {
@@ -49,7 +48,6 @@ import { AddSizeForm } from "../dynamicFields/sizes";
 import { CustomBarcodeDialog } from "./customBarcodeDialog";
 import ImageUpload2, { ImageUploadRef } from "../upload/imageUpload2";
 import { v4 as uuidv4 } from "uuid";
-import { Switch } from "@/src/components/ui/switch";
 import PageLoader from "@/src/components/loader";
 
 interface category {
@@ -180,7 +178,6 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
   const [parentCode, setParentCode] = useState(data?.parentCode || "");
   const [colors, setColors] = useState<any[]>([]);
   const [newColorName, setNewColorName] = useState("");
-  const [isBigPrice, setIsBigPrice] = useState(data?.isBigPrice || false);
   const router = useRouter();
   const [isSpecsOpen, setIsSpecsOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
@@ -505,23 +502,6 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
-              {/* Big Size Price Toggle */}
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg">
-                <span className="text-xs font-bold text-gray-600">Big Size Price Modifier</span>
-                <Switch
-                  checked={isBigPrice}
-                  onCheckedChange={async (e: boolean) => {
-                    const res = await toggleKurtiBigPrice(data?.id, e);
-                    if (!res.success) {
-                      toast.error(res.error);
-                      return;
-                    }
-                    setIsBigPrice(e);
-                    onKurtiUpdate({ ...data, isBigPrice: e });
-                  }}
-                />
-              </div>
-
               {/* Barcode / Print */}
               <CustomBarcodeDialog code={data?.code} sizes={allSizes}>
                 <Button variant="outline" className="text-xs h-9 border-gray-200 hover:bg-gray-50 font-semibold">
@@ -936,7 +916,7 @@ const KurtiUpdate: React.FC<KurtiUpdateProps> = ({ data, onKurtiUpdate }) => {
                     </div>
                   </div>
 
-                  {data?.isBigPrice && !changedCategory.bigPrice && (
+                  {Number(data?.bigPrice) > 0 && !changedCategory.bigPrice && (
                     <div>
                       <label className="text-xs font-bold text-gray-600 block mb-1">Big Size Price Modifier</label>
                       <Input

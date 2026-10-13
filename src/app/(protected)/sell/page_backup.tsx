@@ -146,7 +146,7 @@ function SellPage() {
                 key={"bigprice"}
                 className="text-2xl font-semibold mt-2 mb-1"
               >{`Price - ${kurti.sellingPrice}/-`}</p>
-              {kurti.isBigPrice && kurti.bigPrice && (
+              {parseFloat(kurti.bigPrice || "0") > 0 && (
                 <p
                   key={"price"}
                   className="text-base font-semibold mb-1"
