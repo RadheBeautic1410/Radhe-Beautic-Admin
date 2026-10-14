@@ -58,7 +58,15 @@ export interface UserQuery {
     organization?: string | { not: string };
 }
 
-export const getAllUsersWithRole = async (query?: UserQuery) => {
+/**
+ * User lists for the admin tables. The stored password is left out unless the
+ * caller explicitly asks for it (the staff table shows it to holders of
+ * staff.resetPassword); every other scalar is returned as before.
+ */
+export const getAllUsersWithRole = async (
+    query?: UserQuery,
+    { includePassword = false }: { includePassword?: boolean } = {}
+) => {
     try {
         const whereClause: any = {
             role: query?.role ? { in: query.role } : undefined,
@@ -67,6 +75,26 @@ export const getAllUsersWithRole = async (query?: UserQuery) => {
 
         const users = await db.user.findMany({
             where: whereClause,
+            select: {
+                id: true,
+                name: true,
+                phoneNumber: true,
+                email: true,
+                emailVerified: true,
+                image: true,
+                password: includePassword,
+                organization: true,
+                isVerified: true,
+                verifiedBy: true,
+                verifiedAt: true,
+                groupName: true,
+                role: true,
+                roleId: true,
+                isTwoFactorEnabled: true,
+                balance: true,
+                creditLimit: true,
+                salary: true,
+            },
         });
         
         return users;

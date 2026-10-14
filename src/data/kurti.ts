@@ -1,4 +1,5 @@
 import { db } from "@/src/lib/db";
+import { KURTI_LIST_SELECT } from "@/src/lib/kurti-select";
 import {
   uploadInvoicePDFToFirebase,
   deleteInvoiceFromFirebase,
@@ -141,6 +142,7 @@ export const getKurtiByCategory = async (category: string) => {
         },
         isDeleted: false,
       },
+      select: KURTI_LIST_SELECT,
     });
     return kurti;
   } catch {
@@ -162,6 +164,7 @@ export const getKurtiByCategoryWithPages = async (
         },
         isDeleted: false,
       },
+      select: KURTI_LIST_SELECT,
       skip: 20 * (page - 1),
       take: 20,
     });

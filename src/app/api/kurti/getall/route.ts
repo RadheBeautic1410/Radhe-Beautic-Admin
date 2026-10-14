@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { getAllKurti, getAllKurtiByTime } from "@/src/data/kurti";
 import { db } from "@/src/lib/db";
+import { KURTI_LIST_SELECT } from "@/src/lib/kurti-select";
+import { availableStock, clampPaging, rankByAvailableStock } from "@/src/lib/kurti-search";
 import { NextResponse, NextRequest } from "next/server";
 import { PRODUCT_READ_PERMISSIONS } from "@/src/lib/permissions/registry";
 import { apiPermission } from "@/src/lib/permissions/server";
@@ -11,9 +13,7 @@ export async function GET(req: NextRequest) {
   if (guard.response) return guard.response;
   try {
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "12", 10);
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = clampPaging(searchParams.get("page"), searchParams.get("limit"));
 
     const search = searchParams.get("search")?.trim() ?? "";
 
@@ -26,61 +26,44 @@ export async function GET(req: NextRequest) {
     let totalCount;
 
     if (search) {
-      // Query all matches without database pagination to sort in memory globally by stock count
-      const allKurtis = await db.kurti.findMany({ where });
-
-      // Map available stock count (countOfPiece)
-      const processed = allKurtis.map((kurti) => {
-        let cnt = 0;
-        const sizes = Array.isArray(kurti.sizes) ? kurti.sizes : [];
-        for (let j = 0; j < sizes.length; j++) {
-          const s = sizes[j] as any;
-          if (s && s.quantity > 0) cnt += s.quantity;
-        }
-        const reserved = Array.isArray(kurti.reservedSizes) ? kurti.reservedSizes : [];
-        for (let j = 0; j < reserved.length; j++) {
-          const r = reserved[j] as any;
-          if (r && r.quantity > 0) cnt -= r.quantity;
-        }
-        return {
-          ...kurti,
-          countOfPiece: Math.max(0, cnt),
-        };
+      // Results are ordered by available stock across ALL matches, so every match is
+      // still ranked - but only from its sizes. The full documents are then loaded
+      // for the requested page alone.
+      const matches = await db.kurti.findMany({
+        where,
+        select: { id: true, sizes: true, reservedSizes: true },
       });
+      const ranked = rankByAvailableStock(matches);
+      totalCount = ranked.length;
 
-      // Sort by stock count desc
-      processed.sort((a, b) => b.countOfPiece - a.countOfPiece);
-
-      totalCount = processed.length;
-      kurtis = processed.slice(skip, skip + limit);
+      const pageIds = ranked.slice(skip, skip + limit).map((r) => r.id);
+      const docs = pageIds.length
+        ? await db.kurti.findMany({
+            where: { id: { in: pageIds } },
+            select: KURTI_LIST_SELECT,
+          })
+        : [];
+      const byId = new Map(docs.map((d) => [d.id, d]));
+      kurtis = pageIds
+        .map((id) => byId.get(id))
+        .filter((k): k is NonNullable<typeof k> => !!k)
+        .map((kurti) => ({ ...kurti, countOfPiece: availableStock(kurti) }));
     } else {
       // Normal database paginated query
       const [fetchedKurtis, count] = await Promise.all([
         db.kurti.findMany({
           where,
+          select: KURTI_LIST_SELECT,
           skip,
           take: limit,
         }),
         db.kurti.count({ where }),
       ]);
-      
-      kurtis = fetchedKurtis.map((kurti) => {
-        let cnt = 0;
-        const sizes = Array.isArray(kurti.sizes) ? kurti.sizes : [];
-        for (let j = 0; j < sizes.length; j++) {
-          const s = sizes[j] as any;
-          if (s && s.quantity > 0) cnt += s.quantity;
-        }
-        const reserved = Array.isArray(kurti.reservedSizes) ? kurti.reservedSizes : [];
-        for (let j = 0; j < reserved.length; j++) {
-          const r = reserved[j] as any;
-          if (r && r.quantity > 0) cnt -= r.quantity;
-        }
-        return {
-          ...kurti,
-          countOfPiece: Math.max(0, cnt),
-        };
-      });
+
+      kurtis = fetchedKurtis.map((kurti) => ({
+        ...kurti,
+        countOfPiece: availableStock(kurti),
+      }));
       totalCount = count;
     }
 

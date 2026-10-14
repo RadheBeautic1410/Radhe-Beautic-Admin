@@ -3,7 +3,7 @@
 import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState, useTransition } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
 
 import { TableCell, TableRow } from "@/src/components/ui/table";
@@ -166,27 +166,6 @@ export const CustomerRow = ({
       }
     });
   };
-
-  const [balance, setBalance] = useState<number | null>(null);
-
-  useEffect(() => {
-    const fetchBalance = async () => {
-      try {
-        const res = await fetch(`/api/wallet/balance`);
-        const data = await res.json();
-
-        if (res.ok) {
-          setBalance(data.balance);
-        } else {
-          console.error("Balance fetch error:", data.error);
-        }
-      } catch (err) {
-        console.error("Balance fetch failed:", err);
-      }
-    };
-
-    fetchBalance();
-  }, []);
 
   return (
     <TableRow key={userData.id}>

@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/src/lib/db";
+import { KURTI_LIST_SELECT } from "@/src/lib/kurti-select";
 import { currentRole, currentUser } from "@/src/lib/auth";
 
 import { UserRole } from "@prisma/client";
@@ -1106,10 +1107,14 @@ export const fetchKurtiByCategory = async (category: string) => {
   const denied = await permissionError("catalogue.view");
   if (denied) return { data: [] };
   try {
+    // Both callers (catalogue media download, size-selection modal) drop deleted
+    // kurtis on the client, so they are not fetched at all.
     const kurties = await db.kurti.findMany({
       where: {
         category: category,
+        isDeleted: false,
       },
+      select: KURTI_LIST_SELECT,
     });
 
     return {
