@@ -73,7 +73,7 @@ function Cell({
       className={`text-left hover:underline text-blue-700 ${bold ? "font-bold" : ""}`}
     >
       {totals.pieces} pcs
-      <span className="block text-xs text-gray-600">{rupees(totals.amount)}</span>
+      <span className="block text-sm text-gray-600">{rupees(totals.amount)}</span>
     </button>
   );
 }
@@ -192,17 +192,17 @@ function SalesByLocationPage() {
 
         {report && (
           <div className="overflow-x-auto">
-            <Table className="border border-collapse">
+            <Table className="border border-collapse text-base">
               <TableHeader>
                 <TableRow className="bg-slate-800">
-                  <TableHead className="font-bold border text-white">Sold by</TableHead>
+                  <TableHead className="font-bold border text-white text-base">Sold by</TableHead>
                   {CHANNELS.map((c) => (
-                    <TableHead key={c} className="font-bold border text-white">
+                    <TableHead key={c} className="font-bold border text-white text-base">
                       {CHANNEL_LABELS[c]}
                     </TableHead>
                   ))}
-                  <TableHead className="font-bold border text-white">Total</TableHead>
-                  <TableHead className="font-bold border text-white">Stock taken from</TableHead>
+                  <TableHead className="font-bold border text-white text-base">Total</TableHead>
+                  <TableHead className="font-bold border text-white text-base">Stock taken from</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -222,7 +222,7 @@ function SalesByLocationPage() {
                       <TableCell className="border font-semibold">
                         {placeLabel(r.soldBy)}
                         {r.soldBy !== "ONLINE" && r.soldBy !== "HALL" && r.soldBy !== "UNRECORDED" && (
-                          <span className="block text-xs font-normal text-gray-500">counter</span>
+                          <span className="block text-sm font-normal text-gray-500">counter</span>
                         )}
                       </TableCell>
                       {CHANNELS.map((c) => (
@@ -233,7 +233,7 @@ function SalesByLocationPage() {
                       <TableCell className="border">
                         <Cell totals={r} bold onOpen={() => openDetail(r.soldBy)} />
                       </TableCell>
-                      <TableCell className="border text-xs">
+                      <TableCell className="border">
                         {r.soldBy === "ONLINE" || r.soldBy === "HALL" ? stockFromText(r) || "-" : "-"}
                       </TableCell>
                     </TableRow>
@@ -247,7 +247,7 @@ function SalesByLocationPage() {
                         {t.pieces ? (
                           <>
                             {t.pieces} pcs
-                            <span className="block text-xs text-gray-600">{rupees(t.amount)}</span>
+                            <span className="block text-sm text-gray-600">{rupees(t.amount)}</span>
                           </>
                         ) : (
                           "-"
@@ -257,16 +257,17 @@ function SalesByLocationPage() {
                   })}
                   <TableCell className="border font-bold">
                     {report.pieces} pcs
-                    <span className="block text-xs text-gray-600">{rupees(report.amount)}</span>
+                    <span className="block text-sm text-gray-600">{rupees(report.amount)}</span>
                   </TableCell>
                   <TableCell className="border" />
                 </TableRow>
               </TableBody>
             </Table>
-            <p className="text-xs text-gray-600 mt-2">
+            <p className="text-sm text-gray-600 mt-2">
               Online = /sell scans with &quot;Online order (WhatsApp)&quot; ticked, order bills
               and customer orders. &quot;Not recorded&quot; = scan sales made before locations
-              were saved. Old shop bills are placed by the bill&apos;s shop. Customer-order
+              were saved. Old shop bills and untracked kurtis on shop bills are placed by the
+              bill&apos;s shop. Customer-order
               amounts are the order value split across its pieces.
             </p>
           </div>
