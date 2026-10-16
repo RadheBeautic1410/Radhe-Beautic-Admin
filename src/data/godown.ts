@@ -13,6 +13,11 @@ import {
   pendingFloorMoveSizes,
   splitCodeAndSize,
 } from "@/src/lib/godown";
+import {
+  locationStockPipeline,
+  parseGodownPage,
+  pendingFloorMovesPipeline,
+} from "@/src/lib/godown-pipeline";
 
 /** Pieces of one size at every location, e.g. { FLOOR_1: 2, ..., GODOWN: 3 }. */
 const locationCounts = (size: any): Record<StockLocation, number> =>
@@ -119,12 +124,55 @@ interface PendingFloorMovesArgs {
   search?: string;
 }
 
+/** Page/pageSize as the routes pass them; anything below 1 reads as 1. */
+const toSkipLimit = (page: number, pageSize: number) => {
+  const limit = Math.max(1, Math.floor(pageSize) || 1);
+  return { skip: (Math.max(1, Math.floor(page) || 1) - 1) * limit, limit };
+};
+
+/**
+ * Loads the requested page's designs by id, in the order MongoDB ranked them.
+ * A design changed or removed since the count was taken is dropped by `toRow`.
+ */
+const loadPageRows = async <T,>(ids: string[], toRow: (k: any) => T | null): Promise<T[]> => {
+  if (!ids.length) return [];
+  const docs = await db.kurti.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, code: true, category: true, sizes: true, images: true },
+  });
+  const byId = new Map(docs.map((d) => [d.id, d]));
+  return ids
+    .map((id) => byId.get(id))
+    .map((k) => (k ? toRow(k) : null))
+    .filter((row): row is T => row !== null);
+};
+
+const firstImage = (k: any) => (Array.isArray(k.images) && k.images.length ? k.images[0] : null);
+
+const toPendingRow = (k: any) => {
+  const pending = pendingFloorMoveSizes((k.sizes as any[]) || []);
+  if (!pending.length) return null;
+  return {
+    id: k.id,
+    code: k.code,
+    category: k.category,
+    image: firstImage(k),
+    pendingSizes: pending.map((s: any) => ({
+      size: String(s.size).toUpperCase(),
+      quantity: getTotalQty(s),
+      godownQuantity: getGodownQty(s),
+    })),
+    pendingPieces: pending.reduce((sum: number, s: any) => sum + getGodownQty(s), 0),
+  };
+};
+
 /**
  * Every product/size that has godown stock but nothing left in the showroom,
  * i.e. it should be brought down to sell.
  *
- * `sizes` is a Json[] so Mongo cannot filter on the location counts directly -
- * we narrow as far as the DB allows (in stock, not deleted) and finish in memory.
+ * MongoDB works out which designs qualify, counts them and their pieces, and
+ * returns the ids of the requested page (sorted by code); only those designs are
+ * loaded. See src/lib/godown-pipeline.ts.
  */
 export const getPendingFloorMoves = async ({
   page = 1,
@@ -133,59 +181,16 @@ export const getPendingFloorMoves = async ({
   search,
 }: PendingFloorMovesArgs = {}) => {
   try {
-    const where: any = { isDeleted: false, countOfPiece: { gt: 0 } };
-    if (category) where.category = category.toUpperCase();
-    if (search) where.code = { contains: search.toUpperCase() };
-
-    const candidates = await db.kurti.findMany({
-      where,
-      select: {
-        id: true,
-        code: true,
-        category: true,
-        party: true,
-        sellingPrice: true,
-        sizes: true,
-        images: true,
-      },
-      orderBy: { code: "asc" },
-    });
-
-    const matches = candidates
-      .map((k: any) => {
-        const pending = pendingFloorMoveSizes((k.sizes as any[]) || []);
-        if (!pending.length) return null;
-        return {
-          id: k.id,
-          code: k.code,
-          category: k.category,
-          party: k.party,
-          sellingPrice: k.sellingPrice,
-          image: Array.isArray(k.images) && k.images.length ? k.images[0] : null,
-          pendingSizes: pending.map((s: any) => ({
-            size: String(s.size).toUpperCase(),
-            quantity: getTotalQty(s),
-            godownQuantity: getGodownQty(s),
-          })),
-          pendingPieces: pending.reduce(
-            (sum: number, s: any) => sum + getGodownQty(s),
-            0
-          ),
-        };
+    const { skip, limit } = toSkipLimit(page, pageSize);
+    const result = parseGodownPage(
+      await db.kurti.aggregateRaw({
+        pipeline: pendingFloorMovesPipeline({ skip, limit, category, search }),
       })
-      .filter(Boolean) as any[];
-
-    const total = matches.length;
-    const totalPieces = matches.reduce(
-      (sum, m) => sum + (m.pendingPieces || 0),
-      0
     );
-    const start = (page - 1) * pageSize;
-
     return {
-      items: matches.slice(start, start + pageSize),
-      total,
-      totalPieces,
+      items: await loadPageRows(result.ids, toPendingRow),
+      total: result.total,
+      totalPieces: result.totalPieces,
       page,
       pageSize,
     };
@@ -202,9 +207,29 @@ interface LocationStockArgs {
   search?: string;
 }
 
+const toLocationRow = (location: StockLocation) => (k: any) => {
+  const sizes = ((k.sizes as any[]) || [])
+    .map((s: any) => ({
+      size: String(s?.size || "").toUpperCase(),
+      quantity: getLocationQty(s, location),
+      elsewhere: describeLocations(s),
+    }))
+    .filter((s) => s.quantity > 0);
+  if (!sizes.length) return null;
+  return {
+    id: k.id,
+    code: k.code,
+    category: k.category,
+    image: firstImage(k),
+    sizes,
+    pieces: sizes.reduce((sum, s) => sum + s.quantity, 0),
+  };
+};
+
 /**
  * Every product with stock at one location, with the per-size counts there -
- * e.g. what shop 316 is currently holding.
+ * e.g. what shop 316 is currently holding. Counted and paged in MongoDB like
+ * getPendingFloorMoves.
  */
 export const getLocationStock = async ({
   location,
@@ -213,41 +238,16 @@ export const getLocationStock = async ({
   search,
 }: LocationStockArgs) => {
   try {
-    const where: any = { isDeleted: false, countOfPiece: { gt: 0 } };
-    if (search) where.code = { contains: search.toUpperCase() };
-
-    const candidates = await db.kurti.findMany({
-      where,
-      select: { id: true, code: true, category: true, sizes: true, images: true },
-      orderBy: { code: "asc" },
-    });
-
-    const matches = candidates
-      .map((k: any) => {
-        const sizes = ((k.sizes as any[]) || [])
-          .map((s: any) => ({
-            size: String(s?.size || "").toUpperCase(),
-            quantity: getLocationQty(s, location),
-            elsewhere: describeLocations(s),
-          }))
-          .filter((s) => s.quantity > 0);
-        if (!sizes.length) return null;
-        return {
-          id: k.id,
-          code: k.code,
-          category: k.category,
-          image: Array.isArray(k.images) && k.images.length ? k.images[0] : null,
-          sizes,
-          pieces: sizes.reduce((sum, s) => sum + s.quantity, 0),
-        };
+    const { skip, limit } = toSkipLimit(page, pageSize);
+    const result = parseGodownPage(
+      await db.kurti.aggregateRaw({
+        pipeline: locationStockPipeline({ skip, limit, search, location }),
       })
-      .filter(Boolean) as any[];
-
-    const start = (page - 1) * pageSize;
+    );
     return {
-      items: matches.slice(start, start + pageSize),
-      total: matches.length,
-      totalPieces: matches.reduce((sum, m) => sum + m.pieces, 0),
+      items: await loadPageRows(result.ids, toLocationRow(location)),
+      total: result.total,
+      totalPieces: result.totalPieces,
       page,
       pageSize,
     };

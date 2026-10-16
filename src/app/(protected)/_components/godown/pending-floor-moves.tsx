@@ -18,8 +18,6 @@ export interface PendingFloorMoveItem {
   id: string;
   code: string;
   category: string;
-  party: string;
-  sellingPrice: string;
   image: { url?: string } | null;
   pendingSizes: { size: string; quantity: number; godownQuantity: number }[];
   pendingPieces: number;
