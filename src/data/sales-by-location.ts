@@ -17,8 +17,10 @@ import {
  *   - SHOP_BILL      OfflineSell (Sell Retailer / Hall Sales) - the shop's counter
  *                    sale, or HALL for hall bills (whose lines can come from any
  *                    location). Lines from before locations existed resolve by
- *                    the bill's shop.
- *   - SCAN           Sell (the /sell page). Counter sale, ONLINE when the
+ *                    the bill's shop. With includeUntracked, OfflineManualSell
+ *                    (untracked kurtis on those bills) too: no code or stock, so
+ *                    they are placed by the bill's shop, code "UNTRACKED".
+ *   - SCAN          Sell (the /sell page). Counter sale, ONLINE when the
  *                    "Online order (WhatsApp)" box was ticked, or HALL when the
  *                    "Hall sale" box was ticked.
  *   - ORDER_BILL     OnlineSell (bills made from /orders) - always ONLINE.
@@ -62,17 +64,26 @@ export interface LocationSaleRow {
 interface RangeArgs {
   from: string; // YYYY-MM-DD
   to: string; // YYYY-MM-DD
+  /** Add untracked bill lines (code "UNTRACKED"). Off for per-kurti analytics. */
+  includeUntracked?: boolean;
 }
+
+/** Code given to untracked kurti lines, which have no product code. */
+export const UNTRACKED_CODE = "UNTRACKED";
 
 const asLocation = (val: any): ReportLocation => (isStockLocation(val) ? val : "UNRECORDED");
 
-export const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSaleRow[]> => {
+export const collectRows = async ({
+  from,
+  to,
+  includeUntracked = false,
+}: RangeArgs): Promise<LocationSaleRow[]> => {
   const range = {
     gte: new Date(`${from}T00:00:00.000Z`),
     lte: new Date(`${to}T23:59:59.999Z`),
   };
 
-  const [shopSales, scanSales, orderSales, customerOrders] = await Promise.all([
+  const [shopSales, manualSales, scanSales, orderSales, customerOrders] = await Promise.all([
     db.offlineSell.findMany({
       where: { sellTime: range },
       select: {
@@ -82,6 +93,28 @@ export const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSale
         quantity: true,
         selledPrice: true,
         stockLocation: true,
+        batchId: true,
+        batch: {
+          select: {
+            shopId: true,
+            invoiceNumber: true,
+            batchNumber: true,
+            sellType: true,
+            paymentType: true,
+            discountAmount: true,
+          },
+        },
+      },
+    }),
+    // Also read when not reported: bill discounts are spread over these lines too
+    db.offlineManualSell.findMany({
+      where: { createdAt: range },
+      select: {
+        createdAt: true,
+        category: true,
+        kurtiSize: true,
+        quantity: true,
+        selledPrice: true,
         batchId: true,
         batch: {
           select: {
@@ -165,14 +198,19 @@ export const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSale
 
   const rows: (Omit<LocationSaleRow, "category" | "cost" | "party" | "discount"> & {
     discount?: number;
+    category?: string;
   })[] = [];
-  // Bill-level discounts, spread over each bill's lines by value.
+  // Bill-level discounts, spread over each bill's lines (tracked and untracked) by value.
   const billDiscount = new Map<string, { discount: number; lines: number }>();
-  for (const s of shopSales) {
+  for (const s of [...shopSales, ...manualSales]) {
     const entry = billDiscount.get(s.batchId) || { discount: s.batch?.discountAmount || 0, lines: 0 };
     entry.lines += (s.selledPrice || 0) * (s.quantity || 1);
     billDiscount.set(s.batchId, entry);
   }
+  const lineDiscount = (batchId: string, amount: number) => {
+    const bill = billDiscount.get(batchId);
+    return bill?.lines ? Math.round((bill.discount * amount) / bill.lines) : 0;
+  };
 
   for (const s of shopSales) {
     const qty = s.quantity || 1;
@@ -193,10 +231,28 @@ export const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSale
       quantity: qty,
       amount: (s.selledPrice || 0) * qty,
       billId: `SHOP_BILL:${s.batchId}`,
-      discount: (() => {
-        const bill = billDiscount.get(s.batchId);
-        return bill?.lines ? Math.round((bill.discount * (s.selledPrice || 0) * qty) / bill.lines) : 0;
-      })(),
+      discount: lineDiscount(s.batchId, (s.selledPrice || 0) * qty),
+      paymentType: s.batch?.paymentType || "UNKNOWN",
+      reference: s.batch?.invoiceNumber ? `Bill #${s.batch.invoiceNumber}` : s.batch?.batchNumber || "",
+    });
+  }
+
+  // Untracked kurtis take no stock, so the bill's shop is both seller and source
+  for (const s of includeUntracked ? manualSales : []) {
+    const qty = s.quantity || 1;
+    const shopLocation = asLocation(locationForShopId(s.batch?.shopId));
+    rows.push({
+      soldBy: isHallSellType(s.batch?.sellType) ? "HALL" : shopLocation,
+      stockFrom: shopLocation,
+      channel: "SHOP_BILL",
+      soldAt: s.createdAt!,
+      code: UNTRACKED_CODE,
+      size: s.kurtiSize || "-",
+      category: String(s.category || "").trim().toUpperCase() || UNTRACKED_CODE,
+      quantity: qty,
+      amount: (s.selledPrice || 0) * qty,
+      billId: `SHOP_BILL:${s.batchId}`,
+      discount: lineDiscount(s.batchId, (s.selledPrice || 0) * qty),
       paymentType: s.batch?.paymentType || "UNKNOWN",
       reference: s.batch?.invoiceNumber ? `Bill #${s.batch.invoiceNumber}` : s.batch?.batchNumber || "",
     });
@@ -273,7 +329,8 @@ export const collectRows = async ({ from, to }: RangeArgs): Promise<LocationSale
   // A code no longer in Kurti (rare) falls back to its 3-letter category prefix.
   return rows.map((r) => ({
     ...r,
-    category: categoryByCode.get(r.code.toUpperCase()) || r.code.substring(0, 3).toUpperCase(),
+    category:
+      r.category || categoryByCode.get(r.code.toUpperCase()) || r.code.substring(0, 3).toUpperCase(),
     cost: (costByCode.get(r.code.toUpperCase()) || 0) * r.quantity,
     party: partyByCode.get(r.code.toUpperCase()) || "Unknown",
     discount: r.discount || 0,
@@ -284,7 +341,7 @@ type Totals = { pieces: number; amount: number };
 const emptyTotals = (): Totals => ({ pieces: 0, amount: 0 });
 
 export const getSalesByLocation = async (args: RangeArgs) => {
-  const rows = await collectRows(args);
+  const rows = await collectRows({ ...args, includeUntracked: true });
 
   const summary = SOLD_BY.map((soldBy) => {
     const byChannel = Object.fromEntries(
@@ -318,7 +375,7 @@ export const getSalesByLocation = async (args: RangeArgs) => {
 export const getSalesByLocationItems = async (
   args: RangeArgs & { soldBy: SoldBy; channel?: SaleChannel }
 ) => {
-  const rows = await collectRows(args);
+  const rows = await collectRows({ ...args, includeUntracked: true });
   return rows
     .filter((r) => r.soldBy === args.soldBy && (!args.channel || r.channel === args.channel))
     .sort((a, b) => b.soldAt.getTime() - a.soldAt.getTime());
