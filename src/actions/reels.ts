@@ -2,6 +2,7 @@
 
 import { db } from "@/src/lib/db";
 import { requirePermission } from "@/src/lib/permissions/server";
+import { isValidSize } from "@/src/lib/godown";
 
 // Customer "Watch & Shop" reels (Reel). Each reel is a YouTube Short plus the kurtis and
 // categories it shows; the customer reel page lists kurtiCodes first, then the categories.
@@ -11,6 +12,8 @@ export type ReelInput = {
   youtubeUrl: string;
   kurtiCodes?: string[];
   categoryCodes?: string[];
+  /** Narrows the categoryCodes kurtis to ones with any of these sizes in stock; empty = all */
+  sizes?: string[];
   isActive?: boolean;
 };
 
@@ -50,7 +53,11 @@ function clean(input: ReelInput) {
   if (kurtiCodes.length === 0 && categoryCodes.length === 0) {
     throw new Error("Pick at least one kurti or one category for this reel");
   }
-  return { title, youtubeUrl, videoId, kurtiCodes, categoryCodes, isActive: input.isActive ?? true };
+  // Sizes only narrow the categories, so they mean nothing without one
+  const sizes = categoryCodes.length
+    ? uniq(input.sizes).map((s) => s.toUpperCase()).filter(isValidSize)
+    : [];
+  return { title, youtubeUrl, videoId, kurtiCodes, categoryCodes, sizes, isActive: input.isActive ?? true };
 }
 
 export type KurtiPick = { code: string; category: string; image: string | null; createdAt?: string | null };
@@ -152,8 +159,9 @@ export async function createReel(input: ReelInput) {
   try {
     await requirePermission("reels.create");
     const data = clean(input);
-    const last = await db.reel.findFirst({ orderBy: { order: "desc" }, select: { order: true } });
-    await db.reel.create({ data: { ...data, order: (last?.order ?? -1) + 1 } });
+    // Newest upload goes on top; Up/Down can still move it afterwards
+    const first = await db.reel.findFirst({ orderBy: { order: "asc" }, select: { order: true } });
+    await db.reel.create({ data: { ...data, order: (first?.order ?? 1) - 1 } });
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error?.message || "Failed to add reel" };

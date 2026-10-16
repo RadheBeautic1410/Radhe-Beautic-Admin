@@ -95,7 +95,7 @@ export default function ReelsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Reels</h1>
           <p className="text-sm text-gray-500 mt-1">
             YouTube Shorts shown in the &ldquo;Watch &amp; Shop&rdquo; section of the customer website. Reels are
-            shown in the order listed here.
+            shown in the order listed here; a new reel is added at the top.
           </p>
         </div>
         <div className="flex items-center gap-2">

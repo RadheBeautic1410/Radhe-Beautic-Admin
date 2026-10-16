@@ -24,6 +24,7 @@ import { Input } from "@/src/components/ui/input"
 import { Label } from "@/src/components/ui/label"
 import { Switch } from "@/src/components/ui/switch"
 import { ArrowLeft, Check, Plus, X } from "lucide-react"
+import { VALID_SIZES } from "@/src/lib/godown"
 
 type CategoryOption = { code: string | null; name: string; isVisibleForCustomer: boolean }
 
@@ -32,6 +33,7 @@ const emptyForm = {
   youtubeUrl: "",
   kurtiCodes: [] as string[],
   categoryCodes: [] as string[],
+  sizes: [] as string[],
   isActive: true,
 }
 
@@ -82,6 +84,7 @@ export function ReelForm({ reelId }: { reelId?: string }) {
               youtubeUrl: data.reel.youtubeUrl,
               kurtiCodes: data.reel.kurtiCodes,
               categoryCodes: data.reel.categoryCodes,
+              sizes: data.reel.sizes ?? [],
               isActive: data.reel.isActive,
             })
           }
@@ -171,6 +174,13 @@ export function ReelForm({ reelId }: { reelId?: string }) {
       categoryCodes: f.categoryCodes.includes(code)
         ? f.categoryCodes.filter((c) => c !== code)
         : [...f.categoryCodes, code],
+    }))
+  }
+
+  const toggleSize = (size: string) => {
+    setForm((f) => ({
+      ...f,
+      sizes: f.sizes.includes(size) ? f.sizes.filter((s) => s !== size) : [...f.sizes, size],
     }))
   }
 
@@ -337,6 +347,39 @@ export function ReelForm({ reelId }: { reelId?: string }) {
                   )}
                 </div>
               </div>
+
+              {/* Sizes: narrow the category kurtis only; picked kurtis always show */}
+              {form.categoryCodes.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-gray-600">
+                    Sizes {form.sizes.length > 0 && `(${form.sizes.length} selected)`}
+                  </Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {VALID_SIZES.map((size) => {
+                      const on = form.sizes.includes(size)
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => toggleSize(size)}
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                            on
+                              ? "border-pink-600 bg-pink-600 text-white"
+                              : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          {size}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {form.sizes.length > 0
+                      ? `Category kurtis are shown only if ${form.sizes.join(" or ")} is in stock. Kurtis picked above always show.`
+                      : "No size picked: every kurti of the categories is shown."}
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2">
                 <Label htmlFor="active" className="text-sm">Show on website</Label>

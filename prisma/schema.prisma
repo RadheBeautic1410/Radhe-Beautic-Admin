@@ -918,7 +918,7 @@ model StorefrontMenuItem {
 }
 
 // YouTube Shorts/reels shown in the customer "Watch & Shop" section, managed from admin (Reels page).
-// The reel page shows kurtiCodes first, then every kurti of categoryCodes.
+// The reel page shows kurtiCodes first, then every kurti of categoryCodes (narrowed by sizes, if set).
 model Reel {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   title         String
@@ -926,6 +926,7 @@ model Reel {
   videoId       String
   kurtiCodes    String[]
   categoryCodes String[]
+  sizes         String[] // only categoryCodes kurtis with any of these sizes in stock; empty = all
   order         Int      @default(0)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
