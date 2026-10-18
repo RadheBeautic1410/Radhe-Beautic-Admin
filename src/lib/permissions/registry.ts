@@ -71,6 +71,8 @@ const special = (
 // Everyone except the shop-floor logins, who were limited to their own shop.
 const NOT_SHOP_LOGIN = Object.values(UserRole).filter((r) => r !== UserRole.SHOP_SELLER);
 const ADDED_2026_10_11 = "2026-10-11T10:24:22.370Z";
+const ADDED_2026_10_18 = "2026-10-18T00:00:00.000Z";
+const addedAt = (at: string) => (action: ActionDef): ActionDef => ({ ...action, since: at });
 
 export const MODULES: ModuleDef[] = [
   // ───────── Products ─────────
@@ -202,6 +204,13 @@ export const MODULES: ModuleDef[] = [
     group: "Stock",
     menu: "/move-to-floor",
     actions: [view(), special("moveStock", "Move stock")],
+  },
+  {
+    key: "vendorPurchases",
+    label: "Vendor Purchases",
+    group: "Stock",
+    menu: "/vendor-purchases",
+    actions: [view(), create(), edit(), del()].map(addedAt(ADDED_2026_10_18)),
   },
 
   // ───────── Sales & Orders ─────────
@@ -449,11 +458,15 @@ export const legacyPermissions = (baseRole: UserRole, menus: readonly string[]):
   const menuSet = new Set(menus);
   const out: PermissionKey[] = [];
   for (const [key, { module, action }] of BY_KEY) {
-    const hasMenu = !module.menu || menuSet.has(module.menu);
+    // A page added after the legacy menu lists were saved can't be in them; its
+    // base-role rule alone decides.
+    const newPage = !!module.actions.find((a) => a.key === "view")?.since;
+    const hasMenu = !module.menu || newPage || menuSet.has(module.menu);
     if (action.key === "view") {
       // The menu grants the page; a stricter in-page gate (view override) must
       // also admit the base role.
-      const rule = action.legacy && action.legacy !== "menu" ? action.legacy : null;
+      const rule =
+        action.legacy && action.legacy !== "menu" ? action.legacy : newPage ? legacyRolesFor(key) : null;
       if (hasMenu && module.menu && (!rule || rule.includes(baseRole))) out.push(key);
       continue;
     }
