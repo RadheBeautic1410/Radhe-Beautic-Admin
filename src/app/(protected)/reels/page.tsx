@@ -89,7 +89,7 @@ export default function ReelsPage() {
   const showActions = canEdit || canDelete
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 text-left">
+    <div className="min-h-screen w-full bg-gray-50 p-4 pt-16 md:p-6 lg:pt-6 space-y-6 text-left">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-5">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Reels</h1>

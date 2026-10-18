@@ -202,7 +202,7 @@ export function ReelForm({ reelId }: { reelId?: string }) {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6 text-left">
+    <div className="min-h-screen w-full bg-gray-50 p-4 pt-16 md:p-6 lg:pt-6 space-y-6 text-left">
       <div className="flex items-center gap-3 border-b pb-5">
         <Button asChild variant="outline" size="icon" aria-label="Back to reels">
           <Link href="/reels">
@@ -230,7 +230,8 @@ export function ReelForm({ reelId }: { reelId?: string }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="grid gap-x-8 gap-y-5 lg:grid-cols-2">
+              <div className="space-y-5">
               <div className="space-y-1.5">
                 <Label htmlFor="url" className="text-xs font-bold text-gray-600">YouTube link</Label>
                 <Input
@@ -248,7 +249,7 @@ export function ReelForm({ reelId }: { reelId?: string }) {
                   <img
                     src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
                     alt="Video preview"
-                    className="h-32 rounded-md border object-cover"
+                    className="h-32 lg:h-48 rounded-md border object-cover"
                   />
                 )}
               </div>
@@ -263,6 +264,17 @@ export function ReelForm({ reelId }: { reelId?: string }) {
                 />
               </div>
 
+              <div className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2">
+                <Label htmlFor="active" className="text-sm">Show on website</Label>
+                <Switch
+                  id="active"
+                  checked={form.isActive}
+                  onCheckedChange={(v: boolean) => setForm({ ...form, isActive: v })}
+                />
+              </div>
+              </div>
+
+              <div className="space-y-5">
               {/* Kurtis */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-gray-600">
@@ -324,7 +336,7 @@ export function ReelForm({ reelId }: { reelId?: string }) {
                   value={categorySearch}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCategorySearch(e.target.value)}
                 />
-                <div className="max-h-56 overflow-y-auto rounded-md border border-gray-200 divide-y">
+                <div className="max-h-56 lg:max-h-96 overflow-y-auto rounded-md border border-gray-200 divide-y">
                   {filteredCategories.length === 0 ? (
                     <p className="p-3 text-xs text-gray-500">No categories found.</p>
                   ) : (
@@ -380,18 +392,10 @@ export function ReelForm({ reelId }: { reelId?: string }) {
                   </p>
                 </div>
               )}
-
-              <div className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2">
-                <Label htmlFor="active" className="text-sm">Show on website</Label>
-                <Switch
-                  id="active"
-                  checked={form.isActive}
-                  onCheckedChange={(v: boolean) => setForm({ ...form, isActive: v })}
-                />
               </div>
 
-              <div className="flex gap-2">
-                <Button type="submit" disabled={saving} className="flex-1 bg-pink-600 hover:bg-pink-700">
+              <div className="flex gap-2 border-t pt-5 lg:col-span-2 lg:justify-end">
+                <Button type="submit" disabled={saving} className="flex-1 lg:flex-none lg:min-w-48 bg-pink-600 hover:bg-pink-700">
                   {saving ? "Saving..." : reelId ? "Save Changes" : "Add Reel"}
                 </Button>
                 <Button type="button" variant="outline" asChild>

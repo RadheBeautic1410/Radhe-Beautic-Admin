@@ -107,7 +107,7 @@ export default function KurtiTypesPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 text-left">
+    <div className="min-h-screen w-full bg-gray-50 p-4 pt-16 md:p-6 lg:pt-6 space-y-8 text-left">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-5">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Kurti Style Illustrations</h1>
@@ -138,10 +138,10 @@ export default function KurtiTypesPage() {
       {loading ? (
         <div className="text-center py-20">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-600 mx-auto" />
-          <p className="text-sm text-gray-400 mt-3 font-semibold">Loading storefront configurations...</p>
+          <p className="text-sm text-gray-400 mt-3 font-semibold">Loading kurti types...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
           {kurtiTypes.map((type) => {
             const custom = customTypeImages.find(img => img.key === type.key)
             const isUploadingThis = !!categoryUploading[type.key]
@@ -189,6 +189,7 @@ export default function KurtiTypesPage() {
                     onChange={(e) => {
                       const file = e.target.files?.[0]
                       if (file) handleKurtiTypeUpload(type.key, file)
+                      e.target.value = ""
                     }}
                     className="hidden"
                   />
