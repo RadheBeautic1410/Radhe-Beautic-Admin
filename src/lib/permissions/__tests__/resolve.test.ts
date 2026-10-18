@@ -199,3 +199,44 @@ describe("helpers", () => {
     expect(canGrantAll({ isAdmin: true, permissions: new Set<string>() }, ["expenses.delete"])).toBe(true);
   });
 });
+
+describe("pages added after a role was set up (Vendor Purchases)", () => {
+  const VP = ["vendorPurchases.view", "vendorPurchases.create", "vendorPurchases.edit", "vendorPurchases.delete"];
+  const before = new Date("2026-10-11T10:35:36.830Z");
+  const allButVP = ALL_PERMISSIONS.filter((k) => !VP.includes(k));
+
+  it("a full-access role saved before gets the new page, whatever its base role", () => {
+    const a = resolveAccess({
+      role: UserRole.SELLER,
+      roleRow: row({ name: "Super Admin", permissions: allButVP, permissionsSetAt: before }),
+      hasCustomRole: true,
+    });
+    expect(a.permissions).toEqual(expect.arrayContaining(VP));
+  });
+
+  it("a partial SELLER role saved before does not", () => {
+    const a = resolveAccess({
+      role: UserRole.SELLER,
+      roleRow: row({ permissions: allButVP.slice(1), permissionsSetAt: before }),
+      hasCustomRole: true,
+    });
+    expect(a.permissions.filter((k) => VP.includes(k))).toEqual([]);
+  });
+
+  it("a trimmed legacy ADMIN row gets it without the menu being listed", () => {
+    const menus = defaultMenusForRole(UserRole.ADMIN).filter((h) => h !== "/analytics" && h !== "/vendor-purchases");
+    const a = resolveAccess({
+      role: UserRole.ADMIN,
+      roleRow: row({ name: "ADMIN", baseRole: UserRole.ADMIN, isSystem: true, menus }),
+      hasCustomRole: false,
+    });
+    expect(a.permissions).toEqual(expect.arrayContaining(VP));
+  });
+
+  it("legacy non-admin roles still don't get it", () => {
+    for (const base of [UserRole.SELLER, UserRole.UPLOADER, UserRole.SHOP_SELLER]) {
+      const a = resolveAccess({ role: base, roleRow: row({ baseRole: base, menus: defaultMenusForRole(base) }), hasCustomRole: false });
+      expect(a.permissions.filter((k) => VP.includes(k))).toEqual([]);
+    }
+  });
+});

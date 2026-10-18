@@ -41,7 +41,15 @@ export const LOCATION_LABELS: Record<StockLocation, string> = {
   GODOWN: "Godown",
 };
 
-export const isStockLocation = (val: any): val is StockLocation =>
+/** Quick visual cue for each location, used on the move screens. */
+export const LOCATION_EMOJI: Record<StockLocation, string> = {
+  FLOOR_1: "1️⃣",
+  FLOOR_2: "2️⃣",
+  SHOP_316: "🏪",
+  GODOWN: "📦",
+};
+
+export const isStockLocation =(val: any): val is StockLocation =>
   STOCK_LOCATIONS.includes(val);
 
 /** `Shop` records (confirmed by the owner) and the stock each one sells. */
@@ -239,6 +247,18 @@ export const splitCodeAndSize = (
   return { code, size };
 };
 
-/** Every size of a kurti that has godown stock but nothing on either floor. */
-export const pendingFloorMoveSizes = (sizes: any[]): any[] =>
-  (sizes || []).filter(needsFloorMove).map(normalizeSizeLocations);
+/**
+ * Every size of a kurti that has godown stock but nothing on either floor, or -
+ * when `location` is given - nothing at that one location.
+ */
+export const pendingFloorMoveSizes = (
+  sizes: any[],
+  location?: Exclude<StockLocation, "GODOWN">
+): any[] =>
+  (sizes || [])
+    .filter((s: any) =>
+      location
+        ? getLocationQty(s, location) === 0 && getGodownQty(s) > 0
+        : needsFloorMove(s)
+    )
+    .map(normalizeSizeLocations);

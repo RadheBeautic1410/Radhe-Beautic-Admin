@@ -117,6 +117,8 @@ interface PendingFloorMovesArgs {
   pageSize?: number;
   category?: string;
   search?: string;
+  /** Only sizes with nothing at this location; omitted = nothing on either floor. */
+  location?: Exclude<StockLocation, "GODOWN">;
 }
 
 /**
@@ -131,10 +133,12 @@ export const getPendingFloorMoves = async ({
   pageSize = 20,
   category,
   search,
+  location,
 }: PendingFloorMovesArgs = {}) => {
   try {
+    // Category is filtered in memory so the response can still list every
+    // category with something pending, for the filter dropdown.
     const where: any = { isDeleted: false, countOfPiece: { gt: 0 } };
-    if (category) where.category = category.toUpperCase();
     if (search) where.code = { contains: search.toUpperCase() };
 
     const candidates = await db.kurti.findMany({
@@ -151,9 +155,9 @@ export const getPendingFloorMoves = async ({
       orderBy: { code: "asc" },
     });
 
-    const matches = candidates
+    const allMatches = candidates
       .map((k: any) => {
-        const pending = pendingFloorMoveSizes((k.sizes as any[]) || []);
+        const pending = pendingFloorMoveSizes((k.sizes as any[]) || [], location);
         if (!pending.length) return null;
         return {
           id: k.id,
@@ -175,6 +179,13 @@ export const getPendingFloorMoves = async ({
       })
       .filter(Boolean) as any[];
 
+    const categories = Array.from(
+      new Set(allMatches.map((m) => String(m.category || "").toUpperCase()).filter(Boolean))
+    ).sort();
+    const matches = category
+      ? allMatches.filter((m) => String(m.category || "").toUpperCase() === category.toUpperCase())
+      : allMatches;
+
     const total = matches.length;
     const totalPieces = matches.reduce(
       (sum, m) => sum + (m.pendingPieces || 0),
@@ -186,12 +197,13 @@ export const getPendingFloorMoves = async ({
       items: matches.slice(start, start + pageSize),
       total,
       totalPieces,
+      categories,
       page,
       pageSize,
     };
   } catch (e: any) {
     console.log("getPendingFloorMoves:", e.message);
-    return { items: [], total: 0, totalPieces: 0, page, pageSize };
+    return { items: [], total: 0, totalPieces: 0, categories: [], page, pageSize };
   }
 };
 

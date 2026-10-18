@@ -10,6 +10,7 @@ import {
 } from "@/src/components/ui/dialog";
 import { Input } from "@/src/components/ui/input";
 import {
+  LOCATION_EMOJI,
   LOCATION_LABELS,
   StockLocation,
   getLocationQty,
@@ -161,7 +162,8 @@ export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({ from, to, onMove
           <DialogHeader>
             <DialogTitle>Move multiple sizes - {kurti?.code}</DialogTitle>
             <DialogDescription>
-              From <b>{LOCATION_LABELS[from]}</b> to <b>{LOCATION_LABELS[to]}</b>. Numbers show
+              <b className="text-orange-700">📤 {LOCATION_EMOJI[from]} {LOCATION_LABELS[from]}</b> ➡️{" "}
+              <b className="text-emerald-700">📥 {LOCATION_EMOJI[to]} {LOCATION_LABELS[to]}</b>. Numbers show
               the pieces in {LOCATION_LABELS[from]}.
             </DialogDescription>
           </DialogHeader>
@@ -253,7 +255,7 @@ export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({ from, to, onMove
                 </Button>
                 <Button type="button" onClick={move} disabled={saving || !selected.length}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : ""}
-                  Move to {LOCATION_LABELS[to]}
+                  Move to {LOCATION_EMOJI[to]} {LOCATION_LABELS[to]}
                 </Button>
               </div>
             </div>

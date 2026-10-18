@@ -118,7 +118,7 @@ export default function CustomerSettingsPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 text-left">
+    <div className="min-h-screen w-full bg-gray-50 p-4 pt-16 md:p-6 lg:pt-6 space-y-8 text-left">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-5">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Homepage Sliders Settings</h1>
@@ -141,8 +141,8 @@ export default function CustomerSettingsPage() {
         <div className="text-xs text-blue-700 leading-relaxed font-semibold">
           <p className="font-bold mb-1">Recommended Image Size Guidelines:</p>
           <ul className="list-disc pl-4 space-y-1">
-            <li><strong>Desktop Image</strong>: <strong>1920px x 600px</strong> (landscape layout) for best display on laptops and widescreen monitors.</li>
-            <li><strong>Mobile Image (Optional)</strong>: <strong>800px x 800px</strong> (square/vertical layout) for optimal rendering on mobile screens and tablets.</li>
+            <li><strong>Desktop Image</strong>: <strong>2520px x 960px</strong> (21:8, wide) for laptops and widescreen monitors. Keep faces and products in the middle; the edges may be cropped.</li>
+            <li><strong>Mobile Image (Optional)</strong>: <strong>1080px x 1350px</strong> (4:5, portrait) for phones. If left empty, the desktop image is used.</li>
           </ul>
         </div>
       </div>
@@ -261,13 +261,13 @@ export default function CustomerSettingsPage() {
             <h2 className="text-lg font-bold text-gray-800">Active Slider Banners ({sliders.length})</h2>
             
             {sliders.length === 0 ? (
-              <div className="bg-gray-50 border rounded-2xl p-12 text-center text-gray-400">
+              <div className="bg-white border rounded-2xl p-12 text-center text-gray-400">
                 <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="font-semibold text-sm">No slider images uploaded.</p>
                 <p className="text-xs mt-1">Default backup images are active on the customer portal.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
                 {sliders.map((slider) => (
                   <Card key={slider.id} className="overflow-hidden border border-gray-150 flex flex-col justify-between shadow-xs bg-white">
                     <div>

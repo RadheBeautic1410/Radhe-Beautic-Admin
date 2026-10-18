@@ -96,9 +96,13 @@ export const resolveAccess = ({ role, roleRow, hasCustomRole }: UserRoleInput): 
     permissions = sanitizePermissions(roleRow.permissions);
     // Actions added after this role was last saved were never its choice: give
     // them their legacy default until the role is saved again.
+    // A role that held every action existing at save time was a full-access role,
+    // so it gets the later ones too, whatever its base role.
     const savedAt = new Date(roleRow.permissionsSetAt).getTime();
-    for (const { key, since } of LATER_ADDED) {
-      if (savedAt < since && !permissions.includes(key) && legacyRolesFor(key).includes(baseRole)) {
+    const addedAfterSave = new Set(LATER_ADDED.filter((a) => savedAt < a.since).map((a) => a.key));
+    const heldEverything = ALL_PERMISSIONS.every((k) => addedAfterSave.has(k) || permissions.includes(k));
+    for (const key of addedAfterSave) {
+      if (!permissions.includes(key) && (heldEverything || legacyRolesFor(key).includes(baseRole))) {
         permissions.push(key);
       }
     }

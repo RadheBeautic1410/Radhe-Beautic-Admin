@@ -72,6 +72,7 @@ export const MENU_GROUPS: MenuGroup[] = [
         roles: [ADMIN, UPLOADER, SELLER, SHOP_SELLER],
       },
       { name: "Move to Floor", href: "/move-to-floor", icon: "⬇️", roles: [ADMIN, UPLOADER, SELLER] },
+      { name: "Vendor Purchases", href: "/vendor-purchases", icon: "🧾", roles: [ADMIN] },
     ],
   },
   {

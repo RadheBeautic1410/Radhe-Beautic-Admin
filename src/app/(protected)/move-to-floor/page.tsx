@@ -30,7 +30,7 @@ function MoveToFloorPage() {
             </Button>
           </Link>
         </div>
-        <PendingFloorMoves pageSize={20} />
+        <PendingFloorMoves />
       </CardContent>
     </Card>
   );

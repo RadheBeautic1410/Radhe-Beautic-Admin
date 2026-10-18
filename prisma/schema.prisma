@@ -957,3 +957,32 @@ model Role {
 
   @@map("roles")
 }
+
+// One design line on a vendor purchase bill.
+type VendorPurchaseItem {
+  design    String
+  kurtiType String?
+  pieces    Int
+  price     Float
+  imageUrl  String?
+  imagePath String?
+}
+
+// Kurtis bought from a vendor (Party). Only a record of what was bought and
+// for how much; it does not add stock.
+model VendorPurchase {
+  id            String               @id @default(auto()) @map("_id") @db.ObjectId
+  partyId       String?              @db.ObjectId
+  partyName     String
+  date          DateTime
+  items         VendorPurchaseItem[]
+  totalPieces   Int
+  totalAmount   Float
+  createdById   String?              @db.ObjectId
+  createdByName String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([date])
+  @@index([partyId, date])
+}
