@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { getPendingFloorMoves } from "@/src/data/godown";
 import { NextRequest, NextResponse } from "next/server";
 import { apiPermission } from "@/src/lib/permissions/server";
+import { COUNTED_LOCATIONS } from "@/src/lib/godown";
 
 export async function GET(request: NextRequest) {
   const guard = await apiPermission(["godown.view","stockLocation.view","moveToFloor.view"]);
@@ -13,8 +14,10 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(params.get("pageSize") || "20", 10) || 20;
     const category = params.get("category") || undefined;
     const search = params.get("search") || undefined;
+    const rawLocation = params.get("location");
+    const location = COUNTED_LOCATIONS.find((loc) => loc === rawLocation);
 
-    const data = await getPendingFloorMoves({ page, pageSize, category, search });
+    const data = await getPendingFloorMoves({ page, pageSize, category, search, location });
     return new NextResponse(JSON.stringify({ data }), { status: 200 });
   } catch (error: any) {
     return new NextResponse(JSON.stringify({ error: error.message }), {

@@ -20,6 +20,7 @@ import axios from "axios";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  LOCATION_EMOJI,
   LOCATION_LABELS,
   STOCK_LOCATIONS,
   StockLocation,
@@ -40,38 +41,56 @@ interface LastMove {
   counts: Record<StockLocation, number>;
 }
 
+const DIRECTION_STYLES = {
+  from: {
+    title: "📤 From",
+    row: "bg-orange-50 border-orange-200",
+    titleText: "text-orange-700",
+    selected: "bg-orange-600 border-orange-600 text-white shadow",
+  },
+  to: {
+    title: "📥 To",
+    row: "bg-emerald-50 border-emerald-200",
+    titleText: "text-emerald-700",
+    selected: "bg-emerald-600 border-emerald-600 text-white shadow",
+  },
+} as const;
+
 const LocationButtons = ({
-  title,
+  direction,
   value,
   isDisabled,
   onChange,
 }: {
-  title: string;
+  direction: keyof typeof DIRECTION_STYLES;
   value: StockLocation;
   isDisabled: (loc: StockLocation) => boolean;
   onChange: (loc: StockLocation) => void;
-}) => (
-  <div className="flex flex-row flex-wrap items-center gap-2">
-    <span className="text-sm font-semibold w-12">{title}</span>
-    {STOCK_LOCATIONS.map((loc) => (
-      <button
-        key={loc}
-        type="button"
-        disabled={isDisabled(loc)}
-        onClick={() => onChange(loc)}
-        className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
-          value === loc
-            ? "bg-slate-800 border-slate-800 text-white"
-            : isDisabled(loc)
-              ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
-              : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-        }`}
-      >
-        {LOCATION_LABELS[loc]}
-      </button>
-    ))}
-  </div>
-);
+}) => {
+  const style = DIRECTION_STYLES[direction];
+  return (
+    <div className={`flex flex-row flex-wrap items-center gap-2 rounded-lg border p-2 ${style.row}`}>
+      <span className={`text-sm font-bold w-20 ${style.titleText}`}>{style.title}</span>
+      {STOCK_LOCATIONS.map((loc) => (
+        <button
+          key={loc}
+          type="button"
+          disabled={isDisabled(loc)}
+          onClick={() => onChange(loc)}
+          className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
+            value === loc
+              ? style.selected
+              : isDisabled(loc)
+                ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          {LOCATION_EMOJI[loc]} {LOCATION_LABELS[loc]}
+        </button>
+      ))}
+    </div>
+  );
+};
 
 function GodownStockPage() {
   const user = useCurrentUser();
@@ -162,16 +181,22 @@ function GodownStockPage() {
       <CardContent className="w-full flex flex-col gap-5">
         {/* Where the pieces go */}
         <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-4">
-          <LocationButtons title="From" value={from} isDisabled={() => false} onChange={chooseFrom} />
-          <LocationButtons title="To" value={to} isDisabled={toDisabled} onChange={setTo} />
+          <LocationButtons direction="from" value={from} isDisabled={() => false} onChange={chooseFrom} />
+          <LocationButtons direction="to" value={to} isDisabled={toDisabled} onChange={setTo} />
           {ownLocation && (
             <p className="text-xs text-gray-600">
               Your login can move stock into or out of {LOCATION_LABELS[ownLocation]}.
             </p>
           )}
-          <p className="text-xs font-semibold rounded-md px-2.5 py-1.5 border w-fit bg-white border-slate-200 text-slate-700">
-            Moving from {LOCATION_LABELS[from]} to {LOCATION_LABELS[to]}
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-base font-bold">
+            <span className="rounded-lg px-3 py-1.5 bg-orange-100 text-orange-800 border border-orange-300">
+              {LOCATION_EMOJI[from]} {LOCATION_LABELS[from]}
+            </span>
+            <span className="text-xl">➡️</span>
+            <span className="rounded-lg px-3 py-1.5 bg-emerald-100 text-emerald-800 border border-emerald-300">
+              {LOCATION_EMOJI[to]} {LOCATION_LABELS[to]}
+            </span>
+          </div>
         </div>
 
         {/* Two ways to move: scan one piece, or pick sizes for a design */}
@@ -202,7 +227,7 @@ function GodownStockPage() {
                 disabled={saving}
               >
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : ""}
-                Move to {LOCATION_LABELS[to]}
+                Move to {LOCATION_EMOJI[to]} {LOCATION_LABELS[to]}
               </Button>
             </div>
           </div>
@@ -289,7 +314,7 @@ function GodownStockPage() {
         {/* Pending move-to-floor alert */}
         <div className="mt-4 flex flex-col gap-2">
           <p className="text-lg font-semibold">⬇️ Not on any showroom floor yet</p>
-          <PendingFloorMoves refreshKey={refreshKey} pageSize={10} compact />
+          <PendingFloorMoves refreshKey={refreshKey} compact />
         </div>
       </CardContent>
     </Card>
