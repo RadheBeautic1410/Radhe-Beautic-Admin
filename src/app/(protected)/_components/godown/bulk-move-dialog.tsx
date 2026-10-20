@@ -18,7 +18,7 @@ import {
 } from "@/src/lib/godown";
 import axios from "axios";
 import { Loader2 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { toast } from "sonner";
 
 interface BulkMoveDialogProps {
@@ -52,6 +52,7 @@ export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({ from, to, onMove
   const [qty, setQty] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const sizes: { size: string; available: number }[] = (kurti?.sizes || [])
     .filter((s: any) => s)
@@ -134,7 +135,13 @@ export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({ from, to, onMove
         </div>
         <div className="flex items-center gap-2 mt-auto">
           <Input
+            ref={inputRef}
             className="h-10 flex-1 min-w-0"
+            // After the dialog closes, one click must be enough to type the next code
+            onPointerDown={() => {
+              document.body.style.pointerEvents = "";
+              requestAnimationFrame(() => inputRef.current?.focus());
+            }}
             placeholder="e.g. JR41223"
             value={code}
             onChange={(e) => setCode(e.target.value)}
@@ -158,7 +165,14 @@ export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({ from, to, onMove
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-auto">
+        <DialogContent
+          className="sm:max-w-[520px] max-h-[85vh] overflow-auto"
+          // Return to the code box (not the button) so the next design can be scanned
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            inputRef.current?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Move multiple sizes - {kurti?.code}</DialogTitle>
             <DialogDescription>
