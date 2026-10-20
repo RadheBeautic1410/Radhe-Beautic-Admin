@@ -47,7 +47,7 @@ function SellPage() {
   const currentUser = useCurrentUser();
   // Which location the piece is sold from; remembered on this device.
   const [floor, setFloor] = useState<StockLocation | null>(null);
-  // Shop logins (1st floor, 2nd floor, Shop 316) always sell their own location.
+  // Shop logins (ground floor, 1st floor, Shop 316) always sell their own location.
   const [lockedLocation, setLockedLocation] = useState<StockLocation | null>(null);
   const { can } = usePermissions();
   // Without "use any stock location" a login sells only from its own shop.

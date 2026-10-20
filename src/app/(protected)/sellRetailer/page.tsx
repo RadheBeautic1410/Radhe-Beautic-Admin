@@ -218,7 +218,7 @@ function SellPage() {
     }
 
     const sizeInfo = foundKurti.sizes?.find((sz: any) => sz.size === size);
-    // A bill sells only its own shop's stock (1st floor, 2nd floor or Shop 316).
+    // A bill sells only its own shop's stock (ground floor, 1st floor or Shop 316).
     const available = availableAtLocation(sizeInfo, billLocation);
     const where = billLocation ? LOCATION_LABELS[billLocation] : "stock";
     if (!sizeInfo || available < 1) {

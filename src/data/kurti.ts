@@ -413,7 +413,7 @@ export const sellKurti2 = async (data: any) => {
     let { code, currentUser, currentTime } = data;
     // The /sell page says which location the piece is sold from.
     if (!isStockLocation(data?.stockLocation)) {
-      return { error: "Choose which location you are selling from (1st Floor / 2nd Floor / Shop 316 / Godown)" };
+      return { error: "Choose which location you are selling from (Ground Floor / 1st Floor / Shop 316 / Godown)" };
     }
     const stockLocation: StockLocation = data.stockLocation;
     code = code.toUpperCase();
@@ -1593,7 +1593,7 @@ export const sellMultipleOfflineKurtis = async (data: any) => {
     const lineLocation = (p: any): StockLocation | null =>
       isStockLocation(p?.stockLocation) ? p.stockLocation : billStockLocation;
     if (tracked.some((p: any) => !lineLocation(p))) {
-      return { error: "This shop has no stock location set up - select 1st floor, 2nd floor or Shop 316" };
+      return { error: "This shop has no stock location set up - select ground floor, 1st floor or Shop 316" };
     }
 
     const discount = Math.max(0, parseInt(String(discountAmount || 0)) || 0);
@@ -2206,7 +2206,7 @@ export const sellMultipleOnlineKurtis = async (data: any) => {
               continue;
             }
             if (!stockLocation) {
-              errors.push(`Choose where ${search}-${cmp} was taken from (1st Floor / 2nd Floor / Shop 316 / Godown)`);
+              errors.push(`Choose where ${search}-${cmp} was taken from (Ground Floor / 1st Floor / Shop 316 / Godown)`);
               continue;
             }
             let deductedRow: any;

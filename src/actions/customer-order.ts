@@ -346,7 +346,7 @@ export const acceptCustomerOrder = async (
             // Deduct from the chosen location - throws when it lacks the pieces
             const stockLocation = paymentData?.stockLocations?.[`${code}|${size}`.toUpperCase()];
             if (!stockLocation || !isStockLocation(stockLocation)) {
-              throw new Error(`Choose where ${code}-${size} is taken from (1st Floor / 2nd Floor / Shop 316 / Godown)`);
+              throw new Error(`Choose where ${code}-${size} is taken from (Ground Floor / 1st Floor / Shop 316 / Godown)`);
             }
             const deducted = deductFromLocation(sizeInStock, quantity, stockLocation, `${code}-${size}`);
             updatedSizes = updatedSizes

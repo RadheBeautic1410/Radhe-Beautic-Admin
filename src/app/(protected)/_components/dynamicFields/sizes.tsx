@@ -19,7 +19,7 @@ import { toast } from "sonner";
 const selectSizes: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
 
 // Header, rows and footer share one grid so the columns always line up.
-// Columns: size | total | 1st floor | 2nd floor | shop 316 | godown | remove
+// Columns: size | total | ground floor | 1st floor | shop 316 | godown | remove
 const GRID_WITH_LOCATIONS = "grid grid-cols-[72px_repeat(4,minmax(52px,1fr))_minmax(52px,1fr)_32px] gap-2 items-center";
 // Columns: size | total | remove
 const GRID_PLAIN = "grid grid-cols-[96px_minmax(64px,1fr)_32px] gap-2 items-center";
@@ -96,7 +96,7 @@ interface AddSizeFormProps {
     onAddSize: (sizes: any[]) => void;
     preSizes: any[];
     sizes: any[];
-    /** Show per-location inputs (1st / 2nd floor, Shop 316) and the derived godown count. */
+    /** Show per-location inputs (ground / 1st floor, Shop 316) and the derived godown count. */
     showGodown?: boolean;
 }
 
@@ -165,7 +165,7 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, sizes, show
                                                 ? "bg-amber-100 text-amber-800"
                                                 : "bg-slate-100 text-slate-700"
                                         }`}
-                                        title="Godown = Total - 1st Floor - 2nd Floor - Shop 316"
+                                        title="Godown = Total - Ground Floor - 1st Floor - Shop 316"
                                     >
                                         {getGodownQty(obj)}
                                     </span>
