@@ -5,10 +5,13 @@
  * TOTAL number of pieces that exist for that size. Those pieces are spread over
  * four locations:
  *
- *   - FLOOR_1   showroom 1st (ground) floor, Shop 269      -> `floor1Quantity`
- *   - FLOOR_2   showroom 2nd floor, "Shop 269 Second Floor" -> `floor2Quantity`
+ *   - FLOOR_1   showroom ground floor, Shop 269             -> `floor1Quantity`
+ *   - FLOOR_2   showroom 1st floor, "Shop 269 Second Floor" -> `floor2Quantity`
  *   - SHOP_316  separate shop, stocked from the godown      -> `shop316Quantity`
- *   - GODOWN    3rd floor                                   -> the remainder
+ *   - GODOWN    top floor                                   -> the remainder
+ *
+ * The keys (FLOOR_1 / floor1Quantity ...) are stored in the DB and never change;
+ * only LOCATION_LABELS decides what the floors are called on screen.
  *
  * Godown = quantity - floor1 - floor2 - shop316. A missing key reads as 0, so
  * anything that only raises `quantity` (new stock, returns) and every row saved
@@ -35,16 +38,16 @@ export const LOCATION_KEYS: Record<Exclude<StockLocation, "GODOWN">, string> = {
 };
 
 export const LOCATION_LABELS: Record<StockLocation, string> = {
-  FLOOR_1: "1st Floor",
-  FLOOR_2: "2nd Floor",
+  FLOOR_1: "Ground Floor",
+  FLOOR_2: "1st Floor",
   SHOP_316: "Shop 316",
   GODOWN: "Godown",
 };
 
 /** Quick visual cue for each location, used on the move screens. */
 export const LOCATION_EMOJI: Record<StockLocation, string> = {
-  FLOOR_1: "1️⃣",
-  FLOOR_2: "2️⃣",
+  FLOOR_1: "0️⃣",
+  FLOOR_2: "1️⃣",
   SHOP_316: "🏪",
   GODOWN: "📦",
 };
@@ -93,7 +96,7 @@ export const getTotalQty = (size: any): number => Math.max(0, toInt(size?.quanti
 
 /**
  * Pieces of a size at one location. Counted locations are clamped in order
- * (1st floor, 2nd floor, shop 316) so together they never exceed the total.
+ * (ground floor, 1st floor, shop 316) so together they never exceed the total.
  */
 export const getLocationQty = (size: any, location: StockLocation): number => {
   let left = getTotalQty(size);
@@ -111,7 +114,7 @@ export const getGodownQty = (size: any): number => getLocationQty(size, "GODOWN"
 export const getShowroomQty = (size: any): number =>
   getLocationQty(size, "FLOOR_1") + getLocationQty(size, "FLOOR_2");
 
-/** e.g. "1st Floor 2 · Shop 316 1 · Godown 3" - only the non-zero locations. */
+/** e.g. "Ground Floor 2 · Shop 316 1 · Godown 3" - only the non-zero locations. */
 export const describeLocations = (size: any): string => {
   const parts = STOCK_LOCATIONS.map((loc) => ({ loc, qty: getLocationQty(size, loc) }))
     .filter((p) => p.qty > 0)

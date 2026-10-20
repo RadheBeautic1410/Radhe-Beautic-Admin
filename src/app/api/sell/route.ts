@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
         let data = await request.json();
         console.log("its sell data",data);
 
-        // Shop logins (1st floor, 2nd floor, Shop 316) can only sell their own location's stock,
+        // Shop logins (ground floor, 1st floor, Shop 316) can only sell their own location's stock,
         // except hall sales, where the piece can be picked up from any location.
         if (!accessCan(guard.access, "stockLocation.anyLocation") && data?.isHallSale !== true) {
             const shop = await getUserShop(guard.access.userId);

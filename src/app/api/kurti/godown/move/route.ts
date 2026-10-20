@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
 
-    // Shop logins (1st floor, 2nd floor, Shop 316) may only move stock into or
+    // Shop logins (ground floor, 1st floor, Shop 316) may only move stock into or
     // out of their own location.
     if (!accessCan(guard.access, "stockLocation.anyLocation")) {
       const shop = user.id ? await getUserShop(user.id) : null;

@@ -218,7 +218,7 @@ function isSize(size: string) {
 
 export const sellOrder = async (code: string, cartId: any, currentUser: any, currentTime: any, stockLocation?: StockLocation) => {
     if (!stockLocation || !isStockLocation(stockLocation)) {
-        return { success: false, error: 'Choose where this piece was taken from (1st Floor / 2nd Floor / Shop 316 / Godown)' };
+        return { success: false, error: 'Choose where this piece was taken from (Ground Floor / 1st Floor / Shop 316 / Godown)' };
     }
     return sellOrderFromLocation(code, cartId, currentUser, currentTime, stockLocation);
 }

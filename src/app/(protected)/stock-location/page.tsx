@@ -551,7 +551,7 @@ function StockLocationPage() {
   const canClearLocation = can("stockLocation.clearLocation");
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Shop logins (1st floor, 2nd floor, Shop 316) start on their own location.
+  // Shop logins (ground floor, 1st floor, Shop 316) start on their own location.
   // The session can load after the first render, hence the effect.
   useEffect(() => {
     if (can("stockLocation.anyLocation") || !user?.id) return;
@@ -568,7 +568,7 @@ function StockLocationPage() {
       <CardHeader>
         <p className="text-2xl font-semibold text-center">📍 Stock by Location</p>
         <p className="text-sm text-center text-gray-600">
-          What is sitting on the 1st Floor, 2nd Floor, at Shop 316 and in the Godown
+          What is sitting on the Ground Floor, 1st Floor, at Shop 316 and in the Godown
           right now.
         </p>
       </CardHeader>

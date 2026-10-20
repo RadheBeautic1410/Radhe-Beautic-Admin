@@ -538,7 +538,7 @@ export const getCategoryOverallStates = async () => {
 
 /**
  * Stock-take for one category. With a `location`, only that location is emptied
- * (e.g. the 2nd floor before it is re-scanned from /addstock); the other
+ * (e.g. the 1st floor before it is re-scanned from /addstock); the other
  * locations keep their pieces. Without one, the whole category is wiped.
  */
 export const clearStockData = async (

@@ -8,10 +8,10 @@ import {
 } from "@/src/lib/godown";
 
 /**
- * Sales grouped by who sold them - a counter (1st floor, 2nd floor, Shop 316,
+ * Sales grouped by who sold them - a counter (ground floor, 1st floor, Shop 316,
  * Godown), HALL or ONLINE - with the stock location each piece came from kept as
- * a separate breakdown. An online order picked from the 1st floor lowers 1st-floor
- * stock but is reported as an online sale, not a 1st-floor sale.
+ * a separate breakdown. An online order picked from the ground floor lowers ground-floor
+ * stock but is reported as an online sale, not a ground-floor sale.
  *
  * Sources:
  *   - SHOP_BILL      OfflineSell (Sell Retailer / Hall Sales) - the shop's counter
