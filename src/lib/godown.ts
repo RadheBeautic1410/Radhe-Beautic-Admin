@@ -66,7 +66,18 @@ export const SHOP_LOCATIONS: Record<string, StockLocation> = {
 export const locationForShopId = (shopId?: string | null): StockLocation | null =>
   (shopId && SHOP_LOCATIONS[shopId]) || null;
 
-export const isHallSellType = (sellType?: string | null): boolean =>
+/** A `Shop` shown by its location label (e.g. "1st Floor"), else "name - location". */
+export const shopDisplayName = (shop?: {
+  id?: string | null;
+  shopName?: string | null;
+  shopLocation?: string | null;
+} | null): string => {
+  const location = locationForShopId(shop?.id);
+  if (location) return LOCATION_LABELS[location];
+  return [shop?.shopName, shop?.shopLocation].filter(Boolean).join(" - ");
+};
+
+export const isHallSellType =(sellType?: string | null): boolean =>
   sellType === "HALL_SELL_OFFLINE" || sellType === "HALL_SELL_ONLINE";
 
 /**

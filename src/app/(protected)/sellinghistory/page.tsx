@@ -12,6 +12,7 @@ import { useCurrentUser } from '@/src/hooks/use-current-user';
 import { getUserShop } from '@/src/actions/shop';
 import { PermissionGate } from "@/src/components/auth/permission-gate";
 import { usePermissions } from "@/src/components/auth/permissions-provider";
+import { locationForShopId, shopDisplayName } from "@/src/lib/godown";
 const headerCells = [
     {
         name: 'Sr.',
@@ -60,7 +61,12 @@ function SellingHistory() {
             try {
                 const res = await fetch('/api/shops');
                 const json = await res.json();
-                if (json?.data) setShops(json.data);
+                // Ground Floor, 1st Floor, other shops, then Shop 316 last
+                const rank = (s: any) =>
+                    ({ FLOOR_1: 0, FLOOR_2: 1, SHOP_316: 3 } as Record<string, number>)[
+                        locationForShopId(s.id) || ""
+                    ] ?? 2;
+                if (json?.data) setShops(json.data.slice().sort((a: any, b: any) => rank(a) - rank(b)));
             } catch (e: any) {
                 console.log('Failed to load shops', e?.message || e);
             }
@@ -127,6 +133,7 @@ function SellingHistory() {
           const paymentType = String(row.paymentType || "").toUpperCase();
 
           acc.totalPiece += quantity;
+          if (row.source === "OFFLINE_MANUAL") acc.untrackedPiece += quantity;
           acc.totalAmount += amount;
 
           if (paymentType.includes("CASH")) {
@@ -143,6 +150,7 @@ function SellingHistory() {
         },
         {
           totalPiece: 0,
+          untrackedPiece: 0,
           totalAmount: 0,
           cashAmount: 0,
           gpayAmount: 0,
@@ -181,7 +189,7 @@ function SellingHistory() {
                         <div className="p-2 border rounded-md bg-gray-50 min-w-[220px]">
                           {userShop ? (
                             <span className="text-gray-700 font-medium">
-                              {userShop.shopName} - {userShop.shopLocation}
+                              {shopDisplayName(userShop)}
                             </span>
                           ) : (
                             <span className="text-gray-500">No shop associated</span>
@@ -197,7 +205,7 @@ function SellingHistory() {
                           <option value="DIRECT">Direct Sell</option>
                           {shops.map((s: any) => (
                             <option key={s.id} value={s.id}>
-                              {s.shopName} - {s.shopLocation}
+                              {shopDisplayName(s)}
                             </option>
                           ))}
                         </select>
@@ -217,11 +225,14 @@ function SellingHistory() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-1">
                     <div className="border rounded-md p-3 bg-slate-50">
                       <p className="text-xs text-slate-600">Total Piece</p>
-                      <p className="text-lg font-semibold">{summary.totalPiece}</p>
-                    </div>
-                    <div className="border rounded-md p-3 bg-slate-50">
-                      <p className="text-xs text-slate-600">Total Amount</p>
-                      <p className="text-lg font-semibold">₹{summary.totalAmount.toFixed(2)}</p>
+                      <p className="text-lg font-semibold">
+                        {summary.totalPiece}
+                        {summary.untrackedPiece > 0 && (
+                          <span className="ml-2 text-xs font-normal text-amber-700">
+                            (incl. {summary.untrackedPiece} untracked)
+                          </span>
+                        )}
+                      </p>
                     </div>
                     <div className="border rounded-md p-3 bg-green-50">
                       <p className="text-xs text-green-700">Cash Amount</p>
@@ -230,6 +241,10 @@ function SellingHistory() {
                     <div className="border rounded-md p-3 bg-blue-50">
                       <p className="text-xs text-blue-700">GPay Amount</p>
                       <p className="text-lg font-semibold text-blue-800">₹{summary.gpayAmount.toFixed(2)}</p>
+                    </div>
+                    <div className="border rounded-md p-3 bg-slate-50">
+                      <p className="text-xs text-slate-600">Total Amount</p>
+                      <p className="text-lg font-semibold">₹{summary.totalAmount.toFixed(2)}</p>
                     </div>
                   </div>
                 )}
@@ -263,7 +278,10 @@ function SellingHistory() {
                           hour12: true,
                         });
                         return (
-                          <TableRow key={obj.id}>
+                          <TableRow
+                            key={obj.id}
+                            className={obj.source === "OFFLINE_MANUAL" ? "bg-amber-50" : undefined}
+                          >
                             <TableCell className="text-center">
                               {filteredData.length - idx}
                             </TableCell>
@@ -275,6 +293,9 @@ function SellingHistory() {
                             </TableCell>
                             <TableCell className="text-center">
                               {obj.code}
+                              {obj.source === "OFFLINE_MANUAL" && obj.category && (
+                                <span className="ml-1 text-xs text-amber-700">({obj.category})</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-center">
                               {obj.kurtiSize}
