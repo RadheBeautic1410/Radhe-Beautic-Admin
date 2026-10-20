@@ -1396,19 +1396,55 @@ export const getSellingHistoryFiltered = async (params: {
     orderBy: { sellTime: "asc" },
   });
 
-  return offlineSells.map((s: any) => ({
-    id: s.id,
-    sellTime: s.sellTime,
-    sellerName: s.batch?.sellerName || "-",
-    code: s.code,
-    kurtiSize: s.kurtiSize,
-    quantity: s.quantity || 1,
-    selledPrice: s.selledPrice || 0,
-    paymentType: s.batch?.paymentType || null,
-    source: "OFFLINE_BATCH",
-    shopId: s.batch?.shopId || null,
-    batchNumber: s.batch?.batchNumber || null,
-  }));
+  // Untracked kurtis on the same bills (no code, no stock) - counted by the
+  // Sales by Location report too, so the two pages agree.
+  const manualSells = await db.offlineManualSell.findMany({
+    where: {
+      createdAt: {
+        gte: start,
+        lt: end,
+      },
+      batch: {
+        shopId: targetShopId,
+      },
+    },
+    include: {
+      batch: true,
+    },
+  });
+
+  const rows = [
+    ...offlineSells.map((s: any) => ({
+      id: s.id,
+      sellTime: s.sellTime,
+      sellerName: s.batch?.sellerName || "-",
+      code: s.code,
+      kurtiSize: s.kurtiSize,
+      quantity: s.quantity || 1,
+      selledPrice: s.selledPrice || 0,
+      paymentType: s.batch?.paymentType || null,
+      source: "OFFLINE_BATCH",
+      shopId: s.batch?.shopId || null,
+      batchNumber: s.batch?.batchNumber || null,
+    })),
+    ...manualSells.map((s: any) => ({
+      id: s.id,
+      sellTime: s.createdAt,
+      sellerName: s.batch?.sellerName || "-",
+      code: "UNTRACKED",
+      category: s.category || null,
+      kurtiSize: s.kurtiSize || "-",
+      quantity: s.quantity || 1,
+      selledPrice: s.selledPrice || 0,
+      paymentType: s.batch?.paymentType || null,
+      source: "OFFLINE_MANUAL",
+      shopId: s.batch?.shopId || null,
+      batchNumber: s.batch?.batchNumber || null,
+    })),
+  ];
+  return rows.sort(
+    (a, b) => new Date(a.sellTime).getTime() - new Date(b.sellTime).getTime()
+  );
 };
 
 /**
