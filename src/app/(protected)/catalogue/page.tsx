@@ -162,6 +162,8 @@ interface Category {
   isVisibleForCustomer?: boolean;
   mrpPercentage?: number;
   description?: string | null;
+  weight?: number | null;
+  bigSizeWeight?: number | null;
 }
 
 interface Kurti {
@@ -370,6 +372,8 @@ const ListPage = () => {
       customerBigPrice: undefined,
       price: undefined,
       mrpPercentage: 30,
+      weight: undefined,
+      bigSizeWeight: undefined,
     },
   });
 
@@ -488,6 +492,8 @@ const ListPage = () => {
           mrpPercentage: values.mrpPercentage
             ? parseFloat(values.mrpPercentage?.toString())
             : null,
+          weight: values.weight ?? null,
+          bigSizeWeight: values.bigSizeWeight ?? null,
         })
           .then((data) => {
             if (data.error) {
@@ -1898,6 +1904,54 @@ const ListPage = () => {
                             onBlur={field.onBlur}
                             disabled={isPending}
                             placeholder="Enter customer big price"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="weight"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Weight (grams)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                            onChange={(e) => {
+                              const num = parseInt(e.target.value, 10);
+                              field.onChange(isNaN(num) ? undefined : num);
+                            }}
+                            onBlur={field.onBlur}
+                            disabled={isPending}
+                            placeholder="Weight of one piece, normal size"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="bigSizeWeight"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Big size weight (grams)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
+                            onChange={(e) => {
+                              const num = parseInt(e.target.value, 10);
+                              field.onChange(isNaN(num) ? undefined : num);
+                            }}
+                            onBlur={field.onBlur}
+                            disabled={isPending}
+                            placeholder="Weight of one piece, 3XL and up"
                           />
                         </FormControl>
                         <FormMessage />

@@ -159,7 +159,8 @@ export const collectRows = async ({
       },
     }),
     db.customerOrder.findMany({
-      where: { acceptedAt: range },
+      // RTO parcels came back to the godown, so they are not sales
+      where: { acceptedAt: range, status: { not: "RTO" } },
       select: {
         orderId: true,
         paymentType: true,

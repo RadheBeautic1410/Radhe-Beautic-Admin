@@ -57,6 +57,7 @@ const STATUS_LABELS: Record<string, string> = {
   DELIVERED: "Delivered",
   CANCELLED: "Cancelled",
   REJECTED: "Rejected",
+  RTO: "Returned (RTO)",
 };
 
 const shortDay = (day: string) =>
@@ -471,6 +472,19 @@ function OnlineTab({ from, to }: { from: string; to: string }) {
         />
         <p className="text-xs text-gray-500 mt-3">
           Shipping charges on live orders: {inr(d.shippingCharges)}.
+          {d.rtoOrders > 0 && (
+            <span className="text-red-600">
+              {" "}
+              Returned (RTO): {num(d.rtoOrders)} orders, courier return cost {inr(d.rtoLoss)}.
+            </span>
+          )}
+          {(d.rtoLoss > 0 || d.codCoverCollected > 0) && (
+            <span className={d.codCoverCollected >= d.rtoLoss ? "text-emerald-700" : "text-red-600"}>
+              {" "}
+              COD return cover collected {inr(d.codCoverCollected)} vs return cost {inr(d.rtoLoss)}
+              {d.codCoverCollected < d.rtoLoss ? " (raise the expected return rate on COD Charges)" : ""}.
+            </span>
+          )}
         </p>
       </Section>
     </div>

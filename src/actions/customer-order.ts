@@ -127,7 +127,8 @@ export const getPendingCustomerOrders = async (
   orderIdFilter?: string,
   phoneFilter?: string,
   page: number = 1,
-  pageSize: number = 20
+  pageSize: number = 20,
+  paymentMethodFilter: "ALL" | "ONLINE" | "COD" = "ALL"
 ) => {
   const denied = await permissionError("customerOrders.view");
   if (denied) return { error: denied.error };
@@ -165,6 +166,19 @@ export const getPendingCustomerOrders = async (
           contains: phoneFilter.trim(),
         },
       };
+    }
+
+    // Payment method filter. Orders from before COD have no paymentMethod, so
+    // "ONLINE" means "not COD" rather than paymentMethod === "ONLINE".
+    if (paymentMethodFilter === "COD") {
+      whereClause.paymentMethod = "COD";
+    } else if (paymentMethodFilter === "ONLINE") {
+      // Prisma NOT / not on MongoDB skips documents missing the field, so list them explicitly.
+      whereClause.OR = [
+        { paymentMethod: { isSet: false } },
+        { paymentMethod: null },
+        { paymentMethod: { not: "COD" } },
+      ];
     }
 
     // Calculate skip and take for pagination
@@ -652,6 +666,10 @@ export const cancelCustomerOrder = async (orderId: string) => {
       return { error: "Cannot cancel a delivered order" };
     }
 
+    if (existingOrder.status === OrderStatus.RTO) {
+      return { error: "Order is already returned (RTO)" };
+    }
+
     // Group cart products once to reduce work inside transaction
     const cartProducts = existingOrder.cart.CartProduct || [];
     const kurtiMap = new Map<string, SizeQuantity>();
@@ -820,3 +838,112 @@ export const cancelCustomerOrder = async (orderId: string) => {
   }
 };
 
+
+// COD parcel delivered and cash received from the courier
+export const markCodCollected = async (orderId: string) => {
+  const denied = await permissionError("customerOrders.edit");
+  if (denied) return { error: denied.error };
+  try {
+    const order = await db.customerOrder.findUnique({
+      where: { id: orderId },
+      select: { status: true, paymentMethod: true, paymentStatus: true },
+    });
+    if (!order) return { error: "Order not found" };
+    if (order.paymentMethod !== "COD") return { error: "Not a cash on delivery order" };
+    if (order.paymentStatus === PaymentStatus.COMPLETED) return { error: "Cash is already marked collected" };
+    if (order.status !== OrderStatus.SHIPPED && order.status !== OrderStatus.DELIVERED) {
+      return { error: "Only shipped orders can be marked collected" };
+    }
+    await db.customerOrder.update({
+      where: { id: orderId },
+      data: {
+        status: OrderStatus.DELIVERED,
+        paymentStatus: PaymentStatus.COMPLETED,
+        codCollectedAt: new Date(),
+      },
+    });
+    return { success: true, message: "Marked delivered and cash collected" };
+  } catch (error: any) {
+    console.error("Error marking COD collected:", error);
+    return { error: error.message || "Failed to mark cash collected" };
+  }
+};
+
+/**
+ * Parcel came back to us (customer refused COD / not reachable). Books the
+ * courier's return charge as a loss and puts the pieces back in the godown,
+ * the same way cancelling an accepted order does.
+ */
+export const markCustomerOrderRto = async (orderId: string, rtoCharge: number) => {
+  const denied = await permissionError("customerOrders.edit");
+  if (denied) return { error: denied.error };
+  if (!Number.isFinite(rtoCharge) || rtoCharge < 0) return { error: "Return charge must be 0 or more" };
+  try {
+    const order = await db.customerOrder.findUnique({
+      where: { id: orderId },
+      select: {
+        status: true,
+        paymentStatus: true,
+        cart: {
+          select: {
+            CartProduct: { select: { adminSideSizes: true, kurti: { select: { code: true } } } },
+          },
+        },
+      },
+    });
+    if (!order) return { error: "Order not found" };
+    const returnable: OrderStatus[] = [OrderStatus.TRACKINGPENDING, OrderStatus.SHIPPED, OrderStatus.DELIVERED];
+    if (!returnable.includes(order.status)) return { error: "Only accepted or shipped orders can be marked RTO" };
+    if (order.paymentStatus === PaymentStatus.COMPLETED && order.status === OrderStatus.DELIVERED) {
+      return { error: "This order is delivered and paid; it cannot be marked RTO" };
+    }
+
+    const kurtiMap = new Map<string, SizeQuantity>();
+    for (const cp of order.cart.CartProduct || []) {
+      const bucket = kurtiMap.get(cp.kurti.code) || {};
+      const sizes = getSizeObjectFromArray(cp.adminSideSizes || []);
+      for (const size in sizes) bucket[size] = (bucket[size] || 0) + sizes[size];
+      kurtiMap.set(cp.kurti.code, bucket);
+    }
+
+    await db.$transaction(
+      async (tx) => {
+        const kurtis = await tx.kurti.findMany({
+          where: { code: { in: Array.from(kurtiMap.keys()) } },
+          select: { code: true, sizes: true, countOfPiece: true },
+        });
+        for (const kurti of kurtis) {
+          const back = kurtiMap.get(kurti.code) || {};
+          const updatedSizes = [...((kurti.sizes as any[]) || [])];
+          let restored = 0;
+          for (const size in back) {
+            const qty = back[size];
+            if (qty <= 0) continue;
+            const idx = updatedSizes.findIndex((s: any) => s.size === size);
+            if (idx === -1) updatedSizes.push(addToLocation({ size, quantity: 0 }, qty, "GODOWN"));
+            else updatedSizes[idx] = addToLocation(updatedSizes[idx], qty, "GODOWN");
+            restored += qty;
+          }
+          await tx.kurti.update({
+            where: { code: kurti.code },
+            data: {
+              sizes: updatedSizes as any,
+              countOfPiece: (kurti.countOfPiece || 0) + restored,
+              lastUpdatedTime: getCurrTime(),
+            },
+          });
+        }
+        await tx.customerOrder.update({
+          where: { id: orderId },
+          data: { status: OrderStatus.RTO, rtoCharge, rtoAt: new Date() },
+          select: { id: true },
+        });
+      },
+      { maxWait: 20000, timeout: 60000 }
+    );
+    return { success: true, message: "Order marked RTO and stock returned to godown" };
+  } catch (error: any) {
+    console.error("Error marking customer order RTO:", error);
+    return { error: error.message || "Failed to mark RTO" };
+  }
+};

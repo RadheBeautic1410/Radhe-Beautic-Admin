@@ -377,7 +377,7 @@ export const getMoney = async (from: string, to: string) => {
       where: {
         createdAt: istRange(from, to),
         paymentStatus: "PENDING",
-        status: { notIn: ["CANCELLED", "REJECTED"] },
+        status: { notIn: ["CANCELLED", "REJECTED", "RTO"] },
       },
       select: { total: true },
     }),
@@ -427,19 +427,33 @@ export const getMoney = async (from: string, to: string) => {
 export const getOnline = async (from: string, to: string) => {
   const orders = await db.customerOrder.findMany({
     where: { createdAt: istRange(from, to) },
-    select: { status: true, total: true, paymentStatus: true, shippingCharge: true },
+    select: {
+      status: true,
+      total: true,
+      paymentStatus: true,
+      shippingCharge: true,
+      rtoCharge: true,
+      paymentMethod: true,
+      codReturnCover: true,
+    },
   });
 
   const byStatus = new Map<string, { orders: number; amount: number }>();
   let pendingPayment = 0;
   let shipping = 0;
   let completedValue = 0;
+  let rtoLoss = 0;
+  let codCoverCollected = 0;
   for (const o of orders) {
+    // Delivered COD orders carry a share of returned parcels' cost (see src/lib/cod.ts).
+    if (o.paymentMethod === "COD" && o.status === "DELIVERED") codCoverCollected += o.codReturnCover || 0;
     const g = byStatus.get(o.status) || { orders: 0, amount: 0 };
     g.orders += 1;
     g.amount += o.total;
     byStatus.set(o.status, g);
-    const cancelled = o.status === "CANCELLED" || o.status === "REJECTED";
+    // RTO: parcel came back, so it is not a sale; the courier's return charge is a loss.
+    if (o.status === "RTO") rtoLoss += o.rtoCharge || 0;
+    const cancelled = o.status === "CANCELLED" || o.status === "REJECTED" || o.status === "RTO";
     if (!cancelled) {
       shipping += o.shippingCharge;
       if (o.paymentStatus === "PENDING") pendingPayment += o.total;
@@ -456,6 +470,9 @@ export const getOnline = async (from: string, to: string) => {
     paidValue: completedValue,
     pendingPaymentValue: pendingPayment,
     shippingCharges: shipping,
+    rtoOrders: byStatus.get("RTO")?.orders || 0,
+    rtoLoss,
+    codCoverCollected,
     cancelRate: orders.length ? round1((cancelled / orders.length) * 100) : 0,
     byStatus: [...byStatus.entries()].map(([status, g]) => ({ status, ...g })),
   };

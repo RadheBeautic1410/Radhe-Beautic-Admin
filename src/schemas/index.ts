@@ -133,6 +133,24 @@ export const categoryAddSchema = z.object({
       })
       .optional()
   ),
+  weight: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return undefined;
+      if (typeof val === "number") return val;
+      const num = parseInt(val as string, 10);
+      return isNaN(num) ? undefined : num;
+    },
+    z.number().int().min(1, { message: "Weight must be at least 1 gram" }).optional()
+  ),
+  bigSizeWeight: z.preprocess(
+    (val) => {
+      if (val === "" || val === null || val === undefined) return undefined;
+      if (typeof val === "number") return val;
+      const num = parseInt(val as string, 10);
+      return isNaN(num) ? undefined : num;
+    },
+    z.number().int().min(1, { message: "Big size weight must be at least 1 gram" }).optional()
+  ),
 });
 
 export const stockUpdateSchema = z.object({
@@ -297,4 +315,7 @@ export const categoryEditSchema = z.object({
   kurtiType: z.string(),
   mrpPercentage: z.number().min(0, "MRP percentage must be zero or more").optional(),
   description: z.string().optional(),
+  // null = cleared in the form
+  weight: z.number().int().min(1, "Weight must be at least 1 gram").nullable().optional(),
+  bigSizeWeight: z.number().int().min(1, "Big size weight must be at least 1 gram").nullable().optional(),
 });

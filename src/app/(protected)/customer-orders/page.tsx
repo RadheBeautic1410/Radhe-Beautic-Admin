@@ -47,7 +47,10 @@ import {
   updateOrderTracking,
   getCustomerOrderById,
   cancelCustomerOrder,
+  markCodCollected,
+  markCustomerOrderRto,
 } from "@/src/actions/customer-order";
+import { estimateRtoCharge } from "@/src/actions/cod-charge";
 import { Badge } from "@/src/components/ui/badge";
 import {
   DropdownMenu,
@@ -69,6 +72,8 @@ import {
   Clock3,
   BadgeCheck,
   RefreshCcw,
+  Banknote,
+  Undo2,
 } from "lucide-react";
 import { DialogDemo } from "@/src/components/dialog-demo";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
@@ -120,6 +125,8 @@ interface CartProduct {
   }>;
 }
 
+type PaymentMethodFilter = "ALL" | "ONLINE" | "COD";
+
 interface CustomerOrder {
   id: string;
   orderId: string;
@@ -129,6 +136,11 @@ interface CustomerOrder {
   paymentStatus?: PaymentStatus | null;
   paymentTxnId?: string | null;
   paymentType?: string | null;
+  paymentMethod?: string | null;
+  rtoCharge?: number | null;
+  codShipping?: number | null;
+  codFee?: number | null;
+  codReturnCover?: number | null;
   note?: string | null;
   paymentScreenshot?: string | null;
   courier?: string | null;
@@ -170,6 +182,8 @@ const paymentTypes = [
 const CustomerOrdersPage = () => {
   const [isPending, startTransition] = useTransition();
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
+  const [rtoOrder, setRtoOrder] = useState<CustomerOrder | null>(null);
+  const [rtoChargeInput, setRtoChargeInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<CustomerOrder | null>(
     null,
@@ -181,6 +195,8 @@ const CustomerOrdersPage = () => {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "ALL">("ALL");
   const [orderIdFilter, setOrderIdFilter] = useState<string>("");
   const [phoneFilter, setPhoneFilter] = useState<string>("");
+  const [paymentFilter, setPaymentFilter] = useState<PaymentMethodFilter>("ALL");
+  const [draftPaymentFilter, setDraftPaymentFilter] = useState<PaymentMethodFilter>("ALL");
   const [draftStatusFilter, setDraftStatusFilter] = useState<OrderStatus | "ALL">(
     "ALL",
   );
@@ -229,6 +245,7 @@ const CustomerOrdersPage = () => {
         phoneFilter.trim() || undefined,
         page,
         pageSize,
+        paymentFilter,
       );
       if (result.success && result.data) {
         setOrders(result.data as unknown as CustomerOrder[]);
@@ -250,13 +267,14 @@ const CustomerOrdersPage = () => {
   // Fetch orders when applied filters, pagination, or page size change
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter, orderIdFilter, phoneFilter, page, pageSize]);
+  }, [statusFilter, orderIdFilter, phoneFilter, paymentFilter, page, pageSize]);
 
   const applyFilters = () => {
     setPage(1);
     setStatusFilter(draftStatusFilter);
     setOrderIdFilter(draftOrderIdFilter);
     setPhoneFilter(draftPhoneFilter);
+    setPaymentFilter(draftPaymentFilter);
   };
 
   const handleFilterInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -384,6 +402,55 @@ const CustomerOrdersPage = () => {
       }
     });
   };
+
+  const handleCodCollected = (order: CustomerOrder) => {
+    if (!confirm(`Mark ${order.orderId} delivered and cash collected?`)) return;
+    startTransition(async () => {
+      const result = await markCodCollected(order.id);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(result.message || "Cash collected");
+      fetchOrders();
+    });
+  };
+
+  const handleOpenRto = async (order: CustomerOrder) => {
+    setRtoOrder(order);
+    setRtoChargeInput(String(order.shippingCharge ?? 0));
+    const res = await estimateRtoCharge(order.id);
+    if ("charge" in res && typeof res.charge === "number") setRtoChargeInput(String(res.charge));
+  };
+
+  const handleRtoConfirm = () => {
+    if (!rtoOrder) return;
+    const charge = Number(rtoChargeInput);
+    if (rtoChargeInput.trim() === "" || !Number.isFinite(charge) || charge < 0) {
+      toast.error("Enter the return charge (0 or more)");
+      return;
+    }
+    startTransition(async () => {
+      const result = await markCustomerOrderRto(rtoOrder.id, charge);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(result.message || "Marked RTO");
+      setRtoOrder(null);
+      fetchOrders();
+    });
+  };
+
+  const canMarkCodCollected = (order: CustomerOrder) =>
+    order.paymentMethod === "COD" &&
+    order.paymentStatus !== PaymentStatus.COMPLETED &&
+    (order.status === OrderStatus.SHIPPED || order.status === OrderStatus.DELIVERED);
+
+  const canMarkRto = (order: CustomerOrder) =>
+    order.status === OrderStatus.TRACKINGPENDING ||
+    order.status === OrderStatus.SHIPPED ||
+    (order.status === OrderStatus.DELIVERED && order.paymentStatus !== PaymentStatus.COMPLETED);
 
   // Handle update tracking
   const handleUpdateTracking = async (orderId: string) => {
@@ -590,6 +657,7 @@ const CustomerOrdersPage = () => {
       DELIVERED: { label: "Delivered", className: "bg-green-500" },
       CANCELLED: { label: "Cancelled", className: "bg-red-500" },
       REJECTED: { label: "Rejected", className: "bg-rose-600" },
+      RTO: { label: "Returned (RTO)", className: "bg-stone-600" },
     };
 
     const config = statusConfig[status];
@@ -678,6 +746,24 @@ const CustomerOrdersPage = () => {
                     <SelectItem value={OrderStatus.CANCELLED}>
                       Cancelled
                     </SelectItem>
+                    <SelectItem value={OrderStatus.RTO}>Returned (RTO)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Label htmlFor="payment-filter">Payment:</Label>
+                <Select
+                  value={draftPaymentFilter}
+                  onValueChange={(value) => setDraftPaymentFilter(value as PaymentMethodFilter)}
+                >
+                  <SelectTrigger id="payment-filter" className="w-[160px]">
+                    <SelectValue placeholder="All Payments" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Payments</SelectItem>
+                    <SelectItem value="ONLINE">Online</SelectItem>
+                    <SelectItem value="COD">Cash on Delivery</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -737,7 +823,7 @@ const CustomerOrdersPage = () => {
                 Search
               </Button>
 
-              {(orderIdFilter || phoneFilter || statusFilter !== "ALL") && (
+              {(orderIdFilter || phoneFilter || statusFilter !== "ALL" || paymentFilter !== "ALL") && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -745,6 +831,8 @@ const CustomerOrdersPage = () => {
                     setDraftStatusFilter("ALL");
                     setDraftOrderIdFilter("");
                     setDraftPhoneFilter("");
+                    setDraftPaymentFilter("ALL");
+                    setPaymentFilter("ALL");
                     setStatusFilter("ALL");
                     setOrderIdFilter("");
                     setPhoneFilter("");
@@ -787,8 +875,11 @@ const CustomerOrdersPage = () => {
                             {order.user.phoneNumber}
                           </div>
                         </div>
-                        <div className="ml-2">
+                        <div className="ml-2 flex flex-col items-end gap-1">
                           {getStatusBadge(order.status)}
+                          {order.paymentMethod === "COD" && (
+                            <Badge className="bg-amber-100 text-amber-900 border border-amber-300">COD</Badge>
+                          )}
                         </div>
                       </div>
 
@@ -870,6 +961,30 @@ const CustomerOrdersPage = () => {
                             Cancel
                           </Button>
                         )}
+                        {canMarkCodCollected(order) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCodCollected(order)}
+                            disabled={isPending}
+                            className="flex-1 min-w-[120px]"
+                          >
+                            <Banknote className="h-4 w-4 mr-1" />
+                            Cash Collected
+                          </Button>
+                        )}
+                        {canMarkRto(order) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenRto(order)}
+                            disabled={isPending}
+                            className="flex-1 min-w-[100px]"
+                          >
+                            <Undo2 className="h-4 w-4 mr-1" />
+                            Mark RTO
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -915,11 +1030,16 @@ const CustomerOrdersPage = () => {
                             ₹{grandTotal.toFixed(2)}
                           </TableCell>
                           <TableCell>
-                            {order.paymentStatus ? (
-                              getPaymentStatusBadge(order.paymentStatus)
-                            ) : (
-                              <span className="text-xs text-gray-500">-</span>
-                            )}
+                            <div className="flex flex-col items-start gap-1">
+                              {order.paymentStatus ? (
+                                getPaymentStatusBadge(order.paymentStatus)
+                              ) : (
+                                <span className="text-xs text-gray-500">-</span>
+                              )}
+                              {order.paymentMethod === "COD" && (
+                                <Badge className="bg-amber-100 text-amber-900 border border-amber-300">COD</Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>{formatDate(order.createdAt)}</TableCell>
                           <TableCell>
@@ -931,6 +1051,9 @@ const CustomerOrdersPage = () => {
                                     By: {order.cancleBy}
                                   </div>
                                 )}
+                              {order.status === OrderStatus.RTO && order.rtoCharge != null && (
+                                <div className="text-[11px] text-red-600">Return cost: ₹{order.rtoCharge}</div>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1010,6 +1133,28 @@ const CustomerOrdersPage = () => {
                                   >
                                     <XCircle className="h-4 w-4 mr-2" />
                                     Cancel
+                                  </DropdownMenuItem>
+                                )}
+
+                                {(canMarkCodCollected(order) || canMarkRto(order)) && (
+                                  <DropdownMenuSeparator />
+                                )}
+                                {canMarkCodCollected(order) && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleCodCollected(order)}
+                                    disabled={isPending}
+                                  >
+                                    <Banknote className="h-4 w-4 mr-2" />
+                                    Cash Collected
+                                  </DropdownMenuItem>
+                                )}
+                                {canMarkRto(order) && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleOpenRto(order)}
+                                    disabled={isPending}
+                                  >
+                                    <Undo2 className="h-4 w-4 mr-2" />
+                                    Mark RTO (returned)
                                   </DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
@@ -1556,9 +1701,15 @@ const CustomerOrdersPage = () => {
                         <span>₹{selectedOrder.total.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>Shipping Charge:</span>
+                        <span>{selectedOrder.paymentMethod === "COD" ? "COD Delivery Charge:" : "Shipping Charge:"}</span>
                         <span>₹{selectedOrder.shippingCharge.toFixed(2)}</span>
                       </div>
+                      {selectedOrder.paymentMethod === "COD" && selectedOrder.codShipping != null && (
+                        <div className="text-xs text-gray-500 pl-2">
+                          Shipping ₹{selectedOrder.codShipping} + COD fee &amp; GST ₹{selectedOrder.codFee ?? 0} +
+                          return cover ₹{selectedOrder.codReturnCover ?? 0} (rounded up)
+                        </div>
+                      )}
                       <div className="flex justify-between font-bold text-base border-t pt-2 mt-2">
                         <span>Total:</span>
                         <span>
@@ -1770,6 +1921,40 @@ const CustomerOrdersPage = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* RTO Dialog */}
+      <Dialog open={!!rtoOrder} onOpenChange={(open) => !open && setRtoOrder(null)}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Mark returned (RTO)</DialogTitle>
+            <DialogDescription>
+              {rtoOrder?.orderId}: the parcel came back. Its pieces go back to the godown, and the courier&apos;s
+              return charge is booked as a loss.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="rto-charge">Return charge (₹)</Label>
+            <Input
+              id="rto-charge"
+              type="number"
+              min={0}
+              value={rtoChargeInput}
+              onChange={(e) => setRtoChargeInput(e.target.value)}
+            />
+            <p className="text-xs text-gray-500">
+              Prefilled from the COD charge table. Change it if the courier billed differently.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setRtoOrder(null)} disabled={isPending}>
+              Close
+            </Button>
+            <Button variant="destructive" onClick={handleRtoConfirm} disabled={isPending}>
+              Mark RTO
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

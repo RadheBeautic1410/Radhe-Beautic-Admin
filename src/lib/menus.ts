@@ -109,6 +109,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     items: [
       { name: "Offer", href: "/offers", icon: "🎁", roles: [ADMIN] },
       { name: "Shipping Calculator", href: "/shipping-calculator", icon: "🚚", roles: [ADMIN] },
+      { name: "COD Charges", href: "/cod-settings", icon: "💵", roles: [ADMIN] },
       { name: "Customer Orders", href: "/customer-orders", icon: "📦", roles: [ADMIN] },
       { name: "All Customers", href: "/all-customers", icon: "👥", roles: [ADMIN] },
       { name: "Homepage Sliders", href: "/customer-settings", icon: "⚙️", roles: [ADMIN] },
