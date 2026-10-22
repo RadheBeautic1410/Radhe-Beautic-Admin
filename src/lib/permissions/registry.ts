@@ -72,6 +72,7 @@ const special = (
 const NOT_SHOP_LOGIN = Object.values(UserRole).filter((r) => r !== UserRole.SHOP_SELLER);
 const ADDED_2026_10_11 = "2026-10-11T10:24:22.370Z";
 const ADDED_2026_10_18 = "2026-10-18T00:00:00.000Z";
+const ADDED_2026_10_22 = "2026-10-22T00:00:00.000Z";
 const addedAt = (at: string) => (action: ActionDef): ActionDef => ({ ...action, since: at });
 
 export const MODULES: ModuleDef[] = [
@@ -279,6 +280,13 @@ export const MODULES: ModuleDef[] = [
     group: "Customer",
     menu: "/shipping-calculator",
     actions: [view(), create(), edit(), del()],
+  },
+  {
+    key: "codCharges",
+    label: "COD Charges",
+    group: "Customer",
+    menu: "/cod-settings",
+    actions: [view(), edit()].map(addedAt(ADDED_2026_10_22)),
   },
   {
     key: "customerOrders",

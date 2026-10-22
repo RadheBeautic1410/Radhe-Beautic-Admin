@@ -45,6 +45,9 @@ interface categoryAddtionProps {
   kurtiType?: string;
   mrpPercentage?: number | null;
   description?: string | null;
+  /** Grams per piece; undefined = keep, null = clear. Used for shipping / COD weight. */
+  weight?: number | null;
+  bigSizeWeight?: number | null;
 }
 
 export const categoryAddition = async (data: categoryAddtionProps) => {
@@ -113,6 +116,8 @@ export const categoryAddition = async (data: categoryAddtionProps) => {
       kurtiType: data.kurtiType || null,
       isVisibleForCustomer: true,
       mrpPercentage: mrpPercentage !== undefined && mrpPercentage !== null ? mrpPercentage : 30,
+      weight: data.weight || null,
+      bigSizeWeight: data.bigSizeWeight || null,
     },
   });
 
@@ -242,6 +247,8 @@ export const categoryUpdate = async (
         kurtiType: data.kurtiType ?? existingCategory.kurtiType,
         mrpPercentage: mrpPercentage !== undefined ? mrpPercentage : existingCategory.mrpPercentage,
         description: description !== undefined ? description : existingCategory.description,
+        weight: data.weight !== undefined ? data.weight : existingCategory.weight,
+        bigSizeWeight: data.bigSizeWeight !== undefined ? data.bigSizeWeight : existingCategory.bigSizeWeight,
       },
     });
 

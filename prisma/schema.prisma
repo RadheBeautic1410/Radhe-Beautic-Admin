@@ -28,6 +28,7 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
   REJECTED
+  RTO // COD parcel refused / returned to origin
 }
 
 enum Status {
@@ -188,6 +189,8 @@ model Category {
   isStockReady         Boolean @default(true)
   isVisibleForCustomer Boolean @default(true)
   mrpPercentage        Float?  @default(30.0)
+  weight               Int? // grams per piece, normal sizes (used for shipping / COD)
+  bigSizeWeight        Int? // grams per piece, big sizes (3XL and up)
 
   // Indexes for query performance
   @@index([isDeleted])
@@ -290,6 +293,38 @@ model ShippingRate {
 
   @@index([pincode])
   @@map("shipping_rates")
+}
+
+// Cash-on-delivery settings (singleton row, key = "default")
+model CodSetting {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  key                 String   @unique @default("default")
+  enabled             Boolean  @default(false)
+  localPincodes       String[] @default([]) // pincode patterns: 395*, 364001-364005, 395004
+  withinStatePincodes String[] @default([])
+  metroPincodes       String[] @default([])
+  // COD charge = shipping slab + COD fee (+GST on it) + return cover. Null = default in src/lib/cod.ts
+  codFeePercent       Float? // courier COD fee on product amount (2)
+  gstPercent          Float? // GST on the COD fee (18)
+  returnRatePercent   Float? // expected share of COD parcels that come back
+  roundTo             Int? // round the final charge up to this many rupees
+  updatedAt           DateTime @updatedAt
+
+  @@map("cod_settings")
+}
+
+// Courier COD charge per weight slab and zone (inclusive of GST)
+model CodChargeSlab {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  maxWeightGrams Int      @unique // slab applies up to this weight
+  local          Float
+  withinState    Float
+  metro          Float
+  otherStates    Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("cod_charge_slabs")
 }
 
 model Sell {
@@ -757,6 +792,17 @@ model CustomerOrder {
   paymentType       String?
   note              String?
   paymentScreenshot String?
+
+  // Cash on delivery. For COD orders shippingCharge holds the COD courier charge (see CodChargeSlab)
+  paymentMethod  String?   @default("ONLINE") // "ONLINE" | "COD"
+  codZone        String? // LOCAL | WITHIN_STATE | METRO | OTHER_STATES
+  codWeightGrams Int?
+  codShipping    Float? // breakdown of shippingCharge for COD: slab shipping
+  codFee         Float? //   + COD fee incl. GST
+  codReturnCover Float? //   + share of returned parcels' cost (before rounding)
+  codCollectedAt DateTime?
+  rtoCharge      Float? // courier cost of the returned parcel, booked as a loss
+  rtoAt          DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 

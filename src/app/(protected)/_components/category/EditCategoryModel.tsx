@@ -54,6 +54,8 @@ interface Category {
   isStockReady: boolean;
   mrpPercentage?: number;
   description?: string | null;
+  weight?: number | null;
+  bigSizeWeight?: number | null;
 }
 
 interface EditCategoryModalProps {
@@ -70,6 +72,8 @@ type PriceDraft = {
   customerBigPrice: string;
   walletDiscount: string;
   mrpPercentage: string;
+  weight: string;
+  bigSizeWeight: string;
 };
 
 function categoryToPriceDraft(cat: Category): PriceDraft {
@@ -84,6 +88,8 @@ function categoryToPriceDraft(cat: Category): PriceDraft {
     customerBigPrice: toStr(cat.customerBigPrice),
     walletDiscount: toStr(cat.walletDiscount),
     mrpPercentage: toStr(cat.mrpPercentage),
+    weight: toStr(cat.weight),
+    bigSizeWeight: toStr(cat.bigSizeWeight),
   };
 }
 
@@ -166,6 +172,9 @@ const EditCategoryModal = ({
       customerBigPrice: parseDraftNumber(priceDraft.customerBigPrice),
       walletDiscount: parseDraftNumber(priceDraft.walletDiscount) ?? 0,
       mrpPercentage: parseDraftNumber(priceDraft.mrpPercentage),
+      // Blank clears the weight
+      weight: parseDraftNumber(priceDraft.weight) ?? null,
+      bigSizeWeight: parseDraftNumber(priceDraft.bigSizeWeight) ?? null,
     };
 
     const parsed = categoryEditSchema.safeParse(merged);
@@ -192,6 +201,8 @@ const EditCategoryModal = ({
         kurtiType: parsed.data.kurtiType,
         mrpPercentage: parsed.data.mrpPercentage,
         description: parsed.data.description,
+        weight: parsed.data.weight,
+        bigSizeWeight: parsed.data.bigSizeWeight,
       })
         .then((data) => {
           console.log("🚀 ~ .then ~ data:", data);
@@ -210,6 +221,8 @@ const EditCategoryModal = ({
               bigPrice: parsed.data.bigPrice,
               mrpPercentage: parsed.data.mrpPercentage,
               description: parsed.data.description,
+              weight: parsed.data.weight ?? null,
+              bigSizeWeight: parsed.data.bigSizeWeight ?? null,
             };
 
             onCategoryUpdate(updatedCategory);
@@ -227,6 +240,8 @@ const EditCategoryModal = ({
                 bigPrice: parsed.data.bigPrice,
                 mrpPercentage: parsed.data.mrpPercentage,
                 description: parsed.data.description,
+                weight: parsed.data.weight ?? null,
+                bigSizeWeight: parsed.data.bigSizeWeight ?? null,
               };
 
               onCategoryUpdate(updatedCategory2);
@@ -439,6 +454,33 @@ const EditCategoryModal = ({
                       customerBigPrice: e.target.value,
                     }))
                   }
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-cat-weight">Weight (grams)</Label>
+                <Input
+                  id="edit-cat-weight"
+                  type="text"
+                  inputMode="numeric"
+                  disabled={isPending}
+                  placeholder="Weight of one piece, normal size"
+                  value={priceDraft.weight}
+                  onChange={(e) => setPriceDraft((d) => ({ ...d, weight: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-cat-big-size-weight">Big size weight (grams)</Label>
+                <Input
+                  id="edit-cat-big-size-weight"
+                  type="text"
+                  inputMode="numeric"
+                  disabled={isPending}
+                  placeholder="Weight of one piece, 3XL and up"
+                  value={priceDraft.bigSizeWeight}
+                  onChange={(e) => setPriceDraft((d) => ({ ...d, bigSizeWeight: e.target.value }))}
                 />
               </div>
             </div>
