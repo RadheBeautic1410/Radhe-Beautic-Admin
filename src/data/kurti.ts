@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 import { Buffer } from "buffer";
 import { getCurrTime } from "../actions/kurti";
+import { istDayRange, istToday } from "@/src/lib/ist";
 import {
   StockLocation,
   addToLocation,
@@ -1314,22 +1315,9 @@ export const migrate = async () => {
 };
 
 export const getSellHistory = async () => {
-  // const currentDate = new Date().toISOString().slice(0, 10);
-  const currentTime = new Date();
-
-  // Calculate the offset for IST (UTC+5:30)
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-
-  // Convert the local time to IST
-  const ISTTime = new Date(currentTime.getTime() + ISTOffset)
-    .toISOString()
-    .slice(0, 10);
   const sellData = await db.sell.findMany({
     where: {
-      sellTime: {
-        gte: new Date(`${ISTTime}T00:00:00.000Z`),
-        lt: new Date(`${ISTTime}T23:59:59.999Z`),
-      },
+      sellTime: istDayRange(istToday()),
     },
   });
 
@@ -1340,18 +1328,8 @@ export const getSellingHistoryFiltered = async (params: {
   dateISO?: string; // YYYY-MM-DD
   shopId?: string; // 'DIRECT' for direct sells, or actual Shop id for offline batches
 }) => {
-  const todayIST = (() => {
-    const currentTime = new Date();
-    const ISTOffset = 5.5 * 60 * 60 * 1000;
-    const ISTTime = new Date(currentTime.getTime() + ISTOffset)
-      .toISOString()
-      .slice(0, 10);
-    return ISTTime;
-  })();
-
-  const date = (params.dateISO || todayIST).slice(0, 10);
-  const start = new Date(`${date}T00:00:00.000Z`);
-  const end = new Date(`${date}T23:59:59.999Z`);
+  const date = (params.dateISO || istToday()).slice(0, 10);
+  const { gte: start, lt: end } = istDayRange(date);
   const targetShopId = params.shopId || "DIRECT";
 
   if (targetShopId === "DIRECT") {

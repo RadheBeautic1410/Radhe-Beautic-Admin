@@ -276,6 +276,7 @@ export default function InvoicePreview({
               <span className="font-bold">Date:</span>
               <span>
                 {new Date().toLocaleString("en-IN", {
+                  timeZone: "Asia/Kolkata",
                   year: "numeric",
                   month: "2-digit",
                   day: "2-digit",

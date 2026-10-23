@@ -35,12 +35,7 @@ import {
   suggestStockLocation,
 } from "@/src/app/(protected)/_components/godown/stock-location-picker";
 
-const getCurrTime = () => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-  return ISTTime;
-};
+const getCurrTime = () => new Date();
 
 interface CartItem {
   id: string;
@@ -670,7 +665,7 @@ function SellPage() {
         {orderData && (
           <div className="text-center text-sm text-gray-600">
             Order ID: {orderData.orderId} | Status: {orderData.status} | Date:{" "}
-            {new Date(orderData.date).toLocaleDateString()}
+            {new Date(orderData.date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
           </div>
         )}
       </CardHeader>
@@ -827,7 +822,7 @@ function SellPage() {
                   Order Date
                 </Label>
                 <div className="text-lg font-semibold text-green-800">
-                  {new Date(orderData.date).toLocaleDateString()}
+                  {new Date(orderData.date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
                 </div>
               </div>
               <div className="md:col-span-2">

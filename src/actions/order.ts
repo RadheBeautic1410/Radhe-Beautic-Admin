@@ -8,6 +8,7 @@ import { UserRole } from "@prisma/client";
 import { notifyResellerShipped } from "@/src/lib/reseller-order-notifications";
 import { error } from "console";
 import { permissionError } from "@/src/lib/permissions/server";
+import { istToday } from "@/src/lib/ist";
 
 type SizeQuantity = { [size: string]: number };
 
@@ -107,12 +108,7 @@ export const removeCartProduct = async (
   }
 };
 
-const getCurrTime = async () => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-  return ISTTime;
-};
+const getCurrTime = async () => new Date();
 export const getAddressesOfUser = async () => {
   const curUser = await currentUser();
 
@@ -155,8 +151,7 @@ export const addAddressesOfUser = async (data: any) => {
 };
 
 async function generateOrderId() {
-  const now = await getCurrTime();
-  const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const datePart = istToday().replace(/-/g, "");
 
   let orderId: string | null = null;
   let retries = 0;

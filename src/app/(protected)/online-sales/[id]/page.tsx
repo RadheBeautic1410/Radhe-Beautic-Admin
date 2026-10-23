@@ -1686,7 +1686,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
               <p>Total Items: {originalSaleData.totalItems}</p>
               <p>
                 Sale Time:{" "}
-                {new Date(originalSaleData.saleTime).toLocaleString()}
+                {new Date(originalSaleData.saleTime).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
               </p>
               <p>Batch Number: {originalSaleData.batchNumber}</p>
               {originalSaleData.invoiceNumber && (
@@ -1733,7 +1733,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
               </p>
               <p>
                 <strong>Transaction Date:</strong>{" "}
-                {new Date(originalSaleData.saleTime).toLocaleString()}
+                {new Date(originalSaleData.saleTime).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
               </p>
               <div className="mt-3 p-2 bg-blue-100 rounded">
                 <p className="text-xs text-blue-800">
@@ -1862,7 +1862,7 @@ function SaleDetailsPage({ params }: SaleDetailsPageProps) {
                             </p>
                             <p>
                               <span className="font-medium">Date:</span>{" "}
-                              {new Date(change.createdAt).toLocaleString()}
+                              {new Date(change.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
                             </p>
                           </div>
                         </div>

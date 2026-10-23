@@ -23,8 +23,8 @@ export const generateInvoiceHTML = (
   shippingCharge?: number,
   trackingId?: string
 ) => {
-  const currentDate = new Date().toLocaleDateString("en-IN");
-  const currentTime = new Date().toLocaleTimeString("en-IN");
+  const currentDate = new Date().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" });
+  const currentTime = new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" });
   const GST_RATE = 5; // Total GST (2.5% SGST + 2.5% CGST)
 
   const calculateGSTBreakdown = (totalPriceWithGST: number) => {

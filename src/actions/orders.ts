@@ -6,12 +6,6 @@ import { currentRole, currentUser } from "@/src/lib/auth";
 import { UserRole } from "@prisma/client";
 import { permissionError } from "@/src/lib/permissions/server";
 
-export const getCurrTime = () => {
-    const currentTime = new Date();
-    const ISTOffset = 5.5 * 60 * 60 * 1000;
-    const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-    return ISTTime;
-}
 
 export const getOrdersOfUserbyStatus: any = async (status: any, pageNum: number) => {
   const denied = await permissionError(["orders.view","onlineSales.view"]);

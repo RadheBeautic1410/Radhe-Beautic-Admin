@@ -21,11 +21,7 @@ import {
   isStockLocation,
 } from "@/src/lib/godown";
 
-const getCurrTimeIST = () => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  return new Date(currentTime.getTime() + ISTOffset);
-};
+const getCurrTimeIST = () => new Date();
 
 interface partyAddtionProps {
   name: string;
@@ -350,7 +346,7 @@ async function generatePDFBuffer(
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    const dateText = `Generated on: ${new Date().toLocaleString()}`;
+    const dateText = `Generated on: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}`;
     const dateWidth = doc.getTextWidth(dateText);
     doc.text(dateText, (pageWidth - dateWidth) / 2, 30);
 

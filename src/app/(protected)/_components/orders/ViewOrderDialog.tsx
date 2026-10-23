@@ -40,7 +40,7 @@ export function ViewOrderDialog({ data, triggerContent }: ViewOrderDialogProps) 
                                     <CardContent className="space-y-1 text-sm">
                                         <div><span className="text-gray-500">Name: </span><span className="font-medium">{data?.user?.name || "-"}</span></div>
                                         <div><span className="text-gray-500">Phone: </span><span className="font-medium">{data?.user?.phoneNumber || "-"}</span></div>
-                                        <div><span className="text-gray-500">Order Date: </span><span className="font-medium">{data?.date ? new Date(data.date).toLocaleDateString() : "-"}</span></div>
+                                        <div><span className="text-gray-500">Order Date: </span><span className="font-medium">{data?.date ? new Date(data.date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "-"}</span></div>
                                     </CardContent>
                                 </Card>
                                 <Card>

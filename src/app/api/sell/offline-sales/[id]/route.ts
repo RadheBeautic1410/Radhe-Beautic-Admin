@@ -16,12 +16,7 @@ import {
   locationForShopId,
 } from "@/src/lib/godown";
 
-const getCurrTime = async () => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-  return ISTTime;
-};
+const getCurrTime = async () => new Date();
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

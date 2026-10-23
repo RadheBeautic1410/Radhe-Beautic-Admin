@@ -256,6 +256,7 @@ function OfflineSalesPage() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
       day: "2-digit",
       month: "2-digit",
       year: "numeric",

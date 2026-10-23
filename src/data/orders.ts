@@ -8,12 +8,7 @@ import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
 import { StockLocation, deductFromLocation, isStockLocation } from "@/src/lib/godown";
 
-export const getCurrTime = async() => {
-    const currentTime = new Date();
-    const ISTOffset = 5.5 * 60 * 60 * 1000;
-    const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-    return ISTTime;
-}
+export const getCurrTime = async() => new Date();
 
 export const getCountFromStatus: any = async (status: any) => {
     const count = await db.orders.count({

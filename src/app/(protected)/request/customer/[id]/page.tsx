@@ -162,7 +162,7 @@ const CustomerPendingOrdersPage = () => {
                       </TableCell>
                       <TableCell className="border">{o.paymentType || "-"}</TableCell>
                       <TableCell className="border">
-                        {new Date(o.date).toLocaleString()}
+                        {new Date(o.date).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
                       </TableCell>
                       {/* <TableCell className="border">
                         <div className="flex gap-2">

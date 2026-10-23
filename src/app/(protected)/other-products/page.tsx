@@ -1242,7 +1242,7 @@ function OtherProductsPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {new Date(product.createdAt).toLocaleDateString()}
+                          {new Date(product.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">

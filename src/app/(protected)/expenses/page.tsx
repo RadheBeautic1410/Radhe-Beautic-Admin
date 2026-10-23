@@ -820,7 +820,7 @@ const ExpensesPage = () => {
                       {expenses.map((expense) => (
                         <TableRow key={expense.id}>
                           <TableCell>
-                            {new Date(expense.date).toLocaleDateString()}
+                            {new Date(expense.date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
                           </TableCell>
                           <TableCell>{expense.reason.name}</TableCell>
                           <TableCell>
@@ -843,7 +843,7 @@ const ExpensesPage = () => {
                           </TableCell>
                           <TableCell>
                             {expense.paidDate ? (
-                              new Date(expense.paidDate).toLocaleDateString()
+                              new Date(expense.paidDate).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}

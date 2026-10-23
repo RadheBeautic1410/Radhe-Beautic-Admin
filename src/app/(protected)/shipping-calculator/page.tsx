@@ -493,7 +493,7 @@ const ShippingCalculatorPage = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {new Date(rate.createdAt).toLocaleDateString()}
+                        {new Date(rate.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
