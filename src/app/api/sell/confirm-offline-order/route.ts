@@ -4,12 +4,6 @@ import { sellMultipleOnlineKurtis } from "@/src/data/kurti";
 import { NextRequest, NextResponse } from "next/server";
 import { apiPermission } from "@/src/lib/permissions/server";
 
-const getCurrTime = () => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-  return ISTTime;
-};
 // API Route Handler for Offline Retailer Sales
 export async function POST(request: NextRequest) {
   const guard = await apiPermission(["onlineSales.edit","orders.edit"]);

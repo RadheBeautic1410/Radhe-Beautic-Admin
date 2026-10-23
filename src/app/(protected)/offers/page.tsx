@@ -569,7 +569,7 @@ const OffersPage = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {new Date(offer.createdAt).toLocaleDateString()}
+                      {new Date(offer.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">

@@ -287,7 +287,7 @@ export const clearLocationEverywhere = async (location: StockLocation, clearedBy
     select: { id: true, code: true, category: true, sizes: true, countOfPiece: true },
   });
 
-  const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000); // IST-shifted, like the rest of the app
+  const now = new Date();
   const updates: any[] = [];
   const removedByCategory = new Map<string, number>();
   const log: any[] = [];

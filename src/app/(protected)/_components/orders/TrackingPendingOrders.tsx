@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-table';
 
 import { format, parseISO, addDays } from 'date-fns';
+import { formatInTimeZone } from "date-fns-tz";
 import { getOrdersOfUserbyStatus } from '@/src/actions/orders';
 import DataLoader from '@/src/components/DataLoader';
 import { Button } from '@/src/components/ui/button';
@@ -52,12 +53,6 @@ interface Order {
 	user: any;
 }
 
-const getCurrTime = () => {
-	const currentTime = new Date();
-	const ISTOffset = 5.5 * 60 * 60 * 1000;
-	const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-	return ISTTime;
-}
 
 const todayDate = new Date();
 
@@ -186,7 +181,7 @@ const PackedOrders = () => {
 					<>
 						<div className="text-gray-600">Order Date:</div>
 						<div className="font-semibold text-gray-800">
-							{format(new Date(row.original.date), "dd/MM/yyyy")}
+							{formatInTimeZone(row.original.date, "Asia/Kolkata", "dd/MM/yyyy")}
 						</div>
 					</>
 				)

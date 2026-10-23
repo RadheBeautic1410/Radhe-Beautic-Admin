@@ -80,7 +80,7 @@ export default function BalanceHistoryClient({ userId }: { userId: string }) {
                     </td>
                     <td className="p-2 border">{txn.paymentMethod}</td>
                     <td className="p-2 border">
-                      {new Date(txn.createdAt).toLocaleString()}
+                      {new Date(txn.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
                     </td>
                   </tr>
                 ))

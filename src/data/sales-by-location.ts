@@ -6,6 +6,7 @@ import {
   isStockLocation,
   locationForShopId,
 } from "@/src/lib/godown";
+import { istDayRange } from "@/src/lib/ist";
 
 /**
  * Sales grouped by who sold them - a counter (ground floor, 1st floor, Shop 316,
@@ -28,8 +29,8 @@ import {
  *                    ONLINE. The order value is split over its pieces, so a
  *                    line's amount is an average when an order mixes prices.
  *
- * Times are stored IST-shifted across the app, so a YYYY-MM-DD day is matched as
- * a UTC day, the same way getSellingHistoryFiltered does it.
+ * Times are stored as real UTC, so a YYYY-MM-DD day is matched as an IST day
+ * (midnight to midnight in India), the same way getSellingHistoryFiltered does it.
  */
 
 export type SaleChannel = "SHOP_BILL" | "SCAN" | "ORDER_BILL" | "CUSTOMER_ORDER";
@@ -78,10 +79,7 @@ export const collectRows = async ({
   to,
   includeUntracked = false,
 }: RangeArgs): Promise<LocationSaleRow[]> => {
-  const range = {
-    gte: new Date(`${from}T00:00:00.000Z`),
-    lte: new Date(`${to}T23:59:59.999Z`),
-  };
+  const range = istDayRange(from, to);
 
   const [shopSales, manualSales, scanSales, orderSales, customerOrders] = await Promise.all([
     db.offlineSell.findMany({

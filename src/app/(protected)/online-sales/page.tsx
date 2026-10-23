@@ -236,6 +236,7 @@ function OnlineSalesPage() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -275,7 +276,7 @@ function OnlineSalesPage() {
     const findOrder = sales.find((sale) => sale.orderId === orderId);
     console.log("findOrder",findOrder);
      
-    const currentDate = new Date().toLocaleDateString();
+    const currentDate = new Date().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" });
     
     // Combine name, mobile number, and address into a single string
     const addressParts: string[] = [];

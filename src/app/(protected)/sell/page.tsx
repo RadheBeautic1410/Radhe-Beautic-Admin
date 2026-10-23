@@ -31,13 +31,6 @@ import { useCurrentUser } from "@/src/hooks/use-current-user";
 import { PermissionGate } from "@/src/components/auth/permission-gate";
 import { usePermissions } from "@/src/components/auth/permissions-provider";
 
-const getCurrTime = () => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-  return ISTTime;
-};
-
 function SellPage() {
   const [code, setCode] = useState("");
   const [kurti, setKurti] = useState<any>(null);
@@ -108,17 +101,10 @@ function SellPage() {
         toast.error(errorMsg);
       } else {
         console.log(currentUser);
-        const currentTime = new Date();
-
-        // Calculate the offset for IST (UTC+5:30)
-        const ISTOffset = 5.5 * 60 * 60 * 1000;
-
-        // Convert the local time to IST
-        const ISTTime = new Date(currentTime.getTime() + ISTOffset);
         const res = await axios.post(`/api/sell`, {
           code,
           currentUser,
-          currentTime: ISTTime,
+          currentTime: new Date(),
           stockLocation: floor,
           isOnlineOrder,
           isHallSale,

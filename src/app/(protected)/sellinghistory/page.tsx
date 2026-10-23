@@ -268,11 +268,13 @@ function SellingHistory() {
                       filteredData.map((obj, idx) => {
                         const dt = new Date(obj.sellTime);
                         const dateStr = dt.toLocaleDateString("en-GB", {
+                          timeZone: "Asia/Kolkata",
                           day: "2-digit",
                           month: "2-digit",
                           year: "numeric",
                         });
                         const timeStr = dt.toLocaleTimeString("en-GB", {
+                          timeZone: "Asia/Kolkata",
                           hour: "2-digit",
                           minute: "2-digit",
                           hour12: true,

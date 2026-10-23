@@ -3,32 +3,7 @@ export const dynamic = 'force-dynamic'
 import { db } from "@/src/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { apiPermission } from "@/src/lib/permissions/server";
-
-function getDefaultLast7DaysIST() {
-  const now = new Date();
-  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
-  const istNow = new Date(now.getTime() + IST_OFFSET_MS);
-
-  // End = today IST at 23:59:59.999
-  const yyyy = istNow.getUTCFullYear();
-  const mm = String(istNow.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(istNow.getUTCDate()).padStart(2, "0");
-  const endStr = `${yyyy}-${mm}-${dd}`;
-
-  // Start = 6 days before at 00:00:00.000 (inclusive)
-  const startDateIST = new Date(istNow);
-  startDateIST.setUTCDate(startDateIST.getUTCDate() - 6);
-  const sy = startDateIST.getUTCFullYear();
-  const sm = String(startDateIST.getUTCMonth() + 1).padStart(2, "0");
-  const sd = String(startDateIST.getUTCDate()).padStart(2, "0");
-  const startStr = `${sy}-${sm}-${sd}`;
-
-  // Convert IST date boundaries to UTC by constructing Z times
-  const startUTC = new Date(`${startStr}T00:00:00.000Z`);
-  const endUTC = new Date(`${endStr}T23:59:59.999Z`);
-
-  return { startUTC, endUTC };
-}
+import { istDay, istDayRange, istToday } from "@/src/lib/ist";
 
 export async function GET(request: NextRequest) {
   const guard = await apiPermission(["addStock.view","catalogue.view"]);
@@ -41,23 +16,13 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get("from"); // YYYY-MM-DD (IST date)
     const to = searchParams.get("to"); // YYYY-MM-DD (IST date)
 
-    let startDate: Date;
-    let endDate: Date;
-
-    if (from && to) {
-      startDate = new Date(`${from.slice(0, 10)}T00:00:00.000Z`);
-      endDate = new Date(`${to.slice(0, 10)}T23:59:59.999Z`);
-    } else {
-      const { startUTC, endUTC } = getDefaultLast7DaysIST();
-      startDate = startUTC;
-      endDate = endUTC;
-    }
-
+    // Default: the last 7 IST days, today included
+    const today = istToday();
     const where = {
-      createdAt: {
-        gte: startDate,
-        lt: endDate,
-      },
+      createdAt:
+        from && to
+          ? istDayRange(from.slice(0, 10), to.slice(0, 10))
+          : istDayRange(istDay(Date.now() - 6 * 24 * 60 * 60 * 1000), today),
     } as any;
 
     const skip = (page - 1) * pageSize;

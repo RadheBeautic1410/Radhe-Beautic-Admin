@@ -475,6 +475,7 @@ export function ReelForm({ reelId }: { reelId?: string }) {
                         {k.createdAt && (
                           <p className="text-[10px] text-gray-500">
                             {new Date(k.createdAt).toLocaleDateString("en-IN", {
+                              timeZone: "Asia/Kolkata",
                               day: "numeric",
                               month: "short",
                               year: "numeric",

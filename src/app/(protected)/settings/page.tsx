@@ -265,7 +265,7 @@ const SettingsPage = () => {
                         </td>
                         <td className="border px-4 py-2">₹{kurti.endPrice}</td>
                         <td className="border px-4 py-2">
-                          {new Date(kurti.createdAt).toLocaleDateString()}
+                          {new Date(kurti.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
                         </td>
                         <td className="border px-4 py-2 text-center">
                           <Dialog>

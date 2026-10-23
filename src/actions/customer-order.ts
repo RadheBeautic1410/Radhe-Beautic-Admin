@@ -49,11 +49,7 @@ const updateReservedSizeQuantity = (sizes: any[], size: string, change: number):
 };
 
 // Helper function to get current time
-const getCurrTime = (): Date => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  return new Date(currentTime.getTime() + ISTOffset);
-};
+const getCurrTime = (): Date => new Date();
 
 // Helper function to release reserved quantities from kurti
 const releaseReservedQuantities = async (
@@ -389,7 +385,7 @@ export const acceptCustomerOrder = async (
         status: OrderStatus.TRACKINGPENDING,
         // Kept for the sales-by-location report
         stockLocations: paymentData?.stockLocations || null,
-        acceptedAt: getCurrTime(), // IST-shifted, like every sellTime
+        acceptedAt: getCurrTime(),
       };
 
       // Add payment information if provided

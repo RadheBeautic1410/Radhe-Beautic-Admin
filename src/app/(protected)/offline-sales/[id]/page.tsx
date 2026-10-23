@@ -48,12 +48,7 @@ import {
   defaultLocationForBill,
 } from "@/src/lib/godown";
 
-const getCurrTime = () => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-  return ISTTime;
-};
+const getCurrTime = () => new Date();
 
 interface CartItem {
   id: string;

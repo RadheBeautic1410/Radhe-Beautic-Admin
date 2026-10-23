@@ -367,7 +367,7 @@ function SalesByLocationPage() {
                     <TableRow key={i}>
                       <TableCell className="text-xs whitespace-nowrap">
                         {/* Stored IST-shifted, so read it back as UTC */}
-                        {new Date(r.soldAt).toLocaleString("en-IN", { timeZone: "UTC" })}
+                        {new Date(r.soldAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
                       </TableCell>
                       <TableCell className="text-xs">{r.category}</TableCell>
                       <TableCell className="font-semibold">{r.code}</TableCell>

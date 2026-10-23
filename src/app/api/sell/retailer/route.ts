@@ -35,12 +35,6 @@ import { apiPermission } from "@/src/lib/permissions/server";
 
 
 
-const getCurrTime = () => {
-    const currentTime = new Date();
-    const ISTOffset = 5.5 * 60 * 60 * 1000;
-    const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-    return ISTTime;
-}
 
 const isSize = (str: string): boolean => {
     const selectSizes: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];

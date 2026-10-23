@@ -43,12 +43,7 @@ import InvoicePreview, {
   InvoicePayload,
 } from "@/src/app/(protected)/sellRetailer/invoice-preview/InvoicePreview";
 
-const getCurrTime = () => {
-  const currentTime = new Date();
-  const ISTOffset = 5.5 * 60 * 60 * 1000;
-  const ISTTime = new Date(currentTime.getTime() + ISTOffset);
-  return ISTTime;
-};
+const getCurrTime = () => new Date();
 
 const fetchNextHallDisplayBillNo = async (): Promise<string> => {
   const res = await fetch("/api/sales/next-bill-no?type=HS", {

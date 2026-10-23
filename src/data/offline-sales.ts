@@ -1,5 +1,6 @@
 
 import { db } from "@/src/lib/db";
+import { istDayRange, istDayStart } from "@/src/lib/ist";
 
 export interface OfflineSalesFilters {
   page?: number;
@@ -68,14 +69,12 @@ export const getOfflineSales = async (filters: OfflineSalesFilters): Promise<Off
       whereClause.saleTime = {};
       
       if (startDate) {
-        whereClause.saleTime.gte = new Date(startDate);
+        whereClause.saleTime.gte = istDayStart(startDate.slice(0, 10));
       }
       
       if (endDate) {
-        // Set end date to end of day
-        const endDateTime = new Date(endDate);
-        endDateTime.setHours(23, 59, 59, 999);
-        whereClause.saleTime.lte = endDateTime;
+        // Up to the end of that IST day
+        whereClause.saleTime.lt = istDayRange(endDate.slice(0, 10)).lt;
       }
     }
 
@@ -178,11 +177,10 @@ export const getOfflineSalesReport = async (
     // 📅 Date filters
     if (startDate || endDate) {
       whereClause.saleTime = {};
-      if (startDate) whereClause.saleTime.gte = new Date(startDate);
+      if (startDate) whereClause.saleTime.gte = istDayStart(startDate.slice(0, 10));
       if (endDate) {
-        const endDateTime = new Date(endDate);
-        endDateTime.setHours(23, 59, 59, 999);
-        whereClause.saleTime.lte = endDateTime;
+        // Up to the end of that IST day
+        whereClause.saleTime.lt = istDayRange(endDate.slice(0, 10)).lt;
       }
     }
 

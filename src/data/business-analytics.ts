@@ -8,6 +8,7 @@ import {
   getTotalQty,
   needsFloorMove,
 } from "@/src/lib/godown";
+import { istDay, istDayRange, istToday } from "@/src/lib/ist";
 
 /**
  * Owner-level business numbers for /analytics. Every sales figure comes from
@@ -19,11 +20,8 @@ import {
  * those fields are then left out of the result.
  */
 
-const IST_OFFSET = 5.5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const MAX_RANGE_DAYS = 366;
-
-export const istToday = () => new Date(Date.now() + IST_OFFSET).toISOString().slice(0, 10);
 
 const shiftDay = (day: string, days: number) =>
   new Date(Date.parse(`${day}T00:00:00.000Z`) + days * DAY_MS).toISOString().slice(0, 10);
@@ -34,16 +32,8 @@ export const daysInRange = (from: string, to: string) =>
 const eachDay = (from: string, to: string) =>
   Array.from({ length: daysInRange(from, to) }, (_, i) => shiftDay(from, i));
 
-const dayOf = (d: Date) => d.toISOString().slice(0, 10);
-const utcRange = (from: string, to: string) => ({
-  gte: new Date(`${from}T00:00:00.000Z`),
-  lte: new Date(`${to}T23:59:59.999Z`),
-});
-/** For records stamped with the real clock (not IST-shifted). */
-const istRange = (from: string, to: string) => ({
-  gte: new Date(`${from}T00:00:00.000+05:30`),
-  lte: new Date(`${to}T23:59:59.999+05:30`),
-});
+const dayOf = (d: Date) => istDay(d);
+const istRange = istDayRange;
 
 const net = (r: LocationSaleRow) => r.amount - r.discount;
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -362,15 +352,15 @@ export const getMoney = async (from: string, to: string) => {
   const [rows, expenses, pendingShop, pendingOnline, pendingCustomer, wallet] = await Promise.all([
     realSales(from, to),
     db.expense.findMany({
-      where: { date: utcRange(from, to) },
+      where: { date: istRange(from, to) },
       select: { amount: true, isPaid: true, reason: { select: { name: true } } },
     }),
     db.offlineSellBatch.findMany({
-      where: { saleTime: utcRange(from, to), paymentStatus: "PENDING" },
+      where: { saleTime: istRange(from, to), paymentStatus: "PENDING" },
       select: { totalAmount: true },
     }),
     db.onlineSellBatch.findMany({
-      where: { saleTime: utcRange(from, to), paymentStatus: "PENDING" },
+      where: { saleTime: istRange(from, to), paymentStatus: "PENDING" },
       select: { totalAmount: true },
     }),
     db.customerOrder.findMany({
@@ -485,8 +475,8 @@ export const getAlerts = async (from: string, to: string, canSeeProfit: boolean)
   const staleBefore = new Date(Date.now() - 2 * DAY_MS);
   const [rows, pendingShop, pendingOnline, staleOrders, stock] = await Promise.all([
     realSales(from, to),
-    db.offlineSellBatch.count({ where: { saleTime: utcRange(from, to), paymentStatus: "PENDING" } }),
-    db.onlineSellBatch.count({ where: { saleTime: utcRange(from, to), paymentStatus: "PENDING" } }),
+    db.offlineSellBatch.count({ where: { saleTime: istRange(from, to), paymentStatus: "PENDING" } }),
+    db.onlineSellBatch.count({ where: { saleTime: istRange(from, to), paymentStatus: "PENDING" } }),
     db.customerOrder.count({
       where: { status: { in: ["PENDING", "PROCESSING"] }, createdAt: { lt: staleBefore } },
     }),

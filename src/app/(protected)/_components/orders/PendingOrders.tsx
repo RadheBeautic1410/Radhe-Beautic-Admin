@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ColumnDef } from '@tanstack/react-table';
 import { format, addDays } from 'date-fns';
+import { formatInTimeZone } from "date-fns-tz";
 import DataLoader from '@/src/components/DataLoader';
 import { Button } from '@/src/components/ui/button';
 import { Trash2, CheckCheck, Eye, MoreVertical, Download, FileText } from "lucide-react"
@@ -498,7 +499,7 @@ const PendingOrders = () => {
 			cell: ({ row }) => {
 				return (
 					<div className="font-semibold text-gray-800">
-						{format(new Date(row.original.date), "dd/MM/yyyy")}
+						{formatInTimeZone(row.original.date, "Asia/Kolkata", "dd/MM/yyyy")}
 					</div>
 				)
 			}
