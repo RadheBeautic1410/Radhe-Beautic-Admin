@@ -13,10 +13,27 @@ import {
 import { LayoutGrid, List, Loader2 } from "lucide-react";
 import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
-import { COUNTED_LOCATIONS, LOCATION_LABELS } from "@/src/lib/godown";
+import {
+  COUNTED_LOCATIONS,
+  LOCATION_LABELS,
+  PendingSource,
+  STOCK_LOCATIONS,
+} from "@/src/lib/godown";
 
 type CountedLocation = (typeof COUNTED_LOCATIONS)[number];
 type PendingView = "list" | "grid";
+
+/** Places the missing pieces can be looked for, given the location they are missing at. */
+const sourceOptions = (location: "" | CountedLocation): PendingSource[] => [
+  // With no location chosen both floors are empty by definition.
+  ...STOCK_LOCATIONS.filter((loc) =>
+    location ? loc !== location : loc === "GODOWN" || loc === "SHOP_316"
+  ),
+  "ANY",
+];
+
+const sourceLabel = (source: PendingSource) =>
+  source === "ANY" ? "elsewhere" : `in ${LOCATION_LABELS[source]}`;
 
 const VIEW_STORAGE_KEY = "pendingFloorMoves.view";
 const PAGE_SIZE_STORAGE_KEY = "pendingFloorMoves.pageSize";
@@ -38,7 +55,7 @@ const SizeChips = ({
         key={sz.size}
         className="text-xs font-bold bg-amber-100 text-amber-800 rounded-md px-2 py-1"
       >
-        {sz.size}: {sz.godownQuantity}/{sz.quantity}
+        {sz.size}: {sz.sourceQuantity}/{sz.quantity}
       </span>
     ))}
   </div>
@@ -51,7 +68,7 @@ export interface PendingFloorMoveItem {
   party: string;
   sellingPrice: string;
   image: { url?: string } | null;
-  pendingSizes: { size: string; quantity: number; godownQuantity: number }[];
+  pendingSizes: { size: string; quantity: number; sourceQuantity: number }[];
   pendingPieces: number;
 }
 
@@ -64,9 +81,11 @@ interface PendingFloorMovesProps {
 }
 
 /**
- * Lists every product/size whose pieces are all sitting in the godown, so nothing
- * is on the selling floor for that size. These are the pieces the floor team keeps
- * hunting for, and the ones an admin should bring down to sell.
+ * Lists every product/size with nothing at a location (both selling floors by
+ * default) while pieces sit somewhere else (the godown by default). These are the
+ * pieces the floor team keeps hunting for, and the ones to bring over to sell.
+ * Shop 316 has no fixed categories, so "Not on Shop 316" + "Found at ..." is how
+ * staff check whether a design is there yet.
  */
 export const PendingFloorMoves: React.FC<PendingFloorMovesProps> = ({
   refreshKey = 0,
@@ -83,6 +102,7 @@ export const PendingFloorMoves: React.FC<PendingFloorMovesProps> = ({
   const [appliedSearch, setAppliedSearch] = useState("");
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState<"" | CountedLocation>("");
+  const [source, setSource] = useState<PendingSource>("GODOWN");
   const [categories, setCategories] = useState<string[]>([]);
   const [view, setView] = useState<PendingView>("grid");
 
@@ -132,6 +152,7 @@ export const PendingFloorMoves: React.FC<PendingFloorMovesProps> = ({
       if (appliedSearch) params.set("search", appliedSearch);
       if (category) params.set("category", category);
       if (location) params.set("location", location);
+      params.set("source", source);
       const res = await fetch(`/api/kurti/godown/pending?${params.toString()}`);
       const json = await res.json();
       const data = json?.data || { items: [], total: 0, totalPieces: 0 };
@@ -144,7 +165,7 @@ export const PendingFloorMoves: React.FC<PendingFloorMovesProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, appliedSearch, category, location]);
+  }, [page, pageSize, appliedSearch, category, location, source]);
 
   useEffect(() => {
     fetchPending();
@@ -160,7 +181,9 @@ export const PendingFloorMoves: React.FC<PendingFloorMovesProps> = ({
           value={location}
           onChange={(e) => {
             setPage(1);
-            setLocation(e.target.value as "" | CountedLocation);
+            const next = e.target.value as "" | CountedLocation;
+            setLocation(next);
+            if (!sourceOptions(next).includes(source)) setSource("GODOWN");
           }}
         >
           <option value="">All locations (not on any floor)</option>
@@ -170,6 +193,23 @@ export const PendingFloorMoves: React.FC<PendingFloorMovesProps> = ({
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-1.5 text-sm text-gray-700">
+          Found at
+          <select
+            className="p-2 border rounded-md text-sm"
+            value={source}
+            onChange={(e) => {
+              setPage(1);
+              setSource(e.target.value as PendingSource);
+            }}
+          >
+            {sourceOptions(location).map((src) => (
+              <option key={src} value={src}>
+                {src === "ANY" ? "Anywhere else" : LOCATION_LABELS[src]}
+              </option>
+            ))}
+          </select>
+        </label>
         <select
           className="p-2 border rounded-md text-sm"
           value={category}
@@ -228,11 +268,11 @@ export const PendingFloorMoves: React.FC<PendingFloorMovesProps> = ({
             </span>
           ) : total === 0 ? (
             <span className="font-semibold text-emerald-700">
-              ✅ Nothing pending - every size with stock has pieces on {placeLabel}.
+              ✅ Nothing pending - no size is {sourceLabel(source)} with none on {placeLabel}.
             </span>
           ) : (
             <span className="font-semibold text-amber-800">
-              ⚠️ {total} product(s), {totalPieces} piece(s) are in the godown with
+              ⚠️ {total} product(s), {totalPieces} piece(s) are {sourceLabel(source)} with
               none on {placeLabel}.
             </span>
           )}
@@ -322,7 +362,7 @@ export const PendingFloorMoves: React.FC<PendingFloorMovesProps> = ({
                   Category
                 </TableHead>
                 <TableHead className="text-center font-bold text-base">
-                  Sizes stuck in godown
+                  Sizes {sourceLabel(source)}
                 </TableHead>
                 <TableHead className="text-center font-bold text-base">
                   Pieces
