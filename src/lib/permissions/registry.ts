@@ -73,6 +73,7 @@ const NOT_SHOP_LOGIN = Object.values(UserRole).filter((r) => r !== UserRole.SHOP
 const ADDED_2026_10_11 = "2026-10-11T10:24:22.370Z";
 const ADDED_2026_10_18 = "2026-10-18T00:00:00.000Z";
 const ADDED_2026_10_22 = "2026-10-22T00:00:00.000Z";
+const ADDED_2026_10_29 = "2026-10-29T00:00:00.000Z";
 const addedAt = (at: string) => (action: ActionDef): ActionDef => ({ ...action, since: at });
 
 export const MODULES: ModuleDef[] = [
@@ -301,6 +302,22 @@ export const MODULES: ModuleDef[] = [
     group: "Customer",
     menu: "/all-customers",
     actions: [view()],
+  },
+  {
+    key: "contacts",
+    label: "Phone Contacts",
+    group: "Customer",
+    menu: "/contacts",
+    actions: [
+      view(),
+      // Adding one contact or importing a Google Contacts CSV.
+      create(),
+      // Editing a contact and setting the group of many at once.
+      edit(),
+      del(),
+      // The whole phone book as a CSV file.
+      special("export", "Download contacts as CSV", [ADMIN]),
+    ].map(addedAt(ADDED_2026_10_29)),
   },
   {
     key: "homepageSliders",
