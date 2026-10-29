@@ -81,6 +81,7 @@ const OffersPage = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [images, setImages] = useState<any[]>([]);
+  const [imageUploading, setImageUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -140,6 +141,13 @@ const OffersPage = () => {
   }, []);
 
   const onSubmit = async (values: OfferFormValues, closeDialog?: () => void) => {
+    // When editing, `images` still holds the old URL until the new upload
+    // finishes, so saving early would silently keep the old image
+    if (imageUploading) {
+      toast.error("Please wait for the image to finish uploading");
+      return;
+    }
+
     // Validate categories
     if (selectedCategories.length === 0) {
       toast.error("Please select at least one category");
@@ -490,11 +498,12 @@ const OffersPage = () => {
                           }}
                           images={images}
                           singleFile={true}
+                          onUploadingChange={setImageUploading}
                         />
                       </FormItem>
 
-                        <Button type="submit" disabled={isPending}>
-                          {isPending ? "Submitting..." : "Submit"}
+                        <Button type="submit" disabled={isPending || imageUploading}>
+                          {isPending ? "Submitting..." : imageUploading ? "Uploading image..." : "Submit"}
                         </Button>
                       </form>
                     </Form>
@@ -834,11 +843,12 @@ const OffersPage = () => {
                   }}
                   images={images}
                   singleFile={true}
+                  onUploadingChange={setImageUploading}
                 />
               </FormItem>
 
-              <Button type="submit" disabled={isPending}>
-                {isPending ? "Updating..." : "Update Offer"}
+              <Button type="submit" disabled={isPending || imageUploading}>
+                {isPending ? "Updating..." : imageUploading ? "Uploading image..." : "Update Offer"}
               </Button>
             </form>
           </Form>
