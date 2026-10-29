@@ -1032,3 +1032,22 @@ model VendorPurchase {
   @@index([date])
   @@index([partyId, date])
 }
+
+// Phone book imported from Google Contacts, sorted into groups (friend, customer,
+// reseller, relative...) for marketing and follow-up. `phoneKey` is the last 10
+// digits of the main number, so +91 / 0 / spaced variants count as one contact.
+model PhoneContact {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String   @default("")
+  phone        String
+  phoneKey     String   @unique
+  otherPhones  String[]
+  organization String   @default("")
+  group        String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([group])
+  @@index([name])
+}

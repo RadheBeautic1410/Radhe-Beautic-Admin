@@ -313,7 +313,7 @@ function GodownStockPage() {
 
         {/* Pending move-to-floor alert */}
         <div className="mt-4 flex flex-col gap-2">
-          <p className="text-lg font-semibold">⬇️ Not on any showroom floor yet</p>
+          <p className="text-lg font-semibold">⬇️ Missing at a location</p>
           <PendingFloorMoves refreshKey={refreshKey} compact />
         </div>
       </CardContent>

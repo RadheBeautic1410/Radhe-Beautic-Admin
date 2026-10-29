@@ -5,12 +5,13 @@ import {
   StockLocation,
   clearLocation,
   describeLocations,
-  getGodownQty,
+  PendingSource,
   getLocationQty,
   getTotalQty,
   moveBetweenLocations,
   normalizeSizesLocations,
   pendingFloorMoveSizes,
+  pendingSourceQty,
   splitCodeAndSize,
 } from "@/src/lib/godown";
 
@@ -119,11 +120,13 @@ interface PendingFloorMovesArgs {
   search?: string;
   /** Only sizes with nothing at this location; omitted = nothing on either floor. */
   location?: Exclude<StockLocation, "GODOWN">;
+  /** Where the missing pieces must be found instead; default the godown. */
+  source?: PendingSource;
 }
 
 /**
- * Every product/size that has godown stock but nothing left in the showroom,
- * i.e. it should be brought down to sell.
+ * Every product/size with nothing at a location (both showroom floors by
+ * default) but pieces at `source`, i.e. it should be brought there to sell.
  *
  * `sizes` is a Json[] so Mongo cannot filter on the location counts directly -
  * we narrow as far as the DB allows (in stock, not deleted) and finish in memory.
@@ -134,6 +137,7 @@ export const getPendingFloorMoves = async ({
   category,
   search,
   location,
+  source = "GODOWN",
 }: PendingFloorMovesArgs = {}) => {
   try {
     // Category is filtered in memory so the response can still list every
@@ -157,7 +161,7 @@ export const getPendingFloorMoves = async ({
 
     const allMatches = candidates
       .map((k: any) => {
-        const pending = pendingFloorMoveSizes((k.sizes as any[]) || [], location);
+        const pending = pendingFloorMoveSizes((k.sizes as any[]) || [], location, source);
         if (!pending.length) return null;
         return {
           id: k.id,
@@ -169,10 +173,10 @@ export const getPendingFloorMoves = async ({
           pendingSizes: pending.map((s: any) => ({
             size: String(s.size).toUpperCase(),
             quantity: getTotalQty(s),
-            godownQuantity: getGodownQty(s),
+            sourceQuantity: pendingSourceQty(s, location, source),
           })),
           pendingPieces: pending.reduce(
-            (sum: number, s: any) => sum + getGodownQty(s),
+            (sum: number, s: any) => sum + pendingSourceQty(s, location, source),
             0
           ),
         };

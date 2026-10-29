@@ -261,18 +261,33 @@ export const splitCodeAndSize = (
   return { code, size };
 };
 
+/** Where a pending list looks for the pieces: one location, or anywhere else. */
+export type PendingSource = StockLocation | "ANY";
+
 /**
- * Every size of a kurti that has godown stock but nothing on either floor, or -
- * when `location` is given - nothing at that one location.
+ * Pieces of a size missing at `location` (or at both floors when omitted) that
+ * sit at `source` instead. "ANY" counts every other location.
+ */
+export const pendingSourceQty = (
+  size: any,
+  location?: Exclude<StockLocation, "GODOWN">,
+  source: PendingSource = "GODOWN"
+): number => {
+  const missing = location ? getLocationQty(size, location) === 0 : getShowroomQty(size) === 0;
+  if (!missing) return 0;
+  return source === "ANY" ? getTotalQty(size) : getLocationQty(size, source);
+};
+
+/**
+ * Every size of a kurti with nothing on either floor - or, when `location` is
+ * given, nothing at that one location - that still has pieces at `source`
+ * (the godown by default).
  */
 export const pendingFloorMoveSizes = (
   sizes: any[],
-  location?: Exclude<StockLocation, "GODOWN">
+  location?: Exclude<StockLocation, "GODOWN">,
+  source: PendingSource = "GODOWN"
 ): any[] =>
   (sizes || [])
-    .filter((s: any) =>
-      location
-        ? getLocationQty(s, location) === 0 && getGodownQty(s) > 0
-        : needsFloorMove(s)
-    )
+    .filter((s: any) => pendingSourceQty(s, location, source) > 0)
     .map(normalizeSizeLocations);

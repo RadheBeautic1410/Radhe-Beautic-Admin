@@ -256,7 +256,7 @@ const ImageUpload = React.forwardRef(({ onImageChange, images }: ChildProps, ref
                 <Input
                     {...getInputProps()}
                     id="dropzone-file"
-                    accept="image/png, image/jpeg"
+                    accept="image/png, image/jpeg, image/webp"
                     type="file"
                     className="hidden"
                 />

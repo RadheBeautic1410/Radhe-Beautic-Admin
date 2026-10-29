@@ -45,6 +45,7 @@ interface ChildProps {
   singleFile?: boolean;
   allowVideos?: boolean; // New flag to enable video uploads
   watermarkText?: string; // Optional watermark text to apply to images
+  onUploadingChange?: (uploading: boolean) => void; // Lets forms block submit until the upload finishes
 }
 
 interface FileUploadProgress {
@@ -102,6 +103,7 @@ const ImageUpload2 = React.forwardRef(
       singleFile = false,
       allowVideos = false,
       watermarkText,
+      onUploadingChange,
     }: ChildProps,
     ref: React.Ref<ImageUploadRef>
   ) => {
@@ -339,6 +341,9 @@ const ImageUpload2 = React.forwardRef(
 
     const onDrop = useCallback(
       async (acceptedFiles: File[]) => {
+        // Rejected files (wrong type) arrive as an empty list; onDropRejected reports them
+        if (acceptedFiles.length === 0) return;
+
         const filesToProcess = singleFile ? [acceptedFiles[0]] : acceptedFiles;
 
         if (singleFile && filesToProcess.length > 0) {
@@ -367,6 +372,7 @@ const ImageUpload2 = React.forwardRef(
           })),
         ]);
         setIsUploading(true);
+        onUploadingChange?.(true);
 
         try {
           setCompressionInProgress(true);
@@ -444,27 +450,33 @@ const ImageUpload2 = React.forwardRef(
         } finally {
           setCompressionInProgress(false);
           setIsUploading(false);
+          onUploadingChange?.(false);
         }
       },
-      [onImageChange, onVideoChange, singleFile, watermarkText]
+      [onImageChange, onVideoChange, onUploadingChange, singleFile, watermarkText]
     );
 
     // Define accepted file types based on allowVideos flag
     const acceptedFileTypes = allowVideos
-      ? "image/png, image/jpeg, video/mp4, video/webm, video/ogg"
-      : "image/png, image/jpeg";
+      ? "image/png, image/jpeg, image/webp, video/mp4, video/webm, video/ogg"
+      : "image/png, image/jpeg, image/webp";
 
     const { getRootProps, getInputProps } = useDropzone({
       onDrop,
+      onDropRejected: () => {
+        toast.error(
+          `Unsupported file. Use PNG, JPG or WebP${allowVideos ? " images, or MP4/WebM/OGG videos" : ""}.`
+        );
+      },
       multiple: !singleFile,
       maxFiles: singleFile ? 1 : undefined,
       accept: allowVideos
         ? {
-            "image/*": [".png", ".jpg", ".jpeg"],
+            "image/*": [".png", ".jpg", ".jpeg", ".webp"],
             "video/*": [".mp4", ".webm", ".ogg"],
           }
         : {
-            "image/*": [".png", ".jpg", ".jpeg"],
+            "image/*": [".png", ".jpg", ".jpeg", ".webp"],
           },
     });
 
@@ -505,9 +517,9 @@ const ImageUpload2 = React.forwardRef(
             multiple={!singleFile}
           />
         </div>
-        {compressionInProgress && (
+        {(compressionInProgress || isUploading) && (
           <p className="text-sm text-blue-600 mt-2">
-            Processing {singleFile ? "file" : "files"}...
+            Uploading {singleFile ? "file" : "files"}... please wait
           </p>
         )}
         {filesToUpload.length > 0 && (

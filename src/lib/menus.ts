@@ -112,6 +112,7 @@ export const MENU_GROUPS: MenuGroup[] = [
       { name: "COD Charges", href: "/cod-settings", icon: "💵", roles: [ADMIN] },
       { name: "Customer Orders", href: "/customer-orders", icon: "📦", roles: [ADMIN] },
       { name: "All Customers", href: "/all-customers", icon: "👥", roles: [ADMIN] },
+      { name: "Phone Contacts", href: "/contacts", icon: "📇", roles: [ADMIN] },
       { name: "Homepage Sliders", href: "/customer-settings", icon: "⚙️", roles: [ADMIN] },
       { name: "Kurti Types", href: "/kurti-types", icon: "👗", roles: [ADMIN] },
       { name: "Storefront Menu", href: "/storefront-menu", icon: "🧭", roles: [ADMIN] },
