@@ -42,24 +42,49 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200];
 const catalogueHref = (row: { category: string; code: string }) =>
   `/catalogue/${String(row.category).toLowerCase()}/${String(row.code).toLowerCase()}`;
 
-const SizeChips = ({
+/** Per-size pieces at the "Found at" location next to the size's total, with a sum row. */
+const SizeTable = ({
   sizes,
+  source,
   className = "",
 }: {
   sizes: PendingFloorMoveItem["pendingSizes"];
+  source: PendingSource;
   className?: string;
-}) => (
-  <div className={`flex flex-wrap gap-1 ${className}`}>
-    {sizes.map((sz) => (
-      <span
-        key={sz.size}
-        className="text-xs font-bold bg-amber-100 text-amber-800 rounded-md px-2 py-1"
-      >
-        {sz.size}: {sz.sourceQuantity}/{sz.quantity}
-      </span>
-    ))}
-  </div>
-);
+}) => {
+  const foundAt = source === "ANY" ? "Elsewhere" : LOCATION_LABELS[source];
+  const sumFound = sizes.reduce((sum, sz) => sum + sz.sourceQuantity, 0);
+  const sumTotal = sizes.reduce((sum, sz) => sum + sz.quantity, 0);
+  return (
+    <table className={`w-full text-xs border border-amber-200 rounded-md overflow-hidden ${className}`}>
+      <thead className="bg-amber-100 text-amber-900">
+        <tr>
+          <th className="px-1.5 py-1 text-left font-semibold">Size</th>
+          <th className="px-1.5 py-1 text-right font-semibold">{foundAt}</th>
+          <th className="px-1.5 py-1 text-right font-semibold">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sizes.map((sz) => (
+          <tr key={sz.size} className="border-t border-amber-100">
+            <td className="px-1.5 py-0.5 font-bold">{sz.size}</td>
+            <td className="px-1.5 py-0.5 text-right font-bold text-amber-800">{sz.sourceQuantity}</td>
+            <td className="px-1.5 py-0.5 text-right text-gray-700">{sz.quantity}</td>
+          </tr>
+        ))}
+      </tbody>
+      {sizes.length > 1 && (
+        <tfoot className="border-t border-amber-200 bg-amber-50 font-bold">
+          <tr>
+            <td className="px-1.5 py-1">All</td>
+            <td className="px-1.5 py-1 text-right text-amber-800">{sumFound}</td>
+            <td className="px-1.5 py-1 text-right">{sumTotal}</td>
+          </tr>
+        </tfoot>
+      )}
+    </table>
+  );
+};
 
 export interface PendingFloorMoveItem {
   id: string;
@@ -337,10 +362,7 @@ export const PendingFloorMoves: React.FC<PendingFloorMovesProps> = ({
                       </Link>
                       <span className="text-xs text-gray-500">{row.category}</span>
                     </div>
-                    <SizeChips sizes={row.pendingSizes} />
-                    <p className="text-xs text-gray-600">
-                      Pieces: <b>{row.pendingPieces}</b>
-                    </p>
+                    <SizeTable sizes={row.pendingSizes} source={source} />
                   </div>
                 </div>
               ))}
@@ -363,9 +385,6 @@ export const PendingFloorMoves: React.FC<PendingFloorMovesProps> = ({
                 </TableHead>
                 <TableHead className="text-center font-bold text-base">
                   Sizes {sourceLabel(source)}
-                </TableHead>
-                <TableHead className="text-center font-bold text-base">
-                  Pieces
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -397,10 +416,7 @@ export const PendingFloorMoves: React.FC<PendingFloorMovesProps> = ({
                   </TableCell>
                   <TableCell className="text-center">{row.category}</TableCell>
                   <TableCell className="text-center">
-                    <SizeChips sizes={row.pendingSizes} className="justify-center" />
-                  </TableCell>
-                  <TableCell className="text-center font-semibold">
-                    {row.pendingPieces}
+                    <SizeTable sizes={row.pendingSizes} source={source} className="max-w-[260px] mx-auto" />
                   </TableCell>
                 </TableRow>
               ))}

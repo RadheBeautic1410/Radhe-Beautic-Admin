@@ -172,7 +172,7 @@ function GodownStockPage() {
       <CardHeader>
         <p className="text-2xl font-semibold text-center">🏬 Stock Location</p>
         <p className="text-sm text-center text-gray-600">
-          Record where each piece is: Ground Floor, 1st Floor, Shop 316 or Godown. This
+          Record where each piece is: Showroom, 1st Floor, Shop 316 or Godown. This
           never changes the total piece count - it only moves a piece from one place
           to another.
         </p>
