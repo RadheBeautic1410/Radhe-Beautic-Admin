@@ -9,7 +9,6 @@ import {
     LOCATION_LABELS,
     STOCK_LOCATIONS,
     StockLocation,
-    getGodownQty,
     getLocationQty,
     getTotalQty,
     needsFloorMove,
@@ -20,8 +19,11 @@ import { toast } from "sonner";
 
 const selectSizes: string[] = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL", "8XL", "9XL", "10XL"];
 
+// Godown first - most stock sits there - then the counted locations.
+const COLUMN_ORDER: StockLocation[] = ["GODOWN", ...COUNTED_LOCATIONS];
+
 // Header, rows and footer share one grid so the columns always line up.
-// Columns: size | ground floor | 1st floor | shop 316 | godown | total | remove
+// Columns: size | godown | showroom | 1st floor | shop 316 | total | remove
 const GRID_WITH_LOCATIONS = "grid grid-cols-[72px_repeat(4,minmax(52px,1fr))_minmax(52px,1fr)_32px] gap-2 items-center";
 // Columns: size | total | remove
 const GRID_PLAIN = "grid grid-cols-[96px_minmax(64px,1fr)_32px] gap-2 items-center";
@@ -71,7 +73,7 @@ const SingleSize: React.FC<SingleSizeProps> = ({ row, onChange, showGodown }) =>
                         ))}
                     </SelectContent>
                 </Select>
-                {STOCK_LOCATIONS.map((loc) => (
+                {COLUMN_ORDER.map((loc) => (
                     <Input
                         key={loc}
                         className={`${QTY_INPUT} ${
@@ -88,7 +90,7 @@ const SingleSize: React.FC<SingleSizeProps> = ({ row, onChange, showGodown }) =>
                 ))}
                 <span
                     className="h-9 flex items-center justify-center text-sm font-bold rounded-md bg-slate-100 text-slate-700"
-                    title="Total = Ground Floor + 1st Floor + Shop 316 + Godown"
+                    title="Total = Godown + Showroom + 1st Floor + Shop 316"
                     aria-label={`${row.size} total`}
                 >
                     {getTotalQty(row)}
@@ -171,10 +173,9 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, sizes, show
                             <span className="px-1">Size</span>
                             {!showGodown && <span className="text-center">Total</span>}
                             {showGodown &&
-                                COUNTED_LOCATIONS.map((loc) => (
+                                COLUMN_ORDER.map((loc) => (
                                     <span key={loc} className="text-center">{LOCATION_LABELS[loc]}</span>
                                 ))}
-                            {showGodown && <span className="text-center">Godown</span>}
                             {showGodown && <span className="text-center">Total</span>}
                             <span />
                         </div>
@@ -208,12 +209,11 @@ export const AddSizeForm: React.FC<AddSizeFormProps> = ({ onAddSize, sizes, show
                     {showGodown && sizes.length > 1 && (
                         <div className={`${grid} mt-2 pt-2 border-t border-gray-200 text-sm font-bold text-gray-700`}>
                             <span className="px-1 text-[10px] uppercase tracking-wide text-gray-500">Total</span>
-                            {COUNTED_LOCATIONS.map((loc) => (
+                            {COLUMN_ORDER.map((loc) => (
                                 <span key={loc} className="text-center">
                                     {columnTotal((s) => getLocationQty(s, loc))}
                                 </span>
                             ))}
-                            <span className="text-center">{columnTotal(getGodownQty)}</span>
                             <span className="text-center">{columnTotal(getTotalQty)}</span>
                             <span />
                         </div>

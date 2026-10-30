@@ -38,7 +38,7 @@ export const LOCATION_KEYS: Record<Exclude<StockLocation, "GODOWN">, string> = {
 };
 
 export const LOCATION_LABELS: Record<StockLocation, string> = {
-  FLOOR_1: "Ground Floor",
+  FLOOR_1: "Showroom",
   FLOOR_2: "1st Floor",
   SHOP_316: "Shop 316",
   GODOWN: "Godown",
@@ -125,7 +125,7 @@ export const getGodownQty = (size: any): number => getLocationQty(size, "GODOWN"
 export const getShowroomQty = (size: any): number =>
   getLocationQty(size, "FLOOR_1") + getLocationQty(size, "FLOOR_2");
 
-/** e.g. "Ground Floor 2 · Shop 316 1 · Godown 3" - only the non-zero locations. */
+/** e.g. "Showroom 2 · Shop 316 1 · Godown 3" - only the non-zero locations. */
 export const describeLocations = (size: any): string => {
   const parts = STOCK_LOCATIONS.map((loc) => ({ loc, qty: getLocationQty(size, loc) }))
     .filter((p) => p.qty > 0)

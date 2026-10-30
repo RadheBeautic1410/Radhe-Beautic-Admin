@@ -92,7 +92,7 @@ const salesByCategory = (rows: LocationSaleRow[]) => {
     .sort((a, b) => b.pieces - a.pieces || b.amount - a.amount);
 };
 
-/** "Ground Floor 12 · Godown 30" - only for rows whose stock came from elsewhere. */
+/** "Showroom 12 · Godown 30" - only for rows whose stock came from elsewhere. */
 const stockFromText = (r: SummaryRow) =>
   (Object.entries(r.stockFrom) as [ReportLocation, number][])
     .filter(([, n]) => n > 0)
@@ -168,7 +168,7 @@ function SalesByLocationPage() {
       <CardHeader>
         <p className="text-2xl font-semibold text-center">📍 Sales by Location</p>
         <p className="text-sm text-center text-gray-600">
-          Counter sales of the Ground Floor, 1st Floor and Shop 316, hall sales and online sales -
+          Counter sales of the Showroom, 1st Floor and Shop 316, hall sales and online sales -
           with where the hall and online pieces were taken from.
         </p>
       </CardHeader>

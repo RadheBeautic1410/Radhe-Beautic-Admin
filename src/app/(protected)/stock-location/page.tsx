@@ -568,7 +568,7 @@ function StockLocationPage() {
       <CardHeader>
         <p className="text-2xl font-semibold text-center">📍 Stock by Location</p>
         <p className="text-sm text-center text-gray-600">
-          What is sitting on the Ground Floor, 1st Floor, at Shop 316 and in the Godown
+          What is sitting in the Showroom, on the 1st Floor, at Shop 316 and in the Godown
           right now.
         </p>
       </CardHeader>

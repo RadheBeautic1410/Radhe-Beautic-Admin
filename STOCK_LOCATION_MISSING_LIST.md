@@ -13,18 +13,18 @@ The pending list on `/godown` (and `/move-to-floor`) has two pickers:
 
 | Picker       | Options                                                         |
 | ------------ | --------------------------------------------------------------- |
-| **Not on**   | Any floor (both floors empty), Ground Floor, 1st Floor, Shop 316 |
-| **Found at** | Godown (default), Ground Floor, 1st Floor, Shop 316, Anywhere else |
+| **Not on**   | Any floor (both floors empty), Showroom, 1st Floor, Shop 316 |
+| **Found at** | Godown (default), Showroom, 1st Floor, Shop 316, Anywhere else |
 
 A size is listed when it has **0 pieces** at the "Not on" location and **more than
-0** at the "Found at" location. The chip `M: 2/5` means 2 pieces at the "Found at"
-location out of 5 in total. "Anywhere else" counts every piece of that size.
+0** at the "Found at" location. Each card has a small table: Size | <Found at> | Total, e.g. `M | 2 | 5` is 2 pieces at the "Found at"
+location out of 5 in total, with an "All" row summing the sizes. "Anywhere else" counts every piece of that size.
 
 Examples:
 
 - Not on Shop 316 + Found at Godown - what to bring from the godown to Shop 316.
-- Not on Shop 316 + Found at Ground Floor - designs on the ground floor that Shop 316 lacks.
-- Not on Ground Floor + Found at 1st Floor - sizes only on the 1st floor.
+- Not on Shop 316 + Found at Showroom - designs in the Showroom that Shop 316 lacks.
+- Not on Showroom + Found at 1st Floor - sizes only on the 1st floor.
 
 The "Found at" choice resets to Godown if it is no longer valid for the new
 "Not on" choice (e.g. a floor can't be both).
