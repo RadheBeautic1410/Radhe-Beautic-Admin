@@ -31,7 +31,7 @@ export type ImportRow = {
   organization?: string;
 };
 
-const PAGE_SIZE_MAX = 200;
+const PAGE_SIZE_MAX = 1000;
 const IMPORT_BATCH_MAX = 1000;
 
 const cleanGroup = (g?: string | null) => (g ?? "").trim().replace(/\s+/g, " ") || null;

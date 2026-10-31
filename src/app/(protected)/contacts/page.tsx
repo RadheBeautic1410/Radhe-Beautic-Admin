@@ -35,7 +35,7 @@ import { ImportDialog } from "./_components/import-dialog"
 import { GroupPicker } from "./_components/group-picker"
 import { downloadText, toCsv } from "./_components/csv"
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 1000
 
 /** "+919316805311" -> "+91 93168 05311": readable, and Excel keeps it as text. */
 const spacedPhone = (p: string) => (/^\+91\d{10}$/.test(p) ? `+91 ${p.slice(3, 8)} ${p.slice(8)}` : p)
