@@ -4,13 +4,18 @@ import { db } from "@/src/lib/db";
 import { revalidatePath } from "next/cache";
 import { permissionError } from "@/src/lib/permissions/server";
 
-export async function getHomepageSliders() {
+// Which home page the banner slides belong to. Reseller slides live in their
+// own collection so the customer storefront query never sees them.
+export type SliderPanel = "customer" | "reseller";
+
+export async function getHomepageSliders(panel: SliderPanel = "customer") {
   const denied = await permissionError("homepageSliders.view");
   if (denied) return [];
   try {
-    return await db.homepageSlider.findMany({
-      orderBy: { createdAt: "asc" }
-    });
+    const args = { orderBy: { createdAt: "asc" as const } };
+    return panel === "reseller"
+      ? await db.resellerSlider.findMany(args)
+      : await db.homepageSlider.findMany(args);
   } catch (error) {
     console.error("Failed to get sliders:", error);
     return [];
@@ -24,13 +29,13 @@ export async function addHomepageSlider(data: {
   mobilePath?: string;
   title?: string;
   subtitle?: string;
-}) {
+}, panel: SliderPanel = "customer") {
   const denied = await permissionError("homepageSliders.create");
   if (denied) return { success: false as const, error: denied.error };
   try {
-    const slider = await db.homepageSlider.create({
-      data
-    });
+    const slider = panel === "reseller"
+      ? await db.resellerSlider.create({ data })
+      : await db.homepageSlider.create({ data });
     revalidatePath("/");
     return { success: true, slider };
   } catch (error) {
@@ -39,13 +44,15 @@ export async function addHomepageSlider(data: {
   }
 }
 
-export async function deleteHomepageSlider(id: string) {
+export async function deleteHomepageSlider(id: string, panel: SliderPanel = "customer") {
   const denied = await permissionError("homepageSliders.delete");
   if (denied) return { success: false as const, error: denied.error };
   try {
-    await db.homepageSlider.delete({
-      where: { id }
-    });
+    if (panel === "reseller") {
+      await db.resellerSlider.delete({ where: { id } });
+    } else {
+      await db.homepageSlider.delete({ where: { id } });
+    }
     revalidatePath("/");
     return { success: true };
   } catch (error) {

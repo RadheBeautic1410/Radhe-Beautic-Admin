@@ -920,6 +920,19 @@ model HomepageSlider {
   createdAt  DateTime @default(now())
 }
 
+// Banner slides for the reseller panel home page; same shape as HomepageSlider
+// but kept apart so the customer storefront query is untouched.
+model ResellerSlider {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  imageUrl   String
+  mobileUrl  String?
+  imagePath  String
+  mobilePath String?
+  title      String?
+  subtitle   String?
+  createdAt  DateTime @default(now())
+}
+
 model KurtiTypeImage {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
   key        String   @unique

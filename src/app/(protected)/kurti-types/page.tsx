@@ -111,7 +111,7 @@ export default function KurtiTypesPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-5">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Kurti Style Illustrations</h1>
-          <p className="text-sm text-gray-500 mt-1">Customize illustration drawings for each kurti type style catalog.</p>
+          <p className="text-sm text-gray-500 mt-1">Customize illustration drawings for each kurti type style catalog. Used on both the customer storefront and the reseller panel home page.</p>
         </div>
         <Button 
           variant="outline" 
