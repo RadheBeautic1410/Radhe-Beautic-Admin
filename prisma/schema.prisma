@@ -1064,3 +1064,20 @@ model PhoneContact {
   @@index([group])
   @@index([name])
 }
+
+// Kurti types shown on all panels, managed from the admin Kurti Types page.
+// Categories store `key`, so it never changes after creation; renaming only
+// changes the names. No imageUrl = use the built-in picture for that key.
+model KurtiType {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique
+  name      String
+  nameHi    String?
+  nameGu    String?
+  imageUrl  String?
+  imagePath String?
+  sortOrder Int      @default(0)
+  isHidden  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

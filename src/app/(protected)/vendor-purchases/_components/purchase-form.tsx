@@ -15,7 +15,7 @@ import { Input } from "@/src/components/ui/input"
 import { Label } from "@/src/components/ui/label"
 import { ArrowLeft, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react"
 import { removeImage, uploadImage } from "@/src/lib/upload"
-import { KURTI_TYPE_NAMES } from "@/src/lib/kurti-types"
+import { useKurtiTypes } from "@/src/hooks/useKurtiTypes"
 import { formatRupees, todayIST } from "./format"
 import { CreatableCombobox } from "./creatable-combobox"
 
@@ -137,15 +137,16 @@ export function PurchaseForm({ purchaseId }: { purchaseId?: string }) {
 
   const partyNames = useMemo(() => parties.map((p) => p.name), [parties])
 
-  // The standard types plus any custom ones already typed on this bill.
+  // The managed types plus any custom ones already typed on this bill.
+  const kurtiTypes = useKurtiTypes()
   const kurtiTypeOptions = useMemo(() => {
-    const out: string[] = [...KURTI_TYPE_NAMES]
+    const out: string[] = kurtiTypes.map((t) => t.name)
     for (const l of lines) {
       const t = l.kurtiType.trim()
       if (t && !out.some((o) => o.toLowerCase() === t.toLowerCase())) out.push(t)
     }
     return out
-  }, [lines])
+  }, [lines, kurtiTypes])
 
   const updateLine = (key: number, patch: Partial<Line>) =>
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)))
