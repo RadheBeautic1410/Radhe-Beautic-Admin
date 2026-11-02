@@ -70,6 +70,7 @@ import {
   TableRow,
 } from "@/src/components/ui/table";
 import { useCategories } from "@/src/hooks/useCategories";
+import { useKurtiTypes } from "@/src/hooks/useKurtiTypes";
 import { useKurtiSearch } from "@/src/hooks/useKurtieSearch";
 import { categoryAddSchema } from "@/src/schemas";
 import { UserRole } from "@prisma/client";
@@ -226,24 +227,8 @@ const ListPage = () => {
     totalStockPrice: 0,
     totalFullSets: 0,
   });
-  const kurtiTypes = [
-    { key: "roundedPair", value: "Rounded Pair" },
-    { key: "straightPair", value: "Straight Pair" },
-    { key: "plazzaPair", value: "Plazza Pair" },
-    { key: "sararaPair", value: "Sarara Pair" },
-    { key: "straightKurtiPent", value: "Straight Kurti Pent" },
-    { key: "roundKurti", value: "Round Kurti" },
-    { key: "straightKurti", value: "Straight Kurti" },
-    { key: "straight", value: "Straight" },
-    { key: "onlyPent", value: "Only Pent" },
-    { key: "lehengaCholi", value: "Lehenga Choli" },
-    { key: "codeSet", value: "Code-Set" },
-    { key: "tunique", value: "Tunique" },
-    { key: "gaune", value: "Gaune" },
-    { key: "aLineKurti", value: "A-Line Kurti" },
-    { key: "aLineKurtiPant", value: "A-Line Kurti Pant" },
-    { key: "roundedKurtiPant", value: "Round & Kurti Pant" },
-  ];
+  const kurtiTypeOptions = useKurtiTypes();
+  const kurtiTypes = kurtiTypeOptions.map((t) => ({ key: t.key, value: t.name }));
 
   const usingDesignSearch = searchType === SEARCH_TYPES.DESIGN;
 
@@ -1692,51 +1677,11 @@ const ListPage = () => {
                               <SelectValue placeholder="Select kurti type" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="roundedPair">
-                                Rounded Pair
-                              </SelectItem>
-                              <SelectItem value="straightPair">
-                                Straight Pair
-                              </SelectItem>
-                              <SelectItem value="plazzaPair">
-                                Plazza Pair
-                              </SelectItem>
-                              <SelectItem value="sararaPair">
-                                Sarara Pair
-                              </SelectItem>
-                              <SelectItem value="straightKurtiPent">
-                                Straight kurti Pent
-                              </SelectItem>
-                              <SelectItem value="roundKurti">
-                                Round kurti
-                              </SelectItem>
-                              <SelectItem value="straightKurti">
-                                Straight kurti
-                              </SelectItem>
-                              <SelectItem value="onlyPent">
-                                Only Pent
-                              </SelectItem>
-                              <SelectItem value="lehengaCholi">
-                                Lehenga Choli
-                              </SelectItem>
-                              <SelectItem value="straight">
-                                Straight
-                              </SelectItem>
-                              <SelectItem value="codeSet">
-                                Code-Set
-                              </SelectItem>
-                              <SelectItem value="tunique">Tunique</SelectItem>
-                              <SelectItem value="gaune">Gaune</SelectItem>
-                              <SelectItem value="aLineKurti">
-                                A-Line Kurti
-                              </SelectItem>
-                              <SelectItem value="aLineKurtiPant">
-                                A-Line Kurti Pant
-                              </SelectItem>
-                              
-                              <SelectItem value="roundedKurtiPant">
-                                Round & Kurti Pant
-                              </SelectItem>
+                              {kurtiTypeOptions.map((t) => (
+                                <SelectItem key={t.key} value={t.key}>
+                                  {t.name}{t.isHidden ? " (hidden)" : ""}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </FormControl>

@@ -5,7 +5,8 @@ import { uploadImage, removeImage } from "@/src/lib/upload"
 import { 
   getHomepageSliders, 
   addHomepageSlider, 
-  deleteHomepageSlider
+  deleteHomepageSlider,
+  type SliderPanel
 } from "@/src/actions/customer-settings"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/src/components/ui/card"
@@ -13,9 +14,16 @@ import { Input } from "@/src/components/ui/input"
 import { Label } from "@/src/components/ui/label"
 import { Image as ImageIcon, Trash2, Plus, RefreshCw } from "lucide-react"
 
+const PANELS: { value: SliderPanel; label: string; description: string }[] = [
+  { value: "customer", label: "Customer Storefront", description: "customer storefront homepage" },
+  { value: "reseller", label: "Reseller Panel", description: "reseller panel home page" },
+]
+
 export default function CustomerSettingsPage() {
+  const [panel, setPanel] = useState<SliderPanel>("customer")
   const [sliders, setSliders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const panelInfo = PANELS.find((p) => p.value === panel)!
 
   // Form states for adding a new banner
   const [desktopFile, setDesktopFile] = useState<File | null>(null)
@@ -28,7 +36,7 @@ export default function CustomerSettingsPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const s = await getHomepageSliders()
+      const s = await getHomepageSliders(panel)
       setSliders(s)
     } catch (e) {
       console.error(e)
@@ -39,7 +47,8 @@ export default function CustomerSettingsPage() {
 
   useEffect(() => {
     loadData()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panel])
 
   const handleAddSlider = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,7 +84,7 @@ export default function CustomerSettingsPage() {
         mobilePath,
         title: title || undefined,
         subtitle: subtitle || undefined
-      })
+      }, panel)
 
       if (saveRes.success) {
         // Reset states
@@ -109,7 +118,7 @@ export default function CustomerSettingsPage() {
       }
 
       // Remove from DB
-      await deleteHomepageSlider(slider.id)
+      await deleteHomepageSlider(slider.id, panel)
       loadData()
     } catch (err) {
       console.error(err)
@@ -122,7 +131,22 @@ export default function CustomerSettingsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-5">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Homepage Sliders Settings</h1>
-          <p className="text-sm text-gray-500 mt-1">Configure responsive slider banners for the customer storefront homepage.</p>
+          <p className="text-sm text-gray-500 mt-1">Configure responsive slider banners for the {panelInfo.description}.</p>
+          <div className="mt-3 inline-flex rounded-lg border bg-white p-1">
+            {PANELS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => setPanel(p.value)}
+                disabled={isUploading}
+                className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${
+                  panel === p.value ? "bg-pink-600 text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
         <Button 
           variant="outline" 
@@ -264,7 +288,9 @@ export default function CustomerSettingsPage() {
               <div className="bg-white border rounded-2xl p-12 text-center text-gray-400">
                 <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="font-semibold text-sm">No slider images uploaded.</p>
-                <p className="text-xs mt-1">Default backup images are active on the customer portal.</p>
+                <p className="text-xs mt-1">
+                  Default backup images are active on the {panel === "reseller" ? "reseller panel" : "customer portal"}.
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">

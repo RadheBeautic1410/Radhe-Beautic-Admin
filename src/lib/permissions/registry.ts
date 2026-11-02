@@ -74,6 +74,7 @@ const ADDED_2026_10_11 = "2026-10-11T10:24:22.370Z";
 const ADDED_2026_10_18 = "2026-10-18T00:00:00.000Z";
 const ADDED_2026_10_22 = "2026-10-22T00:00:00.000Z";
 const ADDED_2026_10_29 = "2026-10-29T00:00:00.000Z";
+const ADDED_2026_11_02 = "2026-11-02T00:00:00.000Z";
 const addedAt = (at: string) => (action: ActionDef): ActionDef => ({ ...action, since: at });
 
 export const MODULES: ModuleDef[] = [
@@ -331,7 +332,7 @@ export const MODULES: ModuleDef[] = [
     label: "Kurti Types",
     group: "Customer",
     menu: "/kurti-types",
-    actions: [view(), edit(), del()],
+    actions: [view(), addedAt(ADDED_2026_11_02)(create()), edit(), del()],
   },
   {
     key: "storefrontMenu",
@@ -541,6 +542,7 @@ export const IMAGE_UPLOAD_PERMISSIONS: PermissionKey[] = [
   "offers.create",
   "offers.edit",
   "homepageSliders.create",
+  "kurtiTypes.create",
   "kurtiTypes.edit",
   "storefrontMenu.create",
   "storefrontMenu.edit",

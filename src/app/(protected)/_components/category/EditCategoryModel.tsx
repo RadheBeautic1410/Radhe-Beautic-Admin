@@ -27,6 +27,7 @@ import { Button } from "@/src/components/ui/button";
 import ImageUpload2 from "../upload/imageUpload2";
 import { categoryEditSchema } from "@/src/schemas";
 import { categoryUpdate } from "@/src/actions/category";
+import { useKurtiTypes } from "@/src/hooks/useKurtiTypes";
 import {
   Select,
   SelectContent,
@@ -107,6 +108,7 @@ const EditCategoryModal = ({
 }: EditCategoryModalProps) => {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const kurtiTypes = useKurtiTypes();
   const [currentImage, setCurrentImage] = useState<string>(
     category.image || "/images/no-image.png"
   );
@@ -334,33 +336,11 @@ const EditCategoryModal = ({
                         <SelectValue placeholder="Select kurti type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="roundedPair">
-                          Rounded Pair
-                        </SelectItem>
-                        <SelectItem value="straightPair">
-                          Straight Pair
-                        </SelectItem>
-                        <SelectItem value="plazzaPair">Plazza Pair</SelectItem>
-                        <SelectItem value="sararaPair">Sarara Pair</SelectItem>
-                        <SelectItem value="straightKurtiPent">
-                          Straight kurti Pent
-                        </SelectItem>
-                        <SelectItem value="roundKurti">Round kurti</SelectItem>
-                        <SelectItem value="straightKurti">
-                          Straight kurti
-                        </SelectItem>
-                        <SelectItem value="onlyPent">Only Pent</SelectItem>
-                        <SelectItem value="lehengaCholi">Lehenga Choli</SelectItem>
-                        <SelectItem value="straight">Straight</SelectItem>
-                        <SelectItem value="codeSet">Code-Set</SelectItem>
-                        <SelectItem value="tunique">Tunique</SelectItem>
-                        <SelectItem value="gaune">Gaune</SelectItem>
-                        <SelectItem value="aLineKurti">
-                          A-Line Kurti
-                        </SelectItem>
-                        <SelectItem value="roundedKurtiPant">
-                          Round & Kurti Pant
-                        </SelectItem>
+                        {kurtiTypes.map((t) => (
+                          <SelectItem key={t.key} value={t.key}>
+                            {t.name}{t.isHidden ? " (hidden)" : ""}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
