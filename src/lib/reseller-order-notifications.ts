@@ -137,6 +137,7 @@ const notify = async (kind: NotificationKind, id: string): Promise<WhatsAppSendR
       to: order.user?.phoneNumber,
       templateName: process.env[envTemplate],
       bodyParams,
+      log: { kind: `reseller:${kind}`, orderRef: order.orderId },
     });
 
     if (!result.success) {
