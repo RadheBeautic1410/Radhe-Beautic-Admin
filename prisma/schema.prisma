@@ -1081,3 +1081,29 @@ model KurtiType {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Every WhatsApp message we send (OUT) or receive (IN) on the Cloud API number.
+// OUT rows are written when Meta accepts a send; the /api/whatsapp/webhook route then
+// moves `status` along sent -> delivered -> read, or to failed with Meta's error code,
+// so "the customer says they got nothing" can be answered per order.
+model WhatsAppMessage {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  waMessageId String    @unique
+  direction   String // "OUT" | "IN"
+  phone       String // E.164 without "+", as Meta reports it
+  kind        String? // orderPlaced, paymentConfirmed, orderShipped, autoReply, inbound...
+  orderRef    String? // CustomerOrder.orderId or Orders.orderId
+  templateName String?
+  body        String?
+  status      String // accepted | sent | delivered | read | failed | received
+  errorCode   Int?
+  errorTitle  String?
+  errorDetail String?
+  statusAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([phone, createdAt])
+  @@index([orderRef])
+  @@index([status, createdAt])
+}

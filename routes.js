@@ -15,6 +15,9 @@ export const publicRoutes = [
     // anyone who finds the URL, burning the messaging quota and the number's quality rating.
     // Order notifications don't use this route - they call the Graph API via src/lib/whatsapp.ts.
     // "/api/whatsapp",
+    // Meta's delivery-status / incoming-message webhook. Public because Meta calls it, but
+    // every POST is checked against the X-Hub-Signature-256 HMAC (WHATSAPP_APP_SECRET).
+    "/api/whatsapp/webhook",
 ]
 
 /* 

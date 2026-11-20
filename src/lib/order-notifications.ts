@@ -143,6 +143,7 @@ const notify = async (kind: NotificationKind, orderId: string): Promise<WhatsApp
       to: order.shippingAddress?.phoneNumber || order.user?.phoneNumber,
       templateName: process.env[envTemplate],
       bodyParams,
+      log: { kind, orderRef: order.orderId },
     });
 
     if (!result.success) {

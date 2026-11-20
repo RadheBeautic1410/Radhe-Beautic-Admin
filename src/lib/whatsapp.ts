@@ -9,7 +9,42 @@
  * this module is for server-side notifications that shouldn't round-trip through HTTP.
  */
 
+import { db } from "@/src/lib/db";
+
 const GRAPH_API_VERSION = "v20.0";
+
+/** Context saved with the message log row, so webhook status updates can be traced to an order. */
+export type WhatsAppLogContext = {
+  kind?: string;
+  orderRef?: string;
+};
+
+/** Record an accepted send. Best-effort: a logging failure must never fail the send. */
+async function logOutgoing(args: {
+  waMessageId?: string;
+  to: string;
+  templateName?: string;
+  body?: string;
+  log?: WhatsAppLogContext;
+}) {
+  if (!args.waMessageId) return;
+  try {
+    await db.whatsAppMessage.create({
+      data: {
+        waMessageId: args.waMessageId,
+        direction: "OUT",
+        phone: args.to.replace(/\D/g, ""),
+        kind: args.log?.kind,
+        orderRef: args.log?.orderRef,
+        templateName: args.templateName,
+        body: args.body,
+        status: "accepted",
+      },
+    });
+  } catch (error: any) {
+    console.error("[WhatsApp] Failed to log message:", error?.message || error);
+  }
+}
 
 export type WhatsAppSendResult = {
   success: boolean;
@@ -55,6 +90,7 @@ export type SendTemplateArgs = {
   languageCode?: string;
   /** Ordered values for the template body's {{1}}, {{2}}, ... placeholders */
   bodyParams?: Array<string | number>;
+  log?: WhatsAppLogContext;
 };
 
 export async function sendWhatsAppTemplate({
@@ -62,6 +98,7 @@ export async function sendWhatsAppTemplate({
   templateName,
   languageCode,
   bodyParams = [],
+  log,
 }: SendTemplateArgs): Promise<WhatsAppSendResult> {
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -130,9 +167,60 @@ export async function sendWhatsAppTemplate({
 
     const messageId = result?.messages?.[0]?.id;
     console.log("[WhatsApp] Template sent:", { to: recipient, templateName, messageId });
+    await logOutgoing({ waMessageId: messageId, to: recipient, templateName, log });
     return { success: true, messageId };
   } catch (error: any) {
     console.error("[WhatsApp] Template send threw:", error?.message || error);
+    return { success: false, error: error?.message || "whatsapp_request_failed" };
+  }
+}
+
+/**
+ * Free-form text message. Meta only delivers these inside the 24-hour window after the
+ * customer last messaged us, so this is for replies (the webhook auto-reply), never for
+ * business-initiated notifications.
+ */
+export async function sendWhatsAppText(
+  to: string,
+  body: string,
+  log?: WhatsAppLogContext
+): Promise<WhatsAppSendResult> {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!accessToken || !phoneNumberId) {
+    return { success: false, skipped: true, error: "whatsapp_not_configured" };
+  }
+
+  const recipient = normalizePhoneNumber(to);
+  if (!recipient) return { success: false, skipped: true, error: "invalid_phone_number" };
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: recipient,
+          type: "text",
+          text: { body },
+        }),
+      }
+    );
+
+    const result = await response.json().catch(() => null as any);
+    if (!response.ok) {
+      console.error("[WhatsApp] Text send failed:", { to: recipient, error: result?.error ?? result });
+      return { success: false, error: result?.error?.message || `HTTP ${response.status}` };
+    }
+
+    const messageId = result?.messages?.[0]?.id;
+    await logOutgoing({ waMessageId: messageId, to: recipient, body, log });
+    return { success: true, messageId };
+  } catch (error: any) {
+    console.error("[WhatsApp] Text send threw:", error?.message || error);
     return { success: false, error: error?.message || "whatsapp_request_failed" };
   }
 }
